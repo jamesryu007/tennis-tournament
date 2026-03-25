@@ -636,12 +636,41 @@ function loadActiveStateLocal() {
 }
 
 // ══ FIREBASE 실시간 리스너 ══
+let _activeStateDebounce = null;
+
+// 현재 경기진행 탭에서 보이는 서브탭 타입 반환
+function visibleMatchTab() {
+  for(const t of ['mixed','mens','womens']) {
+    if(document.getElementById(`mtab-${t}`)?.classList.contains('active')) return t;
+  }
+  return 'mixed';
+}
+
+function applyTournamentUI(onlyVisible) {
+  const matchPageActive = document.getElementById('page-matches').classList.contains('active');
+  const visible = visibleMatchTab();
+  ['mixed','mens','womens'].forEach(type => {
+    if(state.tournaments[type]) {
+      document.getElementById(`${type}-empty`).style.display = 'none';
+      document.getElementById(`${type}-content`).style.display = 'block';
+      // 경기진행 페이지가 열려 있을 때만, 현재 보이는 탭만 렌더링
+      if(!onlyVisible || (matchPageActive && type === visible)) {
+        renderTournament(type);
+      }
+    } else {
+      document.getElementById(`${type}-empty`).style.display = '';
+      document.getElementById(`${type}-content`).style.display = 'none';
+    }
+  });
+}
+
 function setupFirebaseListeners() {
   // 정회원 동기화
   db.ref('jmt/members').on('value', snap => {
     state.members = snap.val() ? Object.values(snap.val()) : [];
     renderMemberList();
-    renderChecks();
+    // 참가자 모달이 열려있을 때만 체크박스 갱신
+    if(document.getElementById('participant-modal').classList.contains('open')) renderChecks();
     updateSummary();
   }, fbErr);
 
@@ -658,45 +687,39 @@ function setupFirebaseListeners() {
       renderHistoryList();
   }, fbErr);
 
-  // 활성 대회 실시간 동기화
+  // 활성 대회 실시간 동기화 — debounce 300ms로 연속 업데이트 방지
   db.ref('jmt/activeState').on('value', snap => {
+    clearTimeout(_activeStateDebounce);
     const raw = snap.val();
-    if(raw) {
-      try {
-        const saved = JSON.parse(raw);
-        applyActiveState(saved);
-        ['mixed','mens','womens'].forEach(type => {
-          if(state.tournaments[type]) {
-            document.getElementById(`${type}-empty`).style.display = 'none';
-            document.getElementById(`${type}-content`).style.display = 'block';
-            renderTournament(type);
-          } else {
+    _activeStateDebounce = setTimeout(() => {
+      if(raw) {
+        try {
+          const saved = JSON.parse(raw);
+          applyActiveState(saved);
+          applyTournamentUI(true); // 현재 보이는 탭만 렌더링
+          updateParticipantSummary();
+          updateSummary();
+          updateSetupPageUI();
+        } catch(e) { console.error('activeState 파싱 오류:', e); }
+      } else {
+        const wasActive = !!state.currentHistoryId;
+        state.currentHistoryId = null;
+        state.isCreator = false;
+        state.guests = [];
+        state.selectedIds = new Set();
+        state.tournaments = { mixed: null, mens: null, womens: null };
+        if(wasActive) {
+          ['mixed','mens','womens'].forEach(type => {
             document.getElementById(`${type}-empty`).style.display = '';
             document.getElementById(`${type}-content`).style.display = 'none';
-          }
-        });
-        updateParticipantSummary();
-        updateSummary();
-        updateSetupPageUI();
-      } catch(e) { console.error('activeState 파싱 오류:', e); }
-    } else {
-      const wasActive = !!state.currentHistoryId;
-      state.currentHistoryId = null;
-      state.isCreator = false;
-      state.guests = [];
-      state.selectedIds = new Set();
-      state.tournaments = { mixed: null, mens: null, womens: null };
-      if(wasActive) {
-        ['mixed','mens','womens'].forEach(type => {
-          document.getElementById(`${type}-empty`).style.display = '';
-          document.getElementById(`${type}-content`).style.display = 'none';
-          document.getElementById(`${type}-awards`).classList.remove('visible');
-          document.getElementById(`${type}-unpaired`).innerHTML = '';
-          document.getElementById(`${type}-bracket`).innerHTML = '';
-        });
-        updateSetupPageUI();
+            document.getElementById(`${type}-awards`).classList.remove('visible');
+            document.getElementById(`${type}-unpaired`).innerHTML = '';
+            document.getElementById(`${type}-bracket`).innerHTML = '';
+          });
+          updateSetupPageUI();
+        }
       }
-    }
+    }, 300);
   }, fbErr);
 
   // 연결 상태 감지
@@ -1300,6 +1323,8 @@ function switchMatchTab(type) {
     document.getElementById(`match-panel-${t}`).style.display = t===type?'block':'none';
     document.getElementById(`mtab-${t}`).className = 'sub-tab'+(t===type?' active':'');
   });
+  // 탭 전환 시 해당 브래킷 렌더링 (lazy render)
+  if(state.tournaments[type]) renderTournament(type);
 }
 
 // ══ NAV ══
