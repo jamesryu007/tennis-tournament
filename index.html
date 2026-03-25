@@ -79,6 +79,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .member-info { flex: 1; min-width: 0; }
 .member-name { font-size: 0.93rem; font-weight: 700; color: #1e293b; }
 .member-meta { font-size: 0.7rem; color: #64748b; margin-top: 3px; display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+.stat-badge { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; font-size:0.72rem; font-weight:800; line-height:1; box-shadow:0 1px 3px rgba(0,0,0,0.18); }
+.stat-badge-gold { background:radial-gradient(circle at 35% 35%,#ffe066,#f59e0b); color:#78350f; }
+.stat-badge-silver { background:radial-gradient(circle at 35% 35%,#f1f5f9,#94a3b8); color:#334155; }
 
 /* ── PARTICIPANT CHECKBOXES ── */
 .p-item { display: flex; align-items: center; gap: 9px; padding: 9px 11px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; margin-bottom: 6px; cursor: pointer; transition: all 0.12s; }
@@ -930,12 +933,17 @@ function deleteMember(id) {
   updateSummary();
 }
 
-function calcAge(bday) {
-  if (!bday) return null;
-  const b = new Date(bday), t = new Date();
-  let a = t.getFullYear() - b.getFullYear();
-  if (t.getMonth() < b.getMonth() || (t.getMonth()===b.getMonth() && t.getDate()<b.getDate())) a--;
-  return a;
+function getMemberStats(name) {
+  let wins = 0, runnerUps = 0;
+  state.history.forEach(r => {
+    ['mixed','mens','womens'].forEach(t => {
+      const res = r.results && r.results[t];
+      if (!res) return;
+      if (res.champion && res.champion.includes(name)) wins++;
+      if (res.runnerUp && res.runnerUp.includes(name)) runnerUps++;
+    });
+  });
+  return { wins, runnerUps };
 }
 
 function renderMemberList() {
@@ -947,20 +955,22 @@ function renderMemberList() {
   }
   const curMonth = String(new Date().getMonth() + 1).padStart(2, '0');
   el.innerHTML = state.members.map(m => {
-    const age = calcAge(m.birthday);
     const isBirthMonth = m.birthday && m.birthday.split('-')[1] === curMonth;
+    const bday = m.birthday ? m.birthday.slice(5).replace('-', '/') : ''; // MM/DD
+    const stats = getMemberStats(m.name);
     return `<div class="member-card ${m.gender}">
       <div class="member-info">
-        ${isBirthMonth ? '<div style="font-size:0.75rem;line-height:1;margin-bottom:2px">👑</div>' : ''}
+        ${isBirthMonth ? '<div style="font-size:0.75rem;line-height:1;margin-bottom:2px">🎂</div>' : ''}
         <div class="member-name">${m.name}${m.nickname ? ` <span style="font-size:0.76rem;color:#94a3b8;font-weight:400">(${m.nickname})</span>` : ''}</div>
         <div class="member-meta">
           <span class="badge ${m.gender==='male'?'badge-male':'badge-female'}">${m.gender==='male'?'남':'여'}</span>
           ${m.ntrp?`<span class="badge badge-ntrp">NTRP ${m.ntrp}</span>`:''}
-          ${age!==null?`<span>${age}세</span>`:''}
-          ${m.birthday?`<span>${m.birthday}</span>`:''}
+          ${bday?`<span>🎂 ${bday}</span>`:''}
         </div>
       </div>
-      <div style="display:flex;gap:5px;flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        ${stats.wins > 0 ? `<span class="stat-badge stat-badge-gold" title="우승 ${stats.wins}회">${stats.wins}</span>` : ''}
+        ${stats.runnerUps > 0 ? `<span class="stat-badge stat-badge-silver" title="준우승 ${stats.runnerUps}회">${stats.runnerUps}</span>` : ''}
         <button class="btn btn-outline btn-sm" onclick="openEditMember(${m.id})">수정</button>
         <button class="btn btn-danger" onclick="deleteMember(${m.id})">삭제</button>
       </div>
