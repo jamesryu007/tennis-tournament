@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>자미터 테니스 대회</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #0a1628; color: #e0e8f0; min-height: 100vh; }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, #1a3a5c, #0d2137); padding: 20px; text-align: center; border-bottom: 2px solid #2a6496; }
+  .header h1 { font-size: 1.8rem; color: #64c8ff; letter-spacing: 2px; }
+  .header p { color: #8ab4cc; font-size: 0.85rem; margin-top: 4px; }
+
+  /* Nav Tabs */
+  .nav-tabs { display: flex; background: #0d1f35; border-bottom: 2px solid #1a3a5c; overflow-x: auto; }
+  .nav-tab { padding: 12px 20px; cursor: pointer; white-space: nowrap; color: #6a8fa8; font-size: 0.9rem; transition: all 0.2s; border-bottom: 3px solid transparent; }
+  .nav-tab:hover { color: #64c8ff; background: #0f2440; }
+  .nav-tab.active { color: #64c8ff; border-bottom-color: #64c8ff; background: #0f2440; }
+
+  /* Main Content */
+  .page { display: none; padding: 20px; max-width: 1200px; margin: 0 auto; }
+  .page.active { display: block; }
+
+  /* Cards */
+  .card { background: #0f2440; border: 1px solid #1a3a5c; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .card h2 { font-size: 1.1rem; color: #64c8ff; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+
+  /* Form Elements */
+  .input-group { display: flex; gap: 8px; margin-bottom: 10px; }
+  input[type="text"] { flex: 1; background: #0a1628; border: 1px solid #2a6496; border-radius: 8px; padding: 10px 14px; color: #e0e8f0; font-size: 0.95rem; outline: none; }
+  input[type="text"]:focus { border-color: #64c8ff; box-shadow: 0 0 0 2px rgba(100,200,255,0.15); }
+  input[type="text"]::placeholder { color: #4a6a80; }
+
+  .btn { padding: 10px 18px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.2s; }
+  .btn-primary { background: #2a6496; color: #fff; }
+  .btn-primary:hover { background: #3a74a6; }
+  .btn-success { background: #1a7a4a; color: #fff; }
+  .btn-success:hover { background: #2a8a5a; }
+  .btn-danger { background: #7a2a2a; color: #fff; }
+  .btn-danger:hover { background: #8a3a3a; }
+  .btn-outline { background: transparent; border: 1px solid #2a6496; color: #64c8ff; }
+  .btn-outline:hover { background: #1a3a5c; }
+
+  /* Player List */
+  .player-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .player-tag { background: #1a3a5c; border-radius: 20px; padding: 6px 14px; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; }
+  .player-tag .remove { cursor: pointer; color: #ff6b6b; font-weight: bold; }
+  .player-tag.male { border-left: 3px solid #64c8ff; }
+  .player-tag.female { border-left: 3px solid #ff88cc; }
+
+  /* Bracket Container */
+  .bracket-container { overflow-x: auto; padding: 8px 4px 16px; }
+  .bracket-svg-wrap { position: relative; display: inline-block; }
+
+  /* Match Box (absolutely positioned inside bracket) */
+  .match {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    background: #0c1e38;
+    border: 1px solid #1e3f60;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .match.clickable:hover { border-color: #4a90c0; box-shadow: 0 0 0 2px rgba(74,144,192,0.2); }
+  .match.has-result { border-color: #1a3a5c; }
+
+  .team {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 0.78rem;
+    gap: 4px;
+    transition: background 0.12s;
+  }
+  .team + .team { border-top: 1px solid #0d1f35; }
+  .team.winner { background: #0b2e1a; color: #3fd880; font-weight: 700; }
+  .team.loser { color: #334d65; }
+  .team.bye-team, .team.tbd-team { color: #2a4a62; font-style: italic; }
+  .team-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .team-score { font-weight: bold; min-width: 18px; text-align: right; font-size: 0.82rem; color: #a0c8e8; }
+  .team.winner .team-score { color: #3fd880; }
+
+  /* Score Modal – simplified */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #0f2440;
+    border: 1px solid #2a5a88;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 340px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid #1a3a5c;
+  }
+  .modal-round { font-size: 0.78rem; color: #5a8aaa; letter-spacing: 0.5px; text-transform: uppercase; }
+  .modal-close { background: none; border: none; color: #4a6a80; font-size: 1.2rem; cursor: pointer; line-height: 1; padding: 2px 4px; border-radius: 4px; }
+  .modal-close:hover { color: #e0e8f0; background: #1a3a5c; }
+
+  .score-entry {
+    padding: 16px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .score-team-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #0a1628;
+    border: 1px solid #1e3f5c;
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .score-team-row.winner-row { border-color: #2a6a3a; background: #0b2518; }
+  .score-team-name {
+    flex: 1;
+    font-size: 0.82rem;
+    color: #b0cce0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .score-team-row.winner-row .score-team-name { color: #3fd880; font-weight: 700; }
+  .score-field {
+    width: 52px;
+    background: #0d1f35;
+    border: 1px solid #2a4a68;
+    border-radius: 6px;
+    padding: 6px 4px;
+    color: #e0e8f0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    text-align: center;
+    outline: none;
+    flex-shrink: 0;
+  }
+  .score-field:focus { border-color: #64c8ff; box-shadow: 0 0 0 2px rgba(100,200,255,0.15); }
+  .score-vs-row { text-align: center; color: #2a4a62; font-size: 0.75rem; letter-spacing: 1px; }
+  .confirm-btn {
+    margin: 4px 0 0;
+    width: 100%;
+    background: #1a5a3a;
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .confirm-btn:hover { background: #2a6a4a; }
+
+  /* Unpaired members */
+  .unpaired-card { background: #1a1208; border: 1px solid #4a3010; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .unpaired-card h3 { font-size: 0.9rem; color: #cc8844; margin-bottom: 10px; }
+  .unpaired-tag { background: #2a1e08; border: 1px solid #4a3010; border-left: 3px solid #cc8844; border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; color: #d0a060; display: inline-block; margin: 3px; }
+
+  /* Awards */
+  .awards-screen { display: none; }
+  .awards-screen.visible { display: block; }
+  .award-podium { text-align: center; padding: 28px 20px; }
+  .award-trophy { font-size: 3.8rem; animation: bounce 1s infinite alternate; display: block; }
+  @keyframes bounce { to { transform: translateY(-10px); } }
+  .award-title { font-size: 1.3rem; color: #ffd700; margin: 10px 0 5px; }
+  .award-names { font-size: 1.1rem; color: #e0e8f0; }
+  .award-second { margin-top: 18px; }
+  .award-second .award-trophy { font-size: 2.2rem; animation: none; }
+  .award-second .award-title { font-size: 0.95rem; color: #b0b8c0; }
+
+  /* Summary */
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+  .summary-item { background: #0a1628; border-radius: 8px; padding: 12px; text-align: center; }
+  .summary-item .val { font-size: 1.5rem; font-weight: bold; color: #64c8ff; }
+  .summary-item .lbl { font-size: 0.75rem; color: #6a8fa8; margin-top: 2px; }
+
+  /* Status Badge */
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+  .badge-active { background: #1a5a3a; color: #4adf8a; }
+  .badge-done { background: #5a4a1a; color: #ffd700; }
+
+  /* Confetti */
+  .confetti-wrap { position: fixed; inset: 0; pointer-events: none; z-index: 200; overflow: hidden; }
+  .confetti-piece { position: absolute; top: -10px; border-radius: 2px; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+
+  /* Misc */
+  .divider { height: 1px; background: #1a3a5c; margin: 14px 0; }
+  .text-muted { color: #6a8fa8; font-size: 0.85rem; }
+  .flex-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .mt-2 { margin-top: 8px; }
+  .empty-state { text-align: center; padding: 40px 20px; color: #4a6a80; }
+  .empty-state .icon { font-size: 3rem; margin-bottom: 10px; }
+
+  @media (max-width: 600px) {
+    .header h1 { font-size: 1.3rem; }
+    .page { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🎾 자미터 테니스 대회</h1>
+  <p>복식 토너먼트 관리 시스템</p>
+</div>
+
+<div class="nav-tabs">
+  <div class="nav-tab active" onclick="switchPage('setup')">👥 참가자 설정</div>
+  <div class="nav-tab" onclick="switchPage('mixed')">🔀 혼합복식</div>
+  <div class="nav-tab" onclick="switchPage('mens')">👨 남자복식</div>
+  <div class="nav-tab" onclick="switchPage('womens')">👩 여자복식</div>
+</div>
+
+<!-- Setup Page -->
+<div class="page active" id="page-setup">
+  <div class="card">
+    <h2>👨 남자 참가자</h2>
+    <div class="input-group">
+      <input type="text" id="male-input" placeholder="이름 입력" onkeydown="if(event.key==='Enter') addPlayer('male')">
+      <button class="btn btn-primary" onclick="addPlayer('male')">추가</button>
+    </div>
+    <div class="player-list" id="male-list"></div>
+  </div>
+
+  <div class="card">
+    <h2>👩 여자 참가자</h2>
+    <div class="input-group">
+      <input type="text" id="female-input" placeholder="이름 입력" onkeydown="if(event.key==='Enter') addPlayer('female')">
+      <button class="btn btn-primary" onclick="addPlayer('female')">추가</button>
+    </div>
+    <div class="player-list" id="female-list"></div>
+  </div>
+
+  <div class="card">
+    <h2>📊 현황</h2>
+    <div class="summary-grid">
+      <div class="summary-item"><div class="val" id="cnt-male">0</div><div class="lbl">남자</div></div>
+      <div class="summary-item"><div class="val" id="cnt-female">0</div><div class="lbl">여자</div></div>
+      <div class="summary-item"><div class="val" id="cnt-mixed-pairs">0</div><div class="lbl">혼합 페어</div></div>
+      <div class="summary-item"><div class="val" id="cnt-mens-pairs">0</div><div class="lbl">남복 페어</div></div>
+      <div class="summary-item"><div class="val" id="cnt-womens-pairs">0</div><div class="lbl">여복 페어</div></div>
+    </div>
+    <div class="divider"></div>
+    <div class="flex-row">
+      <button class="btn btn-success" onclick="initTournament('mixed')">혼합복식 대진 생성</button>
+      <button class="btn btn-primary" onclick="initTournament('mens')">남자복식 대진 생성</button>
+      <button class="btn" onclick="initTournament('womens')" style="background:#6a3a7a;color:#fff">여자복식 대진 생성</button>
+    </div>
+    <p class="text-muted mt-2" id="setup-hint">참가자를 추가하고 대진을 생성하세요.</p>
+  </div>
+
+  <div class="card">
+    <h2>💾 데이터 관리</h2>
+    <div class="flex-row">
+      <button class="btn btn-outline" onclick="loadSample()">샘플 데이터 불러오기</button>
+      <button class="btn btn-danger" onclick="resetAll()">전체 초기화</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mixed Page -->
+<div class="page" id="page-mixed">
+  <div id="mixed-empty" class="empty-state">
+    <div class="icon">🔀</div>
+    <p>혼합복식 대진표가 없습니다.<br>참가자 설정에서 대진을 생성하세요.</p>
+  </div>
+  <div id="mixed-content" style="display:none">
+    <div id="mixed-unpaired"></div>
+    <div id="mixed-awards" class="awards-screen"></div>
+    <div class="card">
+      <div class="flex-row" style="justify-content:space-between;margin-bottom:14px">
+        <h2 style="margin-bottom:0">🔀 혼합복식 대진표</h2>
+        <span id="mixed-status" class="badge badge-active">진행중</span>
+      </div>
+      <div class="bracket-container">
+        <div class="bracket-svg-wrap" id="mixed-bracket"></div>
+      </div>
+    </div>
+    <div class="card">
+      <button class="btn" onclick="reshuffleTournament('mixed')" style="background:#3a3010;border:1px solid #7a6a20;color:#ffd700">🔀 다시 추첨</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mens Page -->
+<div class="page" id="page-mens">
+  <div id="mens-empty" class="empty-state">
+    <div class="icon">👨</div>
+    <p>남자복식 대진표가 없습니다.<br>참가자 설정에서 대진을 생성하세요.</p>
+  </div>
+  <div id="mens-content" style="display:none">
+    <div id="mens-unpaired"></div>
+    <div id="mens-awards" class="awards-screen"></div>
+    <div class="card">
+      <div class="flex-row" style="justify-content:space-between;margin-bottom:14px">
+        <h2 style="margin-bottom:0">👨 남자복식 대진표</h2>
+        <span id="mens-status" class="badge badge-active">진행중</span>
+      </div>
+      <div class="bracket-container">
+        <div class="bracket-svg-wrap" id="mens-bracket"></div>
+      </div>
+    </div>
+    <div class="card">
+      <button class="btn" onclick="reshuffleTournament('mens')" style="background:#3a3010;border:1px solid #7a6a20;color:#ffd700">🔀 다시 추첨</button>
+    </div>
+  </div>
+</div>
+
+<!-- Womens Page -->
+<div class="page" id="page-womens">
+  <div id="womens-empty" class="empty-state">
+    <div class="icon">👩</div>
+    <p>여자복식 대진표가 없습니다.<br>참가자 설정에서 대진을 생성하세요.</p>
+  </div>
+  <div id="womens-content" style="display:none">
+    <div id="womens-unpaired"></div>
+    <div id="womens-awards" class="awards-screen"></div>
+    <div class="card">
+      <div class="flex-row" style="justify-content:space-between;margin-bottom:14px">
+        <h2 style="margin-bottom:0">👩 여자복식 대진표</h2>
+        <span id="womens-status" class="badge badge-active">진행중</span>
+      </div>
+      <div class="bracket-container">
+        <div class="bracket-svg-wrap" id="womens-bracket"></div>
+      </div>
+    </div>
+    <div class="card">
+      <button class="btn" onclick="reshuffleTournament('womens')" style="background:#3a3010;border:1px solid #7a6a20;color:#ffd700">🔀 다시 추첨</button>
+    </div>
+  </div>
+</div>
+
+<!-- Score Modal -->
+<div class="modal-overlay" id="score-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span id="modal-round" class="modal-round"></span>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="score-entry">
+      <div id="score-row-0" class="score-team-row">
+        <span id="team0-name" class="score-team-name"></span>
+        <input type="text" id="score0-input" class="score-field" placeholder="0" maxlength="3" oninput="previewWinner()">
+      </div>
+      <div class="score-vs-row">VS</div>
+      <div id="score-row-1" class="score-team-row">
+        <span id="team1-name" class="score-team-name"></span>
+        <input type="text" id="score1-input" class="score-field" placeholder="0" maxlength="3" oninput="previewWinner()">
+      </div>
+      <button class="confirm-btn" onclick="submitScore()">확인</button>
+    </div>
+  </div>
+</div>
+
+<div class="confetti-wrap" id="confetti-wrap"></div>
+
+<script>
+// ===== STATE =====
+const state = {
+  males: [],
+  females: [],
+  tournaments: { mixed: null, mens: null, womens: null }
+};
+
+let modalCtx = null;
+
+// ===== BRACKET LAYOUT CONSTANTS =====
+const MH = 72;      // match box height
+const MW = 186;     // match box width
+const VG = 10;      // vertical gap between matches in round 0
+const RG = 52;      // horizontal gap between rounds (connector space)
+const LH = 28;      // label row height at top
+
+function matchCenterY(ri, mi) {
+  if (ri === 0) return LH + MH / 2 + mi * (MH + VG);
+  return (matchCenterY(ri - 1, 2 * mi) + matchCenterY(ri - 1, 2 * mi + 1)) / 2;
+}
+
+// ===== PLAYER MANAGEMENT =====
+function addPlayer(gender) {
+  const input = document.getElementById(gender === 'male' ? 'male-input' : 'female-input');
+  const name = input.value.trim();
+  if (!name) return;
+  const list = gender === 'male' ? state.males : state.females;
+  if (list.includes(name)) { alert('이미 등록된 이름입니다.'); return; }
+  list.push(name);
+  input.value = '';
+  renderPlayerLists();
+  updateSummary();
+}
+
+function removePlayer(gender, name) {
+  if (gender === 'male') state.males = state.males.filter(n => n !== name);
+  else state.females = state.females.filter(n => n !== name);
+  renderPlayerLists();
+  updateSummary();
+}
+
+function renderPlayerLists() {
+  document.getElementById('male-list').innerHTML = state.males.map(n =>
+    `<div class="player-tag male">${n} <span class="remove" onclick="removePlayer('male','${n.replace(/'/g,"\\'")}')">✕</span></div>`
+  ).join('');
+  document.getElementById('female-list').innerHTML = state.females.map(n =>
+    `<div class="player-tag female">${n} <span class="remove" onclick="removePlayer('female','${n.replace(/'/g,"\\'")}')">✕</span></div>`
+  ).join('');
+}
+
+function updateSummary() {
+  const m = state.males.length, f = state.females.length;
+  document.getElementById('cnt-male').textContent = m;
+  document.getElementById('cnt-female').textContent = f;
+  document.getElementById('cnt-mixed-pairs').textContent = Math.min(m, f);
+  document.getElementById('cnt-mens-pairs').textContent = Math.floor(m / 2);
+  document.getElementById('cnt-womens-pairs').textContent = Math.floor(f / 2);
+}
+
+// ===== HELPERS =====
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function nextPow2(n) {
+  let p = 1; while (p < n) p <<= 1; return p;
+}
+
+function pairName(pair) {
+  if (!pair) return '부전승';
+  return pair.join(' / ');
+}
+
+// ===== TOURNAMENT INIT =====
+function makePairs(type) {
+  if (type === 'mixed') {
+    const males = shuffle(state.males), females = shuffle(state.females);
+    const count = Math.min(males.length, females.length);
+    const pairs = Array.from({ length: count }, (_, i) => [males[i], females[i]]);
+    const unpaired = [
+      ...males.slice(count).map(n => `${n} (남)`),
+      ...females.slice(count).map(n => `${n} (여)`)
+    ];
+    return { pairs, unpaired };
+  } else if (type === 'mens') {
+    const males = shuffle(state.males);
+    const pairs = [];
+    for (let i = 0; i + 1 < males.length; i += 2) pairs.push([males[i], males[i + 1]]);
+    const unpaired = males.length % 2 === 1 ? [males[males.length - 1]] : [];
+    return { pairs, unpaired };
+  } else {
+    const females = shuffle(state.females);
+    const pairs = [];
+    for (let i = 0; i + 1 < females.length; i += 2) pairs.push([females[i], females[i + 1]]);
+    const unpaired = females.length % 2 === 1 ? [females[females.length - 1]] : [];
+    return { pairs, unpaired };
+  }
+}
+
+function initTournament(type) {
+  const { pairs, unpaired } = makePairs(type);
+  if (pairs.length < 2) {
+    const need = type === 'mixed' ? '남녀 각 2명 이상' : type === 'mens' ? '남자 4명 이상' : '여자 4명 이상';
+    alert(`${need}이 필요합니다.`); return;
+  }
+
+  const size = nextPow2(pairs.length);
+  const slots = shuffle([...pairs, ...Array(size - pairs.length).fill(null)]);
+
+  const rounds = [];
+  const r0 = [];
+  for (let i = 0; i < slots.length; i += 2) {
+    r0.push({ team0: slots[i], team1: slots[i + 1], winner: null, score0: '', score1: '' });
+  }
+  rounds.push(r0);
+
+  let prevSize = r0.length;
+  while (prevSize > 1) {
+    const nr = Array.from({ length: prevSize / 2 }, () => ({ team0: null, team1: null, winner: null, score0: '', score1: '' }));
+    rounds.push(nr);
+    prevSize = nr.length;
+  }
+
+  // Auto-advance byes in round 0
+  for (let mi = 0; mi < rounds[0].length; mi++) {
+    const m = rounds[0][mi];
+    if (m.team0 === null && m.team1 !== null) { m.winner = 1; advanceWinner(rounds, 0, mi); }
+    else if (m.team1 === null && m.team0 !== null) { m.winner = 0; advanceWinner(rounds, 0, mi); }
+    else if (m.team0 === null && m.team1 === null) { m.winner = -1; }
+  }
+
+  state.tournaments[type] = { rounds, champion: null, runnerUp: null, unpaired };
+  checkTournamentComplete(type);
+  renderTournament(type);
+  document.getElementById(`${type}-empty`).style.display = 'none';
+  document.getElementById(`${type}-content`).style.display = 'block';
+  switchPage(type);
+}
+
+function reshuffleTournament(type) {
+  if (!confirm('대진을 다시 추첨하면 기존 결과가 초기화됩니다. 계속하시겠습니까?')) return;
+  initTournament(type);
+}
+
+function advanceWinner(rounds, ri, mi) {
+  const match = rounds[ri][mi];
+  if (match.winner === null || match.winner === -1) return;
+  const winner = match.winner === 0 ? match.team0 : match.team1;
+  if (!winner || ri + 1 >= rounds.length) return;
+  const nextMi = Math.floor(mi / 2);
+  const nm = rounds[ri + 1][nextMi];
+  if (mi % 2 === 0) nm.team0 = winner; else nm.team1 = winner;
+}
+
+function checkTournamentComplete(type) {
+  const t = state.tournaments[type];
+  if (!t) return;
+  const fm = t.rounds[t.rounds.length - 1][0];
+  if (fm.winner !== null && fm.winner !== -1) {
+    t.champion = fm.winner === 0 ? fm.team0 : fm.team1;
+    t.runnerUp = fm.winner === 0 ? fm.team1 : fm.team0;
+  } else {
+    t.champion = null; t.runnerUp = null;
+  }
+}
+
+function clearDownstream(rounds, ri, mi) {
+  if (ri + 1 >= rounds.length) return;
+  const prevWinner = rounds[ri][mi].winner;
+  if (prevWinner === null) return;
+  const nextMi = Math.floor(mi / 2);
+  const nm = rounds[ri + 1][nextMi];
+  if (mi % 2 === 0) nm.team0 = null; else nm.team1 = null;
+  if (nm.winner !== null) {
+    nm.winner = null; nm.score0 = ''; nm.score1 = '';
+    clearDownstream(rounds, ri + 1, nextMi);
+  }
+}
+
+// ===== RENDERING =====
+function getRoundNames(total) {
+  return Array.from({ length: total }, (_, i) => {
+    const rem = total - i;
+    if (rem === 1) return '결승';
+    if (rem === 2) return '준결승';
+    if (rem === 3) return '8강';
+    if (rem === 4) return '16강';
+    return `${Math.pow(2, rem)}강`;
+  });
+}
+
+function renderTournament(type) {
+  const t = state.tournaments[type];
+  if (!t) return;
+
+  const rounds = t.rounds;
+  const N0 = rounds[0].length;
+  const numRounds = rounds.length;
+  const totalH = LH + N0 * MH + Math.max(0, N0 - 1) * VG + 8;
+  const totalW = numRounds * MW + Math.max(0, numRounds - 1) * RG + 2;
+
+  const wrap = document.getElementById(`${type}-bracket`);
+  wrap.innerHTML = '';
+  wrap.style.cssText = `position:relative; width:${totalW}px; height:${totalH}px;`;
+
+  // SVG layer for lines
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('width', totalW);
+  svg.setAttribute('height', totalH);
+  svg.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;overflow:visible;';
+
+  const roundNames = getRoundNames(numRounds);
+
+  rounds.forEach((round, ri) => {
+    const matchX = ri * (MW + RG);
+
+    // Round label
+    const label = document.createElementNS(NS, 'text');
+    label.setAttribute('x', matchX + MW / 2);
+    label.setAttribute('y', LH - 8);
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('fill', '#4a7a9a');
+    label.setAttribute('font-size', '11');
+    label.setAttribute('font-family', 'Segoe UI, sans-serif');
+    label.setAttribute('letter-spacing', '1.5');
+    label.textContent = roundNames[ri].toUpperCase();
+    svg.appendChild(label);
+
+    round.forEach((match, mi) => {
+      const cy = matchCenterY(ri, mi);
+      const matchY = cy - MH / 2;
+
+      // Match div
+      const div = document.createElement('div');
+      div.className = 'match' + (match.team0 && match.team1 ? ' clickable' : '') + (match.winner !== null ? ' has-result' : '');
+      div.style.cssText = `left:${matchX}px; top:${matchY}px; width:${MW}px; height:${MH}px;`;
+      if (match.team0 && match.team1) div.onclick = () => openModal(type, ri, mi);
+
+      const makeTeamRow = (team, side) => {
+        const wSide = side === 0 ? 0 : 1;
+        const cls = match.winner === wSide ? 'winner' : match.winner !== null && match.winner !== -1 ? 'loser' : (!team ? (ri === 0 ? 'bye-team' : 'tbd-team') : '');
+        const label = !team ? (ri === 0 ? '부전승' : 'TBD') : pairName(team);
+        const score = side === 0 ? match.score0 : match.score1;
+        return `<div class="team ${cls}"><span class="team-name">${label}</span>${score ? `<span class="team-score">${score}</span>` : ''}</div>`;
+      };
+      div.innerHTML = makeTeamRow(match.team0, 0) + makeTeamRow(match.team1, 1);
+      wrap.appendChild(div);
+
+      // Draw connector lines to next round (for each pair of matches)
+      if (ri < numRounds - 1 && mi % 2 === 0 && mi + 1 < round.length) {
+        const cy0 = cy;
+        const cy1 = matchCenterY(ri, mi + 1);
+        const cyN = matchCenterY(ri + 1, mi / 2);
+        const xR = matchX + MW;      // right edge of current matches
+        const xM = xR + RG * 0.45;  // mid-point of connector
+        const xN = matchX + MW + RG; // left edge of next round match
+
+        // Determine line color: brighter if both matches in pair have results
+        const m0done = round[mi].winner !== null;
+        const m1done = round[mi + 1] && round[mi + 1].winner !== null;
+        const lineColor = (m0done && m1done) ? '#3a6a9a' : '#1e3a56';
+        const lineWidth = (m0done && m1done) ? '2' : '1.5';
+
+        const addLine = (x1, y1, x2, y2) => {
+          const l = document.createElementNS(NS, 'line');
+          l.setAttribute('x1', x1); l.setAttribute('y1', y1);
+          l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+          l.setAttribute('stroke', lineColor);
+          l.setAttribute('stroke-width', lineWidth);
+          l.setAttribute('stroke-linecap', 'round');
+          svg.appendChild(l);
+        };
+
+        addLine(xR, cy0, xM, cy0);   // top horizontal out
+        addLine(xR, cy1, xM, cy1);   // bottom horizontal out
+        addLine(xM, cy0, xM, cy1);   // vertical connector
+        addLine(xM, cyN, xN, cyN);   // horizontal into next round
+
+        // Small dot at junction
+        const dot = document.createElementNS(NS, 'circle');
+        dot.setAttribute('cx', xM);
+        dot.setAttribute('cy', cyN);
+        dot.setAttribute('r', '2.5');
+        dot.setAttribute('fill', lineColor);
+        svg.appendChild(dot);
+      }
+    });
+  });
+
+  wrap.appendChild(svg);
+
+  // Status badge
+  const statusEl = document.getElementById(`${type}-status`);
+  if (t.champion) {
+    statusEl.className = 'badge badge-done';
+    statusEl.textContent = '완료';
+  } else {
+    statusEl.className = 'badge badge-active';
+    statusEl.textContent = '진행중';
+  }
+
+  renderAwards(type);
+  renderUnpaired(type);
+}
+
+function renderAwards(type) {
+  const t = state.tournaments[type];
+  const el = document.getElementById(`${type}-awards`);
+  if (!t || !t.champion) { el.classList.remove('visible'); return; }
+  const typeName = type === 'mixed' ? '혼합복식' : type === 'mens' ? '남자복식' : '여자복식';
+  el.innerHTML = `
+    <div class="card" style="border-color:#b8960a;background:linear-gradient(135deg,#1a1800,#0f2440)">
+      <div class="award-podium">
+        <span class="award-trophy">🏆</span>
+        <div class="award-title">🥇 우승 — ${typeName}</div>
+        <div class="award-names" style="color:#ffd700;font-weight:700;font-size:1.2rem">${pairName(t.champion)}</div>
+        ${t.runnerUp ? `<div class="award-second">
+          <span class="award-trophy">🥈</span>
+          <div class="award-title">준우승</div>
+          <div class="award-names">${pairName(t.runnerUp)}</div>
+        </div>` : ''}
+      </div>
+    </div>`;
+  el.classList.add('visible');
+  launchConfetti();
+}
+
+function renderUnpaired(type) {
+  const t = state.tournaments[type];
+  const el = document.getElementById(`${type}-unpaired`);
+  if (!t || !t.unpaired || t.unpaired.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="unpaired-card">
+      <h3>⚠️ 페어 미배정 멤버 (${t.unpaired.length}명)</h3>
+      <div>${t.unpaired.map(n => `<span class="unpaired-tag">${n}</span>`).join('')}</div>
+    </div>`;
+}
+
+// ===== MODAL =====
+function openModal(type, ri, mi) {
+  const t = state.tournaments[type];
+  const match = t.rounds[ri][mi];
+  modalCtx = { type, ri, mi };
+
+  const roundNames = getRoundNames(t.rounds.length);
+  document.getElementById('modal-round').textContent = `${type === 'mixed' ? '혼합복식' : type === 'mens' ? '남자복식' : '여자복식'} — ${roundNames[ri]}`;
+  document.getElementById('team0-name').textContent = pairName(match.team0);
+  document.getElementById('team1-name').textContent = pairName(match.team1);
+  document.getElementById('score0-input').value = match.score0 || '';
+  document.getElementById('score1-input').value = match.score1 || '';
+
+  // Highlight winner row if result already entered
+  document.getElementById('score-row-0').className = 'score-team-row' + (match.winner === 0 ? ' winner-row' : '');
+  document.getElementById('score-row-1').className = 'score-team-row' + (match.winner === 1 ? ' winner-row' : '');
+
+  document.getElementById('score-modal').classList.add('open');
+  const f = match.score0 ? document.getElementById('score1-input') : document.getElementById('score0-input');
+  setTimeout(() => f.focus(), 80);
+}
+
+function closeModal() {
+  document.getElementById('score-modal').classList.remove('open');
+  modalCtx = null;
+}
+
+// Live preview: highlight leading team row as user types
+function previewWinner() {
+  const s0 = parseInt(document.getElementById('score0-input').value);
+  const s1 = parseInt(document.getElementById('score1-input').value);
+  const row0 = document.getElementById('score-row-0');
+  const row1 = document.getElementById('score-row-1');
+  if (!isNaN(s0) && !isNaN(s1) && s0 !== s1) {
+    row0.className = 'score-team-row' + (s0 > s1 ? ' winner-row' : '');
+    row1.className = 'score-team-row' + (s1 > s0 ? ' winner-row' : '');
+  } else {
+    row0.className = 'score-team-row';
+    row1.className = 'score-team-row';
+  }
+}
+
+function submitScore() {
+  if (!modalCtx) return;
+  const s0 = document.getElementById('score0-input').value.trim();
+  const s1 = document.getElementById('score1-input').value.trim();
+  if (!s0 || !s1) { alert('두 팀의 점수를 모두 입력하세요.'); return; }
+  const n0 = parseInt(s0), n1 = parseInt(s1);
+  if (isNaN(n0) || isNaN(n1)) { alert('숫자를 입력하세요.'); return; }
+  if (n0 === n1) { alert('동점은 승자를 결정할 수 없습니다.'); return; }
+
+  const { type, ri, mi } = modalCtx;
+  const t = state.tournaments[type];
+  const match = t.rounds[ri][mi];
+  clearDownstream(t.rounds, ri, mi);
+  match.score0 = s0;
+  match.score1 = s1;
+  match.winner = n0 > n1 ? 0 : 1;
+  advanceWinner(t.rounds, ri, mi);
+  checkTournamentComplete(type);
+  closeModal();
+  renderTournament(type);
+}
+
+function resetMatch() {
+  if (!modalCtx) return;
+  const { type, ri, mi } = modalCtx;
+  const t = state.tournaments[type];
+  const match = t.rounds[ri][mi];
+  clearDownstream(t.rounds, ri, mi);
+  match.winner = null;
+  match.score0 = '';
+  match.score1 = '';
+  checkTournamentComplete(type);
+  closeModal();
+  renderTournament(type);
+}
+
+// ===== NAV =====
+function switchPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`page-${id}`).classList.add('active');
+  ['setup', 'mixed', 'mens', 'womens'].forEach((n, i) => {
+    if (n === id) document.querySelectorAll('.nav-tab')[i].classList.add('active');
+  });
+}
+
+// ===== CONFETTI =====
+function launchConfetti() {
+  const wrap = document.getElementById('confetti-wrap');
+  wrap.innerHTML = '';
+  const colors = ['#ffd700','#64c8ff','#ff88cc','#4adf8a','#ff6b6b','#ffffff'];
+  for (let i = 0; i < 90; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    const size = 6 + Math.random() * 9;
+    p.style.cssText = `left:${Math.random()*100}%;width:${size}px;height:${size}px;background:${colors[Math.floor(Math.random()*colors.length)]};animation-duration:${1.5+Math.random()*2}s;animation-delay:${Math.random()*0.8}s;transform:rotate(${Math.random()*360}deg);`;
+    wrap.appendChild(p);
+  }
+  setTimeout(() => { wrap.innerHTML = ''; }, 4000);
+}
+
+// ===== SAMPLE & RESET =====
+function loadSample() {
+  state.males = ['김민준', '이서준', '박도현', '최준혁', '정우진', '강현서'];
+  state.females = ['이지아', '김서연', '박지현', '최수아', '정하은', '윤채원'];
+  renderPlayerLists();
+  updateSummary();
+  document.getElementById('setup-hint').textContent = '샘플 데이터 로드 완료. 대진 생성 버튼을 클릭하세요.';
+}
+
+function resetAll() {
+  if (!confirm('모든 데이터를 초기화하시겠습니까?')) return;
+  state.males = []; state.females = [];
+  state.tournaments = { mixed: null, mens: null, womens: null };
+  renderPlayerLists(); updateSummary();
+  ['mixed', 'mens', 'womens'].forEach(t => {
+    document.getElementById(`${t}-empty`).style.display = 'block';
+    document.getElementById(`${t}-content`).style.display = 'none';
+  });
+  document.getElementById('setup-hint').textContent = '참가자를 추가하고 대진을 생성하세요.';
+}
+
+// Close modal on overlay click
+document.getElementById('score-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('score-modal')) closeModal();
+});
+
+updateSummary();
+</script>
+</body>
+</html>
