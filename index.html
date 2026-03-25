@@ -77,12 +77,15 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .member-card.male { border-left: 3px solid #2563eb; }
 .member-card.female { border-left: 3px solid #ec4899; }
 .member-info { flex: 1; min-width: 0; }
-.member-name { font-size: 0.93rem; font-weight: 700; color: #1e293b; }
+.member-name { font-size: 0.93rem; font-weight: 700; color: #1e293b; display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
 .member-meta { font-size: 0.7rem; color: #64748b; margin-top: 3px; display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
-.stat-trophy { display:inline-flex; align-items:center; gap:2px; font-size:0.8rem; font-weight:800; line-height:1; }
-.stat-trophy-icon { font-size:1.05rem; line-height:1; }
-.stat-trophy-gold .stat-trophy-count { color:#b45309; }
-.stat-trophy-silver .stat-trophy-count { color:#475569; }
+.champ-label { font-size:0.64rem; font-weight:800; color:#b45309; letter-spacing:0.4px; margin-bottom:2px; display:flex; align-items:center; gap:2px; }
+.birthday-pill { display:inline-flex; align-items:center; gap:2px; background:#fff0f9; border:1px solid #f9a8d4; border-radius:20px; padding:1px 6px; font-size:0.68rem; font-weight:700; color:#be185d; line-height:1.6; }
+.stat-divider { color:#e2e8f0; font-size:0.9rem; line-height:1; margin:0 2px; }
+.stat-trophy { display:inline-flex; align-items:center; gap:2px; font-weight:800; line-height:1; }
+.stat-trophy-icon { font-size:1.1rem; line-height:1; }
+.stat-trophy-gold .stat-trophy-count { font-size:0.82rem; color:#92400e; }
+.stat-trophy-silver .stat-trophy-count { font-size:0.82rem; color:#475569; }
 
 /* ── PARTICIPANT CHECKBOXES ── */
 .p-item { display: flex; align-items: center; gap: 9px; padding: 9px 11px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; margin-bottom: 6px; cursor: pointer; transition: all 0.12s; }
@@ -956,18 +959,25 @@ function renderMemberList() {
     return;
   }
   const curMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+  const maxTotal = Math.max(0, ...state.members.map(m => { const s = getMemberStats(m.name); return s.wins + s.runnerUps; }));
   el.innerHTML = state.members.map(m => {
     const isBirthMonth = m.birthday && m.birthday.split('-')[1] === curMonth;
-    const bday = m.birthday ? m.birthday.slice(5).replace('-', '/') : ''; // MM/DD
+    const bday = m.birthday ? m.birthday.slice(5).replace('-', '/') : '';
     const stats = getMemberStats(m.name);
+    const total = stats.wins + stats.runnerUps;
+    const isChamp = maxTotal > 0 && total === maxTotal;
     return `<div class="member-card ${m.gender}">
       <div class="member-info">
-        ${isBirthMonth ? '<div style="font-size:0.75rem;line-height:1;margin-bottom:2px">🎂</div>' : ''}
-        <div class="member-name">${m.name}${m.nickname ? ` <span style="font-size:0.76rem;color:#94a3b8;font-weight:400">(${m.nickname})</span>` : ''}</div>
+        ${isChamp ? '<div class="champ-label">👑 최다 수상</div>' : ''}
+        <div class="member-name">
+          ${m.name}${m.nickname ? ` <span style="font-size:0.76rem;color:#94a3b8;font-weight:400">(${m.nickname})</span>` : ''}
+          ${isBirthMonth ? '<span class="birthday-pill">🎉 생일</span>' : ''}
+        </div>
         <div class="member-meta">
           <span class="badge ${m.gender==='male'?'badge-male':'badge-female'}">${m.gender==='male'?'남':'여'}</span>
           ${m.ntrp?`<span class="badge badge-ntrp">NTRP ${m.ntrp}</span>`:''}
           ${bday?`<span>🎂 ${bday}</span>`:''}
+          <span class="stat-divider">|</span>
           <span class="stat-trophy stat-trophy-gold" title="우승 ${stats.wins}회"><span class="stat-trophy-icon">🏆</span><span class="stat-trophy-count">${stats.wins}</span></span>
           <span class="stat-trophy stat-trophy-silver" title="준우승 ${stats.runnerUps}회"><span class="stat-trophy-icon">🥈</span><span class="stat-trophy-count">${stats.runnerUps}</span></span>
         </div>
