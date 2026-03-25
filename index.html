@@ -845,33 +845,58 @@ function sortByNtrp(names, order) {
   return [...names].sort((a,b) => order==='asc' ? getNtrp(a)-getNtrp(b) : getNtrp(b)-getNtrp(a));
 }
 
+function isGuest(name) {
+  return state.guests.some(g => g.name === name);
+}
+
 function makePairs(type) {
   const { males, females } = getParticipants();
+  // 정회원 먼저, 게스트 나중 순서로 배치 → 잉여/미배정 슬롯에 게스트가 오도록
+  const ms = [...shuffle(males.filter(n => !isGuest(n))), ...shuffle(males.filter(n => isGuest(n)))];
+  const fs = [...shuffle(females.filter(n => !isGuest(n))), ...shuffle(females.filter(n => isGuest(n)))];
+
   if (type==='mixed') {
-    const ms=shuffle(males), fs=shuffle(females);
-    const n=Math.min(ms.length,fs.length);
-    const pairs=Array.from({length:n},(_,i)=>[ms[i],fs[i]]);
-    const unpaired=[];
+    const n = Math.min(ms.length, fs.length);
+    const pairs = Array.from({length:n}, (_,i) => [ms[i], fs[i]]);
+    const unpaired = [];
 
-    // 남자 잉여 → NTRP 낮은 순으로 페어
-    const leftM = sortByNtrp(ms.slice(n), 'asc');
-    for(let i=0;i+1<leftM.length;i+=2) pairs.push([leftM[i],leftM[i+1]]);
-    if(leftM.length%2===1) unpaired.push(leftM[leftM.length-1]+' (남)');
+    // 남자 잉여 → 게스트 우선 미배정, 나머지 NTRP 낮은 순 페어
+    let leftM = ms.slice(n);
+    if (leftM.length % 2 === 1) {
+      const gIdx = leftM.findIndex(n => isGuest(n));
+      if (gIdx !== -1) { unpaired.push(leftM[gIdx] + ' (남)'); leftM = leftM.filter((_,i)=>i!==gIdx); }
+    }
+    const sM = sortByNtrp(leftM, 'asc');
+    for (let i=0; i+1<sM.length; i+=2) pairs.push([sM[i], sM[i+1]]);
+    if (sM.length % 2 === 1) unpaired.push(sM[sM.length-1] + ' (남)');
 
-    // 여자 잉여 → NTRP 높은 순으로 페어
-    const leftF = sortByNtrp(fs.slice(n), 'desc');
-    for(let i=0;i+1<leftF.length;i+=2) pairs.push([leftF[i],leftF[i+1]]);
-    if(leftF.length%2===1) unpaired.push(leftF[leftF.length-1]+' (여)');
+    // 여자 잉여 → 게스트 우선 미배정, 나머지 NTRP 높은 순 페어
+    let leftF = fs.slice(n);
+    if (leftF.length % 2 === 1) {
+      const gIdx = leftF.findIndex(n => isGuest(n));
+      if (gIdx !== -1) { unpaired.push(leftF[gIdx] + ' (여)'); leftF = leftF.filter((_,i)=>i!==gIdx); }
+    }
+    const sF = sortByNtrp(leftF, 'desc');
+    for (let i=0; i+1<sF.length; i+=2) pairs.push([sF[i], sF[i+1]]);
+    if (sF.length % 2 === 1) unpaired.push(sF[sF.length-1] + ' (여)');
 
-    return {pairs,unpaired};
+    return {pairs, unpaired};
+
   } else if (type==='mens') {
-    const ms=shuffle(males), pairs=[];
-    for(let i=0;i+1<ms.length;i+=2)pairs.push([ms[i],ms[i+1]]);
-    return {pairs, unpaired: ms.length%2?[ms[ms.length-1]]:[]};
+    // ms 마지막 = 게스트(있다면) → 홀수 시 자동으로 게스트가 미배정
+    const pool = [...ms];
+    const pairs = [], unpaired = [];
+    if (pool.length % 2 === 1) unpaired.push(pool.pop());
+    for (let i=0; i+1<pool.length; i+=2) pairs.push([pool[i], pool[i+1]]);
+    return { pairs, unpaired };
+
   } else {
-    const fs=shuffle(females), pairs=[];
-    for(let i=0;i+1<fs.length;i+=2)pairs.push([fs[i],fs[i+1]]);
-    return {pairs, unpaired: fs.length%2?[fs[fs.length-1]]:[]};
+    // fs 마지막 = 게스트(있다면) → 홀수 시 자동으로 게스트가 미배정
+    const pool = [...fs];
+    const pairs = [], unpaired = [];
+    if (pool.length % 2 === 1) unpaired.push(pool.pop());
+    for (let i=0; i+1<pool.length; i+=2) pairs.push([pool[i], pool[i+1]]);
+    return { pairs, unpaired };
   }
 }
 
