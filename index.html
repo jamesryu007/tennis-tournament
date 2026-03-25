@@ -170,10 +170,15 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
 
 /* ── HISTORY LIST ── */
 .hist-item { background: #0a1628; border: 1px solid #1a3050; border-radius: 12px; padding: 13px 14px; margin-bottom: 8px; }
-.hist-name { font-size: 0.9rem; font-weight: 700; color: #e0e8f0; margin-bottom: 5px; }
-.hist-meta { font-size: 0.72rem; color: #4a7090; margin-bottom: 6px; line-height: 1.6; }
-.hist-result { font-size: 0.75rem; margin-top: 3px; line-height: 1.5; }
-.hist-result-label { color: #4a7090; font-size: 0.65rem; margin-right: 3px; }
+.hist-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+.hist-name { font-size: 0.9rem; font-weight: 700; color: #e0e8f0; }
+.hist-btns { display: flex; gap: 5px; flex-shrink: 0; }
+.hist-meta { font-size: 0.72rem; color: #4a7090; margin-bottom: 8px; line-height: 1.6; }
+.hist-results { display: flex; flex-direction: column; gap: 5px; }
+.hist-result-block { background: #0c1e38; border-radius: 8px; padding: 7px 10px; }
+.hist-result-type { font-size: 0.65rem; color: #4a7090; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 3px; }
+.hist-champion-row { font-size: 0.8rem; }
+.hist-runner-row { font-size: 0.75rem; color: #7a9ab0; margin-top: 2px; }
 .hist-champion { color: #ffd700; font-weight: 700; }
 .hist-runner { color: #9abccc; }
 </style>
@@ -376,6 +381,28 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
       </div>
       <div id="guest-list"></div>
       <button class="confirm-btn" style="margin-top:14px" onclick="closeParticipantModal()">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ EDIT HISTORY MODAL ══ -->
+<div class="modal-overlay" id="edit-history-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-round">대회 정보 수정</span>
+      <button class="modal-close" onclick="closeEditHistory()">✕</button>
+    </div>
+    <div class="score-entry" style="gap:0">
+      <div class="field-label" style="margin-top:0">대회명</div>
+      <input type="text" id="eh-name">
+      <div class="field-label">장소</div>
+      <input type="text" id="eh-venue">
+      <div class="field-label">날짜</div>
+      <input type="date" id="eh-date">
+      <div class="field-label">비고</div>
+      <input type="text" id="eh-notes">
+      <button class="confirm-btn" style="margin-top:12px" onclick="saveEditHistory()">저장</button>
     </div>
   </div>
 </div>
@@ -1010,6 +1037,19 @@ function switchSetupTab(tab) {
   document.getElementById('stab-new').className = 'sub-tab' + (tab==='new' ? ' active' : '');
   document.getElementById('stab-history').className = 'sub-tab' + (tab==='history' ? ' active' : '');
   if (tab==='history') renderHistoryList();
+  if (tab==='new') resetNewTournamentForm();
+}
+
+function resetNewTournamentForm() {
+  document.getElementById('t-name').value = '';
+  document.getElementById('t-venue').value = '';
+  document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('t-notes').value = '';
+  state.selectedIds.clear();
+  state.guests = [];
+  state.currentHistoryId = null;
+  updateParticipantSummary();
+  updateSummary();
 }
 
 function renderHistoryList() {
@@ -1019,18 +1059,66 @@ function renderHistoryList() {
     return;
   }
   el.innerHTML = state.history.map(r => {
-    const resultRows = ['mixed','mens','womens'].filter(t => r.results[t]?.champion).map(t => {
-      const tn = t==='mixed'?'혼합복식':t==='mens'?'남자복식':'여자복식';
+    const resultBlocks = ['mixed','mens','womens'].filter(t => r.results[t]?.champion).map(t => {
+      const tn = t==='mixed'?'🔀 혼합복식':t==='mens'?'👨 남자복식':'👩 여자복식';
       const champ = pairName(r.results[t].champion);
       const runner = r.results[t].runnerUp ? pairName(r.results[t].runnerUp) : '-';
-      return `<div class="hist-result"><span class="hist-result-label">[${tn}]</span><span class="hist-champion">${champ}</span> <span class="hist-result-label">/ 준우승</span><span class="hist-runner"> ${runner}</span></div>`;
+      return `<div class="hist-result-block">
+        <div class="hist-result-type">${tn}</div>
+        <div class="hist-champion-row">🥇 우승 &nbsp;<span class="hist-champion">${champ}</span></div>
+        <div class="hist-runner-row">🥈 준우승 <span class="hist-runner">${runner}</span></div>
+      </div>`;
     }).join('');
+    const meta = [r.venue?'📍 '+r.venue:'', r.date?'📅 '+r.date:'', r.notes?'📝 '+r.notes:''].filter(Boolean).join(' · ');
     return `<div class="hist-item">
-      <div class="hist-name">🏆 ${r.name || '무제 대회'}</div>
-      <div class="hist-meta">${r.venue ? '📍 '+r.venue : ''}${r.venue && r.date ? ' · ' : ''}${r.date ? '📅 '+r.date : ''}${r.notes ? '<br>📝 '+r.notes : ''}</div>
-      ${resultRows || '<div class="hist-result" style="color:#4a7090">결과 미입력</div>'}
+      <div class="hist-header">
+        <div class="hist-name">🏆 ${r.name || '무제 대회'}</div>
+        <div class="hist-btns">
+          <button class="btn btn-outline btn-sm" onclick="openEditHistory('${r.id}')">수정</button>
+          <button class="btn btn-danger" onclick="deleteHistory('${r.id}')">삭제</button>
+        </div>
+      </div>
+      ${meta ? `<div class="hist-meta">${meta}</div>` : ''}
+      <div class="hist-results">${resultBlocks || '<div style="font-size:0.75rem;color:#4a7090;padding:4px 0">결과 미입력</div>'}</div>
     </div>`;
   }).join('');
+}
+
+function deleteHistory(id) {
+  if (!confirm('이 대회 이력을 삭제하시겠습니까?')) return;
+  state.history = state.history.filter(r => String(r.id) !== String(id));
+  saveHistory();
+  renderHistoryList();
+}
+
+let editingHistoryId = null;
+
+function openEditHistory(id) {
+  const r = state.history.find(r => String(r.id) === String(id));
+  if (!r) return;
+  editingHistoryId = id;
+  document.getElementById('eh-name').value = r.name || '';
+  document.getElementById('eh-venue').value = r.venue || '';
+  document.getElementById('eh-date').value = r.date || '';
+  document.getElementById('eh-notes').value = r.notes || '';
+  document.getElementById('edit-history-modal').classList.add('open');
+}
+
+function closeEditHistory() {
+  document.getElementById('edit-history-modal').classList.remove('open');
+  editingHistoryId = null;
+}
+
+function saveEditHistory() {
+  const r = state.history.find(r => String(r.id) === String(editingHistoryId));
+  if (!r) return;
+  r.name = document.getElementById('eh-name').value.trim() || '무제 대회';
+  r.venue = document.getElementById('eh-venue').value.trim();
+  r.date = document.getElementById('eh-date').value;
+  r.notes = document.getElementById('eh-notes').value.trim();
+  saveHistory();
+  renderHistoryList();
+  closeEditHistory();
 }
 
 // ══ NAV ══
@@ -1061,6 +1149,9 @@ document.getElementById('score-modal').addEventListener('click', e=>{
 });
 document.getElementById('participant-modal').addEventListener('click', e=>{
   if(e.target===document.getElementById('participant-modal'))closeParticipantModal();
+});
+document.getElementById('edit-history-modal').addEventListener('click', e=>{
+  if(e.target===document.getElementById('edit-history-modal'))closeEditHistory();
 });
 
 // ══ INIT ALL TOURNAMENTS ══
