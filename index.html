@@ -755,13 +755,33 @@ function shuffle(a) {
 function pow2(n){let p=1;while(p<n)p<<=1;return p;}
 function pairName(p){return p?p.join(' / '):'부전승';}
 
+// NTRP 숫자 조회 (없으면 0)
+function getNtrp(name) {
+  const m = state.members.find(x => x.name === name);
+  return m && m.ntrp ? parseFloat(m.ntrp) || 0 : 0;
+}
+function sortByNtrp(names, order) {
+  return [...names].sort((a,b) => order==='asc' ? getNtrp(a)-getNtrp(b) : getNtrp(b)-getNtrp(a));
+}
+
 function makePairs(type) {
   const { males, females } = getParticipants();
   if (type==='mixed') {
     const ms=shuffle(males), fs=shuffle(females);
     const n=Math.min(ms.length,fs.length);
     const pairs=Array.from({length:n},(_,i)=>[ms[i],fs[i]]);
-    const unpaired=[...ms.slice(n).map(x=>x+' (남)'),...fs.slice(n).map(x=>x+' (여)')];
+    const unpaired=[];
+
+    // 남자 잉여 → NTRP 낮은 순으로 페어
+    const leftM = sortByNtrp(ms.slice(n), 'asc');
+    for(let i=0;i+1<leftM.length;i+=2) pairs.push([leftM[i],leftM[i+1]]);
+    if(leftM.length%2===1) unpaired.push(leftM[leftM.length-1]+' (남)');
+
+    // 여자 잉여 → NTRP 높은 순으로 페어
+    const leftF = sortByNtrp(fs.slice(n), 'desc');
+    for(let i=0;i+1<leftF.length;i+=2) pairs.push([leftF[i],leftF[i+1]]);
+    if(leftF.length%2===1) unpaired.push(leftF[leftF.length-1]+' (여)');
+
     return {pairs,unpaired};
   } else if (type==='mens') {
     const ms=shuffle(males), pairs=[];
