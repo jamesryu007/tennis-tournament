@@ -1638,7 +1638,7 @@ function renderHistoryList() {
     return `<div class="hist-item">
       <div class="hist-header">
         <div class="hist-name">🏆 ${r.name || '무제 대회'}</div>
-        <button class="btn btn-danger" onclick="deleteHistory('${r.id}')">삭제</button>
+        ${state.identity && state.identity.name === ADMIN_NAME ? `<button class="btn btn-danger" onclick="deleteHistory('${r.id}')">삭제</button>` : ''}
       </div>
       ${meta ? `<div class="hist-meta">${meta}</div>` : ''}
       <div class="hist-results">${resultBlocks || '<div style="font-size:0.77rem;color:#94a3b8;padding:4px 0">결과 미입력</div>'}</div>
