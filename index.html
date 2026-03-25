@@ -2,350 +2,359 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>자미터 테니스 대회</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', sans-serif; background: #0a1628; color: #e0e8f0; min-height: 100vh; }
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #0a1628; color: #e0e8f0; min-height: 100vh; padding-bottom: 68px; }
 
-  /* Header */
-  .header { background: linear-gradient(135deg, #1a3a5c, #0d2137); padding: 20px; text-align: center; border-bottom: 2px solid #2a6496; }
-  .header h1 { font-size: 1.8rem; color: #64c8ff; letter-spacing: 2px; }
-  .header p { color: #8ab4cc; font-size: 0.85rem; margin-top: 4px; }
+/* ── HEADER ── */
+.app-header { background: linear-gradient(135deg, #1a3a5c, #0d2137); padding: 14px 16px 11px; border-bottom: 1px solid #1a3a5c; position: sticky; top: 0; z-index: 40; }
+.app-header h1 { font-size: 1.05rem; color: #64c8ff; letter-spacing: 0.5px; }
+.app-header p { font-size: 0.68rem; color: #4a7090; margin-top: 1px; }
 
-  /* Nav Tabs */
-  .nav-tabs { display: flex; background: #0d1f35; border-bottom: 2px solid #1a3a5c; overflow-x: auto; }
-  .nav-tab { padding: 12px 20px; cursor: pointer; white-space: nowrap; color: #6a8fa8; font-size: 0.9rem; transition: all 0.2s; border-bottom: 3px solid transparent; }
-  .nav-tab:hover { color: #64c8ff; background: #0f2440; }
-  .nav-tab.active { color: #64c8ff; border-bottom-color: #64c8ff; background: #0f2440; }
+/* ── BOTTOM NAV ── */
+.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 62px; background: #0d1f35; border-top: 1px solid #1a3050; display: flex; z-index: 50; padding-bottom: env(safe-area-inset-bottom, 0px); }
+.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: #344e63; font-size: 0.58rem; letter-spacing: 0.2px; transition: color 0.15s; padding: 6px 2px; position: relative; }
+.nav-item .ni { font-size: 1.2rem; line-height: 1; }
+.nav-item.active { color: #64c8ff; }
+.nav-item.active::after { content: ''; position: absolute; top: 0; left: 15%; right: 15%; height: 2px; background: #64c8ff; border-radius: 0 0 3px 3px; }
 
-  /* Main Content */
-  .page { display: none; padding: 20px; max-width: 1200px; margin: 0 auto; }
-  .page.active { display: block; }
+/* ── PAGES ── */
+.page { display: none; padding: 12px 12px 20px; max-width: 520px; margin: 0 auto; }
+.page.active { display: block; }
 
-  /* Cards */
-  .card { background: #0f2440; border: 1px solid #1a3a5c; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
-  .card h2 { font-size: 1.1rem; color: #64c8ff; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+/* ── CARDS ── */
+.card { background: #0f2440; border: 1px solid #1a3a5c; border-radius: 14px; padding: 15px; margin-bottom: 10px; }
+.card-title { font-size: 0.88rem; color: #64c8ff; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
 
-  /* Form Elements */
-  .input-group { display: flex; gap: 8px; margin-bottom: 10px; }
-  input[type="text"] { flex: 1; background: #0a1628; border: 1px solid #2a6496; border-radius: 8px; padding: 10px 14px; color: #e0e8f0; font-size: 0.95rem; outline: none; }
-  input[type="text"]:focus { border-color: #64c8ff; box-shadow: 0 0 0 2px rgba(100,200,255,0.15); }
-  input[type="text"]::placeholder { color: #4a6a80; }
+/* ── FORM ── */
+.form-row { display: flex; gap: 7px; margin-bottom: 7px; }
+.form-row > * { flex: 1; min-width: 0; }
+input[type="text"], input[type="date"], select {
+  background: #0a1628; border: 1px solid #1e3f5c; border-radius: 9px;
+  padding: 10px 11px; color: #e0e8f0; font-size: 0.88rem; outline: none; width: 100%;
+  -webkit-appearance: none; appearance: none;
+}
+input[type="text"]:focus, input[type="date"]:focus, select:focus { border-color: #64c8ff; }
+input::placeholder { color: #2e4e66; }
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234a7090'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 9px center; padding-right: 26px;
+}
+input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
 
-  .btn { padding: 10px 18px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.2s; }
-  .btn-primary { background: #2a6496; color: #fff; }
-  .btn-primary:hover { background: #3a74a6; }
-  .btn-success { background: #1a7a4a; color: #fff; }
-  .btn-success:hover { background: #2a8a5a; }
-  .btn-danger { background: #7a2a2a; color: #fff; }
-  .btn-danger:hover { background: #8a3a3a; }
-  .btn-outline { background: transparent; border: 1px solid #2a6496; color: #64c8ff; }
-  .btn-outline:hover { background: #1a3a5c; }
+/* ── BUTTONS ── */
+.btn { padding: 10px 15px; border: none; border-radius: 9px; cursor: pointer; font-size: 0.86rem; font-weight: 700; transition: all 0.15s; white-space: nowrap; }
+.btn-primary { background: #1a5a9a; color: #fff; }
+.btn-primary:active { background: #2a6aaa; }
+.btn-success { background: #1a7a4a; color: #fff; }
+.btn-success:active { background: #2a8a5a; }
+.btn-danger { background: #6a2020; color: #ffaaaa; font-size: 0.78rem; padding: 6px 11px; }
+.btn-outline { background: transparent; border: 1px solid #2a5a88; color: #64c8ff; }
+.btn-warning { background: #2e2508; border: 1px solid #6a5a18; color: #ffd060; }
+.btn-purple { background: #4a1a6a; color: #e0aaff; }
+.btn-full { width: 100%; display: block; text-align: center; padding: 12px; }
+.btn-sm { padding: 7px 12px; font-size: 0.78rem; }
 
-  /* Player List */
-  .player-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-  .player-tag { background: #1a3a5c; border-radius: 20px; padding: 6px 14px; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; }
-  .player-tag .remove { cursor: pointer; color: #ff6b6b; font-weight: bold; }
-  .player-tag.male { border-left: 3px solid #64c8ff; }
-  .player-tag.female { border-left: 3px solid #ff88cc; }
+/* ── BADGES ── */
+.badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 10px; font-size: 0.65rem; font-weight: 700; line-height: 1.4; }
+.badge-male { background: #0a2240; color: #64c8ff; border: 1px solid #1a4a70; }
+.badge-female { background: #280d28; color: #ff88cc; border: 1px solid #4a1a4a; }
+.badge-ntrp { background: #0d2a1a; color: #4adf8a; border: 1px solid #1a5a2a; font-size: 0.62rem; }
+.badge-guest { background: #2a1800; color: #ffaa44; border: 1px solid #5a3a00; }
+.status-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.68rem; font-weight: 700; }
+.badge-active { background: #1a5a3a; color: #4adf8a; }
+.badge-done { background: #5a4a1a; color: #ffd700; }
 
-  /* Bracket Container */
-  .bracket-container { overflow-x: auto; padding: 8px 4px 16px; }
-  .bracket-svg-wrap { position: relative; display: inline-block; }
+/* ── MEMBER LIST ── */
+.member-card { background: #0a1628; border: 1px solid #1a3050; border-radius: 10px; padding: 11px 12px; margin-bottom: 7px; display: flex; align-items: center; gap: 10px; }
+.member-card.male { border-left: 3px solid #64c8ff; }
+.member-card.female { border-left: 3px solid #ff88cc; }
+.member-info { flex: 1; min-width: 0; }
+.member-name { font-size: 0.9rem; font-weight: 700; }
+.member-meta { font-size: 0.68rem; color: #4a7090; margin-top: 3px; display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
 
-  /* Match Box (absolutely positioned inside bracket) */
-  .match {
-    position: absolute;
-    display: flex;
-    flex-direction: column;
-    background: #0c1e38;
-    border: 1px solid #1e3f60;
-    border-radius: 8px;
-    overflow: hidden;
-    transition: border-color 0.15s, box-shadow 0.15s;
-  }
-  .match.clickable:hover { border-color: #4a90c0; box-shadow: 0 0 0 2px rgba(74,144,192,0.2); }
-  .match.has-result { border-color: #1a3a5c; }
+/* ── PARTICIPANT CHECKBOXES ── */
+.p-item { display: flex; align-items: center; gap: 9px; padding: 9px 11px; background: #0a1628; border: 1.5px solid #1a3050; border-radius: 10px; margin-bottom: 6px; cursor: pointer; transition: border-color 0.12s, background 0.12s; }
+.p-item.checked { border-color: #2a6aaa; background: #0c1e38; }
+.p-item input[type="checkbox"] { width: 17px; height: 17px; accent-color: #64c8ff; flex-shrink: 0; cursor: pointer; }
+.p-item .p-name { flex: 1; font-size: 0.86rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.p-item .p-sub { font-size: 0.66rem; color: #4a7090; }
 
-  .team {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    padding: 0 10px;
-    font-size: 0.78rem;
-    gap: 4px;
-    transition: background 0.12s;
-  }
-  .team + .team { border-top: 1px solid #0d1f35; }
-  .team.winner { background: #0b2e1a; color: #3fd880; font-weight: 700; }
-  .team.loser { color: #334d65; }
-  .team.bye-team, .team.tbd-team { color: #2a4a62; font-style: italic; }
-  .team-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .team-score { font-weight: bold; min-width: 18px; text-align: right; font-size: 0.82rem; color: #a0c8e8; }
-  .team.winner .team-score { color: #3fd880; }
+/* ── SECTION LABELS ── */
+.sec-label { font-size: 0.68rem; color: #4a7090; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; margin: 10px 0 7px; }
+.divider { height: 1px; background: #132030; margin: 10px 0; }
 
-  /* Score Modal – simplified */
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; align-items: center; justify-content: center; }
-  .modal-overlay.open { display: flex; }
-  .modal {
-    background: #0f2440;
-    border: 1px solid #2a5a88;
-    border-radius: 16px;
-    width: 90%;
-    max-width: 340px;
-    overflow: hidden;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-  }
-  .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 18px 12px;
-    border-bottom: 1px solid #1a3a5c;
-  }
-  .modal-round { font-size: 0.78rem; color: #5a8aaa; letter-spacing: 0.5px; text-transform: uppercase; }
-  .modal-close { background: none; border: none; color: #4a6a80; font-size: 1.2rem; cursor: pointer; line-height: 1; padding: 2px 4px; border-radius: 4px; }
-  .modal-close:hover { color: #e0e8f0; background: #1a3a5c; }
+/* ── SUMMARY GRID ── */
+.summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 7px; }
+.summary-item { background: #0a1628; border-radius: 10px; padding: 10px 12px; text-align: center; }
+.summary-item .val { font-size: 1.4rem; font-weight: 700; color: #64c8ff; }
+.summary-item .lbl { font-size: 0.65rem; color: #4a7090; margin-top: 1px; }
 
-  .score-entry {
-    padding: 16px 18px 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .score-team-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #0a1628;
-    border: 1px solid #1e3f5c;
-    border-radius: 8px;
-    padding: 10px 12px;
-  }
-  .score-team-row.winner-row { border-color: #2a6a3a; background: #0b2518; }
-  .score-team-name {
-    flex: 1;
-    font-size: 0.82rem;
-    color: #b0cce0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .score-team-row.winner-row .score-team-name { color: #3fd880; font-weight: 700; }
-  .score-field {
-    width: 52px;
-    background: #0d1f35;
-    border: 1px solid #2a4a68;
-    border-radius: 6px;
-    padding: 6px 4px;
-    color: #e0e8f0;
-    font-size: 1.05rem;
-    font-weight: 600;
-    text-align: center;
-    outline: none;
-    flex-shrink: 0;
-  }
-  .score-field:focus { border-color: #64c8ff; box-shadow: 0 0 0 2px rgba(100,200,255,0.15); }
-  .score-vs-row { text-align: center; color: #2a4a62; font-size: 0.75rem; letter-spacing: 1px; }
-  .confirm-btn {
-    margin: 4px 0 0;
-    width: 100%;
-    background: #1a5a3a;
-    border: none;
-    border-radius: 8px;
-    color: #fff;
-    font-size: 0.9rem;
-    font-weight: 600;
-    padding: 10px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-  .confirm-btn:hover { background: #2a6a4a; }
+/* ── BRACKET ── */
+.bracket-container { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 2px 0 10px; }
+.bracket-svg-wrap { position: relative; display: inline-block; }
+.match { position: absolute; display: flex; flex-direction: column; background: #0c1e38; border: 1px solid #1e3f60; border-radius: 8px; overflow: hidden; transition: border-color 0.15s; }
+.match.clickable:active { border-color: #4a90c0; }
+.team { flex: 1; display: flex; align-items: center; padding: 0 8px; font-size: 0.7rem; gap: 3px; }
+.team + .team { border-top: 1px solid #0d1a2e; }
+.team.winner { background: #0b2e1a; color: #3fd880; font-weight: 700; }
+.team.loser { color: #253e52; }
+.team.bye-team, .team.tbd-team { color: #253e52; font-style: italic; }
+.team-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.team-score { font-weight: 700; min-width: 15px; text-align: right; color: #7ab8e0; }
+.team.winner .team-score { color: #3fd880; }
+.scroll-hint { text-align: center; font-size: 0.65rem; color: #2e4e66; margin-top: 4px; }
 
-  /* Unpaired members */
-  .unpaired-card { background: #1a1208; border: 1px solid #4a3010; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-  .unpaired-card h3 { font-size: 0.9rem; color: #cc8844; margin-bottom: 10px; }
-  .unpaired-tag { background: #2a1e08; border: 1px solid #4a3010; border-left: 3px solid #cc8844; border-radius: 6px; padding: 6px 12px; font-size: 0.85rem; color: #d0a060; display: inline-block; margin: 3px; }
+/* ── SCORE MODAL (bottom sheet) ── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 100; align-items: flex-end; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: #0f2440; border: 1px solid #2a5a88; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -10px 40px rgba(0,0,0,0.5); }
+.modal-handle { width: 34px; height: 4px; background: #2a4a68; border-radius: 2px; margin: 10px auto 0; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px 9px; border-bottom: 1px solid #132030; }
+.modal-round { font-size: 0.74rem; color: #5a8aaa; letter-spacing: 0.5px; text-transform: uppercase; }
+.modal-close { background: none; border: none; color: #4a6a80; font-size: 1.1rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+.score-entry { padding: 13px 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.score-team-row { display: flex; align-items: center; gap: 10px; background: #0a1628; border: 1.5px solid #1e3f5c; border-radius: 10px; padding: 10px 12px; transition: all 0.15s; }
+.score-team-row.winner-row { border-color: #2a6a3a; background: #0b2518; }
+.score-team-name { flex: 1; font-size: 0.83rem; color: #9abccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.score-team-row.winner-row .score-team-name { color: #3fd880; font-weight: 700; }
+.score-field { width: 50px; background: #0d1f35; border: 1px solid #2a4a68; border-radius: 8px; padding: 8px 4px; color: #e0e8f0; font-size: 1.1rem; font-weight: 700; text-align: center; outline: none; flex-shrink: 0; -webkit-appearance: none; }
+.score-field:focus { border-color: #64c8ff; }
+.score-vs { text-align: center; color: #2a4a60; font-size: 0.7rem; letter-spacing: 1px; }
+.confirm-btn { width: 100%; background: #1a5a3a; border: none; border-radius: 10px; color: #fff; font-size: 0.95rem; font-weight: 700; padding: 13px; cursor: pointer; }
+.confirm-btn:active { background: #2a6a4a; }
 
-  /* Awards */
-  .awards-screen { display: none; }
-  .awards-screen.visible { display: block; }
-  .award-podium { text-align: center; padding: 28px 20px; }
-  .award-trophy { font-size: 3.8rem; animation: bounce 1s infinite alternate; display: block; }
-  @keyframes bounce { to { transform: translateY(-10px); } }
-  .award-title { font-size: 1.3rem; color: #ffd700; margin: 10px 0 5px; }
-  .award-names { font-size: 1.1rem; color: #e0e8f0; }
-  .award-second { margin-top: 18px; }
-  .award-second .award-trophy { font-size: 2.2rem; animation: none; }
-  .award-second .award-title { font-size: 0.95rem; color: #b0b8c0; }
+/* ── AWARDS ── */
+.awards-screen { display: none; }
+.awards-screen.visible { display: block; }
+.award-podium { text-align: center; padding: 22px 14px; }
+.award-trophy { font-size: 3.2rem; display: block; animation: bounce 1s infinite alternate; }
+@keyframes bounce { to { transform: translateY(-8px); } }
+.award-title { font-size: 1.1rem; color: #ffd700; margin: 9px 0 4px; }
+.award-names { font-size: 0.95rem; }
+.award-second { margin-top: 14px; }
+.award-second .award-trophy { font-size: 1.9rem; animation: none; }
+.award-second .award-title { font-size: 0.85rem; color: #b0b8c0; }
 
-  /* Summary */
-  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
-  .summary-item { background: #0a1628; border-radius: 8px; padding: 12px; text-align: center; }
-  .summary-item .val { font-size: 1.5rem; font-weight: bold; color: #64c8ff; }
-  .summary-item .lbl { font-size: 0.75rem; color: #6a8fa8; margin-top: 2px; }
+/* ── UNPAIRED ── */
+.unpaired-card { background: #180f00; border: 1px solid #4a3010; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+.unpaired-card h3 { font-size: 0.82rem; color: #cc8844; margin-bottom: 7px; }
+.unpaired-tag { display: inline-block; background: #201500; border-left: 3px solid #cc8844; border-radius: 5px; padding: 3px 9px; font-size: 0.78rem; color: #d0a060; margin: 2px; }
 
-  /* Status Badge */
-  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
-  .badge-active { background: #1a5a3a; color: #4adf8a; }
-  .badge-done { background: #5a4a1a; color: #ffd700; }
+/* ── EMPTY STATE ── */
+.empty-state { text-align: center; padding: 40px 16px; color: #2e4e66; }
+.empty-state .icon { font-size: 2.8rem; margin-bottom: 9px; }
+.empty-state p { font-size: 0.85rem; line-height: 1.6; }
 
-  /* Confetti */
-  .confetti-wrap { position: fixed; inset: 0; pointer-events: none; z-index: 200; overflow: hidden; }
-  .confetti-piece { position: absolute; top: -10px; border-radius: 2px; animation: fall linear forwards; }
-  @keyframes fall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+/* ── CONFETTI ── */
+.confetti-wrap { position: fixed; inset: 0; pointer-events: none; z-index: 200; overflow: hidden; }
+.confetti-piece { position: absolute; top: -10px; border-radius: 2px; animation: fall linear forwards; }
+@keyframes fall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
 
-  /* Misc */
-  .divider { height: 1px; background: #1a3a5c; margin: 14px 0; }
-  .text-muted { color: #6a8fa8; font-size: 0.85rem; }
-  .flex-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .mt-2 { margin-top: 8px; }
-  .empty-state { text-align: center; padding: 40px 20px; color: #4a6a80; }
-  .empty-state .icon { font-size: 3rem; margin-bottom: 10px; }
-
-  @media (max-width: 600px) {
-    .header h1 { font-size: 1.3rem; }
-    .page { padding: 12px; }
-  }
+/* ── UTILS ── */
+.text-muted { color: #4a7090; font-size: 0.78rem; }
+.field-label { font-size: 0.7rem; color: #4a7090; font-weight: 600; letter-spacing: 0.5px; margin: 8px 0 4px; }
+.flex-row { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+.mt-8 { margin-top: 8px; }
+.gap-top { margin-top: 4px; }
 </style>
 </head>
 <body>
 
-<div class="header">
+<div class="app-header">
   <h1>🎾 자미터 테니스 대회</h1>
   <p>복식 토너먼트 관리 시스템</p>
 </div>
 
-<div class="nav-tabs">
-  <div class="nav-tab active" onclick="switchPage('setup')">👥 참가자 설정</div>
-  <div class="nav-tab" onclick="switchPage('mixed')">🔀 혼합복식</div>
-  <div class="nav-tab" onclick="switchPage('mens')">👨 남자복식</div>
-  <div class="nav-tab" onclick="switchPage('womens')">👩 여자복식</div>
+<!-- ══ PAGE: 정회원 ══ -->
+<div class="page active" id="page-members">
+  <div class="card">
+    <div class="card-title">👤 정회원 등록</div>
+    <div class="form-row">
+      <input type="text" id="m-name" placeholder="이름" onkeydown="if(event.key==='Enter')addMember()">
+      <input type="text" id="m-nickname" placeholder="닉네임(선택)" style="max-width:110px" onkeydown="if(event.key==='Enter')addMember()">
+      <select id="m-gender" style="max-width:76px">
+        <option value="male">남 ♂</option>
+        <option value="female">여 ♀</option>
+      </select>
+    </div>
+    <div class="field-label">생년월일</div>
+    <div class="form-row">
+      <select id="m-year"><option value="">년도</option></select>
+      <select id="m-month" style="max-width:76px"><option value="">월</option></select>
+      <select id="m-day" style="max-width:66px"><option value="">일</option></select>
+    </div>
+    <div class="field-label">NTRP</div>
+    <div class="form-row">
+      <select id="m-ntrp">
+        <option value="">선택 안함</option>
+        <option>2.0</option><option>2.5</option><option>3.0</option>
+        <option>3.5</option><option>4.0</option><option>4.5</option><option>5.0</option>
+      </select>
+    </div>
+    <button class="btn btn-primary btn-full mt-8" onclick="addMember()">＋ 등록</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="justify-content:space-between;margin-bottom:0">
+      <span>정회원 목록 <span id="member-count" class="text-muted" style="font-size:0.72rem;font-weight:400"></span></span>
+    </div>
+    <div class="divider"></div>
+    <div id="member-list">
+      <div class="empty-state" style="padding:20px 0"><div class="icon" style="font-size:2rem">👤</div><p>등록된 정회원이 없습니다</p></div>
+    </div>
+  </div>
 </div>
 
-<!-- Setup Page -->
-<div class="page active" id="page-setup">
+<!-- ══ PAGE: 참가자 ══ -->
+<div class="page" id="page-setup">
   <div class="card">
-    <h2>👨 남자 참가자</h2>
-    <div class="input-group">
-      <input type="text" id="male-input" placeholder="이름 입력" onkeydown="if(event.key==='Enter') addPlayer('male')">
-      <button class="btn btn-primary" onclick="addPlayer('male')">추가</button>
+    <div class="card-title">📋 대회 참가자 선택</div>
+
+    <div class="sec-label">👨 남자 정회원</div>
+    <div id="male-checks"><p class="text-muted">등록된 남자 정회원 없음</p></div>
+
+    <div class="divider"></div>
+    <div class="sec-label">👩 여자 정회원</div>
+    <div id="female-checks"><p class="text-muted">등록된 여자 정회원 없음</p></div>
+
+    <div class="divider"></div>
+    <div class="sec-label">🙋 게스트 추가</div>
+    <div class="form-row">
+      <input type="text" id="guest-name" placeholder="게스트 이름" onkeydown="if(event.key==='Enter')addGuest()">
+      <select id="guest-gender" style="max-width:76px">
+        <option value="male">남 ♂</option>
+        <option value="female">여 ♀</option>
+      </select>
+      <button class="btn btn-outline btn-sm" style="white-space:nowrap" onclick="addGuest()">추가</button>
     </div>
-    <div class="player-list" id="male-list"></div>
+    <div id="guest-list"></div>
   </div>
 
   <div class="card">
-    <h2>👩 여자 참가자</h2>
-    <div class="input-group">
-      <input type="text" id="female-input" placeholder="이름 입력" onkeydown="if(event.key==='Enter') addPlayer('female')">
-      <button class="btn btn-primary" onclick="addPlayer('female')">추가</button>
-    </div>
-    <div class="player-list" id="female-list"></div>
-  </div>
-
-  <div class="card">
-    <h2>📊 현황</h2>
+    <div class="card-title">📊 참가 현황</div>
     <div class="summary-grid">
       <div class="summary-item"><div class="val" id="cnt-male">0</div><div class="lbl">남자</div></div>
       <div class="summary-item"><div class="val" id="cnt-female">0</div><div class="lbl">여자</div></div>
-      <div class="summary-item"><div class="val" id="cnt-mixed-pairs">0</div><div class="lbl">혼합 페어</div></div>
-      <div class="summary-item"><div class="val" id="cnt-mens-pairs">0</div><div class="lbl">남복 페어</div></div>
-      <div class="summary-item"><div class="val" id="cnt-womens-pairs">0</div><div class="lbl">여복 페어</div></div>
+      <div class="summary-item"><div class="val" id="cnt-mixed">0</div><div class="lbl">혼합 페어</div></div>
+      <div class="summary-item"><div class="val" id="cnt-total">0</div><div class="lbl">총 참가</div></div>
     </div>
     <div class="divider"></div>
-    <div class="flex-row">
-      <button class="btn btn-success" onclick="initTournament('mixed')">혼합복식 대진 생성</button>
-      <button class="btn btn-primary" onclick="initTournament('mens')">남자복식 대진 생성</button>
-      <button class="btn" onclick="initTournament('womens')" style="background:#6a3a7a;color:#fff">여자복식 대진 생성</button>
-    </div>
-    <p class="text-muted mt-2" id="setup-hint">참가자를 추가하고 대진을 생성하세요.</p>
-  </div>
-
-  <div class="card">
-    <h2>💾 데이터 관리</h2>
-    <div class="flex-row">
-      <button class="btn btn-outline" onclick="loadSample()">샘플 데이터 불러오기</button>
-      <button class="btn btn-danger" onclick="resetAll()">전체 초기화</button>
-    </div>
+    <button class="btn btn-success btn-full" onclick="initAllTournaments()">🎾 대진 생성 (혼합 · 남자 · 여자)</button>
   </div>
 </div>
 
-<!-- Mixed Page -->
+<!-- ══ PAGE: 혼합복식 ══ -->
 <div class="page" id="page-mixed">
   <div id="mixed-empty" class="empty-state">
     <div class="icon">🔀</div>
-    <p>혼합복식 대진표가 없습니다.<br>참가자 설정에서 대진을 생성하세요.</p>
+    <p>혼합복식 대진표 없음<br><span class="text-muted">참가자 탭에서 대진을 생성하세요</span></p>
   </div>
   <div id="mixed-content" style="display:none">
     <div id="mixed-unpaired"></div>
     <div id="mixed-awards" class="awards-screen"></div>
     <div class="card">
-      <div class="flex-row" style="justify-content:space-between;margin-bottom:14px">
-        <h2 style="margin-bottom:0">🔀 혼합복식 대진표</h2>
-        <span id="mixed-status" class="badge badge-active">진행중</span>
+      <div class="flex-row" style="justify-content:space-between;margin-bottom:11px">
+        <div class="card-title" style="margin-bottom:0">🔀 혼합복식</div>
+        <span id="mixed-status" class="status-badge badge-active">진행중</span>
       </div>
-      <div class="bracket-container">
-        <div class="bracket-svg-wrap" id="mixed-bracket"></div>
-      </div>
+      <div class="bracket-container"><div class="bracket-svg-wrap" id="mixed-bracket"></div></div>
+      <div class="scroll-hint" id="mixed-hint"></div>
     </div>
-    <div class="card">
-      <button class="btn" onclick="reshuffleTournament('mixed')" style="background:#3a3010;border:1px solid #7a6a20;color:#ffd700">🔀 다시 추첨</button>
+    <div class="card" style="padding:11px">
+      <button class="btn btn-warning btn-full" onclick="reshuffleTournament('mixed')">🔀 다시 추첨</button>
     </div>
   </div>
 </div>
 
-<!-- Mens Page -->
+<!-- ══ PAGE: 남자복식 ══ -->
 <div class="page" id="page-mens">
   <div id="mens-empty" class="empty-state">
     <div class="icon">👨</div>
-    <p>남자복식 대진표가 없습니다.<br>참가자 설정에서 대진을 생성하세요.</p>
+    <p>남자복식 대진표 없음<br><span class="text-muted">참가자 탭에서 대진을 생성하세요</span></p>
   </div>
   <div id="mens-content" style="display:none">
     <div id="mens-unpaired"></div>
     <div id="mens-awards" class="awards-screen"></div>
     <div class="card">
-      <div class="flex-row" style="justify-content:space-between;margin-bottom:14px">
-        <h2 style="margin-bottom:0">👨 남자복식 대진표</h2>
-        <span id="mens-status" class="badge badge-active">진행중</span>
+      <div class="flex-row" style="justify-content:space-between;margin-bottom:11px">
+        <div class="card-title" style="margin-bottom:0">👨 남자복식</div>
+        <span id="mens-status" class="status-badge badge-active">진행중</span>
       </div>
-      <div class="bracket-container">
-        <div class="bracket-svg-wrap" id="mens-bracket"></div>
-      </div>
+      <div class="bracket-container"><div class="bracket-svg-wrap" id="mens-bracket"></div></div>
+      <div class="scroll-hint" id="mens-hint"></div>
     </div>
-    <div class="card">
-      <button class="btn" onclick="reshuffleTournament('mens')" style="background:#3a3010;border:1px solid #7a6a20;color:#ffd700">🔀 다시 추첨</button>
+    <div class="card" style="padding:11px">
+      <button class="btn btn-warning btn-full" onclick="reshuffleTournament('mens')">🔀 다시 추첨</button>
     </div>
   </div>
 </div>
 
-<!-- Womens Page -->
+<!-- ══ PAGE: 여자복식 ══ -->
 <div class="page" id="page-womens">
   <div id="womens-empty" class="empty-state">
     <div class="icon">👩</div>
-    <p>여자복식 대진표가 없습니다.<br>참가자 설정에서 대진을 생성하세요.</p>
+    <p>여자복식 대진표 없음<br><span class="text-muted">참가자 탭에서 대진을 생성하세요</span></p>
   </div>
   <div id="womens-content" style="display:none">
     <div id="womens-unpaired"></div>
     <div id="womens-awards" class="awards-screen"></div>
     <div class="card">
-      <div class="flex-row" style="justify-content:space-between;margin-bottom:14px">
-        <h2 style="margin-bottom:0">👩 여자복식 대진표</h2>
-        <span id="womens-status" class="badge badge-active">진행중</span>
+      <div class="flex-row" style="justify-content:space-between;margin-bottom:11px">
+        <div class="card-title" style="margin-bottom:0">👩 여자복식</div>
+        <span id="womens-status" class="status-badge badge-active">진행중</span>
       </div>
-      <div class="bracket-container">
-        <div class="bracket-svg-wrap" id="womens-bracket"></div>
-      </div>
+      <div class="bracket-container"><div class="bracket-svg-wrap" id="womens-bracket"></div></div>
+      <div class="scroll-hint" id="womens-hint"></div>
     </div>
-    <div class="card">
-      <button class="btn" onclick="reshuffleTournament('womens')" style="background:#3a3010;border:1px solid #7a6a20;color:#ffd700">🔀 다시 추첨</button>
+    <div class="card" style="padding:11px">
+      <button class="btn btn-warning btn-full" onclick="reshuffleTournament('womens')">🔀 다시 추첨</button>
     </div>
   </div>
 </div>
 
-<!-- Score Modal -->
+<!-- ══ EDIT MEMBER MODAL ══ -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-round">정회원 정보 수정</span>
+      <button class="modal-close" onclick="closeEditModal()">✕</button>
+    </div>
+    <div class="score-entry" style="gap:0">
+      <div class="field-label" style="margin-top:0">이름</div>
+      <div class="form-row" style="margin-bottom:0">
+        <input type="text" id="edit-name">
+        <input type="text" id="edit-nickname" placeholder="닉네임(선택)" style="max-width:110px">
+      </div>
+      <div class="field-label">성별</div>
+      <select id="edit-gender">
+        <option value="male">남 ♂</option>
+        <option value="female">여 ♀</option>
+      </select>
+      <div class="field-label">생년월일</div>
+      <div class="form-row" style="margin-bottom:0">
+        <select id="edit-year"></select>
+        <select id="edit-month" style="max-width:76px"></select>
+        <select id="edit-day" style="max-width:66px"></select>
+      </div>
+      <div class="field-label">NTRP</div>
+      <select id="edit-ntrp" style="margin-bottom:6px">
+        <option value="">선택 안함</option>
+        <option>2.0</option><option>2.5</option><option>3.0</option>
+        <option>3.5</option><option>4.0</option><option>4.5</option><option>5.0</option>
+      </select>
+      <button class="confirm-btn" style="margin-top:8px" onclick="saveEditMember()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCORE MODAL ══ -->
 <div class="modal-overlay" id="score-modal">
   <div class="modal">
+    <div class="modal-handle"></div>
     <div class="modal-header">
       <span id="modal-round" class="modal-round"></span>
       <button class="modal-close" onclick="closeModal()">✕</button>
@@ -353,12 +362,12 @@
     <div class="score-entry">
       <div id="score-row-0" class="score-team-row">
         <span id="team0-name" class="score-team-name"></span>
-        <input type="text" id="score0-input" class="score-field" placeholder="0" maxlength="3" oninput="previewWinner()">
+        <input type="text" id="score0-input" class="score-field" placeholder="0" maxlength="3" inputmode="numeric" oninput="previewWinner()">
       </div>
-      <div class="score-vs-row">VS</div>
+      <div class="score-vs">VS</div>
       <div id="score-row-1" class="score-team-row">
         <span id="team1-name" class="score-team-name"></span>
-        <input type="text" id="score1-input" class="score-field" placeholder="0" maxlength="3" oninput="previewWinner()">
+        <input type="text" id="score1-input" class="score-field" placeholder="0" maxlength="3" inputmode="numeric" oninput="previewWinner()">
       </div>
       <button class="confirm-btn" onclick="submitScore()">확인</button>
     </div>
@@ -367,480 +376,667 @@
 
 <div class="confetti-wrap" id="confetti-wrap"></div>
 
+<!-- ══ BOTTOM NAV ══ -->
+<nav class="bottom-nav">
+  <div class="nav-item active" id="nav-members" onclick="switchPage('members')">
+    <span class="ni">👥</span><span>정회원</span>
+  </div>
+  <div class="nav-item" id="nav-setup" onclick="switchPage('setup')">
+    <span class="ni">📋</span><span>참가자</span>
+  </div>
+  <div class="nav-item" id="nav-mixed" onclick="switchPage('mixed')">
+    <span class="ni">🔀</span><span>혼합복식</span>
+  </div>
+  <div class="nav-item" id="nav-mens" onclick="switchPage('mens')">
+    <span class="ni">👨</span><span>남자복식</span>
+  </div>
+  <div class="nav-item" id="nav-womens" onclick="switchPage('womens')">
+    <span class="ni">👩</span><span>여자복식</span>
+  </div>
+</nav>
+
 <script>
-// ===== STATE =====
+// ══ STATE ══
 const state = {
-  males: [],
-  females: [],
+  members: [],       // {id,name,gender,birthday,ntrp} — persisted
+  guests: [],        // {id,name,gender} — session only
+  selectedIds: new Set(),
   tournaments: { mixed: null, mens: null, womens: null }
 };
-
 let modalCtx = null;
 
-// ===== BRACKET LAYOUT CONSTANTS =====
-const MH = 72;      // match box height
-const MW = 186;     // match box width
-const VG = 10;      // vertical gap between matches in round 0
-const RG = 52;      // horizontal gap between rounds (connector space)
-const LH = 28;      // label row height at top
-
-function matchCenterY(ri, mi) {
-  if (ri === 0) return LH + MH / 2 + mi * (MH + VG);
-  return (matchCenterY(ri - 1, 2 * mi) + matchCenterY(ri - 1, 2 * mi + 1)) / 2;
+// ══ LOCALSTORAGE ══
+const LS = 'jmt_v2_members';
+function saveMembers() { localStorage.setItem(LS, JSON.stringify(state.members)); }
+function loadMembers() {
+  try { const d = localStorage.getItem(LS); if (d) state.members = JSON.parse(d); }
+  catch(e) { state.members = []; }
 }
 
-// ===== PLAYER MANAGEMENT =====
-function addPlayer(gender) {
-  const input = document.getElementById(gender === 'male' ? 'male-input' : 'female-input');
-  const name = input.value.trim();
-  if (!name) return;
-  const list = gender === 'male' ? state.males : state.females;
-  if (list.includes(name)) { alert('이미 등록된 이름입니다.'); return; }
-  list.push(name);
-  input.value = '';
-  renderPlayerLists();
-  updateSummary();
+// ══ BRACKET CONSTANTS ══
+const MH=58, MW=152, VG=8, RG=38, LH=22;
+function mcy(ri,mi) {
+  if (ri===0) return LH + MH/2 + mi*(MH+VG);
+  return (mcy(ri-1,2*mi) + mcy(ri-1,2*mi+1)) / 2;
 }
 
-function removePlayer(gender, name) {
-  if (gender === 'male') state.males = state.males.filter(n => n !== name);
-  else state.females = state.females.filter(n => n !== name);
-  renderPlayerLists();
-  updateSummary();
-}
-
-function renderPlayerLists() {
-  document.getElementById('male-list').innerHTML = state.males.map(n =>
-    `<div class="player-tag male">${n} <span class="remove" onclick="removePlayer('male','${n.replace(/'/g,"\\'")}')">✕</span></div>`
-  ).join('');
-  document.getElementById('female-list').innerHTML = state.females.map(n =>
-    `<div class="player-tag female">${n} <span class="remove" onclick="removePlayer('female','${n.replace(/'/g,"\\'")}')">✕</span></div>`
-  ).join('');
-}
-
-function updateSummary() {
-  const m = state.males.length, f = state.females.length;
-  document.getElementById('cnt-male').textContent = m;
-  document.getElementById('cnt-female').textContent = f;
-  document.getElementById('cnt-mixed-pairs').textContent = Math.min(m, f);
-  document.getElementById('cnt-mens-pairs').textContent = Math.floor(m / 2);
-  document.getElementById('cnt-womens-pairs').textContent = Math.floor(f / 2);
-}
-
-// ===== HELPERS =====
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+// ══ BIRTHDAY DROPDOWNS ══
+function initBirthdaySelects() {
+  const yEl = document.getElementById('m-year');
+  const mEl = document.getElementById('m-month');
+  const dEl = document.getElementById('m-day');
+  // Years 2010 → 1940
+  for (let y = 2010; y >= 1940; y--) {
+    const o = document.createElement('option'); o.value = y; o.textContent = y + '년';
+    yEl.appendChild(o);
   }
+  for (let m = 1; m <= 12; m++) {
+    const o = document.createElement('option'); o.value = String(m).padStart(2,'0'); o.textContent = m + '월';
+    mEl.appendChild(o);
+  }
+  for (let d = 1; d <= 31; d++) {
+    const o = document.createElement('option'); o.value = String(d).padStart(2,'0'); o.textContent = d + '일';
+    dEl.appendChild(o);
+  }
+}
+
+// ══ MEMBER CRUD ══
+function addMember() {
+  const name = document.getElementById('m-name').value.trim();
+  if (!name) { document.getElementById('m-name').focus(); return; }
+  if (state.members.some(m => m.name === name)) { alert('이미 등록된 이름입니다.'); return; }
+  const y = document.getElementById('m-year').value;
+  const mo = document.getElementById('m-month').value;
+  const d = document.getElementById('m-day').value;
+  const birthday = (y && mo && d) ? `${y}-${mo}-${d}` : '';
+  state.members.push({
+    id: Date.now(),
+    name,
+    nickname: document.getElementById('m-nickname').value.trim(),
+    gender: document.getElementById('m-gender').value,
+    birthday,
+    ntrp: document.getElementById('m-ntrp').value
+  });
+  saveMembers();
+  document.getElementById('m-name').value = '';
+  document.getElementById('m-nickname').value = '';
+  document.getElementById('m-year').value = '';
+  document.getElementById('m-month').value = '';
+  document.getElementById('m-day').value = '';
+  document.getElementById('m-ntrp').value = '';
+  renderMemberList();
+  renderChecks();
+  updateSummary();
+}
+
+function deleteMember(id) {
+  if (!confirm('정회원을 삭제하시겠습니까?')) return;
+  state.members = state.members.filter(m => m.id !== id);
+  state.selectedIds.delete(id);
+  saveMembers();
+  renderMemberList();
+  renderChecks();
+  updateSummary();
+}
+
+function calcAge(bday) {
+  if (!bday) return null;
+  const b = new Date(bday), t = new Date();
+  let a = t.getFullYear() - b.getFullYear();
+  if (t.getMonth() < b.getMonth() || (t.getMonth()===b.getMonth() && t.getDate()<b.getDate())) a--;
   return a;
 }
 
-function nextPow2(n) {
-  let p = 1; while (p < n) p <<= 1; return p;
+function renderMemberList() {
+  const el = document.getElementById('member-list');
+  document.getElementById('member-count').textContent = `${state.members.length}명`;
+  if (!state.members.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:16px 0"><div class="icon" style="font-size:1.8rem">👤</div><p>등록된 정회원이 없습니다</p></div>';
+    return;
+  }
+  const curMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+  el.innerHTML = state.members.map(m => {
+    const age = calcAge(m.birthday);
+    const isBirthMonth = m.birthday && m.birthday.split('-')[1] === curMonth;
+    return `<div class="member-card ${m.gender}">
+      <div class="member-info">
+        ${isBirthMonth ? '<div style="font-size:0.75rem;line-height:1;margin-bottom:2px">👑</div>' : ''}
+        <div class="member-name">${m.name}${m.nickname ? ` <span style="font-size:0.75rem;color:#4a7090;font-weight:400">(${m.nickname})</span>` : ''}</div>
+        <div class="member-meta">
+          <span class="badge ${m.gender==='male'?'badge-male':'badge-female'}">${m.gender==='male'?'남':'여'}</span>
+          ${m.ntrp?`<span class="badge badge-ntrp">NTRP ${m.ntrp}</span>`:''}
+          ${age!==null?`<span>${age}세</span>`:''}
+          ${m.birthday?`<span>${m.birthday}</span>`:''}
+        </div>
+      </div>
+      <div style="display:flex;gap:5px;flex-shrink:0">
+        <button class="btn btn-outline btn-sm" onclick="openEditMember(${m.id})">수정</button>
+        <button class="btn btn-danger" onclick="deleteMember(${m.id})">삭제</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
-function pairName(pair) {
-  if (!pair) return '부전승';
-  return pair.join(' / ');
+// ══ PARTICIPANT CHECKS ══
+function renderChecks() {
+  const males = state.members.filter(m => m.gender==='male');
+  const females = state.members.filter(m => m.gender==='female');
+  const mEl = document.getElementById('male-checks');
+  const fEl = document.getElementById('female-checks');
+  mEl.innerHTML = males.length ? males.map(checkItem).join('') : '<p class="text-muted" style="font-size:0.78rem;padding:2px 0">등록된 남자 정회원 없음</p>';
+  fEl.innerHTML = females.length ? females.map(checkItem).join('') : '<p class="text-muted" style="font-size:0.78rem;padding:2px 0">등록된 여자 정회원 없음</p>';
 }
 
-// ===== TOURNAMENT INIT =====
+function checkItem(m) {
+  const chk = state.selectedIds.has(m.id);
+  const age = calcAge(m.birthday);
+  return `<div class="p-item ${chk?'checked':''}" onclick="toggleMember(${m.id})">
+    <input type="checkbox" ${chk?'checked':''} onclick="event.stopPropagation();toggleMember(${m.id})">
+    <span class="p-name">${m.name}</span>
+    ${m.ntrp?`<span class="badge badge-ntrp">${m.ntrp}</span>`:''}
+    ${age!==null?`<span class="p-sub">${age}세</span>`:''}
+  </div>`;
+}
+
+function toggleMember(id) {
+  if (state.selectedIds.has(id)) state.selectedIds.delete(id);
+  else state.selectedIds.add(id);
+  renderChecks();
+  updateSummary();
+}
+
+// ══ GUESTS ══
+function addGuest() {
+  const name = document.getElementById('guest-name').value.trim();
+  if (!name) return;
+  if (state.guests.some(g => g.name===name) || state.members.some(m => m.name===name)) {
+    alert('이미 추가된 이름입니다.'); return;
+  }
+  state.guests.push({ id: Date.now(), name, gender: document.getElementById('guest-gender').value });
+  document.getElementById('guest-name').value = '';
+  renderGuestList();
+  updateSummary();
+}
+
+function removeGuest(id) {
+  state.guests = state.guests.filter(g => g.id!==id);
+  renderGuestList();
+  updateSummary();
+}
+
+function renderGuestList() {
+  const el = document.getElementById('guest-list');
+  if (!state.guests.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div style="margin-top:6px">${state.guests.map(g =>
+    `<div class="p-item checked" style="cursor:default">
+      <span class="badge badge-guest">게스트</span>
+      <span class="p-name">${g.name}</span>
+      <span class="badge ${g.gender==='male'?'badge-male':'badge-female'}">${g.gender==='male'?'남':'여'}</span>
+      <button style="background:none;border:none;color:#ff6060;cursor:pointer;font-size:1rem;padding:2px 4px" onclick="removeGuest(${g.id})">✕</button>
+    </div>`
+  ).join('')}</div>`;
+}
+
+// ══ SUMMARY ══
+function getParticipants() {
+  const males=[], females=[];
+  state.members.forEach(m => {
+    if (state.selectedIds.has(m.id)) (m.gender==='male'?males:females).push(m.name);
+  });
+  state.guests.forEach(g => (g.gender==='male'?males:females).push(g.name));
+  return { males, females };
+}
+
+function updateSummary() {
+  const { males, females } = getParticipants();
+  document.getElementById('cnt-male').textContent = males.length;
+  document.getElementById('cnt-female').textContent = females.length;
+  document.getElementById('cnt-mixed').textContent = Math.min(males.length, females.length);
+  document.getElementById('cnt-total').textContent = males.length + females.length;
+}
+
+// ══ TOURNAMENT ══
+function shuffle(a) {
+  a=[...a];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+function pow2(n){let p=1;while(p<n)p<<=1;return p;}
+function pairName(p){return p?p.join(' / '):'부전승';}
+
 function makePairs(type) {
-  if (type === 'mixed') {
-    const males = shuffle(state.males), females = shuffle(state.females);
-    const count = Math.min(males.length, females.length);
-    const pairs = Array.from({ length: count }, (_, i) => [males[i], females[i]]);
-    const unpaired = [
-      ...males.slice(count).map(n => `${n} (남)`),
-      ...females.slice(count).map(n => `${n} (여)`)
-    ];
-    return { pairs, unpaired };
-  } else if (type === 'mens') {
-    const males = shuffle(state.males);
-    const pairs = [];
-    for (let i = 0; i + 1 < males.length; i += 2) pairs.push([males[i], males[i + 1]]);
-    const unpaired = males.length % 2 === 1 ? [males[males.length - 1]] : [];
-    return { pairs, unpaired };
+  const { males, females } = getParticipants();
+  if (type==='mixed') {
+    const ms=shuffle(males), fs=shuffle(females);
+    const n=Math.min(ms.length,fs.length);
+    const pairs=Array.from({length:n},(_,i)=>[ms[i],fs[i]]);
+    const unpaired=[...ms.slice(n).map(x=>x+' (남)'),...fs.slice(n).map(x=>x+' (여)')];
+    return {pairs,unpaired};
+  } else if (type==='mens') {
+    const ms=shuffle(males), pairs=[];
+    for(let i=0;i+1<ms.length;i+=2)pairs.push([ms[i],ms[i+1]]);
+    return {pairs, unpaired: ms.length%2?[ms[ms.length-1]]:[]};
   } else {
-    const females = shuffle(state.females);
-    const pairs = [];
-    for (let i = 0; i + 1 < females.length; i += 2) pairs.push([females[i], females[i + 1]]);
-    const unpaired = females.length % 2 === 1 ? [females[females.length - 1]] : [];
-    return { pairs, unpaired };
+    const fs=shuffle(females), pairs=[];
+    for(let i=0;i+1<fs.length;i+=2)pairs.push([fs[i],fs[i+1]]);
+    return {pairs, unpaired: fs.length%2?[fs[fs.length-1]]:[]};
   }
 }
 
 function initTournament(type) {
-  const { pairs, unpaired } = makePairs(type);
-  if (pairs.length < 2) {
-    const need = type === 'mixed' ? '남녀 각 2명 이상' : type === 'mens' ? '남자 4명 이상' : '여자 4명 이상';
-    alert(`${need}이 필요합니다.`); return;
+  const {pairs,unpaired} = makePairs(type);
+  if (pairs.length<2) {
+    const msg = type==='mixed'?'남녀 각 2명 이상':type==='mens'?'남자 4명 이상':'여자 4명 이상';
+    alert(`${msg}이 필요합니다.`); return;
   }
-
-  const size = nextPow2(pairs.length);
-  const slots = shuffle([...pairs, ...Array(size - pairs.length).fill(null)]);
-
-  const rounds = [];
-  const r0 = [];
-  for (let i = 0; i < slots.length; i += 2) {
-    r0.push({ team0: slots[i], team1: slots[i + 1], winner: null, score0: '', score1: '' });
+  const size=pow2(pairs.length);
+  const slots=shuffle([...pairs,...Array(size-pairs.length).fill(null)]);
+  const r0=[];
+  for(let i=0;i<slots.length;i+=2)
+    r0.push({team0:slots[i],team1:slots[i+1],winner:null,score0:'',score1:''});
+  const rounds=[r0];
+  let prev=r0.length;
+  while(prev>1){
+    rounds.push(Array.from({length:prev/2},()=>({team0:null,team1:null,winner:null,score0:'',score1:''})));
+    prev=prev/2;
   }
-  rounds.push(r0);
-
-  let prevSize = r0.length;
-  while (prevSize > 1) {
-    const nr = Array.from({ length: prevSize / 2 }, () => ({ team0: null, team1: null, winner: null, score0: '', score1: '' }));
-    rounds.push(nr);
-    prevSize = nr.length;
+  for(let mi=0;mi<r0.length;mi++){
+    const m=r0[mi];
+    if(!m.team0&&m.team1){m.winner=1;advanceWinner(rounds,0,mi);}
+    else if(!m.team1&&m.team0){m.winner=0;advanceWinner(rounds,0,mi);}
+    else if(!m.team0&&!m.team1)m.winner=-1;
   }
-
-  // Auto-advance byes in round 0
-  for (let mi = 0; mi < rounds[0].length; mi++) {
-    const m = rounds[0][mi];
-    if (m.team0 === null && m.team1 !== null) { m.winner = 1; advanceWinner(rounds, 0, mi); }
-    else if (m.team1 === null && m.team0 !== null) { m.winner = 0; advanceWinner(rounds, 0, mi); }
-    else if (m.team0 === null && m.team1 === null) { m.winner = -1; }
-  }
-
-  state.tournaments[type] = { rounds, champion: null, runnerUp: null, unpaired };
-  checkTournamentComplete(type);
+  state.tournaments[type]={rounds,champion:null,runnerUp:null,unpaired};
+  checkComplete(type);
   renderTournament(type);
-  document.getElementById(`${type}-empty`).style.display = 'none';
-  document.getElementById(`${type}-content`).style.display = 'block';
+  document.getElementById(`${type}-empty`).style.display='none';
+  document.getElementById(`${type}-content`).style.display='block';
   switchPage(type);
 }
 
 function reshuffleTournament(type) {
-  if (!confirm('대진을 다시 추첨하면 기존 결과가 초기화됩니다. 계속하시겠습니까?')) return;
+  if (!confirm('기존 결과가 초기화됩니다. 계속하시겠습니까?')) return;
   initTournament(type);
 }
 
-function advanceWinner(rounds, ri, mi) {
-  const match = rounds[ri][mi];
-  if (match.winner === null || match.winner === -1) return;
-  const winner = match.winner === 0 ? match.team0 : match.team1;
-  if (!winner || ri + 1 >= rounds.length) return;
-  const nextMi = Math.floor(mi / 2);
-  const nm = rounds[ri + 1][nextMi];
-  if (mi % 2 === 0) nm.team0 = winner; else nm.team1 = winner;
+function advanceWinner(rounds,ri,mi) {
+  const m=rounds[ri][mi];
+  if(m.winner===null||m.winner===-1)return;
+  const w=m.winner===0?m.team0:m.team1;
+  if(!w||ri+1>=rounds.length)return;
+  const nm=rounds[ri+1][Math.floor(mi/2)];
+  if(mi%2===0)nm.team0=w; else nm.team1=w;
 }
 
-function checkTournamentComplete(type) {
-  const t = state.tournaments[type];
-  if (!t) return;
-  const fm = t.rounds[t.rounds.length - 1][0];
-  if (fm.winner !== null && fm.winner !== -1) {
-    t.champion = fm.winner === 0 ? fm.team0 : fm.team1;
-    t.runnerUp = fm.winner === 0 ? fm.team1 : fm.team0;
-  } else {
-    t.champion = null; t.runnerUp = null;
-  }
+function checkComplete(type) {
+  const t=state.tournaments[type]; if(!t)return;
+  const fm=t.rounds[t.rounds.length-1][0];
+  if(fm.winner!==null&&fm.winner!==-1){
+    t.champion=fm.winner===0?fm.team0:fm.team1;
+    t.runnerUp=fm.winner===0?fm.team1:fm.team0;
+  } else { t.champion=null; t.runnerUp=null; }
 }
 
-function clearDownstream(rounds, ri, mi) {
-  if (ri + 1 >= rounds.length) return;
-  const prevWinner = rounds[ri][mi].winner;
-  if (prevWinner === null) return;
-  const nextMi = Math.floor(mi / 2);
-  const nm = rounds[ri + 1][nextMi];
-  if (mi % 2 === 0) nm.team0 = null; else nm.team1 = null;
-  if (nm.winner !== null) {
-    nm.winner = null; nm.score0 = ''; nm.score1 = '';
-    clearDownstream(rounds, ri + 1, nextMi);
-  }
+function clearDown(rounds,ri,mi) {
+  if(ri+1>=rounds.length)return;
+  if(rounds[ri][mi].winner===null)return;
+  const nm=rounds[ri+1][Math.floor(mi/2)];
+  if(mi%2===0)nm.team0=null; else nm.team1=null;
+  if(nm.winner!==null){nm.winner=null;nm.score0='';nm.score1='';clearDown(rounds,ri+1,Math.floor(mi/2));}
 }
 
-// ===== RENDERING =====
-function getRoundNames(total) {
-  return Array.from({ length: total }, (_, i) => {
-    const rem = total - i;
-    if (rem === 1) return '결승';
-    if (rem === 2) return '준결승';
-    if (rem === 3) return '8강';
-    if (rem === 4) return '16강';
-    return `${Math.pow(2, rem)}강`;
+// ══ RENDER ══
+function roundNames(n) {
+  return Array.from({length:n},(_,i)=>{
+    const r=n-i;
+    if(r===1)return '결승';if(r===2)return '준결승';if(r===3)return '8강';if(r===4)return '16강';
+    return `${Math.pow(2,r)}강`;
   });
 }
 
 function renderTournament(type) {
-  const t = state.tournaments[type];
-  if (!t) return;
+  const t=state.tournaments[type]; if(!t)return;
+  const rounds=t.rounds, N0=rounds[0].length, NR=rounds.length;
+  const TH=LH+N0*MH+Math.max(0,N0-1)*VG+8;
+  const TW=NR*MW+Math.max(0,NR-1)*RG+2;
+  const wrap=document.getElementById(`${type}-bracket`);
+  wrap.innerHTML='';
+  wrap.style.cssText=`position:relative;width:${TW}px;height:${TH}px;`;
+  const NS='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(NS,'svg');
+  svg.setAttribute('width',TW); svg.setAttribute('height',TH);
+  svg.style.cssText='position:absolute;top:0;left:0;pointer-events:none;overflow:visible;';
+  const rnames=roundNames(NR);
 
-  const rounds = t.rounds;
-  const N0 = rounds[0].length;
-  const numRounds = rounds.length;
-  const totalH = LH + N0 * MH + Math.max(0, N0 - 1) * VG + 8;
-  const totalW = numRounds * MW + Math.max(0, numRounds - 1) * RG + 2;
+  rounds.forEach((round,ri)=>{
+    const mx=ri*(MW+RG);
+    // Label
+    const lbl=document.createElementNS(NS,'text');
+    lbl.setAttribute('x',mx+MW/2); lbl.setAttribute('y',LH-5);
+    lbl.setAttribute('text-anchor','middle'); lbl.setAttribute('fill','#3a6a8a');
+    lbl.setAttribute('font-size','10'); lbl.setAttribute('font-family','-apple-system,sans-serif');
+    lbl.textContent=rnames[ri];
+    svg.appendChild(lbl);
 
-  const wrap = document.getElementById(`${type}-bracket`);
-  wrap.innerHTML = '';
-  wrap.style.cssText = `position:relative; width:${totalW}px; height:${totalH}px;`;
-
-  // SVG layer for lines
-  const NS = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(NS, 'svg');
-  svg.setAttribute('width', totalW);
-  svg.setAttribute('height', totalH);
-  svg.style.cssText = 'position:absolute;top:0;left:0;pointer-events:none;overflow:visible;';
-
-  const roundNames = getRoundNames(numRounds);
-
-  rounds.forEach((round, ri) => {
-    const matchX = ri * (MW + RG);
-
-    // Round label
-    const label = document.createElementNS(NS, 'text');
-    label.setAttribute('x', matchX + MW / 2);
-    label.setAttribute('y', LH - 8);
-    label.setAttribute('text-anchor', 'middle');
-    label.setAttribute('fill', '#4a7a9a');
-    label.setAttribute('font-size', '11');
-    label.setAttribute('font-family', 'Segoe UI, sans-serif');
-    label.setAttribute('letter-spacing', '1.5');
-    label.textContent = roundNames[ri].toUpperCase();
-    svg.appendChild(label);
-
-    round.forEach((match, mi) => {
-      const cy = matchCenterY(ri, mi);
-      const matchY = cy - MH / 2;
-
-      // Match div
-      const div = document.createElement('div');
-      div.className = 'match' + (match.team0 && match.team1 ? ' clickable' : '') + (match.winner !== null ? ' has-result' : '');
-      div.style.cssText = `left:${matchX}px; top:${matchY}px; width:${MW}px; height:${MH}px;`;
-      if (match.team0 && match.team1) div.onclick = () => openModal(type, ri, mi);
-
-      const makeTeamRow = (team, side) => {
-        const wSide = side === 0 ? 0 : 1;
-        const cls = match.winner === wSide ? 'winner' : match.winner !== null && match.winner !== -1 ? 'loser' : (!team ? (ri === 0 ? 'bye-team' : 'tbd-team') : '');
-        const label = !team ? (ri === 0 ? '부전승' : 'TBD') : pairName(team);
-        const score = side === 0 ? match.score0 : match.score1;
-        return `<div class="team ${cls}"><span class="team-name">${label}</span>${score ? `<span class="team-score">${score}</span>` : ''}</div>`;
+    round.forEach((match,mi)=>{
+      const cy=mcy(ri,mi), my=cy-MH/2;
+      const div=document.createElement('div');
+      div.className='match'+(match.team0&&match.team1?' clickable':'');
+      div.style.cssText=`left:${mx}px;top:${my}px;width:${MW}px;height:${MH}px;`;
+      if(match.team0&&match.team1) div.onclick=()=>openModal(type,ri,mi);
+      const row=(team,side)=>{
+        const cls=match.winner===side?'winner':match.winner!==null&&match.winner!==-1?'loser':(!team?(ri===0?'bye-team':'tbd-team'):'');
+        const nm=!team?(ri===0?'부전승':'TBD'):pairName(team);
+        const sc=side===0?match.score0:match.score1;
+        return `<div class="team ${cls}"><span class="team-name">${nm}</span>${sc?`<span class="team-score">${sc}</span>`:''}</div>`;
       };
-      div.innerHTML = makeTeamRow(match.team0, 0) + makeTeamRow(match.team1, 1);
+      div.innerHTML=row(match.team0,0)+row(match.team1,1);
       wrap.appendChild(div);
 
-      // Draw connector lines to next round (for each pair of matches)
-      if (ri < numRounds - 1 && mi % 2 === 0 && mi + 1 < round.length) {
-        const cy0 = cy;
-        const cy1 = matchCenterY(ri, mi + 1);
-        const cyN = matchCenterY(ri + 1, mi / 2);
-        const xR = matchX + MW;      // right edge of current matches
-        const xM = xR + RG * 0.45;  // mid-point of connector
-        const xN = matchX + MW + RG; // left edge of next round match
-
-        // Determine line color: brighter if both matches in pair have results
-        const m0done = round[mi].winner !== null;
-        const m1done = round[mi + 1] && round[mi + 1].winner !== null;
-        const lineColor = (m0done && m1done) ? '#3a6a9a' : '#1e3a56';
-        const lineWidth = (m0done && m1done) ? '2' : '1.5';
-
-        const addLine = (x1, y1, x2, y2) => {
-          const l = document.createElementNS(NS, 'line');
-          l.setAttribute('x1', x1); l.setAttribute('y1', y1);
-          l.setAttribute('x2', x2); l.setAttribute('y2', y2);
-          l.setAttribute('stroke', lineColor);
-          l.setAttribute('stroke-width', lineWidth);
-          l.setAttribute('stroke-linecap', 'round');
+      // Lines
+      if(ri<NR-1&&mi%2===0&&mi+1<round.length){
+        const cy0=cy, cy1=mcy(ri,mi+1), cyN=mcy(ri+1,mi/2);
+        const xR=mx+MW, xM=xR+RG*0.44, xN=mx+MW+RG;
+        const done=(round[mi].winner!==null)&&(round[mi+1]&&round[mi+1].winner!==null);
+        const lc=done?'#3a6a9a':'#1a3550', lw=done?'2':'1.5';
+        const L=(x1,y1,x2,y2)=>{
+          const l=document.createElementNS(NS,'line');
+          l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);
+          l.setAttribute('stroke',lc);l.setAttribute('stroke-width',lw);l.setAttribute('stroke-linecap','round');
           svg.appendChild(l);
         };
-
-        addLine(xR, cy0, xM, cy0);   // top horizontal out
-        addLine(xR, cy1, xM, cy1);   // bottom horizontal out
-        addLine(xM, cy0, xM, cy1);   // vertical connector
-        addLine(xM, cyN, xN, cyN);   // horizontal into next round
-
-        // Small dot at junction
-        const dot = document.createElementNS(NS, 'circle');
-        dot.setAttribute('cx', xM);
-        dot.setAttribute('cy', cyN);
-        dot.setAttribute('r', '2.5');
-        dot.setAttribute('fill', lineColor);
+        L(xR,cy0,xM,cy0); L(xR,cy1,xM,cy1); L(xM,cy0,xM,cy1); L(xM,cyN,xN,cyN);
+        const dot=document.createElementNS(NS,'circle');
+        dot.setAttribute('cx',xM);dot.setAttribute('cy',cyN);dot.setAttribute('r','2');dot.setAttribute('fill',lc);
         svg.appendChild(dot);
       }
     });
   });
-
   wrap.appendChild(svg);
 
-  // Status badge
-  const statusEl = document.getElementById(`${type}-status`);
-  if (t.champion) {
-    statusEl.className = 'badge badge-done';
-    statusEl.textContent = '완료';
-  } else {
-    statusEl.className = 'badge badge-active';
-    statusEl.textContent = '진행중';
-  }
+  const hint=document.getElementById(`${type}-hint`);
+  if(hint) hint.textContent=TW>320?'← 스크롤 →':'';
+
+  const stEl=document.getElementById(`${type}-status`);
+  stEl.className='status-badge '+(t.champion?'badge-done':'badge-active');
+  stEl.textContent=t.champion?'완료':'진행중';
 
   renderAwards(type);
   renderUnpaired(type);
 }
 
 function renderAwards(type) {
-  const t = state.tournaments[type];
-  const el = document.getElementById(`${type}-awards`);
-  if (!t || !t.champion) { el.classList.remove('visible'); return; }
-  const typeName = type === 'mixed' ? '혼합복식' : type === 'mens' ? '남자복식' : '여자복식';
-  el.innerHTML = `
-    <div class="card" style="border-color:#b8960a;background:linear-gradient(135deg,#1a1800,#0f2440)">
-      <div class="award-podium">
-        <span class="award-trophy">🏆</span>
-        <div class="award-title">🥇 우승 — ${typeName}</div>
-        <div class="award-names" style="color:#ffd700;font-weight:700;font-size:1.2rem">${pairName(t.champion)}</div>
-        ${t.runnerUp ? `<div class="award-second">
-          <span class="award-trophy">🥈</span>
-          <div class="award-title">준우승</div>
-          <div class="award-names">${pairName(t.runnerUp)}</div>
-        </div>` : ''}
-      </div>
-    </div>`;
+  const t=state.tournaments[type];
+  const el=document.getElementById(`${type}-awards`);
+  if(!t||!t.champion){el.classList.remove('visible');return;}
+  const tn=type==='mixed'?'혼합복식':type==='mens'?'남자복식':'여자복식';
+  el.innerHTML=`<div class="card" style="border-color:#9a7800;background:linear-gradient(135deg,#181200,#0f2440);margin-bottom:10px">
+    <div class="award-podium">
+      <span class="award-trophy">🏆</span>
+      <div class="award-title">🥇 우승 — ${tn}</div>
+      <div class="award-names" style="color:#ffd700;font-weight:700">${pairName(t.champion)}</div>
+      ${t.runnerUp?`<div class="award-second">
+        <span class="award-trophy">🥈</span>
+        <div class="award-title">준우승</div>
+        <div class="award-names">${pairName(t.runnerUp)}</div>
+      </div>`:''}
+    </div>
+  </div>`;
   el.classList.add('visible');
   launchConfetti();
 }
 
 function renderUnpaired(type) {
-  const t = state.tournaments[type];
-  const el = document.getElementById(`${type}-unpaired`);
-  if (!t || !t.unpaired || t.unpaired.length === 0) { el.innerHTML = ''; return; }
-  el.innerHTML = `
-    <div class="unpaired-card">
-      <h3>⚠️ 페어 미배정 멤버 (${t.unpaired.length}명)</h3>
-      <div>${t.unpaired.map(n => `<span class="unpaired-tag">${n}</span>`).join('')}</div>
-    </div>`;
+  const t=state.tournaments[type];
+  const el=document.getElementById(`${type}-unpaired`);
+  if(!t||!t.unpaired||!t.unpaired.length){el.innerHTML='';return;}
+  el.innerHTML=`<div class="unpaired-card">
+    <h3>⚠️ 페어 미배정 멤버 (${t.unpaired.length}명)</h3>
+    <div>${t.unpaired.map(n=>`<span class="unpaired-tag">${n}</span>`).join('')}</div>
+  </div>`;
 }
 
-// ===== MODAL =====
-function openModal(type, ri, mi) {
-  const t = state.tournaments[type];
-  const match = t.rounds[ri][mi];
-  modalCtx = { type, ri, mi };
-
-  const roundNames = getRoundNames(t.rounds.length);
-  document.getElementById('modal-round').textContent = `${type === 'mixed' ? '혼합복식' : type === 'mens' ? '남자복식' : '여자복식'} — ${roundNames[ri]}`;
-  document.getElementById('team0-name').textContent = pairName(match.team0);
-  document.getElementById('team1-name').textContent = pairName(match.team1);
-  document.getElementById('score0-input').value = match.score0 || '';
-  document.getElementById('score1-input').value = match.score1 || '';
-
-  // Highlight winner row if result already entered
-  document.getElementById('score-row-0').className = 'score-team-row' + (match.winner === 0 ? ' winner-row' : '');
-  document.getElementById('score-row-1').className = 'score-team-row' + (match.winner === 1 ? ' winner-row' : '');
-
+// ══ MODAL ══
+function openModal(type,ri,mi) {
+  const t=state.tournaments[type], match=t.rounds[ri][mi];
+  modalCtx={type,ri,mi};
+  const rn=roundNames(t.rounds.length);
+  document.getElementById('modal-round').textContent=`${type==='mixed'?'혼합복식':type==='mens'?'남자복식':'여자복식'} — ${rn[ri]}`;
+  document.getElementById('team0-name').textContent=pairName(match.team0);
+  document.getElementById('team1-name').textContent=pairName(match.team1);
+  document.getElementById('score0-input').value=match.score0||'';
+  document.getElementById('score1-input').value=match.score1||'';
+  document.getElementById('score-row-0').className='score-team-row'+(match.winner===0?' winner-row':'');
+  document.getElementById('score-row-1').className='score-team-row'+(match.winner===1?' winner-row':'');
   document.getElementById('score-modal').classList.add('open');
-  const f = match.score0 ? document.getElementById('score1-input') : document.getElementById('score0-input');
-  setTimeout(() => f.focus(), 80);
+  const f=match.score0?document.getElementById('score1-input'):document.getElementById('score0-input');
+  setTimeout(()=>f.focus(),80);
 }
 
 function closeModal() {
   document.getElementById('score-modal').classList.remove('open');
-  modalCtx = null;
+  modalCtx=null;
 }
 
-// Live preview: highlight leading team row as user types
 function previewWinner() {
-  const s0 = parseInt(document.getElementById('score0-input').value);
-  const s1 = parseInt(document.getElementById('score1-input').value);
-  const row0 = document.getElementById('score-row-0');
-  const row1 = document.getElementById('score-row-1');
-  if (!isNaN(s0) && !isNaN(s1) && s0 !== s1) {
-    row0.className = 'score-team-row' + (s0 > s1 ? ' winner-row' : '');
-    row1.className = 'score-team-row' + (s1 > s0 ? ' winner-row' : '');
-  } else {
-    row0.className = 'score-team-row';
-    row1.className = 'score-team-row';
-  }
+  const s0=parseInt(document.getElementById('score0-input').value);
+  const s1=parseInt(document.getElementById('score1-input').value);
+  const r0=document.getElementById('score-row-0'), r1=document.getElementById('score-row-1');
+  if(!isNaN(s0)&&!isNaN(s1)&&s0!==s1){
+    r0.className='score-team-row'+(s0>s1?' winner-row':'');
+    r1.className='score-team-row'+(s1>s0?' winner-row':'');
+  } else { r0.className='score-team-row'; r1.className='score-team-row'; }
 }
 
 function submitScore() {
-  if (!modalCtx) return;
-  const s0 = document.getElementById('score0-input').value.trim();
-  const s1 = document.getElementById('score1-input').value.trim();
-  if (!s0 || !s1) { alert('두 팀의 점수를 모두 입력하세요.'); return; }
-  const n0 = parseInt(s0), n1 = parseInt(s1);
-  if (isNaN(n0) || isNaN(n1)) { alert('숫자를 입력하세요.'); return; }
-  if (n0 === n1) { alert('동점은 승자를 결정할 수 없습니다.'); return; }
-
-  const { type, ri, mi } = modalCtx;
-  const t = state.tournaments[type];
-  const match = t.rounds[ri][mi];
-  clearDownstream(t.rounds, ri, mi);
-  match.score0 = s0;
-  match.score1 = s1;
-  match.winner = n0 > n1 ? 0 : 1;
-  advanceWinner(t.rounds, ri, mi);
-  checkTournamentComplete(type);
+  if(!modalCtx)return;
+  const s0=document.getElementById('score0-input').value.trim();
+  const s1=document.getElementById('score1-input').value.trim();
+  if(!s0||!s1){alert('두 팀의 점수를 입력하세요.');return;}
+  const n0=parseInt(s0),n1=parseInt(s1);
+  if(isNaN(n0)||isNaN(n1)){alert('숫자를 입력하세요.');return;}
+  if(n0===n1){alert('동점은 승자를 결정할 수 없습니다.');return;}
+  const {type,ri,mi}=modalCtx;
+  const t=state.tournaments[type], match=t.rounds[ri][mi];
+  clearDown(t.rounds,ri,mi);
+  match.score0=s0; match.score1=s1; match.winner=n0>n1?0:1;
+  advanceWinner(t.rounds,ri,mi);
+  checkComplete(type);
   closeModal();
   renderTournament(type);
 }
 
-function resetMatch() {
-  if (!modalCtx) return;
-  const { type, ri, mi } = modalCtx;
-  const t = state.tournaments[type];
-  const match = t.rounds[ri][mi];
-  clearDownstream(t.rounds, ri, mi);
-  match.winner = null;
-  match.score0 = '';
-  match.score1 = '';
-  checkTournamentComplete(type);
-  closeModal();
-  renderTournament(type);
-}
-
-// ===== NAV =====
+// ══ NAV ══
 function switchPage(id) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById(`page-${id}`).classList.add('active');
-  ['setup', 'mixed', 'mens', 'womens'].forEach((n, i) => {
-    if (n === id) document.querySelectorAll('.nav-tab')[i].classList.add('active');
-  });
+  document.getElementById(`nav-${id}`).classList.add('active');
+  window.scrollTo(0,0);
 }
 
-// ===== CONFETTI =====
+// ══ CONFETTI ══
 function launchConfetti() {
-  const wrap = document.getElementById('confetti-wrap');
-  wrap.innerHTML = '';
-  const colors = ['#ffd700','#64c8ff','#ff88cc','#4adf8a','#ff6b6b','#ffffff'];
-  for (let i = 0; i < 90; i++) {
-    const p = document.createElement('div');
-    p.className = 'confetti-piece';
-    const size = 6 + Math.random() * 9;
-    p.style.cssText = `left:${Math.random()*100}%;width:${size}px;height:${size}px;background:${colors[Math.floor(Math.random()*colors.length)]};animation-duration:${1.5+Math.random()*2}s;animation-delay:${Math.random()*0.8}s;transform:rotate(${Math.random()*360}deg);`;
+  const wrap=document.getElementById('confetti-wrap'); wrap.innerHTML='';
+  const cols=['#ffd700','#64c8ff','#ff88cc','#4adf8a','#ff6b6b','#ffffff'];
+  for(let i=0;i<80;i++){
+    const p=document.createElement('div'); p.className='confetti-piece';
+    const s=6+Math.random()*9;
+    p.style.cssText=`left:${Math.random()*100}%;width:${s}px;height:${s}px;background:${cols[Math.floor(Math.random()*cols.length)]};animation-duration:${1.5+Math.random()*2}s;animation-delay:${Math.random()*0.8}s;transform:rotate(${Math.random()*360}deg);`;
     wrap.appendChild(p);
   }
-  setTimeout(() => { wrap.innerHTML = ''; }, 4000);
+  setTimeout(()=>{wrap.innerHTML='';},4000);
 }
 
-// ===== SAMPLE & RESET =====
-function loadSample() {
-  state.males = ['김민준', '이서준', '박도현', '최준혁', '정우진', '강현서'];
-  state.females = ['이지아', '김서연', '박지현', '최수아', '정하은', '윤채원'];
-  renderPlayerLists();
-  updateSummary();
-  document.getElementById('setup-hint').textContent = '샘플 데이터 로드 완료. 대진 생성 버튼을 클릭하세요.';
-}
-
-function resetAll() {
-  if (!confirm('모든 데이터를 초기화하시겠습니까?')) return;
-  state.males = []; state.females = [];
-  state.tournaments = { mixed: null, mens: null, womens: null };
-  renderPlayerLists(); updateSummary();
-  ['mixed', 'mens', 'womens'].forEach(t => {
-    document.getElementById(`${t}-empty`).style.display = 'block';
-    document.getElementById(`${t}-content`).style.display = 'none';
-  });
-  document.getElementById('setup-hint').textContent = '참가자를 추가하고 대진을 생성하세요.';
-}
-
-// Close modal on overlay click
-document.getElementById('score-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('score-modal')) closeModal();
+// Close modal on overlay tap
+document.getElementById('score-modal').addEventListener('click', e=>{
+  if(e.target===document.getElementById('score-modal'))closeModal();
 });
 
+// ══ INIT ALL TOURNAMENTS ══
+function initAllTournaments() {
+  const { males, females } = getParticipants();
+  const errors = [];
+  if (Math.min(males.length, females.length) < 2) errors.push('혼합복식: 남녀 각 2명 이상');
+  if (males.length < 4) errors.push('남자복식: 남자 4명 이상');
+  if (females.length < 4) errors.push('여자복식: 여자 4명 이상');
+  if (errors.length === 3) { alert('대진을 생성하려면:\n' + errors.join('\n')); return; }
+
+  let generated = [];
+  ['mixed','mens','womens'].forEach(type => {
+    const {pairs} = makePairs(type);
+    if (pairs.length >= 2) {
+      initTournamentSilent(type);
+      generated.push(type);
+    }
+  });
+
+  if (generated.length === 0) return;
+
+  // Show all generated content areas
+  generated.forEach(type => {
+    document.getElementById(`${type}-empty`).style.display = 'none';
+    document.getElementById(`${type}-content`).style.display = 'block';
+  });
+
+  // Navigate to mixed if generated, else first generated
+  const target = generated.includes('mixed') ? 'mixed' : generated[0];
+  switchPage(target);
+}
+
+function initTournamentSilent(type) {
+  const {pairs,unpaired} = makePairs(type);
+  if (pairs.length < 2) return;
+  const size=pow2(pairs.length);
+  const slots=shuffle([...pairs,...Array(size-pairs.length).fill(null)]);
+  const r0=[];
+  for(let i=0;i<slots.length;i+=2)
+    r0.push({team0:slots[i],team1:slots[i+1],winner:null,score0:'',score1:''});
+  const rounds=[r0];
+  let prev=r0.length;
+  while(prev>1){
+    rounds.push(Array.from({length:prev/2},()=>({team0:null,team1:null,winner:null,score0:'',score1:''})));
+    prev=prev/2;
+  }
+  for(let mi=0;mi<r0.length;mi++){
+    const m=r0[mi];
+    if(!m.team0&&m.team1){m.winner=1;advanceWinner(rounds,0,mi);}
+    else if(!m.team1&&m.team0){m.winner=0;advanceWinner(rounds,0,mi);}
+    else if(!m.team0&&!m.team1)m.winner=-1;
+  }
+  state.tournaments[type]={rounds,champion:null,runnerUp:null,unpaired};
+  checkComplete(type);
+  renderTournament(type);
+}
+
+// ══ EDIT MEMBER ══
+let editingId = null;
+
+function openEditMember(id) {
+  editingId = id;
+  const m = state.members.find(x => x.id === id);
+  if (!m) return;
+  document.getElementById('edit-name').value = m.name;
+  document.getElementById('edit-nickname').value = m.nickname || '';
+  document.getElementById('edit-gender').value = m.gender;
+
+  // Populate edit birthday selects
+  const eyEl = document.getElementById('edit-year');
+  const emEl = document.getElementById('edit-month');
+  const edEl = document.getElementById('edit-day');
+  eyEl.innerHTML = '<option value="">년도</option>';
+  emEl.innerHTML = '<option value="">월</option>';
+  edEl.innerHTML = '<option value="">일</option>';
+  for (let y = 2010; y >= 1940; y--) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y + '년'; eyEl.appendChild(o);
+  }
+  for (let mo = 1; mo <= 12; mo++) {
+    const o = document.createElement('option');
+    o.value = String(mo).padStart(2,'0'); o.textContent = mo + '월'; emEl.appendChild(o);
+  }
+  for (let d = 1; d <= 31; d++) {
+    const o = document.createElement('option');
+    o.value = String(d).padStart(2,'0'); o.textContent = d + '일'; edEl.appendChild(o);
+  }
+  if (m.birthday) {
+    const parts = m.birthday.split('-');
+    eyEl.value = parts[0] || '';
+    emEl.value = parts[1] || '';
+    edEl.value = parts[2] || '';
+  }
+  document.getElementById('edit-ntrp').value = m.ntrp || '';
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.remove('open');
+  editingId = null;
+}
+
+function saveEditMember() {
+  const name = document.getElementById('edit-name').value.trim();
+  if (!name) { alert('이름을 입력해주세요.'); return; }
+  const gender = document.getElementById('edit-gender').value;
+  const y = document.getElementById('edit-year').value;
+  const mo = document.getElementById('edit-month').value;
+  const d = document.getElementById('edit-day').value;
+  const birthday = (y && mo && d) ? `${y}-${mo}-${d}` : '';
+  const ntrp = document.getElementById('edit-ntrp').value;
+  const m = state.members.find(x => x.id === editingId);
+  if (!m) return;
+  m.name = name;
+  m.nickname = document.getElementById('edit-nickname').value.trim();
+  m.gender = gender;
+  m.birthday = birthday;
+  m.ntrp = ntrp;
+  saveMembers();
+  renderMemberList();
+  renderChecks();
+  updateSummary();
+  closeEditModal();
+}
+
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeEditModal();
+});
+
+// ══ SAMPLE DATA ══
+function loadSample() {
+  const samples = [
+    {name:'김민준',gender:'male',birthday:'1985-03-12',ntrp:'3.5'},
+    {name:'이서준',gender:'male',birthday:'1979-07-24',ntrp:'4.0'},
+    {name:'박도윤',gender:'male',birthday:'1990-11-05',ntrp:'3.0'},
+    {name:'최지호',gender:'male',birthday:'1982-01-30',ntrp:'3.5'},
+    {name:'정시우',gender:'male',birthday:'1975-09-18',ntrp:'4.5'},
+    {name:'강준서',gender:'male',birthday:'1988-05-22',ntrp:'3.0'},
+    {name:'윤소연',gender:'female',birthday:'1986-04-08',ntrp:'3.0'},
+    {name:'임지아',gender:'female',birthday:'1991-12-15',ntrp:'3.5'},
+    {name:'한수아',gender:'female',birthday:'1983-06-27',ntrp:'3.0'},
+    {name:'오예린',gender:'female',birthday:'1977-02-14',ntrp:'3.5'},
+    {name:'서나연',gender:'female',birthday:'1994-08-03',ntrp:'2.5'},
+    {name:'신하은',gender:'female',birthday:'1980-10-19',ntrp:'3.0'},
+  ];
+  const existing = new Set(state.members.map(m => m.name));
+  let added = 0;
+  samples.forEach(s => {
+    if (!existing.has(s.name)) {
+      state.members.push({ id: Date.now() + Math.random(), ...s });
+      added++;
+    }
+  });
+  if (added === 0) { alert('샘플 데이터가 이미 모두 등록되어 있습니다.'); return; }
+  saveMembers();
+  renderMemberList();
+  renderChecks();
+  updateSummary();
+}
+
+// ══ INIT ══
+loadMembers();
+initBirthdaySelects();
+renderMemberList();
+renderChecks();
 updateSummary();
 </script>
 </body>
