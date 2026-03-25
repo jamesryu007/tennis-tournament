@@ -799,6 +799,7 @@ function initTournament(type) {
     else if(!m.team1&&m.team0){m.winner=0;advanceWinner(rounds,0,mi);}
     else if(!m.team0&&!m.team1)m.winner=-1;
   }
+  cascadeByes(rounds);
   state.tournaments[type]={rounds,champion:null,runnerUp:null,unpaired};
   checkComplete(type);
   renderTournament(type);
@@ -818,8 +819,31 @@ function advanceWinner(rounds,ri,mi) {
   if(m.winner===null||m.winner===-1)return;
   const w=m.winner===0?m.team0:m.team1;
   if(!w||ri+1>=rounds.length)return;
-  const nm=rounds[ri+1][Math.floor(mi/2)];
+  const nmi=Math.floor(mi/2);
+  const nm=rounds[ri+1][nmi];
   if(mi%2===0)nm.team0=w; else nm.team1=w;
+  // 형제 경기가 이미 결정(부전승 포함)된 경우, 다음 라운드 자동 부전승 처리
+  const sibMi=mi%2===0?mi+1:mi-1;
+  const sib=sibMi<rounds[ri].length?rounds[ri][sibMi]:null;
+  if(sib&&sib.winner!==null){
+    if(nm.team0&&!nm.team1){nm.winner=0;advanceWinner(rounds,ri+1,nmi);}
+    else if(!nm.team0&&nm.team1){nm.winner=1;advanceWinner(rounds,ri+1,nmi);}
+  }
+}
+
+// 초기화 후 다중 부전승 연쇄 처리
+function cascadeByes(rounds) {
+  for(let ri=1;ri<rounds.length;ri++){
+    for(let mi=0;mi<rounds[ri].length;mi++){
+      const m=rounds[ri][mi]; if(m.winner!==null)continue;
+      const f0=rounds[ri-1][mi*2], f1=mi*2+1<rounds[ri-1].length?rounds[ri-1][mi*2+1]:null;
+      if(f0.winner!==null&&(!f1||f1.winner!==null)){
+        if(m.team0&&!m.team1){m.winner=0;advanceWinner(rounds,ri,mi);}
+        else if(!m.team0&&m.team1){m.winner=1;advanceWinner(rounds,ri,mi);}
+        else if(!m.team0&&!m.team1){m.winner=-1;}
+      }
+    }
+  }
 }
 
 function checkComplete(type) {
@@ -1111,6 +1135,7 @@ function initTournamentSilent(type) {
     else if(!m.team1&&m.team0){m.winner=0;advanceWinner(rounds,0,mi);}
     else if(!m.team0&&!m.team1)m.winner=-1;
   }
+  cascadeByes(rounds);
   state.tournaments[type]={rounds,champion:null,runnerUp:null,unpaired};
   checkComplete(type);
   renderTournament(type);
