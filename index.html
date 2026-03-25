@@ -166,9 +166,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .hist-results { display: flex; flex-direction: column; gap: 5px; }
 .hist-result-block { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; }
 .hist-result-type { font-size: 0.67rem; color: #94a3b8; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 4px; }
-.hist-champion-row { font-size: 0.82rem; color: #1e293b; }
-.hist-runner-row { font-size: 0.76rem; color: #64748b; margin-top: 2px; }
-.hist-champion { color: #d97706; font-weight: 700; }
+.hist-champion-row { font-size: 0.95rem; font-weight: 700; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hist-runner-row { font-size: 0.78rem; color: #64748b; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hist-champion { color: #d97706; }
 .hist-runner { color: #475569; }
 
 /* ── EMPTY STATE ── */
@@ -191,8 +191,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <body>
 
 <div class="app-header">
-  <h1>🎾 자미터 테니스 대회</h1>
-  <p>복식 토너먼트 관리 시스템</p>
+  <h1>🎾 자미터 테니스 대회 <span style="font-size:0.72rem;font-weight:500;color:#94a3b8;letter-spacing:0">(복식 토너먼트 관리 시스템)</span></h1>
 </div>
 
 <!-- ══ PAGE: 회원관리 ══ -->
@@ -218,7 +217,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     <div class="field-label">장소</div>
     <input type="text" id="t-venue" placeholder="장소 입력">
     <div class="field-label">날짜</div>
-    <input type="date" id="t-date">
+    <input type="date" id="t-date" style="text-align:left;display:block;width:100%">
     <div class="field-label">비고</div>
     <input type="text" id="t-notes" placeholder="(선택사항)">
   </div>
@@ -1177,8 +1176,8 @@ function renderHistoryList() {
       const runner = r.results[t].runnerUp ? pairName(r.results[t].runnerUp) : '-';
       return `<div class="hist-result-block">
         <div class="hist-result-type">${tn}</div>
-        <div class="hist-champion-row">🥇 우승 &nbsp;<span class="hist-champion">${champ}</span></div>
-        <div class="hist-runner-row">🥈 준우승 <span class="hist-runner">${runner}</span></div>
+        <div class="hist-champion-row">🥇 <span class="hist-champion">${champ}</span></div>
+        <div class="hist-runner-row">🥈 <span class="hist-runner">${runner}</span></div>
       </div>`;
     }).join('');
     const meta = [r.venue?'📍 '+r.venue:'', r.date?'📅 '+r.date:'', r.notes?'📝 '+r.notes:''].filter(Boolean).join(' · ');
