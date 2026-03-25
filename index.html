@@ -808,6 +808,7 @@ function setupFirebaseListeners() {
       : [];
     if(document.getElementById('page-history').classList.contains('active'))
       renderHistoryList();
+    renderMemberList(); // 이력 로드 후 우승/준우승 뱃지 갱신
   }, fbErr);
 
   // 활성 대회 실시간 동기화 — debounce 300ms로 연속 업데이트 방지
