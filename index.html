@@ -185,12 +185,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .field-label { font-size: 0.72rem; color: #64748b; font-weight: 600; letter-spacing: 0.4px; margin: 9px 0 4px; }
 .flex-row { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
 .mt-8 { margin-top: 8px; }
+.conn-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#94a3b8; margin-left:7px; vertical-align:middle; transition:background 0.4s; }
 </style>
+<!-- Firebase SDK (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 </head>
 <body>
 
 <div class="app-header">
-  <h1>🎾 자미터 테니스 대회 <span style="font-size:0.72rem;font-weight:500;color:#94a3b8;letter-spacing:0">(복식 토너먼트 관리 시스템)</span></h1>
+  <h1>🎾 자미터 테니스 대회 <span style="font-size:0.72rem;font-weight:500;color:#94a3b8;letter-spacing:0">(복식 토너먼트 관리 시스템)</span><span id="conn-status" class="conn-dot" title="Firebase 연결 상태"></span></h1>
 </div>
 
 <!-- ══ PAGE: 회원관리 ══ -->
@@ -524,62 +528,180 @@ const state = {
 };
 let modalCtx = null;
 
-// ══ LOCALSTORAGE ══
-const LS = 'jmt_v2_members';
-const LS_HIST = 'jmt_v2_history';
-const LS_ACTIVE = 'jmt_active_state';
-const LS_TOKEN = 'jmt_creator_token';
+// ══ FIREBASE CONFIG ══
+// ⚠️  아래 값을 Firebase 콘솔에서 복사한 본인 프로젝트 설정으로 교체하세요
+const firebaseConfig = {
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
+  databaseURL:       "https://YOUR_PROJECT_ID-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "YOUR_PROJECT_ID",
+  storageBucket:     "YOUR_PROJECT_ID.firebasestorage.app",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId:             "YOUR_APP_ID"
+};
 
-function saveMembers() { localStorage.setItem(LS, JSON.stringify(state.members)); }
-function loadMembers() {
-  try { const d = localStorage.getItem(LS); if (d) state.members = JSON.parse(d); }
+let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
+
+// ══ LOCALSTORAGE (폴백 / 기기별 토큰) ══
+const LS_TOKEN          = 'jmt_creator_token';
+const LS_FB_MEMBERS     = 'jmt_v2_members';   // Firebase 미설정 시 폴백
+const LS_FB_HIST        = 'jmt_v2_history';
+const LS_FB_ACTIVE      = 'jmt_active_state';
+
+// ══ 유틸 헬퍼 ══
+function toArr(v) { if(!v)return[]; if(Array.isArray(v))return v; return Object.values(v); }
+function setConnStatus(on) {
+  const el = document.getElementById('conn-status');
+  if(!el) return;
+  el.style.background = on ? '#22c55e' : '#94a3b8';
+  el.title = on ? '실시간 연결됨' : 'Firebase 연결 대기 중';
+}
+function fbErr(e) { console.error('Firebase 오류:', e); }
+
+function saveMembers() {
+  if(db) {
+    const o = {};
+    state.members.forEach(m => { o[m.id] = m; });
+    db.ref('jmt/members').set(o).catch(fbErr);
+  } else {
+    localStorage.setItem(LS_FB_MEMBERS, JSON.stringify(state.members));
+  }
+}
+function loadMembersLocal() {
+  try { const d = localStorage.getItem(LS_FB_MEMBERS); if(d) state.members = JSON.parse(d); }
   catch(e) { state.members = []; }
 }
-function saveHistory() { localStorage.setItem(LS_HIST, JSON.stringify(state.history)); }
-function loadHistory() {
-  try { const d = localStorage.getItem(LS_HIST); if (d) state.history = JSON.parse(d); }
+function saveHistory() {
+  if(db) {
+    const o = {};
+    // JSON 문자열로 저장 (중첩 배열을 Firebase가 변환하는 문제 방지)
+    state.history.forEach(r => { o[r.id] = JSON.stringify(r); });
+    db.ref('jmt/history').set(o).catch(fbErr);
+  } else {
+    localStorage.setItem(LS_FB_HIST, JSON.stringify(state.history));
+  }
+}
+function loadHistoryLocal() {
+  try { const d = localStorage.getItem(LS_FB_HIST); if(d) state.history = JSON.parse(d); }
   catch(e) { state.history = []; }
 }
 
 function saveActiveState() {
-  if (!state.currentHistoryId) { localStorage.removeItem(LS_ACTIVE); return; }
-  const token = localStorage.getItem(LS_TOKEN);
-  const setupInfo = {
-    name: document.getElementById('t-name').value,
-    venue: document.getElementById('t-venue').value,
-    date: document.getElementById('t-date').value,
-    notes: document.getElementById('t-notes').value
-  };
-  localStorage.setItem(LS_ACTIVE, JSON.stringify({
+  const payload = state.currentHistoryId ? JSON.stringify({
     currentHistoryId: state.currentHistoryId,
-    creatorToken: token,
+    creatorToken: localStorage.getItem(LS_TOKEN),
     tournaments: state.tournaments,
     guests: state.guests,
     selectedIds: [...state.selectedIds],
-    setupInfo
-  }));
+    setupInfo: {
+      name: document.getElementById('t-name').value,
+      venue: document.getElementById('t-venue').value,
+      date: document.getElementById('t-date').value,
+      notes: document.getElementById('t-notes').value
+    }
+  }) : null;
+
+  if(db) {
+    if(payload) db.ref('jmt/activeState').set(payload).catch(fbErr);
+    else        db.ref('jmt/activeState').remove().catch(fbErr);
+  } else {
+    if(payload) localStorage.setItem(LS_FB_ACTIVE, payload);
+    else        localStorage.removeItem(LS_FB_ACTIVE);
+  }
 }
 
-function loadActiveState() {
+// 파싱된 activeState 객체를 state에 반영
+function applyActiveState(saved) {
+  if(!saved || !saved.currentHistoryId) return false;
+  state.currentHistoryId = saved.currentHistoryId;
+  state.tournaments = saved.tournaments || { mixed: null, mens: null, womens: null };
+  state.guests = saved.guests || [];
+  state.selectedIds = new Set(toArr(saved.selectedIds));
+  const myToken = localStorage.getItem(LS_TOKEN);
+  state.isCreator = !!(myToken && myToken === saved.creatorToken);
+  if(saved.setupInfo) {
+    document.getElementById('t-name').value  = saved.setupInfo.name  || '';
+    document.getElementById('t-venue').value = saved.setupInfo.venue || '';
+    document.getElementById('t-date').value  = saved.setupInfo.date  || '';
+    document.getElementById('t-notes').value = saved.setupInfo.notes || '';
+  }
+  return true;
+}
+
+function loadActiveStateLocal() {
   try {
-    const d = localStorage.getItem(LS_ACTIVE);
-    if (!d) return false;
-    const saved = JSON.parse(d);
-    if (!saved.currentHistoryId) return false;
-    state.currentHistoryId = saved.currentHistoryId;
-    state.tournaments = saved.tournaments || { mixed: null, mens: null, womens: null };
-    state.guests = saved.guests || [];
-    if (saved.selectedIds) saved.selectedIds.forEach(id => state.selectedIds.add(id));
-    if (saved.setupInfo) {
-      document.getElementById('t-name').value = saved.setupInfo.name || '';
-      document.getElementById('t-venue').value = saved.setupInfo.venue || '';
-      document.getElementById('t-date').value = saved.setupInfo.date || '';
-      document.getElementById('t-notes').value = saved.setupInfo.notes || '';
-    }
-    const myToken = localStorage.getItem(LS_TOKEN);
-    state.isCreator = !!(myToken && myToken === saved.creatorToken);
-    return true;
+    const d = localStorage.getItem(LS_FB_ACTIVE);
+    if(!d) return false;
+    return applyActiveState(JSON.parse(d));
   } catch(e) { return false; }
+}
+
+// ══ FIREBASE 실시간 리스너 ══
+function setupFirebaseListeners() {
+  // 정회원 동기화
+  db.ref('jmt/members').on('value', snap => {
+    state.members = snap.val() ? Object.values(snap.val()) : [];
+    renderMemberList();
+    renderChecks();
+    updateSummary();
+  }, fbErr);
+
+  // 대회 이력 동기화
+  db.ref('jmt/history').on('value', snap => {
+    const data = snap.val();
+    state.history = data
+      ? Object.values(data)
+          .map(s => { try { return JSON.parse(s); } catch(e) { return null; } })
+          .filter(Boolean)
+          .sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''))
+      : [];
+    if(document.getElementById('page-history').classList.contains('active'))
+      renderHistoryList();
+  }, fbErr);
+
+  // 활성 대회 실시간 동기화
+  db.ref('jmt/activeState').on('value', snap => {
+    const raw = snap.val();
+    if(raw) {
+      try {
+        const saved = JSON.parse(raw);
+        applyActiveState(saved);
+        ['mixed','mens','womens'].forEach(type => {
+          if(state.tournaments[type]) {
+            document.getElementById(`${type}-empty`).style.display = 'none';
+            document.getElementById(`${type}-content`).style.display = 'block';
+            renderTournament(type);
+          } else {
+            document.getElementById(`${type}-empty`).style.display = '';
+            document.getElementById(`${type}-content`).style.display = 'none';
+          }
+        });
+        updateParticipantSummary();
+        updateSummary();
+        updateSetupPageUI();
+      } catch(e) { console.error('activeState 파싱 오류:', e); }
+    } else {
+      const wasActive = !!state.currentHistoryId;
+      state.currentHistoryId = null;
+      state.isCreator = false;
+      state.guests = [];
+      state.selectedIds = new Set();
+      state.tournaments = { mixed: null, mens: null, womens: null };
+      if(wasActive) {
+        ['mixed','mens','womens'].forEach(type => {
+          document.getElementById(`${type}-empty`).style.display = '';
+          document.getElementById(`${type}-content`).style.display = 'none';
+          document.getElementById(`${type}-awards`).classList.remove('visible');
+          document.getElementById(`${type}-unpaired`).innerHTML = '';
+          document.getElementById(`${type}-bracket`).innerHTML = '';
+        });
+        updateSetupPageUI();
+      }
+    }
+  }, fbErr);
+
+  // 연결 상태 감지
+  db.ref('.info/connected').on('value', snap => setConnStatus(snap.val() === true));
 }
 
 // ══ BRACKET CONSTANTS ══
@@ -1287,8 +1409,8 @@ function endTournament() {
   state.currentHistoryId = null;
   state.isCreator = false;
   state.tournaments = { mixed: null, mens: null, womens: null };
-  localStorage.removeItem(LS_ACTIVE);
-  localStorage.removeItem(LS_TOKEN);
+  localStorage.removeItem(LS_TOKEN); // 이 기기의 생성자 토큰 삭제
+  saveActiveState(); // Firebase / localStorage에서 활성 대회 삭제
   document.getElementById('t-name').value = '';
   document.getElementById('t-venue').value = '';
   document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
@@ -1465,27 +1587,44 @@ function updateSetupPageUI() {
 });
 
 // ══ INIT ══
-loadMembers();
-loadHistory();
 initBirthdaySelects();
 document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
-renderMemberList();
-updateSummary();
 
-// 활성 대회 복원
 (function() {
-  const hasActive = loadActiveState();
-  if (hasActive) {
-    ['mixed','mens','womens'].forEach(type => {
-      if (state.tournaments[type]) {
-        document.getElementById(`${type}-empty`).style.display = 'none';
-        document.getElementById(`${type}-content`).style.display = 'block';
-        renderTournament(type);
+  try {
+    if (firebaseConfig.apiKey !== 'YOUR_API_KEY') {
+      // ── Firebase 모드 ──────────────────────────────────────────
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.database();
+      setupFirebaseListeners(); // 리스너가 초기 데이터 로드 + 렌더링 처리
+    } else {
+      // ── localStorage 폴백 모드 (Firebase 미설정) ───────────────
+      setConnStatus(false);
+      loadMembersLocal();
+      loadHistoryLocal();
+      renderMemberList();
+      updateSummary();
+      const hasActive = loadActiveStateLocal();
+      if(hasActive) {
+        ['mixed','mens','womens'].forEach(type => {
+          if(state.tournaments[type]) {
+            document.getElementById(`${type}-empty`).style.display = 'none';
+            document.getElementById(`${type}-content`).style.display = 'block';
+            renderTournament(type);
+          }
+        });
+        updateParticipantSummary();
+        updateSummary();
+        updateSetupPageUI();
       }
-    });
-    updateParticipantSummary();
+    }
+  } catch(e) {
+    console.error('초기화 오류:', e);
+    // 오류 시 로컬 폴백
+    loadMembersLocal();
+    loadHistoryLocal();
+    renderMemberList();
     updateSummary();
-    updateSetupPageUI();
   }
 })();
 </script>
