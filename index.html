@@ -214,7 +214,11 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
 <!-- ══ PAGE: 참가자 ══ -->
 <div class="page" id="page-setup">
   <div class="card">
-    <div class="card-title">📋 대회 참가자 선택</div>
+    <div class="card-title" style="justify-content:space-between;margin-bottom:0">
+      <span>📋 대회 참가자 선택</span>
+      <button class="btn btn-outline btn-sm" id="select-all-btn" onclick="toggleSelectAll()">전체 선택</button>
+    </div>
+    <div class="divider"></div>
 
     <div class="sec-label">👨 남자 정회원</div>
     <div id="male-checks"><p class="text-muted">등록된 남자 정회원 없음</p></div>
@@ -535,6 +539,7 @@ function renderChecks() {
   const fEl = document.getElementById('female-checks');
   mEl.innerHTML = males.length ? males.map(checkItem).join('') : '<p class="text-muted" style="font-size:0.78rem;padding:2px 0">등록된 남자 정회원 없음</p>';
   fEl.innerHTML = females.length ? females.map(checkItem).join('') : '<p class="text-muted" style="font-size:0.78rem;padding:2px 0">등록된 여자 정회원 없음</p>';
+  updateSelectAllBtn();
 }
 
 function checkItem(m) {
@@ -553,6 +558,28 @@ function toggleMember(id) {
   else state.selectedIds.add(id);
   renderChecks();
   updateSummary();
+  updateSelectAllBtn();
+}
+
+function toggleSelectAll() {
+  const allIds = state.members.map(m => m.id);
+  const allSelected = allIds.length > 0 && allIds.every(id => state.selectedIds.has(id));
+  if (allSelected) {
+    allIds.forEach(id => state.selectedIds.delete(id));
+  } else {
+    allIds.forEach(id => state.selectedIds.add(id));
+  }
+  renderChecks();
+  updateSummary();
+  updateSelectAllBtn();
+}
+
+function updateSelectAllBtn() {
+  const btn = document.getElementById('select-all-btn');
+  if (!btn) return;
+  const allIds = state.members.map(m => m.id);
+  const allSelected = allIds.length > 0 && allIds.every(id => state.selectedIds.has(id));
+  btn.textContent = allSelected ? '전체 해제' : '전체 선택';
 }
 
 // ══ GUESTS ══
@@ -828,10 +855,17 @@ function closeModal() {
   modalCtx=null;
 }
 
+let _autoNextTimer = null;
 function autoNextScore(el, nextId) {
+  clearTimeout(_autoNextTimer);
   if (el.value.length >= el.maxLength) {
     document.getElementById(nextId).focus();
     document.getElementById(nextId).select();
+  } else if (el.value.length >= 1) {
+    _autoNextTimer = setTimeout(() => {
+      document.getElementById(nextId).focus();
+      document.getElementById(nextId).select();
+    }, 500);
   }
 }
 
