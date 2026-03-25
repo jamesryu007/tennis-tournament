@@ -648,6 +648,11 @@ function loadHistoryLocal() {
 }
 
 function saveActiveState() {
+  // 현재 대진표 데이터를 이력 레코드에 함께 저장 (종료 여부와 무관)
+  if (state.currentHistoryId) {
+    const rec = state.history.find(r => String(r.id) === String(state.currentHistoryId));
+    if (rec) { rec.tournaments = JSON.parse(JSON.stringify(state.tournaments)); saveHistory(); }
+  }
   const payload = state.currentHistoryId ? JSON.stringify({
     currentHistoryId: state.currentHistoryId,
     creatorName: state.identity ? state.identity.name : null,
@@ -1508,11 +1513,6 @@ function initTournamentSilent(type) {
 function endTournament() {
   if (!state.isCreator) { alert('대회 종료는 대회 생성자만 가능합니다.'); return; }
   if (!confirm('대회를 종료하시겠습니까?\n참가자 정보와 대진이 초기화됩니다.')) return;
-  // 종료 전 대진표 전체 데이터를 이력에 저장
-  if (state.currentHistoryId) {
-    const rec = state.history.find(r => String(r.id) === String(state.currentHistoryId));
-    if (rec) { rec.tournaments = JSON.parse(JSON.stringify(state.tournaments)); saveHistory(); }
-  }
   state.selectedIds.clear();
   state.guests = [];
   state.currentHistoryId = null;
