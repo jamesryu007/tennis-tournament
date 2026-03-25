@@ -291,6 +291,14 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
 <!-- ══ PAGE: 경기진행 ══ -->
 <div class="page" id="page-matches">
+  <!-- 직전 대회 결과 배너 -->
+  <div id="finished-banner" style="display:none;padding:10px 12px 0">
+    <div style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border:1px solid #bae6fd;border-radius:12px;padding:10px 14px">
+      <div style="font-size:0.67rem;color:#0284c7;font-weight:700;letter-spacing:0.5px;margin-bottom:3px">📋 직전 대회 결과 (읽기 전용)</div>
+      <div id="finished-banner-name" style="font-size:0.92rem;font-weight:700;color:#1e293b"></div>
+      <div id="finished-banner-meta" style="font-size:0.72rem;color:#64748b;margin-top:2px"></div>
+    </div>
+  </div>
   <div class="sub-tabs">
     <div class="sub-tab active" id="mtab-mixed" onclick="switchMatchTab('mixed')">🔀 혼합복식</div>
     <div class="sub-tab" id="mtab-mens" onclick="switchMatchTab('mens')">👨 남자복식</div>
@@ -584,7 +592,8 @@ const state = {
   currentHistoryId: null,
   isCreator: false,
   identity: null,    // { name } — 이 기기의 접속자
-  _creatorName: null // 현재 진행 중인 대회 생성자 이름 (재평가용)
+  _creatorName: null, // 현재 진행 중인 대회 생성자 이름 (재평가용)
+  lastFinished: null  // 직전 종료 대회 { name, venue, date, endedAt, tournaments }
 };
 let modalCtx = null;
 
@@ -608,7 +617,8 @@ const ADMIN_NAME = '유지원'; // 항상 대회 종료 권한 보유
 const LS_IDENTITY   = 'jmt_identity';    // 이 기기의 접속자 이름
 const LS_FB_MEMBERS = 'jmt_v2_members';  // Firebase 미설정 시 폴백
 const LS_FB_HIST    = 'jmt_v2_history';
-const LS_FB_ACTIVE  = 'jmt_active_state';
+const LS_FB_ACTIVE      = 'jmt_active_state';
+const LS_LAST_FINISHED  = 'jmt_last_finished';
 
 // ══ 유틸 헬퍼 ══
 function toArr(v) { if(!v)return[]; if(Array.isArray(v))return v; return Object.values(v); }
@@ -645,6 +655,46 @@ function saveHistory() {
 function loadHistoryLocal() {
   try { const d = localStorage.getItem(LS_FB_HIST); if(d) state.history = JSON.parse(d); }
   catch(e) { state.history = []; }
+}
+function saveLastFinished(data) {
+  const s = data ? JSON.stringify(data) : null;
+  if(db) {
+    if(s) db.ref('jmt/lastFinished').set(s).catch(fbErr);
+    else  db.ref('jmt/lastFinished').remove().catch(fbErr);
+  } else {
+    if(s) localStorage.setItem(LS_LAST_FINISHED, s);
+    else  localStorage.removeItem(LS_LAST_FINISHED);
+  }
+}
+function loadLastFinishedLocal() {
+  try { const d = localStorage.getItem(LS_LAST_FINISHED); return d ? JSON.parse(d) : null; }
+  catch(e) { return null; }
+}
+function showFinishedBanner(data) {
+  const el = document.getElementById('finished-banner');
+  if(!el || !data) return;
+  document.getElementById('finished-banner-name').textContent = '🏆 ' + (data.name || '무제 대회');
+  const meta = [data.venue?'📍 '+data.venue:'', data.date?'📅 '+data.date:'', data.endedAt?'종료: '+data.endedAt.slice(0,10):''].filter(Boolean).join('  ·  ');
+  document.getElementById('finished-banner-meta').textContent = meta;
+  el.style.display = 'block';
+}
+function hideFinishedBanner() {
+  const el = document.getElementById('finished-banner');
+  if(el) el.style.display = 'none';
+}
+function applyLastFinished(data) {
+  if(!data || !data.tournaments) return false;
+  state.lastFinished = data;
+  state.tournaments = data.tournaments;
+  showFinishedBanner(data);
+  ['mixed','mens','womens'].forEach(type => {
+    if(state.tournaments[type]) {
+      document.getElementById(`${type}-empty`).style.display = 'none';
+      document.getElementById(`${type}-content`).style.display = 'block';
+      renderTournament(type);
+    }
+  });
+  return true;
 }
 
 function saveActiveState() {
@@ -771,13 +821,14 @@ function setupFirebaseListeners() {
           updateSetupPageUI();
         } catch(e) { console.error('activeState 파싱 오류:', e); }
       } else {
-        const wasActive = !!state.currentHistoryId;
         state.currentHistoryId = null;
         state.isCreator = false;
         state.guests = [];
         state.selectedIds = new Set();
         state.tournaments = { mixed: null, mens: null, womens: null };
-        if(wasActive) {
+        // lastFinished가 있으면 직전 대회 결과 표시, 없으면 빈 화면
+        if(!applyLastFinished(state.lastFinished)) {
+          hideFinishedBanner();
           ['mixed','mens','womens'].forEach(type => {
             document.getElementById(`${type}-empty`).style.display = '';
             document.getElementById(`${type}-content`).style.display = 'none';
@@ -785,10 +836,23 @@ function setupFirebaseListeners() {
             document.getElementById(`${type}-unpaired`).innerHTML = '';
             document.getElementById(`${type}-bracket`).innerHTML = '';
           });
-          updateSetupPageUI();
         }
+        updateSetupPageUI();
       }
     }, 300);
+  }, fbErr);
+
+  // 직전 종료 대회 동기화
+  db.ref('jmt/lastFinished').on('value', snap => {
+    try {
+      const data = snap.val() ? JSON.parse(snap.val()) : null;
+      state.lastFinished = data;
+      // 활성 대회가 없을 때만 반영
+      if(!state.currentHistoryId) {
+        if(data) applyLastFinished(data);
+        else { hideFinishedBanner(); }
+      }
+    } catch(e) {}
   }, fbErr);
 
   // 연결 상태 감지
@@ -1430,6 +1494,11 @@ function launchConfetti() {
 
 // ══ INIT ALL TOURNAMENTS ══
 function initAllTournaments() {
+  // 새 대진 시작 시 직전 대회 결과 클리어
+  state.lastFinished = null;
+  saveLastFinished(null);
+  hideFinishedBanner();
+
   const { males, females } = getParticipants();
   const recId = Date.now();
   state.currentHistoryId = recId;
@@ -1513,24 +1582,32 @@ function initTournamentSilent(type) {
 function endTournament() {
   if (!state.isCreator) { alert('대회 종료는 대회 생성자만 가능합니다.'); return; }
   if (!confirm('대회를 종료하시겠습니까?\n참가자 정보와 대진이 초기화됩니다.')) return;
+  // 직전 대회 결과 저장 (경기진행 탭에 계속 표시용)
+  const finishedData = {
+    name:  document.getElementById('t-name').value.trim() || '무제 대회',
+    venue: document.getElementById('t-venue').value.trim(),
+    date:  document.getElementById('t-date').value,
+    endedAt: new Date().toISOString(),
+    tournaments: JSON.parse(JSON.stringify(state.tournaments))
+  };
+  saveLastFinished(finishedData);
+  state.lastFinished = finishedData;
+
   state.selectedIds.clear();
   state.guests = [];
   state.currentHistoryId = null;
   state.isCreator = false;
-  state.tournaments = { mixed: null, mens: null, womens: null };
   state._creatorName = null;
-  saveActiveState(); // Firebase / localStorage에서 활성 대회 삭제
+  saveActiveState(); // Firebase에서 활성 대회 삭제
+
   document.getElementById('t-name').value = '';
   document.getElementById('t-venue').value = '';
   document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('t-notes').value = '';
-  ['mixed','mens','womens'].forEach(type => {
-    document.getElementById(`${type}-empty`).style.display = '';
-    document.getElementById(`${type}-content`).style.display = 'none';
-    document.getElementById(`${type}-awards`).classList.remove('visible');
-    document.getElementById(`${type}-unpaired`).innerHTML = '';
-    document.getElementById(`${type}-bracket`).innerHTML = '';
-  });
+
+  // 경기진행 탭: 직전 대회 결과 그대로 유지 (isCreator=false → read-only)
+  showFinishedBanner(finishedData);
+
   updateParticipantSummary();
   updateSummary();
   updateSetupPageUI();
@@ -1825,6 +1902,9 @@ document.getElementById('t-date').value = new Date().toISOString().split('T')[0]
         updateParticipantSummary();
         updateSummary();
         updateSetupPageUI();
+      } else {
+        const lf = loadLastFinishedLocal();
+        if(lf) applyLastFinished(lf);
       }
     }
     // ── 접속자 확인 ───────────────────────────────────────────────
