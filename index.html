@@ -162,6 +162,20 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
 .flex-row { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
 .mt-8 { margin-top: 8px; }
 .gap-top { margin-top: 4px; }
+
+/* ── SUB TABS ── */
+.sub-tabs { display: flex; background: #0a1628; border-radius: 10px; padding: 3px; margin-bottom: 10px; border: 1px solid #1a3050; }
+.sub-tab { flex: 1; text-align: center; padding: 8px 4px; font-size: 0.82rem; font-weight: 700; color: #4a7090; border-radius: 8px; cursor: pointer; transition: all 0.15s; }
+.sub-tab.active { background: #1a3a5c; color: #64c8ff; }
+
+/* ── HISTORY LIST ── */
+.hist-item { background: #0a1628; border: 1px solid #1a3050; border-radius: 12px; padding: 13px 14px; margin-bottom: 8px; }
+.hist-name { font-size: 0.9rem; font-weight: 700; color: #e0e8f0; margin-bottom: 5px; }
+.hist-meta { font-size: 0.72rem; color: #4a7090; margin-bottom: 6px; line-height: 1.6; }
+.hist-result { font-size: 0.75rem; margin-top: 3px; line-height: 1.5; }
+.hist-result-label { color: #4a7090; font-size: 0.65rem; margin-right: 3px; }
+.hist-champion { color: #ffd700; font-weight: 700; }
+.hist-runner { color: #9abccc; }
 </style>
 </head>
 <body>
@@ -211,45 +225,56 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
   </div>
 </div>
 
-<!-- ══ PAGE: 참가자 ══ -->
+<!-- ══ PAGE: 대회 ══ -->
 <div class="page" id="page-setup">
-  <div class="card">
-    <div class="card-title" style="justify-content:space-between;margin-bottom:0">
-      <span>📋 대회 참가자 선택</span>
-      <button class="btn btn-outline btn-sm" id="select-all-btn" onclick="toggleSelectAll()">전체 선택</button>
-    </div>
-    <div class="divider"></div>
-
-    <div class="sec-label">👨 남자 정회원</div>
-    <div id="male-checks"><p class="text-muted">등록된 남자 정회원 없음</p></div>
-
-    <div class="divider"></div>
-    <div class="sec-label">👩 여자 정회원</div>
-    <div id="female-checks"><p class="text-muted">등록된 여자 정회원 없음</p></div>
-
-    <div class="divider"></div>
-    <div class="sec-label">🙋 게스트 추가</div>
-    <div class="form-row">
-      <input type="text" id="guest-name" placeholder="게스트 이름" onkeydown="if(event.key==='Enter')addGuest()">
-      <select id="guest-gender" style="max-width:76px">
-        <option value="male">남 ♂</option>
-        <option value="female">여 ♀</option>
-      </select>
-      <button class="btn btn-outline btn-sm" style="white-space:nowrap" onclick="addGuest()">추가</button>
-    </div>
-    <div id="guest-list"></div>
+  <div class="sub-tabs">
+    <div class="sub-tab active" id="stab-new" onclick="switchSetupTab('new')">새 대회</div>
+    <div class="sub-tab" id="stab-history" onclick="switchSetupTab('history')">대회 이력</div>
   </div>
 
-  <div class="card">
-    <div class="card-title">📊 참가 현황</div>
-    <div class="summary-grid">
-      <div class="summary-item"><div class="val" id="cnt-male">0</div><div class="lbl">남자</div></div>
-      <div class="summary-item"><div class="val" id="cnt-female">0</div><div class="lbl">여자</div></div>
-      <div class="summary-item"><div class="val" id="cnt-mixed">0</div><div class="lbl">혼합 페어</div></div>
-      <div class="summary-item"><div class="val" id="cnt-total">0</div><div class="lbl">총 참가</div></div>
+  <!-- 새 대회 -->
+  <div id="setup-new">
+    <div class="card">
+      <div class="card-title">🏆 대회 정보</div>
+      <div class="field-label" style="margin-top:0">대회명</div>
+      <input type="text" id="t-name" placeholder="예) 제5회 자미터 정기전">
+      <div class="field-label">장소</div>
+      <input type="text" id="t-venue" placeholder="장소 입력">
+      <div class="field-label">날짜</div>
+      <input type="date" id="t-date">
+      <div class="field-label">비고</div>
+      <input type="text" id="t-notes" placeholder="(선택사항)">
     </div>
-    <div class="divider"></div>
-    <button class="btn btn-success btn-full" onclick="initAllTournaments()">🎾 대진 생성 (혼합 · 남자 · 여자)</button>
+
+    <div class="card">
+      <div class="card-title" style="justify-content:space-between;margin-bottom:0">
+        <span>👥 참가자</span>
+        <button class="btn btn-outline btn-sm" onclick="openParticipantModal()">참가자 선택</button>
+      </div>
+      <div class="divider"></div>
+      <div id="participant-summary">
+        <p class="text-muted" style="font-size:0.78rem;padding:2px 0">참가자를 선택하세요</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📊 참가 현황</div>
+      <div class="summary-grid">
+        <div class="summary-item"><div class="val" id="cnt-male">0</div><div class="lbl">남자</div></div>
+        <div class="summary-item"><div class="val" id="cnt-female">0</div><div class="lbl">여자</div></div>
+        <div class="summary-item"><div class="val" id="cnt-mixed">0</div><div class="lbl">혼합 페어</div></div>
+        <div class="summary-item"><div class="val" id="cnt-total">0</div><div class="lbl">총 참가</div></div>
+      </div>
+      <div class="divider"></div>
+      <button class="btn btn-success btn-full" onclick="initAllTournaments()">🎾 대진 생성 (혼합 · 남자 · 여자)</button>
+    </div>
+  </div>
+
+  <!-- 대회 이력 -->
+  <div id="setup-history" style="display:none">
+    <div id="tournament-history-list">
+      <div class="empty-state"><div class="icon">📋</div><p>대회 이력이 없습니다</p></div>
+    </div>
   </div>
 </div>
 
@@ -257,7 +282,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
 <div class="page" id="page-mixed">
   <div id="mixed-empty" class="empty-state">
     <div class="icon">🔀</div>
-    <p>혼합복식 대진표 없음<br><span class="text-muted">참가자 탭에서 대진을 생성하세요</span></p>
+    <p>혼합복식 대진표 없음<br><span class="text-muted">대회 탭에서 대진을 생성하세요</span></p>
   </div>
   <div id="mixed-content" style="display:none">
     <div id="mixed-unpaired"></div>
@@ -280,7 +305,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
 <div class="page" id="page-mens">
   <div id="mens-empty" class="empty-state">
     <div class="icon">👨</div>
-    <p>남자복식 대진표 없음<br><span class="text-muted">참가자 탭에서 대진을 생성하세요</span></p>
+    <p>남자복식 대진표 없음<br><span class="text-muted">대회 탭에서 대진을 생성하세요</span></p>
   </div>
   <div id="mens-content" style="display:none">
     <div id="mens-unpaired"></div>
@@ -303,7 +328,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
 <div class="page" id="page-womens">
   <div id="womens-empty" class="empty-state">
     <div class="icon">👩</div>
-    <p>여자복식 대진표 없음<br><span class="text-muted">참가자 탭에서 대진을 생성하세요</span></p>
+    <p>여자복식 대진표 없음<br><span class="text-muted">대회 탭에서 대진을 생성하세요</span></p>
   </div>
   <div id="womens-content" style="display:none">
     <div id="womens-unpaired"></div>
@@ -318,6 +343,39 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
     </div>
     <div class="card" style="padding:11px">
       <button class="btn btn-warning btn-full" onclick="reshuffleTournament('womens')">🔀 다시 추첨</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PARTICIPANT MODAL ══ -->
+<div class="modal-overlay" id="participant-modal">
+  <div class="modal" style="max-height:88vh;display:flex;flex-direction:column;">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-round">참가자 선택</span>
+      <button class="modal-close" onclick="closeParticipantModal()">✕</button>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding:12px 14px 20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="sec-label" style="margin:0">👨 남자 정회원</div>
+        <button class="btn btn-outline btn-sm" id="select-all-btn" onclick="toggleSelectAll()">전체 선택</button>
+      </div>
+      <div id="male-checks"><p class="text-muted" style="font-size:0.78rem">등록된 남자 정회원 없음</p></div>
+      <div class="divider"></div>
+      <div class="sec-label">👩 여자 정회원</div>
+      <div id="female-checks"><p class="text-muted" style="font-size:0.78rem">등록된 여자 정회원 없음</p></div>
+      <div class="divider"></div>
+      <div class="sec-label">🙋 게스트 추가</div>
+      <div class="form-row">
+        <input type="text" id="guest-name" placeholder="게스트 이름" onkeydown="if(event.key==='Enter')addGuest()">
+        <select id="guest-gender" style="max-width:76px">
+          <option value="male">남 ♂</option>
+          <option value="female">여 ♀</option>
+        </select>
+        <button class="btn btn-outline btn-sm" style="white-space:nowrap" onclick="addGuest()">추가</button>
+      </div>
+      <div id="guest-list"></div>
+      <button class="confirm-btn" style="margin-top:14px" onclick="closeParticipantModal()">확인</button>
     </div>
   </div>
 </div>
@@ -396,7 +454,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
     <span class="ni">👥</span><span>정회원</span>
   </div>
   <div class="nav-item" id="nav-setup" onclick="switchPage('setup')">
-    <span class="ni">📋</span><span>참가자</span>
+    <span class="ni">📋</span><span>대회</span>
   </div>
   <div class="nav-item" id="nav-mixed" onclick="switchPage('mixed')">
     <span class="ni">🔀</span><span>혼합복식</span>
@@ -415,7 +473,9 @@ const state = {
   members: [],       // {id,name,gender,birthday,ntrp} — persisted
   guests: [],        // {id,name,gender} — session only
   selectedIds: new Set(),
-  tournaments: { mixed: null, mens: null, womens: null }
+  tournaments: { mixed: null, mens: null, womens: null },
+  history: [],       // persisted tournament records
+  currentHistoryId: null
 };
 let modalCtx = null;
 
@@ -425,6 +485,13 @@ function saveMembers() { localStorage.setItem(LS, JSON.stringify(state.members))
 function loadMembers() {
   try { const d = localStorage.getItem(LS); if (d) state.members = JSON.parse(d); }
   catch(e) { state.members = []; }
+}
+
+const LS_HIST = 'jmt_v2_history';
+function saveHistory() { localStorage.setItem(LS_HIST, JSON.stringify(state.history)); }
+function loadHistory() {
+  try { const d = localStorage.getItem(LS_HIST); if (d) state.history = JSON.parse(d); }
+  catch(e) { state.history = []; }
 }
 
 // ══ BRACKET CONSTANTS ══
@@ -711,6 +778,13 @@ function checkComplete(type) {
   if(fm.winner!==null&&fm.winner!==-1){
     t.champion=fm.winner===0?fm.team0:fm.team1;
     t.runnerUp=fm.winner===0?fm.team1:fm.team0;
+    if (state.currentHistoryId) {
+      const rec = state.history.find(r => r.id === state.currentHistoryId);
+      if (rec) {
+        rec.results[type] = { champion: [...t.champion], runnerUp: t.runnerUp ? [...t.runnerUp] : null };
+        saveHistory();
+      }
+    }
   } else { t.champion=null; t.runnerUp=null; }
 }
 
@@ -897,6 +971,68 @@ function submitScore() {
   renderTournament(type);
 }
 
+// ══ PARTICIPANT MODAL ══
+function openParticipantModal() {
+  renderChecks();
+  renderGuestList();
+  document.getElementById('participant-modal').classList.add('open');
+}
+
+function closeParticipantModal() {
+  document.getElementById('participant-modal').classList.remove('open');
+  updateParticipantSummary();
+  updateSummary();
+}
+
+function updateParticipantSummary() {
+  const el = document.getElementById('participant-summary');
+  const { males, females } = getParticipants();
+  const total = males.length + females.length;
+  if (total === 0) {
+    el.innerHTML = '<p class="text-muted" style="font-size:0.78rem;padding:2px 0">참가자를 선택하세요</p>';
+    return;
+  }
+  el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+    <span class="badge badge-male">남 ${males.length}명</span>
+    <span class="badge badge-female">여 ${females.length}명</span>
+    <span class="badge" style="background:#0d2a1a;color:#4adf8a;border:1px solid #1a5a2a">총 ${total}명</span>
+  </div>
+  <div style="font-size:0.75rem;color:#9abccc;line-height:1.8">
+    ${males.map(n=>`<span style="margin-right:8px">♂ ${n}</span>`).join('')}
+    ${females.map(n=>`<span style="margin-right:8px">♀ ${n}</span>`).join('')}
+  </div>`;
+}
+
+// ══ SETUP SUB-TABS ══
+function switchSetupTab(tab) {
+  document.getElementById('setup-new').style.display = tab==='new' ? 'block' : 'none';
+  document.getElementById('setup-history').style.display = tab==='history' ? 'block' : 'none';
+  document.getElementById('stab-new').className = 'sub-tab' + (tab==='new' ? ' active' : '');
+  document.getElementById('stab-history').className = 'sub-tab' + (tab==='history' ? ' active' : '');
+  if (tab==='history') renderHistoryList();
+}
+
+function renderHistoryList() {
+  const el = document.getElementById('tournament-history-list');
+  if (!state.history.length) {
+    el.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>대회 이력이 없습니다</p></div>';
+    return;
+  }
+  el.innerHTML = state.history.map(r => {
+    const resultRows = ['mixed','mens','womens'].filter(t => r.results[t]?.champion).map(t => {
+      const tn = t==='mixed'?'혼합복식':t==='mens'?'남자복식':'여자복식';
+      const champ = pairName(r.results[t].champion);
+      const runner = r.results[t].runnerUp ? pairName(r.results[t].runnerUp) : '-';
+      return `<div class="hist-result"><span class="hist-result-label">[${tn}]</span><span class="hist-champion">${champ}</span> <span class="hist-result-label">/ 준우승</span><span class="hist-runner"> ${runner}</span></div>`;
+    }).join('');
+    return `<div class="hist-item">
+      <div class="hist-name">🏆 ${r.name || '무제 대회'}</div>
+      <div class="hist-meta">${r.venue ? '📍 '+r.venue : ''}${r.venue && r.date ? ' · ' : ''}${r.date ? '📅 '+r.date : ''}${r.notes ? '<br>📝 '+r.notes : ''}</div>
+      ${resultRows || '<div class="hist-result" style="color:#4a7090">결과 미입력</div>'}
+    </div>`;
+  }).join('');
+}
+
 // ══ NAV ══
 function switchPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -923,10 +1059,29 @@ function launchConfetti() {
 document.getElementById('score-modal').addEventListener('click', e=>{
   if(e.target===document.getElementById('score-modal'))closeModal();
 });
+document.getElementById('participant-modal').addEventListener('click', e=>{
+  if(e.target===document.getElementById('participant-modal'))closeParticipantModal();
+});
 
 // ══ INIT ALL TOURNAMENTS ══
 function initAllTournaments() {
   const { males, females } = getParticipants();
+
+  // Create history record
+  const recId = Date.now();
+  state.currentHistoryId = recId;
+  const rec = {
+    id: recId,
+    name: document.getElementById('t-name').value.trim() || '무제 대회',
+    venue: document.getElementById('t-venue').value.trim(),
+    date: document.getElementById('t-date').value,
+    notes: document.getElementById('t-notes').value.trim(),
+    results: { mixed: null, mens: null, womens: null },
+    createdAt: new Date().toISOString()
+  };
+  state.history.unshift(rec);
+  saveHistory();
+
   const errors = [];
   if (Math.min(males.length, females.length) < 2) errors.push('혼합복식: 남녀 각 2명 이상');
   if (males.length < 4) errors.push('남자복식: 남자 4명 이상');
@@ -1085,9 +1240,10 @@ function loadSample() {
 
 // ══ INIT ══
 loadMembers();
+loadHistory();
 initBirthdaySelects();
+document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
 renderMemberList();
-renderChecks();
 updateSummary();
 </script>
 </body>
