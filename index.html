@@ -116,13 +116,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
 .modal-round { font-size: 0.74rem; color: #5a8aaa; letter-spacing: 0.5px; text-transform: uppercase; }
 .modal-close { background: none; border: none; color: #4a6a80; font-size: 1.1rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; }
 .score-entry { padding: 13px 14px 16px; display: flex; flex-direction: column; gap: 6px; }
-.score-team-row { display: flex; align-items: center; gap: 10px; background: #0a1628; border: 1.5px solid #1e3f5c; border-radius: 10px; padding: 10px 12px; transition: all 0.15s; }
-.score-team-row.winner-row { border-color: #2a6a3a; background: #0b2518; }
-.score-team-name { flex: 1; font-size: 0.83rem; color: #9abccc; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.score-team-row.winner-row .score-team-name { color: #3fd880; font-weight: 700; }
-.score-field { width: 50px; background: #0d1f35; border: 1px solid #2a4a68; border-radius: 8px; padding: 8px 4px; color: #e0e8f0; font-size: 1.1rem; font-weight: 700; text-align: center; outline: none; flex-shrink: 0; -webkit-appearance: none; }
+.score-matchup { display: flex; align-items: stretch; gap: 8px; margin-bottom: 4px; }
+.score-side { flex: 1; text-align: center; padding: 10px 8px; border-radius: 10px; background: #0a1628; border: 1.5px solid #1e3f5c; transition: all 0.15s; min-width: 0; }
+.score-side.winner-row { border-color: #2a6a3a; background: #0b2518; }
+.score-team-label { font-size: 0.78rem; color: #9abccc; word-break: keep-all; line-height: 1.4; }
+.score-side.winner-row .score-team-label { color: #3fd880; font-weight: 700; }
+.score-vs-mid { display: flex; align-items: center; font-size: 0.72rem; font-weight: 700; color: #2a4a60; flex-shrink: 0; letter-spacing: 1px; }
+.score-inputs-row { display: flex; align-items: center; justify-content: center; gap: 16px; margin: 10px 0 4px; }
+.score-field { width: 76px; background: #0d1f35; border: 1.5px solid #2a4a68; border-radius: 10px; padding: 14px 4px; color: #e0e8f0; font-size: 1.8rem; font-weight: 700; text-align: center; outline: none; -webkit-appearance: none; }
 .score-field:focus { border-color: #64c8ff; }
-.score-vs { text-align: center; color: #2a4a60; font-size: 0.7rem; letter-spacing: 1px; }
+.score-colon { font-size: 1.5rem; font-weight: 700; color: #4a7090; }
 .confirm-btn { width: 100%; background: #1a5a3a; border: none; border-radius: 10px; color: #fff; font-size: 0.95rem; font-weight: 700; padding: 13px; cursor: pointer; }
 .confirm-btn:active { background: #2a6a4a; }
 
@@ -360,14 +363,21 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <div class="score-entry">
-      <div id="score-row-0" class="score-team-row">
-        <span id="team0-name" class="score-team-name"></span>
-        <input type="text" id="score0-input" class="score-field" placeholder="0" maxlength="3" inputmode="numeric" oninput="previewWinner()">
+      <div class="score-matchup">
+        <div id="score-side-0" class="score-side">
+          <div id="team0-name" class="score-team-label"></div>
+        </div>
+        <div class="score-vs-mid">VS</div>
+        <div id="score-side-1" class="score-side">
+          <div id="team1-name" class="score-team-label"></div>
+        </div>
       </div>
-      <div class="score-vs">VS</div>
-      <div id="score-row-1" class="score-team-row">
-        <span id="team1-name" class="score-team-name"></span>
-        <input type="text" id="score1-input" class="score-field" placeholder="0" maxlength="3" inputmode="numeric" oninput="previewWinner()">
+      <div class="score-inputs-row">
+        <input type="text" id="score0-input" class="score-field" placeholder="0" maxlength="2" inputmode="numeric"
+          oninput="autoNextScore(this,'score1-input');previewWinner()">
+        <span class="score-colon">:</span>
+        <input type="text" id="score1-input" class="score-field" placeholder="0" maxlength="2" inputmode="numeric"
+          oninput="previewWinner()" onkeydown="if(event.key==='Enter')submitScore()">
       </div>
       <button class="confirm-btn" onclick="submitScore()">확인</button>
     </div>
@@ -806,8 +816,8 @@ function openModal(type,ri,mi) {
   document.getElementById('team1-name').textContent=pairName(match.team1);
   document.getElementById('score0-input').value=match.score0||'';
   document.getElementById('score1-input').value=match.score1||'';
-  document.getElementById('score-row-0').className='score-team-row'+(match.winner===0?' winner-row':'');
-  document.getElementById('score-row-1').className='score-team-row'+(match.winner===1?' winner-row':'');
+  document.getElementById('score-side-0').className='score-side'+(match.winner===0?' winner-row':'');
+  document.getElementById('score-side-1').className='score-side'+(match.winner===1?' winner-row':'');
   document.getElementById('score-modal').classList.add('open');
   const f=match.score0?document.getElementById('score1-input'):document.getElementById('score0-input');
   setTimeout(()=>f.focus(),80);
@@ -818,14 +828,21 @@ function closeModal() {
   modalCtx=null;
 }
 
+function autoNextScore(el, nextId) {
+  if (el.value.length >= el.maxLength) {
+    document.getElementById(nextId).focus();
+    document.getElementById(nextId).select();
+  }
+}
+
 function previewWinner() {
   const s0=parseInt(document.getElementById('score0-input').value);
   const s1=parseInt(document.getElementById('score1-input').value);
-  const r0=document.getElementById('score-row-0'), r1=document.getElementById('score-row-1');
+  const r0=document.getElementById('score-side-0'), r1=document.getElementById('score-side-1');
   if(!isNaN(s0)&&!isNaN(s1)&&s0!==s1){
-    r0.className='score-team-row'+(s0>s1?' winner-row':'');
-    r1.className='score-team-row'+(s1>s0?' winner-row':'');
-  } else { r0.className='score-team-row'; r1.className='score-team-row'; }
+    r0.className='score-side'+(s0>s1?' winner-row':'');
+    r1.className='score-side'+(s1>s0?' winner-row':'');
+  } else { r0.className='score-side'; r1.className='score-side'; }
 }
 
 function submitScore() {
