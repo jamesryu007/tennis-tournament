@@ -529,36 +529,15 @@ const state = {
 let modalCtx = null;
 
 // ══ FIREBASE CONFIG ══
-// ⚠️  아래 값을 Firebase 콘솔에서 복사한 본인 프로젝트 설정으로 교체하세요
-//const firebaseConfig = {
-//  apiKey:            "YOUR_API_KEY",
-//  authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
-//  databaseURL:       "https://YOUR_PROJECT_ID-default-rtdb.asia-southeast1.firebasedatabase.app",
-//  projectId:         "YOUR_PROJECT_ID",
-//  storageBucket:     "YOUR_PROJECT_ID.firebasestorage.app",
-//  messagingSenderId: "YOUR_SENDER_ID",
-//  appId:             "YOUR_APP_ID"
-//};
-
-// 아래 항목이 복사한 값 카피한것임
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14",
-  authDomain: "jamite-tennis.firebaseapp.com",
-  databaseURL: "https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "jamite-tennis",
-  storageBucket: "jamite-tennis.firebasestorage.app",
+  apiKey:            "AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14",
+  authDomain:        "jamite-tennis.firebaseapp.com",
+  databaseURL:       "https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "jamite-tennis",
+  storageBucket:     "jamite-tennis.firebasestorage.app",
   messagingSenderId: "1023676041344",
-  appId: "1:1023676041344:web:d9a9fcf47f3b280bcbfe65"
+  appId:             "1:1023676041344:web:d9a9fcf47f3b280bcbfe65"
 };
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
 
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
