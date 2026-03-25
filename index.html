@@ -166,10 +166,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .hist-results { display: flex; flex-direction: column; gap: 5px; }
 .hist-result-block { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; }
 .hist-result-type { font-size: 0.67rem; color: #94a3b8; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 4px; }
-.hist-champion-row { font-size: 0.95rem; font-weight: 700; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hist-runner-row { font-size: 0.78rem; color: #64748b; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hist-champion { color: #d97706; }
-.hist-runner { color: #475569; }
+.hist-champion-row { font-size: 0.88rem; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist-champion { color: #d97706; font-weight: 700; font-size: 0.95rem; }
+.hist-runner { color: #475569; font-size: 0.82rem; }
 
 /* ── EMPTY STATE ── */
 .empty-state { text-align: center; padding: 40px 16px; color: #cbd5e1; }
@@ -1176,8 +1175,7 @@ function renderHistoryList() {
       const runner = r.results[t].runnerUp ? pairName(r.results[t].runnerUp) : '-';
       return `<div class="hist-result-block">
         <div class="hist-result-type">${tn}</div>
-        <div class="hist-champion-row">🥇 <span class="hist-champion">${champ}</span></div>
-        <div class="hist-runner-row">🥈 <span class="hist-runner">${runner}</span></div>
+        <div class="hist-champion-row">🥇 <span class="hist-champion">${champ}</span> &nbsp;🥈 <span class="hist-runner">${runner}</span></div>
       </div>`;
     }).join('');
     const meta = [r.venue?'📍 '+r.venue:'', r.date?'📅 '+r.date:'', r.notes?'📝 '+r.notes:''].filter(Boolean).join(' · ');
