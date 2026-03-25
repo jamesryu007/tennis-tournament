@@ -186,6 +186,11 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .flex-row { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
 .mt-8 { margin-top: 8px; }
 .conn-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#94a3b8; margin-left:7px; vertical-align:middle; transition:background 0.4s; }
+/* ── IDENTITY ── */
+.identity-item { display:flex; align-items:center; gap:9px; padding:11px 12px; background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:10px; margin-bottom:7px; cursor:pointer; transition:all 0.12s; }
+.identity-item:active, .identity-item.selected { border-color:#2563eb; background:#eff6ff; }
+#identity-modal { align-items:center; }
+#identity-modal .modal { border-radius:20px; margin:16px; }
 </style>
 <!-- Firebase SDK (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -193,8 +198,12 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 </head>
 <body>
 
-<div class="app-header">
-  <h1>🎾 자미터 테니스 대회 <span style="font-size:0.72rem;font-weight:500;color:#94a3b8;letter-spacing:0">(복식 토너먼트 관리 시스템)</span><span id="conn-status" class="conn-dot" title="Firebase 연결 상태"></span></h1>
+<div class="app-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+  <h1 style="flex:1;min-width:0">🎾 자미터 테니스 대회 <span style="font-size:0.72rem;font-weight:500;color:#94a3b8;letter-spacing:0">(복식 토너먼트 관리 시스템)</span><span id="conn-status" class="conn-dot" title="Firebase 연결 상태"></span></h1>
+  <button onclick="openIdentityModal()" style="flex-shrink:0;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:6px 10px;cursor:pointer;text-align:center;min-width:58px">
+    <div id="identity-name" style="font-size:0.78rem;font-weight:700;color:#2563eb;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">👤 선택</div>
+    <div style="font-size:0.58rem;color:#94a3b8;margin-top:1px">접속자</div>
+  </button>
 </div>
 
 <!-- ══ PAGE: 회원관리 ══ -->
@@ -467,6 +476,29 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   </div>
 </div>
 
+<!-- ══ IDENTITY MODAL ══ -->
+<div class="modal-overlay" id="identity-modal">
+  <div class="modal" style="max-height:85vh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <div style="padding:18px 20px 12px;text-align:center;flex-shrink:0">
+      <div style="font-size:2rem">🎾</div>
+      <div style="font-size:1.05rem;font-weight:800;color:#1e293b;margin-top:6px">누구신가요?</div>
+      <div style="font-size:0.78rem;color:#94a3b8;margin-top:3px">이 기기를 사용할 회원을 선택하세요</div>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding:0 16px 20px">
+      <div id="identity-list">
+        <div class="empty-state" style="padding:16px 0"><p>회원 목록 로딩 중...</p></div>
+      </div>
+      <div class="divider" style="margin:10px 0 12px"></div>
+      <div class="field-label" style="margin-top:0">목록에 없으면 직접 입력</div>
+      <div class="form-row">
+        <input type="text" id="identity-input" placeholder="이름 입력" onkeydown="if(event.key==='Enter')confirmIdentityInput()">
+        <button class="btn btn-primary btn-sm" style="flex-shrink:0" onclick="confirmIdentityInput()">확인</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ SCORE MODAL ══ -->
 <div class="modal-overlay" id="score-modal">
   <div class="modal">
@@ -524,7 +556,9 @@ const state = {
   tournaments: { mixed: null, mens: null, womens: null },
   history: [],
   currentHistoryId: null,
-  isCreator: false
+  isCreator: false,
+  identity: null,    // { name } — 이 기기의 접속자
+  _creatorName: null // 현재 진행 중인 대회 생성자 이름 (재평가용)
 };
 let modalCtx = null;
 
@@ -541,11 +575,11 @@ const firebaseConfig = {
 
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
-// ══ LOCALSTORAGE (폴백 / 기기별 토큰) ══
-const LS_TOKEN          = 'jmt_creator_token';
-const LS_FB_MEMBERS     = 'jmt_v2_members';   // Firebase 미설정 시 폴백
-const LS_FB_HIST        = 'jmt_v2_history';
-const LS_FB_ACTIVE      = 'jmt_active_state';
+// ══ LOCALSTORAGE ══
+const LS_IDENTITY   = 'jmt_identity';    // 이 기기의 접속자 이름
+const LS_FB_MEMBERS = 'jmt_v2_members';  // Firebase 미설정 시 폴백
+const LS_FB_HIST    = 'jmt_v2_history';
+const LS_FB_ACTIVE  = 'jmt_active_state';
 
 // ══ 유틸 헬퍼 ══
 function toArr(v) { if(!v)return[]; if(Array.isArray(v))return v; return Object.values(v); }
@@ -588,7 +622,7 @@ function loadHistoryLocal() {
 function saveActiveState() {
   const payload = state.currentHistoryId ? JSON.stringify({
     currentHistoryId: state.currentHistoryId,
-    creatorToken: localStorage.getItem(LS_TOKEN),
+    creatorName: state.identity ? state.identity.name : null,
     tournaments: state.tournaments,
     guests: state.guests,
     selectedIds: [...state.selectedIds],
@@ -616,8 +650,8 @@ function applyActiveState(saved) {
   state.tournaments = saved.tournaments || { mixed: null, mens: null, womens: null };
   state.guests = saved.guests || [];
   state.selectedIds = new Set(toArr(saved.selectedIds));
-  const myToken = localStorage.getItem(LS_TOKEN);
-  state.isCreator = !!(myToken && myToken === saved.creatorToken);
+  state._creatorName = saved.creatorName || null;
+  state.isCreator = !!(state.identity && state.identity.name && state.identity.name === saved.creatorName);
   if(saved.setupInfo) {
     document.getElementById('t-name').value  = saved.setupInfo.name  || '';
     document.getElementById('t-venue').value = saved.setupInfo.venue || '';
@@ -669,8 +703,8 @@ function setupFirebaseListeners() {
   db.ref('jmt/members').on('value', snap => {
     state.members = snap.val() ? Object.values(snap.val()) : [];
     renderMemberList();
-    // 참가자 모달이 열려있을 때만 체크박스 갱신
     if(document.getElementById('participant-modal').classList.contains('open')) renderChecks();
+    if(document.getElementById('identity-modal').classList.contains('open')) renderIdentityList();
     updateSummary();
   }, fbErr);
 
@@ -1382,9 +1416,15 @@ function initAllTournaments() {
   });
   if (generated.length === 0) return;
 
-  // 이 기기를 대회 생성자로 설정
-  const creatorToken = 'tok_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-  localStorage.setItem(LS_TOKEN, creatorToken);
+  // 접속자 이름이 대회 생성자가 됨
+  if(!state.identity) {
+    alert('먼저 접속자를 선택해주세요.');
+    openIdentityModal();
+    state.history.shift(); saveHistory();
+    state.currentHistoryId = null;
+    return;
+  }
+  state._creatorName = state.identity.name;
   state.isCreator = true;
 
   generated.forEach(type => {
@@ -1433,7 +1473,7 @@ function endTournament() {
   state.currentHistoryId = null;
   state.isCreator = false;
   state.tournaments = { mixed: null, mens: null, womens: null };
-  localStorage.removeItem(LS_TOKEN); // 이 기기의 생성자 토큰 삭제
+  state._creatorName = null;
   saveActiveState(); // Firebase / localStorage에서 활성 대회 삭제
   document.getElementById('t-name').value = '';
   document.getElementById('t-venue').value = '';
@@ -1575,6 +1615,62 @@ function loadSample() {
   updateSummary();
 }
 
+// ══ IDENTITY (접속자 선택) ══
+function loadIdentity() {
+  try {
+    const d = localStorage.getItem(LS_IDENTITY);
+    if(d) { state.identity = JSON.parse(d); return true; }
+  } catch(e) {}
+  return false;
+}
+
+function selectIdentity(name) {
+  state.identity = { name };
+  localStorage.setItem(LS_IDENTITY, JSON.stringify(state.identity));
+  document.getElementById('identity-modal').classList.remove('open');
+  updateIdentityUI();
+  // 대회 진행 중이면 생성자 권한 즉시 재평가
+  if(state._creatorName) {
+    state.isCreator = name === state._creatorName;
+    updateSetupPageUI();
+    ['mixed','mens','womens'].forEach(t => { if(state.tournaments[t]) renderTournament(t); });
+  }
+}
+
+function confirmIdentityInput() {
+  const name = document.getElementById('identity-input').value.trim();
+  if(!name) { document.getElementById('identity-input').focus(); return; }
+  selectIdentity(name);
+}
+
+function openIdentityModal() {
+  renderIdentityList();
+  document.getElementById('identity-input').value = '';
+  document.getElementById('identity-modal').classList.add('open');
+}
+
+function updateIdentityUI() {
+  const el = document.getElementById('identity-name');
+  if(el) el.textContent = state.identity ? state.identity.name : '👤 선택';
+}
+
+function renderIdentityList() {
+  const el = document.getElementById('identity-list');
+  if(!el) return;
+  if(!state.members.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:16px 0"><p>정회원 목록이 없습니다.<br>이름을 직접 입력하세요.</p></div>';
+    return;
+  }
+  const cur = state.identity ? state.identity.name : null;
+  el.innerHTML = state.members.map(m => `
+    <div class="identity-item${cur===m.name?' selected':''}" onclick="selectIdentity('${m.name.replace(/'/g,"\\'")}')">
+      <span class="badge ${m.gender==='male'?'badge-male':'badge-female'}">${m.gender==='male'?'남':'여'}</span>
+      <span style="flex:1;font-size:0.9rem;font-weight:600;color:#1e293b">${m.name}${m.nickname?` <span style="font-weight:400;font-size:0.78rem;color:#94a3b8">(${m.nickname})</span>`:''}</span>
+      ${m.ntrp?`<span class="badge badge-ntrp">NTRP ${m.ntrp}</span>`:''}
+      ${cur===m.name?'<span style="color:#2563eb;font-size:1rem">✓</span>':''}
+    </div>`).join('');
+}
+
 // ══ SETUP PAGE UI (lock/unlock) ══
 function updateSetupPageUI() {
   const hasActive = !!state.currentHistoryId;
@@ -1609,6 +1705,7 @@ function updateSetupPageUI() {
     }
   });
 });
+// identity 모달은 접속자 미선택 시 닫기 불가 (배경 클릭 무시)
 
 // ══ INIT ══
 initBirthdaySelects();
@@ -1641,6 +1738,13 @@ document.getElementById('t-date').value = new Date().toISOString().split('T')[0]
         updateSummary();
         updateSetupPageUI();
       }
+    }
+    // ── 접속자 확인 ───────────────────────────────────────────────
+    if(loadIdentity()) {
+      updateIdentityUI();
+    } else {
+      // 미선택 → 600ms 후 모달 (Firebase 데이터 로드 여유 시간)
+      setTimeout(openIdentityModal, 600);
     }
   } catch(e) {
     console.error('초기화 오류:', e);
