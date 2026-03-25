@@ -575,6 +575,9 @@ const firebaseConfig = {
 
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
+// ══ 최고 관리자 ══
+const ADMIN_NAME = '유지원'; // 항상 대회 종료 권한 보유
+
 // ══ LOCALSTORAGE ══
 const LS_IDENTITY   = 'jmt_identity';    // 이 기기의 접속자 이름
 const LS_FB_MEMBERS = 'jmt_v2_members';  // Firebase 미설정 시 폴백
@@ -591,14 +594,13 @@ function setConnStatus(on) {
 }
 function fbErr(e) { console.error('Firebase 오류:', e); }
 
-function saveMembers() {
-  if(db) {
-    const o = {};
-    state.members.forEach(m => { o[m.id] = m; });
-    db.ref('jmt/members').set(o).catch(fbErr);
-  } else {
-    localStorage.setItem(LS_FB_MEMBERS, JSON.stringify(state.members));
-  }
+function saveMemberRecord(m) {
+  if(db) db.ref('jmt/members/' + m.id).set(m).catch(fbErr);
+  else localStorage.setItem(LS_FB_MEMBERS, JSON.stringify(state.members));
+}
+function removeMemberRecord(id) {
+  if(db) db.ref('jmt/members/' + id).remove().catch(fbErr);
+  else localStorage.setItem(LS_FB_MEMBERS, JSON.stringify(state.members));
 }
 function loadMembersLocal() {
   try { const d = localStorage.getItem(LS_FB_MEMBERS); if(d) state.members = JSON.parse(d); }
@@ -651,7 +653,9 @@ function applyActiveState(saved) {
   state.guests = saved.guests || [];
   state.selectedIds = new Set(toArr(saved.selectedIds));
   state._creatorName = saved.creatorName || null;
-  state.isCreator = !!(state.identity && state.identity.name && state.identity.name === saved.creatorName);
+  const myName = state.identity && state.identity.name;
+  // 관리자는 항상 creator, creatorName 없는 구버전도 관리자만 종료 가능
+  state.isCreator = !!(myName && (myName === ADMIN_NAME || myName === saved.creatorName));
   if(saved.setupInfo) {
     document.getElementById('t-name').value  = saved.setupInfo.name  || '';
     document.getElementById('t-venue').value = saved.setupInfo.venue || '';
@@ -802,15 +806,16 @@ function addMember() {
   const y = document.getElementById('m-year').value;
   const mo = document.getElementById('m-month').value;
   const d = document.getElementById('m-day').value;
-  state.members.push({
+  const newMember = {
     id: Date.now(),
     name,
     nickname: document.getElementById('m-nickname').value.trim(),
     gender: document.getElementById('m-gender').value,
     birthday: (y && mo && d) ? `${y}-${mo}-${d}` : '',
     ntrp: document.getElementById('m-ntrp').value
-  });
-  saveMembers();
+  };
+  state.members.push(newMember);
+  saveMemberRecord(newMember);
   renderMemberList();
   renderChecks();
   updateSummary();
@@ -821,7 +826,7 @@ function deleteMember(id) {
   if (!confirm('정회원을 삭제하시겠습니까?')) return;
   state.members = state.members.filter(m => m.id !== id);
   state.selectedIds.delete(id);
-  saveMembers();
+  removeMemberRecord(id);
   renderMemberList();
   renderChecks();
   updateSummary();
@@ -1580,7 +1585,7 @@ function saveEditMember() {
   m.gender = document.getElementById('edit-gender').value;
   m.birthday = (y && mo && d) ? `${y}-${mo}-${d}` : '';
   m.ntrp = document.getElementById('edit-ntrp').value;
-  saveMembers();
+  saveMemberRecord(m);
   renderMemberList();
   renderChecks();
   updateSummary();
@@ -1630,8 +1635,9 @@ function selectIdentity(name) {
   document.getElementById('identity-modal').classList.remove('open');
   updateIdentityUI();
   // 대회 진행 중이면 생성자 권한 즉시 재평가
-  if(state._creatorName) {
-    state.isCreator = name === state._creatorName;
+  if(state.currentHistoryId) {
+    // 관리자는 항상 creator, 아니면 creatorName과 일치할 때만
+    state.isCreator = name === ADMIN_NAME || name === state._creatorName;
     updateSetupPageUI();
     ['mixed','mens','womens'].forEach(t => { if(state.tournaments[t]) renderTournament(t); });
   }
