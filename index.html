@@ -2600,6 +2600,7 @@ function selectIdentity(name) {
   document.getElementById('identity-modal').classList.remove('open');
   updateIdentityUI();
   updatePermissionUI();
+  renderMemberList(); // 수정/삭제 버튼 권한 즉시 갱신
   // 대회 진행 중이면 생성자 권한 즉시 재평가
   if(state.currentHistoryId) {
     // 관리자는 항상 creator, 아니면 creatorName과 일치할 때만
@@ -2628,21 +2629,23 @@ function updateIdentityUI() {
   const btn    = document.getElementById('identity-btn');
   if (!nameEl) return;
 
+  const BASE_BTN = 'flex-shrink:0;border-radius:10px;padding:6px 10px;cursor:pointer;text-align:center;min-width:58px;transition:background 0.2s,border 0.2s;';
+
   if (name === ADMIN_NAME) {
     nameEl.textContent = name;
     nameEl.style.cssText = 'font-size:0.72rem;font-weight:900;color:#7c3aed;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:0.3px';
-    if (roleEl) { roleEl.textContent = '⚡ SUPERVISOR'; roleEl.style.color = '#7c3aed'; roleEl.style.fontWeight = '800'; }
-    if (btn)    { btn.style.background = '#f5f3ff'; btn.style.borderColor = '#c4b5fd'; }
+    if (roleEl) { roleEl.textContent = '⚡ SUPERVISOR'; roleEl.style.cssText = 'font-size:0.55rem;color:#7c3aed;margin-top:1px;letter-spacing:0.3px;font-weight:800'; }
+    if (btn)    btn.style.cssText = BASE_BTN + 'background:#f5f3ff;border:1.5px solid #c4b5fd;';
   } else if (name) {
     nameEl.textContent = name;
     nameEl.style.cssText = 'font-size:0.78rem;font-weight:700;color:#2563eb;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-    if (roleEl) { roleEl.textContent = '접속자'; roleEl.style.color = '#94a3b8'; roleEl.style.fontWeight = '600'; }
-    if (btn)    { btn.style.background = '#eff6ff'; btn.style.borderColor = '#bfdbfe'; }
+    if (roleEl) { roleEl.textContent = '접속자'; roleEl.style.cssText = 'font-size:0.55rem;color:#94a3b8;margin-top:1px;letter-spacing:0.3px;font-weight:600'; }
+    if (btn)    btn.style.cssText = BASE_BTN + 'background:#eff6ff;border:1.5px solid #bfdbfe;';
   } else {
     nameEl.textContent = '👤 선택';
     nameEl.style.cssText = 'font-size:0.78rem;font-weight:700;color:#2563eb;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-    if (roleEl) { roleEl.textContent = '접속자'; roleEl.style.color = '#94a3b8'; roleEl.style.fontWeight = '600'; }
-    if (btn)    { btn.style.background = '#eff6ff'; btn.style.borderColor = '#bfdbfe'; }
+    if (roleEl) { roleEl.textContent = '접속자'; roleEl.style.cssText = 'font-size:0.55rem;color:#94a3b8;margin-top:1px;letter-spacing:0.3px;font-weight:600'; }
+    if (btn)    btn.style.cssText = BASE_BTN + 'background:#eff6ff;border:1.5px solid #bfdbfe;';
   }
 }
 
