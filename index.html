@@ -2023,17 +2023,24 @@ function reloadHistory(showLoading) {
   if(!db) { switchHistoryTab(_historyTab); return; }
   if(showLoading !== false && el) el.innerHTML = '<div class="card" style="text-align:center;padding:16px;color:#94a3b8">🔄 새로고침 중...</div>';
   db.ref('jmt/history').once('value', snap => {
-    const data = snap.val();
-    state.history = data
-      ? Object.values(data).map(s => {
-          if(typeof s === 'string') { try { return JSON.parse(s); } catch(e) { return null; } }
-          if(s && typeof s === 'object') return s;
-          return null;
-        }).filter(r => r && r.id).sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''))
-      : [];
-    switchHistoryTab(_historyTab);
+    try {
+      const data = snap.val();
+      state.history = data
+        ? Object.values(data).map(s => {
+            if(typeof s === 'string') { try { return JSON.parse(s); } catch(e2) { return null; } }
+            if(s && typeof s === 'object') return s;
+            return null;
+          }).filter(r => r && r.id).sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''))
+        : [];
+      document.querySelectorAll('[id^="htab-"]').forEach(t => t.classList.remove('active'));
+      const tabEl = document.getElementById('htab-' + _historyTab);
+      if(tabEl) tabEl.classList.add('active');
+      renderHistoryList();
+    } catch(err) {
+      if(el) el.innerHTML = `<div class="card"><p style="color:#dc2626;font-size:0.85rem">❌ 렌더링 오류: ${err.message}</p><p style="font-size:0.7rem;color:#94a3b8;margin-top:4px">${err.stack||''}</p></div>`;
+    }
   }, e => {
-    if(el) el.innerHTML = `<div class="card"><p style="color:#dc2626;font-size:0.85rem">❌ 읽기 오류: ${e.message||e.code||'Firebase 권한 없음'}</p></div>`;
+    if(el) el.innerHTML = `<div class="card"><p style="color:#dc2626;font-size:0.85rem">❌ Firebase 읽기 오류: ${e.message||e.code||'권한 없음'}</p></div>`;
   });
 }
 
