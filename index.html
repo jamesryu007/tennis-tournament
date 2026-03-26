@@ -609,6 +609,26 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   </div>
 </div>
 
+<!-- ══ PASSWORD MODAL ══ -->
+<div class="modal-overlay" id="pw-modal">
+  <div class="modal" style="max-width:320px;margin:0 auto">
+    <div class="modal-handle"></div>
+    <div style="padding:22px 22px 18px;text-align:center">
+      <div style="font-size:1.8rem;margin-bottom:6px">🔐</div>
+      <div style="font-size:1rem;font-weight:800;color:#1e293b;margin-bottom:4px">관리자 인증</div>
+      <div id="pw-modal-name" style="font-size:0.82rem;color:#64748b;margin-bottom:16px"></div>
+      <input type="password" id="pw-input" placeholder="암호 입력"
+        style="width:100%;text-align:center;font-size:1rem;letter-spacing:0.15em;margin-bottom:10px"
+        onkeydown="if(event.key==='Enter')confirmPassword()">
+      <div id="pw-error" style="font-size:0.78rem;color:#dc2626;min-height:18px;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-warning btn-full" onclick="closePwModal()">취소</button>
+        <button class="btn btn-primary btn-full" onclick="confirmPassword()">확인</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ SCORE MODAL ══ -->
 <div class="modal-overlay" id="score-modal">
   <div class="modal">
@@ -718,6 +738,43 @@ const ADMIN_NAME = '유지원';                              // 최고 관리자
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
 function isAdmin()   { return (state.identity && state.identity.name) === ADMIN_NAME; }
+
+// ══ 암호 테이블 ══
+const USER_PASSWORDS = {
+  '유지원': 'love'
+};
+
+let _pendingIdentityName = null;
+
+function trySelectIdentity(name) {
+  if (USER_PASSWORDS[name]) {
+    _pendingIdentityName = name;
+    document.getElementById('pw-modal-name').textContent = `${name} 님 · 관리자 암호를 입력하세요`;
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-error').textContent = '';
+    document.getElementById('pw-modal').classList.add('open');
+    setTimeout(() => document.getElementById('pw-input').focus(), 150);
+  } else {
+    selectIdentity(name);
+  }
+}
+
+function confirmPassword() {
+  const entered = document.getElementById('pw-input').value;
+  if (entered === USER_PASSWORDS[_pendingIdentityName]) {
+    closePwModal();
+    selectIdentity(_pendingIdentityName);
+  } else {
+    document.getElementById('pw-error').textContent = '암호가 틀렸습니다. 다시 입력하세요.';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+  }
+}
+
+function closePwModal() {
+  document.getElementById('pw-modal').classList.remove('open');
+  _pendingIdentityName = null;
+}
 
 // ══ LOCALSTORAGE ══
 const LS_IDENTITY   = 'jmt_identity';    // 이 기기의 접속자 이름
@@ -2563,10 +2620,11 @@ function renderIdentityList() {
   }
   const cur = state.identity ? state.identity.name : null;
   el.innerHTML = state.members.map(m => `
-    <div class="identity-item${cur===m.name?' selected':''}" onclick="selectIdentity('${m.name.replace(/'/g,"\\'")}')">
+    <div class="identity-item${cur===m.name?' selected':''}" onclick="trySelectIdentity('${m.name.replace(/'/g,"\\'")}')">
       <span class="badge ${m.gender==='male'?'badge-male':'badge-female'}">${m.gender==='male'?'남':'여'}</span>
       <span style="flex:1;font-size:0.9rem;font-weight:600;color:#1e293b">${m.name}${m.nickname?` <span style="font-weight:400;font-size:0.78rem;color:#94a3b8">(${m.nickname})</span>`:''}</span>
       ${m.ntrp?`<span class="badge badge-ntrp">NTRP ${m.ntrp}</span>`:''}
+      ${USER_PASSWORDS[m.name]?'<span style="font-size:0.75rem;color:#94a3b8">🔐</span>':''}
       ${cur===m.name?'<span style="color:#2563eb;font-size:1rem">✓</span>':''}
     </div>`).join('');
 }
@@ -2635,7 +2693,7 @@ function updateSetupPageUI() {
 }
 
 // ══ MODAL OVERLAY CLOSE ══
-['score-modal','participant-modal','add-member-modal','edit-modal','hist-detail-modal','slot-edit-modal'].forEach(id => {
+['score-modal','participant-modal','add-member-modal','edit-modal','hist-detail-modal','slot-edit-modal','pw-modal'].forEach(id => {
   document.getElementById(id).addEventListener('click', function(e) {
     if (e.target === this) {
       if (id==='score-modal') closeModal();
@@ -2644,6 +2702,7 @@ function updateSetupPageUI() {
       else if (id==='edit-modal') closeEditModal();
       else if (id==='hist-detail-modal') closeHistoryDetail();
       else if (id==='slot-edit-modal') closeSlotEditModal();
+      else if (id==='pw-modal') closePwModal();
     }
   });
 });
