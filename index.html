@@ -1528,7 +1528,15 @@ function updateSlotEditInfo() {
 function confirmSlotEdit() {
   if (!_editSlotCtx || _editSlotSel.length !== 2) return;
   const { type, mi, side } = _editSlotCtx;
-  state.tournaments[type].rounds[0][mi][`team${side}`] = [..._editSlotSel];
+  const t = state.tournaments[type];
+  t.rounds[0][mi][`team${side}`] = [..._editSlotSel];
+  // unpaired = 전체 선수 중 아직 R0에 배정되지 않은 선수들
+  const assigned = new Set();
+  t.rounds[0].forEach(m => {
+    if (m.team0) m.team0.forEach(p => assigned.add(p));
+    if (m.team1) m.team1.forEach(p => assigned.add(p));
+  });
+  t.unpaired = _bracketEditAllPlayers.filter(p => !assigned.has(p));
   closeSlotEditModal();
   renderTournament(type);
 }
@@ -2080,8 +2088,8 @@ function renderCheckinPage() {
       ${guestEntries.length?`<span class="poll-pill guest">👤 게스트 ${guestEntries.length}명</span>`:''}
     </div>
     ${totalAttending>=4?(pd.bracketCreated
-      ? `<button class="btn btn-full" style="margin:8px 0 10px;background:#94a3b8;cursor:not-allowed" disabled>✅ 대진이 이미 생성되었습니다</button>`
-      : `<button class="btn btn-success btn-full" style="margin:8px 0 10px" onclick="createBracketFromPoll()">🎾 ${totalAttending}명으로 대진 생성</button>`)
+      ? `<button class="btn btn-full" style="margin:8px 0 10px;background:#94a3b8;cursor:not-allowed" disabled>✅ 이미 모임만들기로 보냈습니다</button>`
+      : `<button class="btn btn-success btn-full" style="margin:8px 0 10px" onclick="createBracketFromPoll()">🎾 참석자가 확정되어 모임만들기로 토스합니다</button>`)
     :''}`;
   }
   html += voterGroup(attendVoters, '✅ 참석');
