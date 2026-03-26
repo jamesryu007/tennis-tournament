@@ -2,6 +2,9 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>자미터 테니스 대회</title>
 <style>
@@ -414,8 +417,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <div class="page" id="page-history">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
     <div class="sub-tabs" style="flex:1;margin-bottom:0">
-      <div class="sub-tab" id="htab-meetup" onclick="switchHistoryTab('meetup')">🏃 정기모임</div>
-      <div class="sub-tab active" id="htab-tournament" onclick="switchHistoryTab('tournament')">🏆 대회이력</div>
+      <div class="sub-tab active" id="htab-meetup" onclick="switchHistoryTab('meetup')">🏃 정기모임</div>
+      <div class="sub-tab" id="htab-tournament" onclick="switchHistoryTab('tournament')">🏆 대회이력</div>
     </div>
     <button onclick="switchPage('history')" style="background:none;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:0.8rem;color:#64748b;cursor:pointer">🔄</button>
   </div>
@@ -2032,7 +2035,7 @@ function createBracketFromPoll() {
 }
 
 // ══ HISTORY LIST ══
-let _historyTab = 'tournament'; // 'meetup' | 'tournament'
+let _historyTab = 'meetup'; // 'meetup' | 'tournament'
 
 function switchHistoryTab(tab) {
   _historyTab = tab;
@@ -2051,11 +2054,14 @@ function renderHistoryList() {
   );
   const emptyMsg = _historyTab === 'meetup' ? '정기모임 이력이 없습니다' : '대회 이력이 없습니다';
   if (!filtered.length) {
-    el.innerHTML = `<div class="empty-state"><div class="icon">📋</div><p>${emptyMsg}</p>
-      <p style="font-size:0.7rem;color:#94a3b8;margin-top:8px">
-        전체 이력: ${state.history.length}건 / 탭: ${_historyTab}<br>
-        ${state.history.length ? '(타입 분포: ' + state.history.map(r=>r.type||'없음').join(', ') + ')' : ''}
-      </p></div>`;
+    const otherTab = _historyTab === 'meetup' ? 'tournament' : 'meetup';
+    const otherCount = state.history.filter(r => otherTab === 'meetup' ? r.type === 'meetup' : r.type !== 'meetup').length;
+    const hint = state.history.length === 0
+      ? '<p style="font-size:0.75rem;color:#94a3b8;margin-top:6px">데이터를 불러오지 못했습니다. 🔄 버튼을 눌러 새로고침하세요.</p>'
+      : otherCount > 0
+        ? `<p style="font-size:0.75rem;color:#3b82f6;margin-top:6px;cursor:pointer" onclick="switchHistoryTab('${otherTab}')">👉 ${otherTab==='meetup'?'정기모임':'대회이력'} 탭에 ${otherCount}건 있습니다 (탭 전환)</p>`
+        : `<p style="font-size:0.75rem;color:#94a3b8;margin-top:6px">전체 ${state.history.length}건 / 타입: ${[...new Set(state.history.map(r=>r.type||'없음'))].join(', ')}</p>`;
+    el.innerHTML = `<div class="empty-state"><div class="icon">📋</div><p>${emptyMsg}</p>${hint}</div>`;
     return;
   }
   try {
