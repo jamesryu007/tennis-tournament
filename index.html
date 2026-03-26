@@ -268,6 +268,20 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
 <!-- ══ PAGE: 회원관리 ══ -->
 <div class="page active" id="page-members">
+  <!-- 모임 사진 프레임 -->
+  <div style="margin-bottom:14px;border-radius:18px;overflow:hidden;box-shadow:0 4px 20px rgba(37,99,235,0.13),0 1px 4px rgba(0,0,0,0.08);background:#fff;border:1px solid #e2e8f0;">
+    <div style="position:relative;">
+      <img src="images/2025-say-goodbye.jpeg" alt="자미터 테니스 모임" style="width:100%;display:block;max-height:240px;object-fit:cover;object-position:center;">
+      <!-- 하단 그라디언트 오버레이 -->
+      <div style="position:absolute;bottom:0;left:0;right:0;height:72px;background:linear-gradient(to top,rgba(15,23,42,0.72),transparent);pointer-events:none;"></div>
+      <!-- 사진 하단 텍스트 -->
+      <div style="position:absolute;bottom:0;left:0;right:0;padding:10px 14px;">
+        <div style="color:#fff;font-size:0.82rem;font-weight:700;letter-spacing:0.3px;text-shadow:0 1px 4px rgba(0,0,0,0.4)">🎾 자미터 테니스</div>
+        <div style="color:rgba(255,255,255,0.8);font-size:0.68rem;margin-top:1px;text-shadow:0 1px 3px rgba(0,0,0,0.4)">재미와 열정이 있는 공간, 사랑하는 사람들의 모임</div>
+      </div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-title" style="justify-content:space-between;margin-bottom:0">
       <span>👥 정회원 목록 <span id="member-count" class="text-muted" style="font-size:0.72rem;font-weight:400"></span></span>
