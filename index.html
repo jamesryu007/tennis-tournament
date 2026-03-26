@@ -2021,7 +2021,11 @@ function renderHistoryList() {
   );
   const emptyMsg = _historyTab === 'meetup' ? '정기모임 이력이 없습니다' : '대회 이력이 없습니다';
   if (!filtered.length) {
-    el.innerHTML = `<div class="empty-state"><div class="icon">📋</div><p>${emptyMsg}</p></div>`;
+    el.innerHTML = `<div class="empty-state"><div class="icon">📋</div><p>${emptyMsg}</p>
+      <p style="font-size:0.7rem;color:#94a3b8;margin-top:8px">
+        전체 이력: ${state.history.length}건 / 탭: ${_historyTab}<br>
+        ${state.history.length ? '(타입 분포: ' + state.history.map(r=>r.type||'없음').join(', ') + ')' : ''}
+      </p></div>`;
     return;
   }
   try {
