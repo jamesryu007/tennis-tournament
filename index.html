@@ -932,14 +932,23 @@ function setupFirebaseListeners() {
   // 출첵 pollState 동기화
   db.ref('jmt/pollState').on('value', snap => {
     const ps = snap.val();
-    state.pollState = ps;
-    if(ps && ps.weekId) {
-      if(_pollDataRef) { _pollDataRef.off('value'); }
-      _pollDataRef = db.ref(`jmt/poll/${ps.weekId}`);
-      _pollDataRef.on('value', pSnap => {
-        state.pollData = pSnap.val();
-        if(document.getElementById('page-checkin').classList.contains('active')) renderCheckinPage();
-      }, fbErr);
+    if(!ps) { state.pollState = null; state.pollData = null;
+      if(document.getElementById('page-checkin').classList.contains('active')) renderCheckinPage();
+      return;
+    }
+    // PATCH(close)로 weekId가 유지되도록 기존 pollState의 weekId/satDate 병합
+    const prevPs = state.pollState;
+    state.pollState = Object.assign({}, prevPs || {}, ps);
+    const weekId = state.pollState.weekId;
+    if(weekId) {
+      if(!_pollDataRef || _pollDataRef.toString().indexOf(weekId) === -1) {
+        if(_pollDataRef) _pollDataRef.off('value');
+        _pollDataRef = db.ref(`jmt/poll/${weekId}`);
+        _pollDataRef.on('value', pSnap => {
+          state.pollData = pSnap.val();
+          if(document.getElementById('page-checkin').classList.contains('active')) renderCheckinPage();
+        }, fbErr);
+      }
     } else {
       state.pollData = null;
     }
@@ -1598,7 +1607,23 @@ function switchPage(id) {
     }
   }
   if(id === 'members') renderMemberList();
-  if(id === 'history') { switchHistoryTab(_historyTab); }
+  if(id === 'history') {
+    switchHistoryTab(_historyTab);
+    // state.history가 비어있으면 Firebase에서 직접 읽기
+    if(!state.history.length && db) {
+      db.ref('jmt/history').once('value').then(snap => {
+        const data = snap.val();
+        if(data) {
+          state.history = Object.values(data).map(s => {
+            if(typeof s === 'string') { try { return JSON.parse(s); } catch(e) { return null; } }
+            if(s && typeof s === 'object') return s;
+            return null;
+          }).filter(r => r && r.id).sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''));
+          renderHistoryList();
+        }
+      });
+    }
+  }
   if(id === 'checkin') {
     renderCheckinPage();
     // pollState 없으면 Firebase에서 직접 한 번 읽기
@@ -1792,7 +1817,9 @@ function renderCheckinPage() {
   const voterGroup = (voters, label) => voters.length ? `
     <div class="poll-group">
       <div class="poll-group-hdr">${label} <span style="color:#94a3b8;font-weight:400">(${voters.length}명)</span></div>
-      ${voters.map(v=>`<div class="poll-voter">${mBadge(v.name)}<span style="flex:1">${v.name}</span></div>`).join('')}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+        ${voters.map(v=>`<div class="poll-voter" style="padding:5px 8px">${mBadge(v.name)}<span style="flex:1;font-size:0.82rem">${v.name}</span></div>`).join('')}
+      </div>
     </div>` : '';
 
   let html = '';
@@ -1849,13 +1876,17 @@ function renderCheckinPage() {
   if(guestEntries.length) {
     html += `<div class="poll-group">
       <div class="poll-group-hdr">👤 게스트 <span style="color:#94a3b8;font-weight:400">(${guestEntries.length}명)</span></div>
-      ${guestEntries.map(([k,g])=>`<div class="poll-voter">${gBadge(g)}<span style="flex:1">${g.name}</span></div>`).join('')}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+        ${guestEntries.map(([k,g])=>`<div class="poll-voter" style="padding:5px 8px">${gBadge(g)}<span style="flex:1;font-size:0.82rem">${g.name}</span></div>`).join('')}
+      </div>
     </div>`;
   }
   if(isOpen && notVoted.length) {
     html += `<div class="poll-group">
       <div class="poll-group-hdr" style="color:#94a3b8">⏳ 미투표 <span style="font-weight:400">(${notVoted.length}명)</span></div>
-      ${notVoted.map(m=>`<div class="poll-voter" style="opacity:0.45">${gBadge(m)}<span style="flex:1">${m.name}</span></div>`).join('')}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+        ${notVoted.map(m=>`<div class="poll-voter" style="opacity:0.45;padding:5px 8px">${gBadge(m)}<span style="flex:1;font-size:0.82rem">${m.name}</span></div>`).join('')}
+      </div>
     </div>`;
   }
   html += `</div>`;
@@ -1993,6 +2024,7 @@ function renderHistoryList() {
     el.innerHTML = `<div class="empty-state"><div class="icon">📋</div><p>${emptyMsg}</p></div>`;
     return;
   }
+  try {
   el.innerHTML = filtered.map(r => {
     const results = r.results || {};
     const resultBlocks = ['mixed','mens','womens'].filter(t => results[t] && results[t].champion).map(t => {
@@ -2016,6 +2048,10 @@ function renderHistoryList() {
       <div class="hist-results">${resultBlocks || '<div style="font-size:0.77rem;color:#94a3b8;padding:4px 0">결과 미입력</div>'}</div>
     </div>`;
   }).join('');
+  } catch(e) {
+    console.error('renderHistoryList 오류:', e);
+    el.innerHTML = `<div class="card"><p style="color:#dc2626;font-size:0.8rem">이력 표시 오류: ${e.message}</p></div>`;
+  }
 }
 
 function deleteHistory(id) {

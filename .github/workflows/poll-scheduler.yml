@@ -35,6 +35,10 @@ jobs:
           manual = os.environ.get('MANUAL_ACTION', '')
           action = manual if manual in ('open', 'close') else ('open' if weekday == 0 else 'close')
 
+          db_url = os.environ['FIREBASE_DB_URL'].rstrip('/')
+          db_secret = os.environ['FIREBASE_DB_SECRET']
+          url = f"{db_url}/jmt/pollState.json?auth={db_secret}"
+
           if action == 'open':
               days_to_sat = (5 - weekday) % 7
               if days_to_sat == 0:
@@ -48,18 +52,17 @@ jobs:
                   'satDate': sat_date.strftime('%Y-%m-%d'),
                   'openedAt': utc_now.strftime('%Y-%m-%dT%H:%M:%SZ')
               }
+              method = 'PUT'   # 새 주차 시작: 전체 교체
           else:
+              # close: weekId/satDate 보존하고 status만 업데이트 (PATCH)
               payload = {
                   'status': 'closed',
                   'closedAt': utc_now.strftime('%Y-%m-%dT%H:%M:%SZ')
               }
-
-          db_url = os.environ['FIREBASE_DB_URL'].rstrip('/')
-          db_secret = os.environ['FIREBASE_DB_SECRET']
-          url = f"{db_url}/jmt/pollState.json?auth={db_secret}"
+              method = 'PATCH'  # 기존 필드 유지하며 부분 업데이트
 
           data = json.dumps(payload).encode('utf-8')
-          req = urllib.request.Request(url, data=data, method='PUT')
+          req = urllib.request.Request(url, data=data, method=method)
           req.add_header('Content-Type', 'application/json')
 
           try:
