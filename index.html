@@ -277,7 +277,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div class="empty-state" style="padding:20px 0"><div class="icon" style="font-size:2rem">👤</div><p>등록된 정회원이 없습니다</p></div>
     </div>
   </div>
-  <button class="btn btn-primary btn-full" onclick="openAddMemberModal()">＋ 신규회원 등록</button>
+  <button class="btn btn-primary btn-full" id="btn-add-member" onclick="openAddMemberModal()">＋ 신규회원 등록</button>
 </div>
 
 <!-- ══ PAGE: 대회만들기 ══ -->
@@ -336,7 +336,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <div class="summary-item"><div class="val" id="cnt-total">0</div><div class="lbl">총 참가</div></div>
       </div>
       <div class="divider"></div>
-      <button class="btn btn-success btn-full" onclick="initAllTournaments()">🎾 대진 생성 (혼합 · 남자 · 여자)</button>
+      <button class="btn btn-success btn-full" id="btn-init-tournaments" onclick="initAllTournaments()">🎾 대진 생성 (혼합 · 남자 · 여자)</button>
     </div>
   </div>
 </div>
@@ -713,8 +713,11 @@ const firebaseConfig = {
 
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
-// ══ 최고 관리자 ══
-const ADMIN_NAME = '유지원'; // 항상 대회 종료 권한 보유
+// ══ 권한 ══
+const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
+const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
+function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
+function isAdmin()   { return (state.identity && state.identity.name) === ADMIN_NAME; }
 
 // ══ LOCALSTORAGE ══
 const LS_IDENTITY   = 'jmt_identity';    // 이 기기의 접속자 이름
@@ -1390,7 +1393,7 @@ function initTournament(type) {
 }
 
 function reshuffleTournament(type) {
-  if (!state.isCreator) { alert('다시 추첨은 대회 생성자만 가능합니다.'); return; }
+  if (!isManager()) { alert('다시 추첨은 관리자만 가능합니다.'); return; }
   if (!confirm('기존 결과가 초기화됩니다. 계속하시겠습니까?')) return;
   // exit edit mode if active
   if (_bracketEditMode === type) { _bracketEditMode = null; updateBracketEditUI(type); }
@@ -1421,7 +1424,7 @@ function getPlayerGender(name) {
 }
 
 function toggleBracketEdit(type) {
-  if (!state.isCreator) { alert('대진표 수정은 대회 생성자만 가능합니다.'); return; }
+  if (!isManager()) { alert('대진표 수정은 관리자만 가능합니다.'); return; }
 
   if (_bracketEditMode === type) {
     // 수정 완료 → 부전승 처리 후 일반 모드 복귀
@@ -1916,6 +1919,7 @@ function launchConfetti() {
 
 // ══ INIT ALL TOURNAMENTS ══
 function initAllTournaments() {
+  if (!isManager()) { alert('대진 생성은 관리자만 가능합니다.'); return; }
   // 새 대진 시작 시 직전 결과 클리어 (activeState 덮어쓰기로 자동 처리)
   state.lastFinished = null;
   hideFinishedBanner();
@@ -2523,6 +2527,7 @@ function selectIdentity(name) {
   localStorage.setItem(LS_IDENTITY, JSON.stringify(state.identity));
   document.getElementById('identity-modal').classList.remove('open');
   updateIdentityUI();
+  updatePermissionUI();
   // 대회 진행 중이면 생성자 권한 즉시 재평가
   if(state.currentHistoryId) {
     // 관리자는 항상 creator, 아니면 creatorName과 일치할 때만
@@ -2564,6 +2569,46 @@ function renderIdentityList() {
       ${m.ntrp?`<span class="badge badge-ntrp">NTRP ${m.ntrp}</span>`:''}
       ${cur===m.name?'<span style="color:#2563eb;font-size:1rem">✓</span>':''}
     </div>`).join('');
+}
+
+// ══ PERMISSION UI ══
+function updatePermissionUI() {
+  const admin   = isAdmin();
+  const manager = isManager();
+
+  // 신규회원 등록 (관리자만)
+  const btnMember = document.getElementById('btn-add-member');
+  if (btnMember) {
+    btnMember.disabled = !admin;
+    btnMember.style.opacity = admin ? '' : '0.38';
+    btnMember.style.cursor  = admin ? '' : 'not-allowed';
+    btnMember.title = admin ? '' : '관리자(유지원)만 등록할 수 있습니다';
+  }
+
+  // 대진 생성 (매니저만)
+  const btnInit = document.getElementById('btn-init-tournaments');
+  if (btnInit) {
+    btnInit.disabled = !manager;
+    btnInit.style.opacity = manager ? '' : '0.38';
+    btnInit.style.cursor  = manager ? '' : 'not-allowed';
+    btnInit.title = manager ? '' : '관리자(유지원·천지은·김승수)만 생성할 수 있습니다';
+  }
+
+  // 다시 추첨 + 대진표 수정 (매니저만)
+  ['mixed','mens','womens'].forEach(t => {
+    const reshuffleEl = document.querySelector(`button[onclick="reshuffleTournament('${t}')"]`);
+    if (reshuffleEl) {
+      reshuffleEl.disabled = !manager;
+      reshuffleEl.style.opacity = manager ? '' : '0.38';
+      reshuffleEl.style.cursor  = manager ? '' : 'not-allowed';
+    }
+    const editEl = document.getElementById(`bracket-edit-btn-${t}`);
+    if (editEl) {
+      editEl.disabled = !manager;
+      editEl.style.opacity = manager ? '' : '0.38';
+      editEl.style.cursor  = manager ? '' : 'not-allowed';
+    }
+  });
 }
 
 // ══ SETUP PAGE UI (lock/unlock) ══
@@ -2642,6 +2687,7 @@ document.getElementById('t-date').value = new Date().toISOString().split('T')[0]
     // ── 접속자 확인 ───────────────────────────────────────────────
     if(loadIdentity()) {
       updateIdentityUI();
+      updatePermissionUI();
     } else {
       // 미선택 → 600ms 후 모달 (Firebase 데이터 로드 여유 시간)
       setTimeout(openIdentityModal, 600);
