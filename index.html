@@ -2121,7 +2121,7 @@ function openHistoryDetail(histId, type) {
   if (types.length > 1) {
     subtabsEl.innerHTML = types.map(t => {
       const label = t==='mixed'?'혼합복식':t==='mens'?'남자복식':'여자복식';
-      return `<button class="sub-tab" id="hist-stab-${t}" onclick="switchHistoryTab('${t}')">${label}</button>`;
+      return `<button class="sub-tab" id="hist-stab-${t}" onclick="switchHistDetailTab('${t}')">${label}</button>`;
     }).join('');
     subtabsEl.style.display = 'flex';
   } else {
@@ -2129,7 +2129,7 @@ function openHistoryDetail(histId, type) {
     subtabsEl.style.display = 'none';
   }
   const firstType = (type && rec.tournaments[type]) ? type : types[0];
-  switchHistoryTab(firstType);
+  switchHistDetailTab(firstType);
   document.getElementById('hist-detail-modal').classList.add('open');
 }
 
@@ -2138,7 +2138,7 @@ function closeHistoryDetail() {
   _histDetailRec = null;
 }
 
-function switchHistoryTab(type) {
+function switchHistDetailTab(type) {
   if (!_histDetailRec || !_histDetailRec.tournaments[type]) return;
   ['mixed','mens','womens'].forEach(t => {
     const el = document.getElementById(`hist-stab-${t}`);
