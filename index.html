@@ -698,7 +698,15 @@ function saveHistory() {
     const o = {};
     // JSON 문자열로 저장 (중첩 배열을 Firebase가 변환하는 문제 방지)
     state.history.forEach(r => { o[r.id] = JSON.stringify(r); });
-    db.ref('jmt/history').set(o).catch(fbErr);
+    // 이력이 없으면 set({}) 대신 remove()로 처리 (Firebase에서 빈 객체는 null로 취급됨)
+    if(Object.keys(o).length === 0) {
+      db.ref('jmt/history').remove().catch(fbErr);
+    } else {
+      db.ref('jmt/history').set(o).catch(e => {
+        fbErr(e);
+        alert(`이력 저장 오류: ${e.message||e.code||'Firebase 쓰기 실패'}\n규칙을 확인하세요.`);
+      });
+    }
   } else {
     localStorage.setItem(LS_FB_HIST, JSON.stringify(state.history));
   }
@@ -1608,20 +1616,21 @@ function switchPage(id) {
   }
   if(id === 'members') renderMemberList();
   if(id === 'history') {
-    switchHistoryTab(_historyTab);
-    // state.history가 비어있으면 Firebase에서 직접 읽기
-    if(!state.history.length && db) {
+    // 탭 열 때마다 Firebase에서 최신 이력 강제 로드
+    if(db) {
       db.ref('jmt/history').once('value').then(snap => {
         const data = snap.val();
-        if(data) {
-          state.history = Object.values(data).map(s => {
-            if(typeof s === 'string') { try { return JSON.parse(s); } catch(e) { return null; } }
-            if(s && typeof s === 'object') return s;
-            return null;
-          }).filter(r => r && r.id).sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''));
-          renderHistoryList();
-        }
+        state.history = data
+          ? Object.values(data).map(s => {
+              if(typeof s === 'string') { try { return JSON.parse(s); } catch(e) { return null; } }
+              if(s && typeof s === 'object') return s;
+              return null;
+            }).filter(r => r && r.id).sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''))
+          : [];
+        switchHistoryTab(_historyTab);
       });
+    } else {
+      switchHistoryTab(_historyTab);
     }
   }
   if(id === 'checkin') {
@@ -1868,7 +1877,10 @@ function renderCheckinPage() {
       <span class="poll-pill absent">❌ 불참 ${absentVoters.length}명</span>
       ${guestEntries.length?`<span class="poll-pill guest">👤 게스트 ${guestEntries.length}명</span>`:''}
     </div>
-    ${totalAttending>=4?`<button class="btn btn-success btn-full" style="margin:8px 0 10px" onclick="createBracketFromPoll()">🎾 ${totalAttending}명으로 대진 생성</button>`:''}`;
+    ${totalAttending>=4?(pd.bracketCreated
+      ? `<button class="btn btn-full" style="margin:8px 0 10px;background:#94a3b8;cursor:not-allowed" disabled>✅ 대진이 이미 생성되었습니다</button>`
+      : `<button class="btn btn-success btn-full" style="margin:8px 0 10px" onclick="createBracketFromPoll()">🎾 ${totalAttending}명으로 대진 생성</button>`)
+    :''}`;
   }
   html += voterGroup(attendVoters, '✅ 참석');
   html += voterGroup(lateVoters,   '⏰ 늦참');
@@ -1986,6 +1998,10 @@ function createBracketFromPoll() {
   state.selectedIds = selectedIds;
   state.guests = pollGuests;
   state.nextType = 'meetup';
+  // 대진 생성 완료 표시 (버튼 비활성화용)
+  if(db && state.pollState && state.pollState.weekId) {
+    db.ref(`jmt/poll/${state.pollState.weekId}/bracketCreated`).set(true).catch(fbErr);
+  }
   // 모임 번호 계산 (2026-03-28 = 308회 기준)
   const BASE_MS = new Date('2026-03-28').getTime();
   const BASE_NUM = 308;
