@@ -762,8 +762,9 @@ function trySelectIdentity(name) {
 function confirmPassword() {
   const entered = document.getElementById('pw-input').value;
   if (entered === USER_PASSWORDS[_pendingIdentityName]) {
+    const name = _pendingIdentityName; // closePwModal이 null로 초기화하기 전에 저장
     closePwModal();
-    selectIdentity(_pendingIdentityName);
+    selectIdentity(name);
   } else {
     document.getElementById('pw-error').textContent = '암호가 틀렸습니다. 다시 입력하세요.';
     document.getElementById('pw-input').value = '';
