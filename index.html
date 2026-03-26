@@ -155,6 +155,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .team-score { font-weight: 700; min-width: 15px; text-align: right; color: #64748b; }
 .team.winner .team-score { color: #16a34a; }
 .scroll-hint { text-align: center; font-size: 0.65rem; color: #cbd5e1; margin-top: 4px; }
+/* ── BRACKET EDIT MODE ── */
+.team.slot-filled { cursor: pointer; background: #eff6ff; color: #1d4ed8; font-weight: 600; border-left: 3px solid #3b82f6; }
+.team.slot-filled:active { background: #dbeafe; }
+.team.slot-empty { cursor: pointer; background: #f8fafc; color: #94a3b8; border-left: 3px dashed #cbd5e1; font-style: italic; }
+.team.slot-empty:active { background: #f1f5f9; }
+.match.edit-active { border: 1.5px solid #93c5fd; box-shadow: 0 0 0 2px #dbeafe, 0 1px 3px rgba(0,0,0,0.06); }
+.player-pick-btn { padding: 7px 13px; border-radius: 20px; border: 1.5px solid #e2e8f0; background: #fff; font-size: 0.83rem; cursor: pointer; color: #475569; transition: all 0.1s; }
+.player-pick-btn.selected { border-color: #2563eb; background: #eff6ff; color: #2563eb; font-weight: 700; }
+.player-pick-btn:active { transform: scale(0.95); }
+.edit-mode-notice { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; color: #1d4ed8; margin-bottom: 8px; text-align: center; }
 
 /* ── MODALS ── */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 100; align-items: flex-end; justify-content: center; }
@@ -362,8 +372,12 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <div class="bracket-container"><div class="bracket-svg-wrap" id="mixed-bracket"></div></div>
         <div class="scroll-hint" id="mixed-hint"></div>
       </div>
+      <div id="mixed-edit-notice" class="edit-mode-notice" style="display:none">✏️ 수정 모드 · 슬롯을 눌러 선수를 배정하세요</div>
       <div class="card" style="padding:11px">
-        <button class="btn btn-warning btn-full" onclick="reshuffleTournament('mixed')">🔀 다시 추첨</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button class="btn btn-warning btn-full" onclick="reshuffleTournament('mixed')">🔀 다시 추첨</button>
+          <button class="btn btn-outline btn-full" id="bracket-edit-btn-mixed" onclick="toggleBracketEdit('mixed')">✏️ 대진표 수정</button>
+        </div>
       </div>
     </div>
   </div>
@@ -385,8 +399,12 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <div class="bracket-container"><div class="bracket-svg-wrap" id="mens-bracket"></div></div>
         <div class="scroll-hint" id="mens-hint"></div>
       </div>
+      <div id="mens-edit-notice" class="edit-mode-notice" style="display:none">✏️ 수정 모드 · 슬롯을 눌러 선수를 배정하세요</div>
       <div class="card" style="padding:11px">
-        <button class="btn btn-warning btn-full" onclick="reshuffleTournament('mens')">🔀 다시 추첨</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button class="btn btn-warning btn-full" onclick="reshuffleTournament('mens')">🔀 다시 추첨</button>
+          <button class="btn btn-outline btn-full" id="bracket-edit-btn-mens" onclick="toggleBracketEdit('mens')">✏️ 대진표 수정</button>
+        </div>
       </div>
     </div>
   </div>
@@ -408,8 +426,12 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <div class="bracket-container"><div class="bracket-svg-wrap" id="womens-bracket"></div></div>
         <div class="scroll-hint" id="womens-hint"></div>
       </div>
+      <div id="womens-edit-notice" class="edit-mode-notice" style="display:none">✏️ 수정 모드 · 슬롯을 눌러 선수를 배정하세요</div>
       <div class="card" style="padding:11px">
-        <button class="btn btn-warning btn-full" onclick="reshuffleTournament('womens')">🔀 다시 추첨</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button class="btn btn-warning btn-full" onclick="reshuffleTournament('womens')">🔀 다시 추첨</button>
+          <button class="btn btn-outline btn-full" id="bracket-edit-btn-womens" onclick="toggleBracketEdit('womens')">✏️ 대진표 수정</button>
+        </div>
       </div>
     </div>
   </div>
@@ -611,6 +633,26 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           oninput="previewWinner()" onkeydown="if(event.key==='Enter')submitScore()">
       </div>
       <button class="confirm-btn" onclick="submitScore()">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SLOT EDIT MODAL ══ -->
+<div class="modal-overlay" id="slot-edit-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-round">✏️ 팀 선수 선택</span>
+      <button class="modal-close" onclick="closeSlotEditModal()">✕</button>
+    </div>
+    <div style="padding:14px 16px">
+      <p style="font-size:0.82rem;color:#64748b;margin-bottom:12px">이 슬롯에 배정할 선수 <strong>2명</strong>을 선택하세요</p>
+      <div id="slot-edit-player-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px"></div>
+      <div id="slot-edit-sel-info" style="font-size:0.85rem;font-weight:600;min-height:22px;margin-bottom:14px;color:#94a3b8">2명을 선택하세요</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-warning btn-full" onclick="closeSlotEditModal()">취소</button>
+        <button class="btn btn-primary btn-full" id="slot-edit-confirm-btn" onclick="confirmSlotEdit()" disabled>확인</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1346,10 +1388,155 @@ function initTournament(type) {
 function reshuffleTournament(type) {
   if (!state.isCreator) { alert('다시 추첨은 대회 생성자만 가능합니다.'); return; }
   if (!confirm('기존 결과가 초기화됩니다. 계속하시겠습니까?')) return;
+  // exit edit mode if active
+  if (_bracketEditMode === type) { _bracketEditMode = null; updateBracketEditUI(type); }
   initTournamentSilent(type);
   document.getElementById(`${type}-empty`).style.display = 'none';
   document.getElementById(`${type}-content`).style.display = 'block';
   saveActiveState();
+}
+
+// ══ BRACKET EDIT MODE ══
+let _bracketEditMode = null;
+let _bracketEditAllPlayers = [];
+let _editSlotCtx = null;
+let _editSlotSel = [];
+
+function toggleBracketEdit(type) {
+  if (!state.isCreator) { alert('대진표 수정은 대회 생성자만 가능합니다.'); return; }
+
+  if (_bracketEditMode === type) {
+    // 수정 완료 → 부전승 처리 후 일반 모드 복귀
+    _bracketEditMode = null;
+    const t = state.tournaments[type];
+    t.rounds[0].forEach((m, mi) => {
+      if (!m.team0 && !m.team1) { m.winner = -1; }
+      else if (!m.team0 && m.team1) { m.winner = 1; advanceWinner(t.rounds, 0, mi); }
+      else if (m.team0 && !m.team1) { m.winner = 0; advanceWinner(t.rounds, 0, mi); }
+      else { m.winner = null; }
+    });
+    cascadeByes(t.rounds);
+    checkComplete(type);
+    saveActiveState();
+    updateBracketEditUI(type);
+    renderTournament(type);
+    return;
+  }
+
+  if (!confirm('대진표 수정 모드로 전환합니다.\n1라운드 팀 배정이 모두 초기화됩니다.\n계속하시겠습니까?')) return;
+
+  const t = state.tournaments[type];
+  // 전체 선수 목록 수집
+  const all = new Set();
+  t.rounds[0].forEach(m => {
+    if (m.team0) m.team0.forEach(p => all.add(p));
+    if (m.team1) m.team1.forEach(p => all.add(p));
+  });
+  if (t.unpaired) t.unpaired.forEach(p => all.add(p));
+  _bracketEditAllPlayers = [...all].sort();
+
+  // 전체 라운드 초기화
+  t.rounds.forEach(round => round.forEach(m => {
+    m.team0 = null; m.team1 = null; m.winner = null; m.score0 = ''; m.score1 = '';
+  }));
+  t.champion = null; t.runnerUp = null;
+
+  _bracketEditMode = type;
+  updateBracketEditUI(type);
+  renderTournament(type);
+}
+
+function updateBracketEditUI(type) {
+  const btn = document.getElementById(`bracket-edit-btn-${type}`);
+  const notice = document.getElementById(`${type}-edit-notice`);
+  const isEdit = _bracketEditMode === type;
+  if (btn) {
+    btn.textContent = isEdit ? '✅ 수정 완료' : '✏️ 대진표 수정';
+    btn.className = isEdit ? 'btn btn-success btn-full' : 'btn btn-outline btn-full';
+  }
+  if (notice) notice.style.display = isEdit ? 'block' : 'none';
+}
+
+function getUnassignedPlayers(type, excludeMi, excludeSide) {
+  const t = state.tournaments[type];
+  const assigned = new Set();
+  t.rounds[0].forEach((m, mi) => {
+    if (mi === excludeMi) {
+      // 이 매치의 excludeSide 슬롯만 제외 (반대 side는 포함)
+      const keepSide = excludeSide === 0 ? 1 : 0;
+      const keepTeam = m[`team${keepSide}`];
+      if (keepTeam) keepTeam.forEach(p => assigned.add(p));
+    } else {
+      if (m.team0) m.team0.forEach(p => assigned.add(p));
+      if (m.team1) m.team1.forEach(p => assigned.add(p));
+    }
+  });
+  return _bracketEditAllPlayers.filter(p => !assigned.has(p));
+}
+
+function openSlotEditModal(type, mi, side) {
+  if (_bracketEditMode !== type) return;
+  _editSlotCtx = { type, mi, side };
+  _editSlotSel = [];
+
+  const currentTeam = state.tournaments[type].rounds[0][mi][`team${side}`];
+  if (currentTeam) _editSlotSel = [...currentTeam];
+
+  const unassigned = getUnassignedPlayers(type, mi, side);
+  // 현재 슬롯 선수도 선택 풀에 포함
+  const available = [...new Set([...unassigned, ...(currentTeam || [])])].sort();
+
+  renderSlotEditPlayerList(available);
+  document.getElementById('slot-edit-modal').classList.add('open');
+}
+
+function renderSlotEditPlayerList(players) {
+  const el = document.getElementById('slot-edit-player-list');
+  el.innerHTML = players.map(p =>
+    `<button class="player-pick-btn${_editSlotSel.includes(p) ? ' selected' : ''}" onclick="toggleSlotPlayer('${p}')">${p}</button>`
+  ).join('');
+  updateSlotEditInfo();
+}
+
+function toggleSlotPlayer(name) {
+  const idx = _editSlotSel.indexOf(name);
+  if (idx >= 0) {
+    _editSlotSel.splice(idx, 1);
+  } else {
+    if (_editSlotSel.length >= 2) return;
+    _editSlotSel.push(name);
+  }
+  document.querySelectorAll('#slot-edit-player-list .player-pick-btn').forEach(btn => {
+    btn.className = 'player-pick-btn' + (_editSlotSel.includes(btn.textContent) ? ' selected' : '');
+  });
+  updateSlotEditInfo();
+}
+
+function updateSlotEditInfo() {
+  const el = document.getElementById('slot-edit-sel-info');
+  const confirmBtn = document.getElementById('slot-edit-confirm-btn');
+  if (_editSlotSel.length === 0) {
+    el.textContent = '2명을 선택하세요'; el.style.color = '#94a3b8';
+  } else if (_editSlotSel.length === 1) {
+    el.textContent = `${_editSlotSel[0]} 선택됨 · 1명 더 선택하세요`; el.style.color = '#f59e0b';
+  } else {
+    el.textContent = `✅ ${_editSlotSel.join(' / ')}`; el.style.color = '#16a34a';
+  }
+  confirmBtn.disabled = _editSlotSel.length !== 2;
+}
+
+function confirmSlotEdit() {
+  if (!_editSlotCtx || _editSlotSel.length !== 2) return;
+  const { type, mi, side } = _editSlotCtx;
+  state.tournaments[type].rounds[0][mi][`team${side}`] = [..._editSlotSel];
+  closeSlotEditModal();
+  renderTournament(type);
+}
+
+function closeSlotEditModal() {
+  document.getElementById('slot-edit-modal').classList.remove('open');
+  _editSlotCtx = null;
+  _editSlotSel = [];
 }
 
 function advanceWinner(rounds,ri,mi) {
@@ -1445,17 +1632,31 @@ function renderTournament(type, opts) {
     round.forEach((match,mi)=>{
       const cy=mcy(ri,mi), my=cy-MH/2;
       const div=document.createElement('div');
-      const canClick = match.team0 && match.team1 && state.isCreator && !readOnly;
-      div.className='match'+(canClick?' clickable':'');
+      const editMode = _bracketEditMode===type && !readOnly && ri===0;
+      const canClick = !editMode && match.team0 && match.team1 && state.isCreator && !readOnly;
+      div.className='match'+(canClick?' clickable':'')+(editMode?' edit-active':'');
       div.style.cssText=`left:${mx}px;top:${my}px;width:${MW}px;height:${MH}px;`;
       if(canClick) div.onclick=()=>openModal(type,ri,mi);
       const row=(team,side)=>{
+        if(editMode){
+          const nm=team?pairName(team):'+ 선수 배정';
+          const slotCls=team?'slot-filled':'slot-empty';
+          // capture mi and side for onclick
+          return `<div class="team ${slotCls}" data-mi="${mi}" data-side="${side}"><span class="team-name">${team?'✏️ ':'➕ '}${nm}</span></div>`;
+        }
         const cls=match.winner===side?'winner':match.winner!==null&&match.winner!==-1?'loser':(!team?(ri===0?'bye-team':'tbd-team'):'');
         const nm=!team?(ri===0?'부전승':'TBD'):pairName(team);
         const sc=side===0?match.score0:match.score1;
         return `<div class="team ${cls}"><span class="team-name">${nm}</span>${sc?`<span class="team-score">${sc}</span>`:''}</div>`;
       };
       div.innerHTML=row(match.team0,0)+row(match.team1,1);
+      // edit mode: attach slot click handlers after innerHTML set
+      if(editMode){
+        div.querySelectorAll('.team[data-mi]').forEach(el=>{
+          const emi=parseInt(el.dataset.mi), eside=parseInt(el.dataset.side);
+          el.addEventListener('click',()=>openSlotEditModal(type,emi,eside));
+        });
+      }
       wrap.appendChild(div);
 
       if(ri<NR-1&&mi%2===0&&mi+1<round.length){
@@ -2324,7 +2525,7 @@ function updateSetupPageUI() {
 }
 
 // ══ MODAL OVERLAY CLOSE ══
-['score-modal','participant-modal','add-member-modal','edit-modal','hist-detail-modal'].forEach(id => {
+['score-modal','participant-modal','add-member-modal','edit-modal','hist-detail-modal','slot-edit-modal'].forEach(id => {
   document.getElementById(id).addEventListener('click', function(e) {
     if (e.target === this) {
       if (id==='score-modal') closeModal();
@@ -2332,6 +2533,7 @@ function updateSetupPageUI() {
       else if (id==='add-member-modal') closeAddMemberModal();
       else if (id==='edit-modal') closeEditModal();
       else if (id==='hist-detail-modal') closeHistoryDetail();
+      else if (id==='slot-edit-modal') closeSlotEditModal();
     }
   });
 });
