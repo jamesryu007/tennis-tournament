@@ -1970,20 +1970,22 @@ function switchHistoryTab(tab) {
 
 function renderHistoryList() {
   const el = document.getElementById('tournament-history-list');
-  const filtered = state.history.filter(r => {
-    const t = r.type || 'tournament';
-    return t === _historyTab;
-  });
+  // 대회이력: type이 'meetup'이 아닌 모든 레코드 (type 없는 기존 데이터 포함)
+  // 정기모임: type이 명시적으로 'meetup'인 레코드만
+  const filtered = state.history.filter(r =>
+    _historyTab === 'meetup' ? r.type === 'meetup' : r.type !== 'meetup'
+  );
   const emptyMsg = _historyTab === 'meetup' ? '정기모임 이력이 없습니다' : '대회 이력이 없습니다';
   if (!filtered.length) {
     el.innerHTML = `<div class="empty-state"><div class="icon">📋</div><p>${emptyMsg}</p></div>`;
     return;
   }
   el.innerHTML = filtered.map(r => {
-    const resultBlocks = ['mixed','mens','womens'].filter(t => r.results[t]?.champion).map(t => {
+    const results = r.results || {};
+    const resultBlocks = ['mixed','mens','womens'].filter(t => results[t] && results[t].champion).map(t => {
       const tn = t==='mixed'?'🔀 혼합복식':t==='mens'?'👨 남자복식':'👩 여자복식';
-      const champ = pairName(r.results[t].champion);
-      const runner = r.results[t].runnerUp ? pairName(r.results[t].runnerUp) : '-';
+      const champ = pairName(results[t].champion);
+      const runner = results[t].runnerUp ? pairName(results[t].runnerUp) : '-';
       const hasBracket = !!(r.tournaments && r.tournaments[t]);
       const clickAttr = hasBracket ? `onclick="openHistoryDetail('${r.id}','${t}')"` : '';
       return `<button class="hist-result-btn${hasBracket?' clickable':''}" ${clickAttr}>
