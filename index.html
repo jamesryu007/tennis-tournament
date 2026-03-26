@@ -410,10 +410,14 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   </div>
 </div>
 
-<!-- ══ PAGE: 대회이력 ══ -->
+<!-- ══ PAGE: 이력보기 ══ -->
 <div class="page" id="page-history">
+  <div class="sub-tabs" style="margin-bottom:10px">
+    <div class="sub-tab active" id="htab-meetup" onclick="switchHistoryTab('meetup')">🏃 정기모임</div>
+    <div class="sub-tab" id="htab-tournament" onclick="switchHistoryTab('tournament')">🏆 대회이력</div>
+  </div>
   <div id="tournament-history-list">
-    <div class="empty-state"><div class="icon">📋</div><p>대회 이력이 없습니다</p></div>
+    <div class="empty-state"><div class="icon">📋</div><p>이력이 없습니다</p></div>
   </div>
 </div>
 
@@ -610,17 +614,17 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <div class="nav-item active" id="nav-members" onclick="switchPage('members')">
     <span class="ni">👥</span><span>회원관리</span>
   </div>
+  <div class="nav-item" id="nav-checkin" onclick="switchPage('checkin')">
+    <span class="ni">✋</span><span>출첵</span>
+  </div>
   <div class="nav-item" id="nav-setup" onclick="switchPage('setup')">
     <span class="ni">🏆</span><span>대회만들기</span>
   </div>
   <div class="nav-item" id="nav-matches" onclick="switchPage('matches')">
     <span class="ni">🎾</span><span>경기진행</span>
   </div>
-  <div class="nav-item" id="nav-history" onclick="switchPage('history');renderHistoryList()">
-    <span class="ni">📋</span><span>대회이력</span>
-  </div>
-  <div class="nav-item" id="nav-checkin" onclick="switchPage('checkin')">
-    <span class="ni">✋</span><span>출첵</span>
+  <div class="nav-item" id="nav-history" onclick="switchPage('history')">
+    <span class="ni">📋</span><span>이력보기</span>
   </div>
 </nav>
 
@@ -638,7 +642,8 @@ const state = {
   _creatorName: null, // 현재 진행 중인 대회 생성자 이름 (재평가용)
   lastFinished: null,  // 직전 종료 대회 { name, venue, date, endedAt, tournaments }
   pollState: null,     // { status, weekId, satDate, openedAt, closedAt? }
-  pollData: null       // { votes, guests, comments }
+  pollData: null,      // { votes, guests, comments }
+  nextType: 'tournament' // 다음 생성할 대회 유형: 'tournament' | 'meetup'
 };
 let modalCtx = null;
 let _pollDataRef = null;
@@ -1589,7 +1594,7 @@ function switchPage(id) {
     }
   }
   if(id === 'members') renderMemberList();
-  if(id === 'history') renderHistoryList();
+  if(id === 'history') { switchHistoryTab(_historyTab); }
   if(id === 'checkin') renderCheckinPage();
 }
 
@@ -1615,9 +1620,12 @@ function initAllTournaments() {
   const { males, females } = getParticipants();
   const recId = Date.now();
   state.currentHistoryId = recId;
+  const recType = state.nextType || 'tournament';
+  state.nextType = 'tournament'; // reset
   const rec = {
     id: recId,
-    name: document.getElementById('t-name').value.trim() || '무제 대회',
+    type: recType,
+    name: document.getElementById('t-name').value.trim() || (recType==='meetup'?'무제 정기모임':'무제 대회'),
     venue: document.getElementById('t-venue').value.trim(),
     date: document.getElementById('t-date').value,
     notes: document.getElementById('t-notes').value.trim(),
@@ -1933,20 +1941,45 @@ function createBracketFromPoll() {
   if(!confirm(`참석+늦참 ${selectedIds.size}명 + 게스트 ${pollGuests.length}명으로 대진을 생성합니다.\n대회 정보를 확인하고 대진 생성 버튼을 누르세요.`)) return;
   state.selectedIds = selectedIds;
   state.guests = pollGuests;
-  if(state.pollState && state.pollState.satDate) document.getElementById('t-date').value = state.pollState.satDate;
+  state.nextType = 'meetup';
+  // 모임 번호 계산 (2026-03-28 = 308회 기준)
+  const BASE_MS = new Date('2026-03-28').getTime();
+  const BASE_NUM = 308;
+  const satDate = (state.pollState && state.pollState.satDate) || new Date().toISOString().split('T')[0];
+  const weeksDiff = Math.round((new Date(satDate).getTime() - BASE_MS) / (7*24*60*60*1000));
+  const meetingNum = BASE_NUM + weeksDiff;
+  document.getElementById('t-name').value  = `자미터 테니스 ${meetingNum}번째 모임`;
+  document.getElementById('t-venue').value = '파미르';
+  document.getElementById('t-notes').value = '재미와 열정이 있는 공간, 사랑하는 사람들의 모임';
+  document.getElementById('t-date').value  = satDate;
   switchPage('setup');
   updateParticipantSummary();
   updateSummary();
 }
 
 // ══ HISTORY LIST ══
+let _historyTab = 'meetup'; // 'meetup' | 'tournament'
+
+function switchHistoryTab(tab) {
+  _historyTab = tab;
+  document.querySelectorAll('[id^="htab-"]').forEach(el => el.classList.remove('active'));
+  const tabEl = document.getElementById(`htab-${tab}`);
+  if(tabEl) tabEl.classList.add('active');
+  renderHistoryList();
+}
+
 function renderHistoryList() {
   const el = document.getElementById('tournament-history-list');
-  if (!state.history.length) {
-    el.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>대회 이력이 없습니다</p></div>';
+  const filtered = state.history.filter(r => {
+    const t = r.type || 'tournament';
+    return t === _historyTab;
+  });
+  const emptyMsg = _historyTab === 'meetup' ? '정기모임 이력이 없습니다' : '대회 이력이 없습니다';
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty-state"><div class="icon">📋</div><p>${emptyMsg}</p></div>`;
     return;
   }
-  el.innerHTML = state.history.map(r => {
+  el.innerHTML = filtered.map(r => {
     const resultBlocks = ['mixed','mens','womens'].filter(t => r.results[t]?.champion).map(t => {
       const tn = t==='mixed'?'🔀 혼합복식':t==='mens'?'👨 남자복식':'👩 여자복식';
       const champ = pairName(r.results[t].champion);
@@ -1961,7 +1994,7 @@ function renderHistoryList() {
     const meta = [r.venue?'📍 '+r.venue:'', r.date?'📅 '+r.date:'', r.notes?'📝 '+r.notes:''].filter(Boolean).join(' · ');
     return `<div class="hist-item">
       <div class="hist-header">
-        <div class="hist-name">🏆 ${r.name || '무제 대회'}</div>
+        <div class="hist-name">${r.type==='meetup'?'🏃':'🏆'} ${r.name || (r.type==='meetup'?'무제 정기모임':'무제 대회')}</div>
         ${state.identity && state.identity.name === ADMIN_NAME ? `<button class="btn btn-danger" onclick="deleteHistory('${r.id}')">삭제</button>` : ''}
       </div>
       ${meta ? `<div class="hist-meta">${meta}</div>` : ''}
