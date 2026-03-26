@@ -413,8 +413,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <!-- ══ PAGE: 이력보기 ══ -->
 <div class="page" id="page-history">
   <div class="sub-tabs" style="margin-bottom:10px">
-    <div class="sub-tab active" id="htab-meetup" onclick="switchHistoryTab('meetup')">🏃 정기모임</div>
-    <div class="sub-tab" id="htab-tournament" onclick="switchHistoryTab('tournament')">🏆 대회이력</div>
+    <div class="sub-tab" id="htab-meetup" onclick="switchHistoryTab('meetup')">🏃 정기모임</div>
+    <div class="sub-tab active" id="htab-tournament" onclick="switchHistoryTab('tournament')">🏆 대회이력</div>
   </div>
   <div id="tournament-history-list">
     <div class="empty-state"><div class="icon">📋</div><p>이력이 없습니다</p></div>
@@ -1958,7 +1958,7 @@ function createBracketFromPoll() {
 }
 
 // ══ HISTORY LIST ══
-let _historyTab = 'meetup'; // 'meetup' | 'tournament'
+let _historyTab = 'tournament'; // 'meetup' | 'tournament'
 
 function switchHistoryTab(tab) {
   _historyTab = tab;
