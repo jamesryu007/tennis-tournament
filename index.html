@@ -843,20 +843,26 @@ function setupFirebaseListeners() {
           }
         } catch(e) { console.error('activeState 파싱 오류:', e); }
       } else {
-        // activeState 없음 = 새 대회 시작 전
+        // activeState 없음 = 새 대회 시작 전 (또는 직전 대회 종료 후)
         state.currentHistoryId = null;
         state.isCreator = false;
         state.guests = [];
         state.selectedIds = new Set();
-        state.tournaments = { mixed: null, mens: null, womens: null };
-        hideFinishedBanner();
-        ['mixed','mens','womens'].forEach(type => {
-          document.getElementById(`${type}-empty`).style.display = '';
-          document.getElementById(`${type}-content`).style.display = 'none';
-          document.getElementById(`${type}-awards`).classList.remove('visible');
-          document.getElementById(`${type}-unpaired`).innerHTML = '';
-          document.getElementById(`${type}-bracket`).innerHTML = '';
-        });
+        state._creatorName = null;
+        // lastFinished가 있으면 직전 결과 계속 표시, 없으면 빈 화면
+        if(state.lastFinished && state.lastFinished.tournaments) {
+          applyLastFinished(state.lastFinished);
+        } else {
+          state.tournaments = { mixed: null, mens: null, womens: null };
+          hideFinishedBanner();
+          ['mixed','mens','womens'].forEach(type => {
+            document.getElementById(`${type}-empty`).style.display = '';
+            document.getElementById(`${type}-content`).style.display = 'none';
+            document.getElementById(`${type}-awards`).classList.remove('visible');
+            document.getElementById(`${type}-unpaired`).innerHTML = '';
+            document.getElementById(`${type}-bracket`).innerHTML = '';
+          });
+        }
         updateSetupPageUI();
       }
     }, 300);
@@ -1507,18 +1513,25 @@ function switchPage(id) {
     if(state.currentHistoryId) {
       const t = visibleMatchTab();
       if(state.tournaments[t]) renderTournament(t);
-    } else if(state.lastFinished) {
+    } else if(state.lastFinished && state.lastFinished.tournaments) {
       applyLastFinished(state.lastFinished);
     } else if(db) {
-      // Firebase에서 직접 읽어 직전 결과 복원
+      // Firebase에서 직전 결과 복원: activeState → lastFinished 순으로 시도
       db.ref('jmt/activeState').once('value').then(snap => {
         try {
           const raw = snap.val();
           if(raw) {
             const saved = JSON.parse(raw);
-            if(saved.finished) applyLastFinished(saved);
+            if(saved.finished && saved.tournaments) { applyLastFinished(saved); return; }
           }
         } catch(e) {}
+        // activeState에 없으면 lastFinished 노드 시도
+        db.ref('jmt/lastFinished').once('value').then(snap2 => {
+          try {
+            const d = snap2.val();
+            if(d) { const data = JSON.parse(d); if(data && data.tournaments) applyLastFinished(data); }
+          } catch(e) {}
+        });
       });
     }
   }
