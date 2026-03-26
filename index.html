@@ -849,8 +849,12 @@ function setupFirebaseListeners() {
     const data = snap.val();
     state.history = data
       ? Object.values(data)
-          .map(s => { try { return JSON.parse(s); } catch(e) { return null; } })
-          .filter(Boolean)
+          .map(s => {
+            if(typeof s === 'string') { try { return JSON.parse(s); } catch(e) { return null; } }
+            if(s && typeof s === 'object') return s; // 이미 객체인 경우
+            return null;
+          })
+          .filter(r => r && r.id)
           .sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''))
       : [];
     if(document.getElementById('page-history').classList.contains('active'))
@@ -1595,7 +1599,16 @@ function switchPage(id) {
   }
   if(id === 'members') renderMemberList();
   if(id === 'history') { switchHistoryTab(_historyTab); }
-  if(id === 'checkin') renderCheckinPage();
+  if(id === 'checkin') {
+    renderCheckinPage();
+    // pollState 없으면 Firebase에서 직접 한 번 읽기
+    if(!state.pollState && db) {
+      db.ref('jmt/pollState').once('value').then(snap => {
+        const ps = snap.val();
+        if(ps) { state.pollState = ps; renderCheckinPage(); }
+      });
+    }
+  }
 }
 
 // ══ CONFETTI ══
