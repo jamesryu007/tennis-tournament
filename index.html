@@ -164,6 +164,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .player-pick-btn { padding: 7px 13px; border-radius: 20px; border: 1.5px solid #e2e8f0; background: #fff; font-size: 0.83rem; cursor: pointer; color: #475569; transition: all 0.1s; }
 .player-pick-btn.selected { border-color: #2563eb; background: #eff6ff; color: #2563eb; font-weight: 700; }
 .player-pick-btn:active { transform: scale(0.95); }
+.player-pick-btn.pick-disabled { opacity: 0.28; cursor: not-allowed; pointer-events: none; }
+.pick-group-label { font-size: 0.72rem; font-weight: 700; color: #64748b; margin-bottom: 6px; padding-left: 2px; }
 .edit-mode-notice { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; color: #1d4ed8; margin-bottom: 8px; text-align: center; }
 
 /* ── MODALS ── */
@@ -1401,8 +1403,22 @@ function reshuffleTournament(type) {
 // ══ BRACKET EDIT MODE ══
 let _bracketEditMode = null;
 let _bracketEditAllPlayers = [];
+let _bracketEditGenders = {};   // name -> 'male'|'female'
 let _editSlotCtx = null;
 let _editSlotSel = [];
+let _editSlotAvailable = [];    // cached for re-render
+
+function getPlayerGender(name) {
+  const m = state.members.find(x => x.name === name);
+  if (m) return m.gender;
+  const g = state.guests.find(x => x.name === name);
+  if (g) return g.gender;
+  if (state.pollData && state.pollData.guests) {
+    const pg = Object.values(state.pollData.guests).find(x => x.name === name);
+    if (pg) return pg.gender;
+  }
+  return 'male';
+}
 
 function toggleBracketEdit(type) {
   if (!state.isCreator) { alert('대진표 수정은 대회 생성자만 가능합니다.'); return; }
@@ -1428,7 +1444,7 @@ function toggleBracketEdit(type) {
   if (!confirm('대진표 수정 모드로 전환합니다.\n1라운드 팀 배정이 모두 초기화됩니다.\n계속하시겠습니까?')) return;
 
   const t = state.tournaments[type];
-  // 전체 선수 목록 수집
+  // 전체 선수 목록 + 성별 수집
   const all = new Set();
   t.rounds[0].forEach(m => {
     if (m.team0) m.team0.forEach(p => all.add(p));
@@ -1436,6 +1452,8 @@ function toggleBracketEdit(type) {
   });
   if (t.unpaired) t.unpaired.forEach(p => all.add(p));
   _bracketEditAllPlayers = [...all].sort();
+  _bracketEditGenders = {};
+  _bracketEditAllPlayers.forEach(p => { _bracketEditGenders[p] = getPlayerGender(p); });
 
   // 전체 라운드 초기화
   t.rounds.forEach(round => round.forEach(m => {
@@ -1493,10 +1511,39 @@ function openSlotEditModal(type, mi, side) {
 }
 
 function renderSlotEditPlayerList(players) {
+  _editSlotAvailable = players;
   const el = document.getElementById('slot-edit-player-list');
-  el.innerHTML = players.map(p =>
-    `<button class="player-pick-btn${_editSlotSel.includes(p) ? ' selected' : ''}" onclick="toggleSlotPlayer('${p}')">${p}</button>`
-  ).join('');
+  const isMixed = _editSlotCtx && _editSlotCtx.type === 'mixed';
+
+  if (isMixed) {
+    // 1명 선택된 경우 같은 성별 비활성화
+    const selGender = _editSlotSel.length === 1
+      ? (_bracketEditGenders[_editSlotSel[0]] || 'male')
+      : null;
+
+    const males   = players.filter(p => (_bracketEditGenders[p] || 'male') === 'male');
+    const females = players.filter(p => (_bracketEditGenders[p] || 'male') === 'female');
+
+    const renderGroup = (group, groupGender, label) => {
+      if (!group.length) return '';
+      const btns = group.map(p => {
+        const isSel = _editSlotSel.includes(p);
+        const isDisabled = selGender && (groupGender === selGender) && !isSel;
+        return `<button class="player-pick-btn${isSel ? ' selected' : ''}${isDisabled ? ' pick-disabled' : ''}"
+          onclick="toggleSlotPlayer('${p}')">${p}</button>`;
+      }).join('');
+      return `<div style="margin-bottom:10px">
+        <div class="pick-group-label">${label}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${btns}</div>
+      </div>`;
+    };
+
+    el.innerHTML = renderGroup(males, 'male', '👨 남자') + renderGroup(females, 'female', '👩 여자');
+  } else {
+    el.innerHTML = players.map(p =>
+      `<button class="player-pick-btn${_editSlotSel.includes(p) ? ' selected' : ''}" onclick="toggleSlotPlayer('${p}')">${p}</button>`
+    ).join('');
+  }
   updateSlotEditInfo();
 }
 
@@ -1508,10 +1555,8 @@ function toggleSlotPlayer(name) {
     if (_editSlotSel.length >= 2) return;
     _editSlotSel.push(name);
   }
-  document.querySelectorAll('#slot-edit-player-list .player-pick-btn').forEach(btn => {
-    btn.className = 'player-pick-btn' + (_editSlotSel.includes(btn.textContent) ? ' selected' : '');
-  });
-  updateSlotEditInfo();
+  // 혼복은 성별 비활성화 상태가 바뀌므로 전체 re-render
+  renderSlotEditPlayerList(_editSlotAvailable);
 }
 
 function updateSlotEditInfo() {
