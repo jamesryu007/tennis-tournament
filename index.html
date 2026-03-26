@@ -2078,41 +2078,42 @@ function initTournamentSilent(type) {
 }
 
 // ══ TOURNAMENT END ══
-function endTournament() {
-  if (!state.isCreator) { alert('대회 종료는 대회 생성자만 가능합니다.'); return; }
-  if (!confirm('대회를 종료하시겠습니까?\n참가자 정보와 대진이 초기화됩니다.')) return;
+function _doEndTournament() {
+  // 이력 레코드에서 메타 정보 우선 참조 (폼 입력값 fallback)
+  const rec = state.currentHistoryId
+    ? state.history.find(r => String(r.id) === String(state.currentHistoryId))
+    : null;
   const finishedData = {
-    name:    document.getElementById('t-name').value.trim() || '무제 대회',
-    venue:   document.getElementById('t-venue').value.trim(),
-    date:    document.getElementById('t-date').value,
+    name:    (rec && rec.name) || document.getElementById('t-name').value.trim() || '무제 대회',
+    venue:   (rec && rec.venue) || document.getElementById('t-venue').value.trim(),
+    date:    (rec && rec.date)  || document.getElementById('t-date').value,
     endedAt: new Date().toISOString(),
     tournaments: JSON.parse(JSON.stringify(state.tournaments))
   };
-
-  // activeState를 삭제하지 않고 finished 플래그로 덮어씀
-  // → 모든 기기가 동일한 리스너 하나로 직전 결과를 수신 (레이스 컨디션 없음)
   const finishedPayload = JSON.stringify({ finished: true, ...finishedData });
   if(db) db.ref('jmt/activeState').set(finishedPayload).catch(fbErr);
   else   localStorage.setItem(LS_FB_ACTIVE, finishedPayload);
-
-  saveLastFinished(finishedData);   // 백업용 (lastFinished 노드에도 저장)
+  saveLastFinished(finishedData);
   state.lastFinished = finishedData;
-
   state.selectedIds.clear();
   state.guests = [];
   state.currentHistoryId = null;
   state.isCreator = false;
   state._creatorName = null;
-
   document.getElementById('t-name').value = '';
   document.getElementById('t-venue').value = '';
   document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('t-notes').value = '';
-
   applyLastFinished(finishedData);
   updateParticipantSummary();
   updateSummary();
   updateSetupPageUI();
+}
+
+function endTournament() {
+  if (!state.isCreator) { alert('대회 종료는 대회 생성자만 가능합니다.'); return; }
+  if (!confirm('대회를 종료하시겠습니까?\n참가자 정보와 대진이 초기화됩니다.')) return;
+  _doEndTournament();
 }
 
 // ══ POLL / 출첵 ══
@@ -2329,6 +2330,15 @@ function addPollComment() {
 
 function createBracketFromPoll() {
   if (!isManager()) { alert('관리자만 사용할 수 있습니다.'); return; }
+
+  // 이전 대회가 종료되지 않은 경우 강제 종료 후 진행
+  if (state.currentHistoryId) {
+    const prev = state.history.find(r => String(r.id) === String(state.currentHistoryId));
+    const prevName = prev ? prev.name : '이전 대회';
+    if (!confirm(`⚠️ "${prevName}"이(가) 아직 종료되지 않았습니다.\n강제 종료 후 새 모임을 시작하시겠습니까?`)) return;
+    _doEndTournament();
+  }
+
   const pd = state.pollData;
   if(!pd) { alert('투표 데이터가 없습니다.'); return; }
   const votes = pd.votes ? Object.values(pd.votes) : [];
