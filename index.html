@@ -572,7 +572,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           <option value="female">여 ♀</option>
         </select>
         <select id="guest-ntrp" style="max-width:82px;flex:0 0 auto">
-          <option value="">NTRP</option>
+          <option value="">NTRP *</option>
           <option>2.0</option><option>2.5</option><option>3.0</option>
           <option>3.5</option><option>4.0</option><option>4.5</option><option>5.0</option>
         </select>
@@ -1190,7 +1190,9 @@ function updateSelectAllBtn() {
 // ══ GUESTS ══
 function addGuest() {
   const name = document.getElementById('guest-name').value.trim();
-  if (!name) return;
+  const ntrp = document.getElementById('guest-ntrp').value;
+  if (!name) { alert('게스트 이름을 입력하세요.'); return; }
+  if (!ntrp) { alert('NTRP를 선택하세요.'); return; }
   if (state.guests.some(g => g.name===name) || state.members.some(m => m.name===name)) {
     alert('이미 추가된 이름입니다.'); return;
   }
@@ -1198,7 +1200,7 @@ function addGuest() {
     id: Date.now(),
     name,
     gender: document.getElementById('guest-gender').value,
-    ntrp: document.getElementById('guest-ntrp').value
+    ntrp
   });
   document.getElementById('guest-name').value = '';
   document.getElementById('guest-ntrp').value = '';
@@ -2089,7 +2091,7 @@ function renderCheckinPage() {
     </div>
     ${totalAttending>=4?(pd.bracketCreated
       ? `<button class="btn btn-full" style="margin:8px 0 10px;background:#94a3b8;cursor:not-allowed" disabled>✅ 이미 모임만들기로 보냈습니다</button>`
-      : `<button class="btn btn-success btn-full" style="margin:8px 0 10px" onclick="createBracketFromPoll()">🎾 참석자가 확정되어 모임만들기로 토스합니다</button>`)
+      : `<button class="btn btn-success btn-full" style="margin:8px 0 10px" onclick="createBracketFromPoll()">🎾 ${totalAttending}명으로 확정되어 모임만들기로 토스</button>`)
     :''}`;
   }
   html += voterGroup(attendVoters, '✅ 참석');
@@ -2117,17 +2119,23 @@ function renderCheckinPage() {
   if(isOpen) {
     html += `<div class="card">
       <div class="card-title">👤 게스트 추가</div>
-      <div class="form-row" style="margin-bottom:8px">
-        <input type="text" id="poll-guest-name" placeholder="게스트 이름">
-        <select id="poll-guest-gender" style="max-width:70px">
+      <div class="form-row" style="margin-bottom:8px;flex-wrap:wrap">
+        <input type="text" id="poll-guest-name" placeholder="게스트 이름" style="min-width:80px">
+        <select id="poll-guest-gender" style="max-width:70px;flex:0 0 auto">
           <option value="male">남</option>
           <option value="female">여</option>
+        </select>
+        <select id="poll-guest-ntrp" style="max-width:90px;flex:0 0 auto">
+          <option value="">NTRP *</option>
+          <option>2.0</option><option>2.5</option><option>3.0</option>
+          <option>3.5</option><option>4.0</option><option>4.5</option><option>5.0</option>
         </select>
       </div>
       <button class="btn btn-outline btn-full" onclick="addPollGuest()">+ 게스트 추가</button>
       ${guestEntries.length?`<div style="margin-top:8px">${guestEntries.map(([k,g])=>`
         <div class="poll-voter" style="margin-bottom:4px">
           ${gBadge(g)}<span style="flex:1">${g.name}</span>
+          ${g.ntrp?`<span class="badge badge-ntrp" style="margin-right:4px">NTRP ${g.ntrp}</span>`:''}
           <button class="btn btn-danger btn-sm" onclick="removePollGuest('${k}')">삭제</button>
         </div>`).join('')}</div>`:''}
     </div>`;
@@ -2168,11 +2176,15 @@ function addPollGuest() {
   const nameEl = document.getElementById('poll-guest-name');
   const name = nameEl ? nameEl.value.trim() : '';
   const gender = (document.getElementById('poll-guest-gender') || {}).value || 'male';
+  const ntrp = (document.getElementById('poll-guest-ntrp') || {}).value || '';
   if(!name) { alert('게스트 이름을 입력하세요.'); return; }
+  if(!ntrp) { alert('NTRP를 선택하세요.'); return; }
   if(!state.pollState || !state.pollState.weekId || state.pollState.status !== 'open') return;
   const weekId = state.pollState.weekId;
-  if(db) db.ref(`jmt/poll/${weekId}/guests`).push({ name, gender, addedAt: new Date().toISOString() }).catch(fbErr);
+  if(db) db.ref(`jmt/poll/${weekId}/guests`).push({ name, gender, ntrp, addedAt: new Date().toISOString() }).catch(fbErr);
   if(nameEl) nameEl.value = '';
+  const ntrpEl = document.getElementById('poll-guest-ntrp');
+  if(ntrpEl) ntrpEl.value = '';
 }
 
 function removePollGuest(key) {
@@ -2204,7 +2216,7 @@ function createBracketFromPoll() {
   const pollGuests = guestEntries.map(g => ({ name: g.name, gender: g.gender }));
   const total = selectedIds.size + pollGuests.length;
   if(total < 4) { alert(`참석+늦참 인원이 ${total}명으로 대진 생성에 필요한 최소 인원(4명)이 부족합니다.`); return; }
-  if(!confirm(`참석+늦참 ${selectedIds.size}명 + 게스트 ${pollGuests.length}명으로 대진을 생성합니다.\n대회 정보를 확인하고 대진 생성 버튼을 누르세요.`)) return;
+  if(!confirm(`참석+늦참 ${selectedIds.size}명 + 게스트 ${pollGuests.length}명으로 대진을 생성합니다.\n대회 정보를 확인하고 대진생성 버튼을 누르세요.`)) return;
   state.selectedIds = selectedIds;
   state.guests = pollGuests;
   state.nextType = 'meetup';
