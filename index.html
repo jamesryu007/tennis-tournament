@@ -79,13 +79,13 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .member-info { flex: 1; min-width: 0; }
 .member-name { font-size: 0.93rem; font-weight: 700; color: #1e293b; display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
 .member-meta { font-size: 0.7rem; color: #64748b; margin-top: 3px; display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-end; }
-.champ-label { font-size:0.65rem; font-weight:800; letter-spacing:0.3px; margin-bottom:3px; display:inline-flex; align-items:center; gap:2px; background:linear-gradient(90deg,#fef3c7,#fde68a); border:1px solid #fcd34d; border-radius:20px; padding:1px 7px; color:#92400e; }
+.champ-label { font-size:1.15rem; line-height:1; margin-bottom:3px; display:inline-block; }
 .birthday-pill { display:inline-flex; align-items:center; gap:2px; background:#fff0f9; border:1px solid #f9a8d4; border-radius:20px; padding:1px 6px; font-size:0.66rem; font-weight:700; color:#be185d; line-height:1.6; }
 .bday-col { display:inline-flex; flex-direction:column; align-items:center; gap:1px; }
 .stat-divider { color:#cbd5e1; font-size:1rem; line-height:1; margin:0 1px; align-self:center; }
 .stat-col { display:inline-flex; flex-direction:column; align-items:center; gap:1px; }
 .stat-col-icon { font-size:1.15rem; line-height:1; }
-.stat-col-num { font-size:0.72rem; font-weight:800; line-height:1; }
+.stat-col-num { font-size:0.72rem; font-weight:800; line-height:1; margin-top:3px; }
 .stat-col-gold .stat-col-num { color:#92400e; }
 .stat-col-silver .stat-col-num { color:#475569; }
 
@@ -970,7 +970,7 @@ function renderMemberList() {
     const isChamp = maxTotal > 0 && total === maxTotal;
     return `<div class="member-card ${m.gender}">
       <div class="member-info">
-        ${isChamp ? '<div class="champ-label">🏆 챔피언</div>' : ''}
+        ${isChamp ? '<div class="champ-label">🏆</div>' : ''}
         <div class="member-name">
           ${m.name}${m.nickname ? ` <span style="font-size:0.76rem;color:#94a3b8;font-weight:400">(${m.nickname})</span>` : ''}
         </div>
@@ -979,7 +979,7 @@ function renderMemberList() {
           ${m.ntrp?`<span class="badge badge-ntrp">NTRP ${m.ntrp}</span>`:''}
           ${bday ? `<span class="bday-col">${isBirthMonth ? '<span class="birthday-pill">🎉 생일</span>' : ''}<span>🎂 ${bday}</span></span>` : (isBirthMonth ? '<span class="birthday-pill">🎉 생일</span>' : '')}
           <span class="stat-divider">|</span>
-          <span class="stat-col stat-col-gold" title="우승 ${stats.wins}회"><span class="stat-col-icon">🏆</span><span class="stat-col-num">${stats.wins}</span></span>
+          <span class="stat-col stat-col-gold" title="우승 ${stats.wins}회"><span class="stat-col-icon">🥇</span><span class="stat-col-num">${stats.wins}</span></span>
           <span class="stat-col stat-col-silver" title="준우승 ${stats.runnerUps}회"><span class="stat-col-icon">🥈</span><span class="stat-col-num">${stats.runnerUps}</span></span>
         </div>
       </div>
