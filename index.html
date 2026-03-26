@@ -260,9 +260,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
 <div class="app-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
   <h1 style="flex:1;min-width:0">🎾 자미터 테니스<span id="conn-status" class="conn-dot" title="Firebase 연결 상태"></span></h1>
-  <button onclick="openIdentityModal()" style="flex-shrink:0;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:6px 10px;cursor:pointer;text-align:center;min-width:58px">
-    <div id="identity-name" style="font-size:0.78rem;font-weight:700;color:#2563eb;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">👤 선택</div>
-    <div style="font-size:0.58rem;color:#94a3b8;margin-top:1px">접속자</div>
+  <button id="identity-btn" onclick="openIdentityModal()" style="flex-shrink:0;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:6px 10px;cursor:pointer;text-align:center;min-width:58px;transition:background 0.2s,border-color 0.2s">
+    <div id="identity-name" style="font-size:0.78rem;font-weight:700;color:#2563eb;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">👤 선택</div>
+    <div id="identity-role" style="font-size:0.55rem;color:#94a3b8;margin-top:1px;letter-spacing:0.3px;font-weight:600">접속자</div>
   </button>
 </div>
 
@@ -1142,6 +1142,7 @@ function addMember() {
 }
 
 function deleteMember(id) {
+  if (!isAdmin()) { alert('회원 삭제는 관리자만 가능합니다.'); return; }
   if (!confirm('정회원을 삭제하시겠습니까?')) return;
   state.members = state.members.filter(m => m.id !== id);
   state.selectedIds.delete(id);
@@ -1195,8 +1196,20 @@ function renderMemberList() {
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-        <button class="btn btn-outline btn-sm" onclick="openEditMember(${m.id})">수정</button>
-        <button class="btn btn-danger" onclick="deleteMember(${m.id})">삭제</button>
+        ${(() => {
+          const curName = state.identity && state.identity.name;
+          const canEdit = curName === m.name;
+          const canDel  = isAdmin();
+          return `
+            <button class="btn btn-outline btn-sm" onclick="openEditMember(${m.id})"
+              ${canEdit ? '' : 'disabled'}
+              style="${canEdit ? '' : 'opacity:0.3;cursor:not-allowed'}"
+              title="${canEdit ? '' : '본인 정보만 수정할 수 있습니다'}">수정</button>
+            <button class="btn btn-danger" onclick="deleteMember(${m.id})"
+              ${canDel ? '' : 'disabled'}
+              style="${canDel ? '' : 'opacity:0.3;cursor:not-allowed'}"
+              title="${canDel ? '' : '관리자만 삭제할 수 있습니다'}">삭제</button>`;
+        })()}
       </div>
     </div>`;
   }).join('');
@@ -2486,9 +2499,11 @@ function switchHistDetailTab(type) {
 let editingId = null;
 
 function openEditMember(id) {
-  editingId = id;
   const m = state.members.find(x => x.id === id);
   if (!m) return;
+  const curName = state.identity && state.identity.name;
+  if (curName !== m.name) { alert('본인 정보만 수정할 수 있습니다.'); return; }
+  editingId = id;
   document.getElementById('edit-name').value = m.name;
   document.getElementById('edit-nickname').value = m.nickname || '';
   document.getElementById('edit-gender').value = m.gender;
@@ -2607,8 +2622,28 @@ function openIdentityModal() {
 }
 
 function updateIdentityUI() {
-  const el = document.getElementById('identity-name');
-  if(el) el.textContent = state.identity ? state.identity.name : '👤 선택';
+  const name = state.identity ? state.identity.name : null;
+  const nameEl = document.getElementById('identity-name');
+  const roleEl = document.getElementById('identity-role');
+  const btn    = document.getElementById('identity-btn');
+  if (!nameEl) return;
+
+  if (name === ADMIN_NAME) {
+    nameEl.textContent = name;
+    nameEl.style.cssText = 'font-size:0.72rem;font-weight:900;color:#7c3aed;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:0.3px';
+    if (roleEl) { roleEl.textContent = '⚡ SUPERVISOR'; roleEl.style.color = '#7c3aed'; roleEl.style.fontWeight = '800'; }
+    if (btn)    { btn.style.background = '#f5f3ff'; btn.style.borderColor = '#c4b5fd'; }
+  } else if (name) {
+    nameEl.textContent = name;
+    nameEl.style.cssText = 'font-size:0.78rem;font-weight:700;color:#2563eb;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    if (roleEl) { roleEl.textContent = '접속자'; roleEl.style.color = '#94a3b8'; roleEl.style.fontWeight = '600'; }
+    if (btn)    { btn.style.background = '#eff6ff'; btn.style.borderColor = '#bfdbfe'; }
+  } else {
+    nameEl.textContent = '👤 선택';
+    nameEl.style.cssText = 'font-size:0.78rem;font-weight:700;color:#2563eb;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    if (roleEl) { roleEl.textContent = '접속자'; roleEl.style.color = '#94a3b8'; roleEl.style.fontWeight = '600'; }
+    if (btn)    { btn.style.background = '#eff6ff'; btn.style.borderColor = '#bfdbfe'; }
+  }
 }
 
 function renderIdentityList() {
