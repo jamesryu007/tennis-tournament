@@ -420,7 +420,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div class="sub-tab active" id="htab-meetup" onclick="switchHistoryTab('meetup')">🏃 정기모임</div>
       <div class="sub-tab" id="htab-tournament" onclick="switchHistoryTab('tournament')">🏆 대회이력</div>
     </div>
-    <button onclick="switchPage('history')" style="background:none;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:0.8rem;color:#64748b;cursor:pointer">🔄</button>
+    <button onclick="reloadHistory()" style="background:none;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:0.8rem;color:#64748b;cursor:pointer">🔄</button>
   </div>
   <div id="tournament-history-list">
     <div class="empty-state"><div class="icon">📋</div><p>이력이 없습니다</p></div>
@@ -1629,26 +1629,7 @@ function switchPage(id) {
   }
   if(id === 'members') renderMemberList();
   if(id === 'history') {
-    // 탭 열 때마다 Firebase에서 최신 이력 강제 로드
-    const histEl = document.getElementById('tournament-history-list');
-    if(db) {
-      if(histEl) histEl.innerHTML = '<div class="card"><p style="color:#94a3b8;text-align:center;padding:16px">이력 로딩 중...</p></div>';
-      db.ref('jmt/history').once('value').then(snap => {
-        const data = snap.val();
-        state.history = data
-          ? Object.values(data).map(s => {
-              if(typeof s === 'string') { try { return JSON.parse(s); } catch(e) { return null; } }
-              if(s && typeof s === 'object') return s;
-              return null;
-            }).filter(r => r && r.id).sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''))
-          : [];
-        switchHistoryTab(_historyTab);
-      }).catch(e => {
-        if(histEl) histEl.innerHTML = `<div class="card"><p style="color:#dc2626;font-size:0.85rem">❌ Firebase 읽기 오류: ${e.message||e.code||'권한 없음'}</p><p style="font-size:0.75rem;color:#94a3b8;margin-top:6px">Firebase 규칙에서 jmt/history 읽기를 허용해주세요</p></div>`;
-      });
-    } else {
-      switchHistoryTab(_historyTab);
-    }
+    switchHistoryTab(_historyTab);
   }
   if(id === 'checkin') {
     renderCheckinPage();
@@ -2036,6 +2017,25 @@ function createBracketFromPoll() {
 
 // ══ HISTORY LIST ══
 let _historyTab = 'meetup'; // 'meetup' | 'tournament'
+
+function reloadHistory() {
+  const el = document.getElementById('tournament-history-list');
+  if(!db) { renderHistoryList(); return; }
+  if(el) el.innerHTML = '<div class="card" style="text-align:center;padding:16px;color:#94a3b8">🔄 새로고침 중...</div>';
+  db.ref('jmt/history').get().then(snap => {
+    const data = snap.val();
+    state.history = data
+      ? Object.values(data).map(s => {
+          if(typeof s === 'string') { try { return JSON.parse(s); } catch(e) { return null; } }
+          if(s && typeof s === 'object') return s;
+          return null;
+        }).filter(r => r && r.id).sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''))
+      : [];
+    renderHistoryList();
+  }).catch(e => {
+    if(el) el.innerHTML = `<div class="card"><p style="color:#dc2626;font-size:0.85rem">❌ 읽기 오류: ${e.message||e.code||'Firebase 권한 없음'}</p></div>`;
+  });
+}
 
 function switchHistoryTab(tab) {
   _historyTab = tab;
