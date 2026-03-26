@@ -2111,7 +2111,7 @@ function _doEndTournament() {
 }
 
 function endTournament() {
-  if (!state.isCreator) { alert('대회 종료는 대회 생성자만 가능합니다.'); return; }
+  if (!isManager()) { alert('대회 종료는 관리자만 가능합니다.'); return; }
   if (!confirm('대회를 종료하시겠습니까?\n참가자 정보와 대진이 초기화됩니다.')) return;
   _doEndTournament();
 }
@@ -2745,7 +2745,7 @@ function updateSetupPageUI() {
     document.getElementById('active-tourney-meta').textContent = meta;
     const notice = document.getElementById('active-creator-notice');
     const endWrap = document.getElementById('active-end-btn-wrap');
-    if (state.isCreator) {
+    if (isManager()) {
       notice.style.display = 'none';
       endWrap.style.display = 'block';
     } else {
