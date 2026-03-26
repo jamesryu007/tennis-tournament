@@ -1197,18 +1197,18 @@ function renderMemberList() {
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         ${(() => {
-          const curName = state.identity && state.identity.name;
+          const curName = (state.identity && state.identity.name) || '';
           const canEdit = curName === m.name;
-          const canDel  = isAdmin();
+          const canDel  = curName === ADMIN_NAME;
           return `
             <button class="btn btn-outline btn-sm" onclick="openEditMember(${m.id})"
               ${canEdit ? '' : 'disabled'}
               style="${canEdit ? '' : 'opacity:0.3;cursor:not-allowed'}"
-              title="${canEdit ? '' : '본인 정보만 수정할 수 있습니다'}">수정</button>
+              title="${canEdit ? '내 정보 수정' : '본인 정보만 수정할 수 있습니다'}">수정</button>
             <button class="btn btn-danger" onclick="deleteMember(${m.id})"
               ${canDel ? '' : 'disabled'}
               style="${canDel ? '' : 'opacity:0.3;cursor:not-allowed'}"
-              title="${canDel ? '' : '관리자만 삭제할 수 있습니다'}">삭제</button>`;
+              title="${canDel ? '회원 삭제' : '관리자만 삭제할 수 있습니다'}">삭제</button>`;
         })()}
       </div>
     </div>`;
@@ -2598,15 +2598,26 @@ function selectIdentity(name) {
   state.identity = { name };
   localStorage.setItem(LS_IDENTITY, JSON.stringify(state.identity));
   document.getElementById('identity-modal').classList.remove('open');
-  updateIdentityUI();
-  updatePermissionUI();
-  renderMemberList(); // 수정/삭제 버튼 권한 즉시 갱신
-  // 대회 진행 중이면 생성자 권한 즉시 재평가
+
+  // 대회 진행 중이면 생성자 권한 재평가
   if(state.currentHistoryId) {
-    // 관리자는 항상 creator, 아니면 creatorName과 일치할 때만
     state.isCreator = name === ADMIN_NAME || name === state._creatorName;
-    updateSetupPageUI();
-    ['mixed','mens','womens'].forEach(t => { if(state.tournaments[t]) renderTournament(t); });
+  }
+
+  // 전체 UI 갱신 (접속자 바뀌면 모든 탭 권한·버튼 즉시 반영)
+  updateIdentityUI();
+  renderMemberList();       // 먼저 DOM 재생성
+  updatePermissionUI();     // 그 다음 버튼 상태 적용
+
+  // 현재 활성 탭 재렌더링
+  const activePage = document.querySelector('.page.active');
+  if (activePage) {
+    const pageId = activePage.id.replace('page-', '');
+    if (pageId === 'setup') updateSetupPageUI();
+    if (pageId === 'matches') {
+      ['mixed','mens','womens'].forEach(t => { if(state.tournaments[t]) renderTournament(t); });
+    }
+    if (pageId === 'checkin') renderCheckinPage();
   }
 }
 
