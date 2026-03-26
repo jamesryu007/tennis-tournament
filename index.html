@@ -89,6 +89,31 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .stat-col-gold .stat-col-num { color:#92400e; }
 .stat-col-silver .stat-col-num { color:#475569; }
 
+/* ── POLL / 출첵 ── */
+.vote-btn-group { display:flex; gap:8px; margin:4px 0 0; }
+.vote-btn { flex:1; padding:12px 6px; border-radius:12px; border:2px solid transparent; cursor:pointer; font-family:inherit; transition:transform 0.08s,box-shadow 0.08s; user-select:none; text-align:center; }
+.vote-btn:active { transform:translateY(3px); }
+.vote-btn.attend { background:#dcfce7; color:#16a34a; border-color:#86efac; box-shadow:0 4px 0 #86efac; }
+.vote-btn.attend.active { background:#16a34a; color:#fff; border-color:#15803d; box-shadow:0 4px 0 #15803d; }
+.vote-btn.late { background:#fef3c7; color:#b45309; border-color:#fcd34d; box-shadow:0 4px 0 #fcd34d; }
+.vote-btn.late.active { background:#d97706; color:#fff; border-color:#92400e; box-shadow:0 4px 0 #92400e; }
+.vote-btn.absent { background:#fee2e2; color:#dc2626; border-color:#fca5a5; box-shadow:0 4px 0 #fca5a5; }
+.vote-btn.absent.active { background:#dc2626; color:#fff; border-color:#991b1b; box-shadow:0 4px 0 #991b1b; }
+.poll-group { margin-bottom:10px; }
+.poll-group-hdr { font-size:0.72rem; font-weight:700; color:#64748b; padding:5px 0 4px; border-bottom:1px solid #e2e8f0; margin-bottom:5px; display:flex; align-items:center; gap:5px; }
+.poll-voter { display:flex; align-items:center; gap:7px; padding:6px 10px; background:#f8fafc; border-radius:8px; margin-bottom:4px; font-size:0.85rem; }
+.poll-summary-row { display:flex; gap:7px; flex-wrap:wrap; margin:8px 0 4px; }
+.poll-pill { padding:5px 13px; border-radius:20px; font-size:0.8rem; font-weight:700; }
+.poll-pill.attend { background:#dcfce7; color:#16a34a; }
+.poll-pill.late { background:#fef3c7; color:#b45309; }
+.poll-pill.absent { background:#fee2e2; color:#dc2626; }
+.poll-pill.guest { background:#ede9fe; color:#7c3aed; }
+.comment-item { padding:8px 10px; border-radius:10px; background:#f8fafc; margin-bottom:6px; }
+.comment-author { font-size:0.72rem; font-weight:700; color:#2563eb; }
+.comment-text { font-size:0.85rem; color:#1e293b; margin-top:2px; word-break:break-word; }
+.comment-at { font-size:0.62rem; color:#94a3b8; }
+.comment-input-row { display:flex; gap:7px; margin-top:8px; }
+
 /* ── PARTICIPANT CHECKBOXES ── */
 .p-item { display: flex; align-items: center; gap: 9px; padding: 9px 11px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; margin-bottom: 6px; cursor: pointer; transition: all 0.12s; }
 .p-item.checked { border-color: #2563eb; background: #eff6ff; }
@@ -392,6 +417,11 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   </div>
 </div>
 
+<!-- ══ PAGE: 출첵 ══ -->
+<div class="page" id="page-checkin">
+  <div id="checkin-content"><div class="card"><p style="color:#94a3b8;text-align:center;padding:20px 0">로딩 중...</p></div></div>
+</div>
+
 <!-- ══ ADD MEMBER MODAL ══ -->
 <div class="modal-overlay" id="add-member-modal">
   <div class="modal" style="max-height:90vh;display:flex;flex-direction:column;">
@@ -589,6 +619,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <div class="nav-item" id="nav-history" onclick="switchPage('history');renderHistoryList()">
     <span class="ni">📋</span><span>대회이력</span>
   </div>
+  <div class="nav-item" id="nav-checkin" onclick="switchPage('checkin')">
+    <span class="ni">✋</span><span>출첵</span>
+  </div>
 </nav>
 
 <script>
@@ -603,9 +636,12 @@ const state = {
   isCreator: false,
   identity: null,    // { name } — 이 기기의 접속자
   _creatorName: null, // 현재 진행 중인 대회 생성자 이름 (재평가용)
-  lastFinished: null  // 직전 종료 대회 { name, venue, date, endedAt, tournaments }
+  lastFinished: null,  // 직전 종료 대회 { name, venue, date, endedAt, tournaments }
+  pollState: null,     // { status, weekId, satDate, openedAt, closedAt? }
+  pollData: null       // { votes, guests, comments }
 };
 let modalCtx = null;
+let _pollDataRef = null;
 
 // ══ FIREBASE CONFIG ══
 const firebaseConfig = {
@@ -883,6 +919,23 @@ function setupFirebaseListeners() {
 
   // 연결 상태 감지
   db.ref('.info/connected').on('value', snap => setConnStatus(snap.val() === true));
+
+  // 출첵 pollState 동기화
+  db.ref('jmt/pollState').on('value', snap => {
+    const ps = snap.val();
+    state.pollState = ps;
+    if(ps && ps.weekId) {
+      if(_pollDataRef) { _pollDataRef.off('value'); }
+      _pollDataRef = db.ref(`jmt/poll/${ps.weekId}`);
+      _pollDataRef.on('value', pSnap => {
+        state.pollData = pSnap.val();
+        if(document.getElementById('page-checkin').classList.contains('active')) renderCheckinPage();
+      }, fbErr);
+    } else {
+      state.pollData = null;
+    }
+    if(document.getElementById('page-checkin').classList.contains('active')) renderCheckinPage();
+  }, fbErr);
 }
 
 // ══ BRACKET CONSTANTS ══
@@ -1537,6 +1590,7 @@ function switchPage(id) {
   }
   if(id === 'members') renderMemberList();
   if(id === 'history') renderHistoryList();
+  if(id === 'checkin') renderCheckinPage();
 }
 
 // ══ CONFETTI ══
@@ -1673,6 +1727,216 @@ function endTournament() {
   updateParticipantSummary();
   updateSummary();
   updateSetupPageUI();
+}
+
+// ══ POLL / 출첵 ══
+function renderCheckinPage() {
+  const el = document.getElementById('checkin-content');
+  if(!el) return;
+  const ps = state.pollState;
+
+  if(!ps) {
+    el.innerHTML = `<div class="card"><div style="text-align:center;padding:24px 0">
+      <div style="font-size:2.2rem;margin-bottom:8px">✋</div>
+      <div style="font-weight:800;color:#1e293b;margin-bottom:4px">출첵 대기 중</div>
+      <div style="font-size:0.8rem;color:#94a3b8">매주 월요일 자정에 투표가 시작됩니다</div>
+    </div></div>`;
+    return;
+  }
+
+  const isOpen = ps.status === 'open';
+  const pd = state.pollData || {};
+  const votes = pd.votes ? Object.values(pd.votes) : [];
+  const guestEntries = pd.guests ? Object.entries(pd.guests) : [];
+  const comments = pd.comments
+    ? Object.values(pd.comments).sort((a,b) => (a.at||'').localeCompare(b.at||''))
+    : [];
+
+  const myName = state.identity && state.identity.name;
+  const myVote = myName ? (votes.find(v => v.name === myName) || {}).vote : null;
+
+  const attendVoters = votes.filter(v => v.vote === 'attend');
+  const lateVoters   = votes.filter(v => v.vote === 'late');
+  const absentVoters = votes.filter(v => v.vote === 'absent');
+  const votedNames   = votes.map(v => v.name);
+  const notVoted     = state.members.filter(m => !votedNames.includes(m.name));
+  const totalAttending = attendVoters.length + lateVoters.length + guestEntries.length;
+
+  const [y, mo, d] = (ps.satDate || '----').split('-');
+  const satLabel = ps.satDate ? `${parseInt(mo)}월 ${parseInt(d)}일(토)` : '날짜 미정';
+
+  const gBadge = g => `<span class="badge ${g.gender==='male'?'badge-male':'badge-female'}" style="font-size:0.6rem">${g.gender==='male'?'남':'여'}</span>`;
+  const mBadge = name => { const m=state.members.find(mb=>mb.name===name); return m?gBadge(m):''; };
+
+  const voterGroup = (voters, label) => voters.length ? `
+    <div class="poll-group">
+      <div class="poll-group-hdr">${label} <span style="color:#94a3b8;font-weight:400">(${voters.length}명)</span></div>
+      ${voters.map(v=>`<div class="poll-voter">${mBadge(v.name)}<span style="flex:1">${v.name}</span></div>`).join('')}
+    </div>` : '';
+
+  let html = '';
+
+  // Header
+  html += `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+      <div style="font-size:1rem;font-weight:800;color:#1e293b">🎾 ${satLabel} 모임 출첵</div>
+      <span class="status-badge ${isOpen?'badge-active':'badge-done'}">${isOpen?'진행중':'마감'}</span>
+    </div>
+    <div style="font-size:0.75rem;color:#64748b">${isOpen?'📅 마감: 금요일 정오 12:00':'✅ 투표 마감 · 참석 예정 '+totalAttending+'명'}</div>
+  </div>`;
+
+  // Vote buttons (open only)
+  if(isOpen) {
+    html += `<div class="card">
+      <div class="card-title">내 출석 투표</div>
+      ${!myName?`<p style="font-size:0.8rem;color:#94a3b8;margin-bottom:8px">접속자를 선택하면 투표할 수 있습니다</p>`:''}
+      <div class="vote-btn-group">
+        <button class="vote-btn attend${myVote==='attend'?' active':''}" onclick="castVote('attend')">
+          <div style="font-size:1.3rem">✅</div>
+          <div style="font-size:0.8rem;font-weight:700;margin-top:3px">참석</div>
+          <div style="font-size:0.7rem;margin-top:1px;opacity:0.8">${attendVoters.length}명</div>
+        </button>
+        <button class="vote-btn late${myVote==='late'?' active':''}" onclick="castVote('late')">
+          <div style="font-size:1.3rem">⏰</div>
+          <div style="font-size:0.8rem;font-weight:700;margin-top:3px">늦참</div>
+          <div style="font-size:0.7rem;margin-top:1px;opacity:0.8">${lateVoters.length}명</div>
+        </button>
+        <button class="vote-btn absent${myVote==='absent'?' active':''}" onclick="castVote('absent')">
+          <div style="font-size:1.3rem">❌</div>
+          <div style="font-size:0.8rem;font-weight:700;margin-top:3px">불참</div>
+          <div style="font-size:0.7rem;margin-top:1px;opacity:0.8">${absentVoters.length}명</div>
+        </button>
+      </div>
+    </div>`;
+  }
+
+  // Results card
+  html += `<div class="card">`;
+  if(!isOpen) {
+    html += `<div class="card-title">📊 투표 결과</div>
+    <div class="poll-summary-row">
+      <span class="poll-pill attend">✅ 참석 ${attendVoters.length}명</span>
+      <span class="poll-pill late">⏰ 늦참 ${lateVoters.length}명</span>
+      <span class="poll-pill absent">❌ 불참 ${absentVoters.length}명</span>
+      ${guestEntries.length?`<span class="poll-pill guest">👤 게스트 ${guestEntries.length}명</span>`:''}
+    </div>
+    ${totalAttending>=4?`<button class="btn btn-success btn-full" style="margin:8px 0 10px" onclick="createBracketFromPoll()">🎾 ${totalAttending}명으로 대진 생성</button>`:''}`;
+  }
+  html += voterGroup(attendVoters, '✅ 참석');
+  html += voterGroup(lateVoters,   '⏰ 늦참');
+  html += voterGroup(absentVoters, '❌ 불참');
+  if(guestEntries.length) {
+    html += `<div class="poll-group">
+      <div class="poll-group-hdr">👤 게스트 <span style="color:#94a3b8;font-weight:400">(${guestEntries.length}명)</span></div>
+      ${guestEntries.map(([k,g])=>`<div class="poll-voter">${gBadge(g)}<span style="flex:1">${g.name}</span></div>`).join('')}
+    </div>`;
+  }
+  if(isOpen && notVoted.length) {
+    html += `<div class="poll-group">
+      <div class="poll-group-hdr" style="color:#94a3b8">⏳ 미투표 <span style="font-weight:400">(${notVoted.length}명)</span></div>
+      ${notVoted.map(m=>`<div class="poll-voter" style="opacity:0.45">${gBadge(m)}<span style="flex:1">${m.name}</span></div>`).join('')}
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Guest addition (open only)
+  if(isOpen) {
+    html += `<div class="card">
+      <div class="card-title">👤 게스트 추가</div>
+      <div class="form-row" style="margin-bottom:8px">
+        <input type="text" id="poll-guest-name" placeholder="게스트 이름">
+        <select id="poll-guest-gender" style="max-width:70px">
+          <option value="male">남</option>
+          <option value="female">여</option>
+        </select>
+      </div>
+      <button class="btn btn-outline btn-full" onclick="addPollGuest()">+ 게스트 추가</button>
+      ${guestEntries.length?`<div style="margin-top:8px">${guestEntries.map(([k,g])=>`
+        <div class="poll-voter" style="margin-bottom:4px">
+          ${gBadge(g)}<span style="flex:1">${g.name}</span>
+          <button class="btn btn-danger btn-sm" onclick="removePollGuest('${k}')">삭제</button>
+        </div>`).join('')}</div>`:''}
+    </div>`;
+  }
+
+  // Comments
+  html += `<div class="card">
+    <div class="card-title">💬 댓글</div>
+    ${comments.length?comments.map(c=>{
+      const t=c.at?new Date(c.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+      return `<div class="comment-item">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="comment-author">${c.author}</span><span class="comment-at">${t}</span>
+        </div>
+        <div class="comment-text">${c.text.replace(/</g,'&lt;')}</div>
+      </div>`;
+    }).join(''):'<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:8px 0">첫 댓글을 남겨보세요!</p>'}
+    <div class="comment-input-row">
+      <input type="text" id="poll-comment-input" placeholder="댓글 입력..." style="flex:1" onkeydown="if(event.key==='Enter')addPollComment()">
+      <button class="btn btn-primary btn-sm" onclick="addPollComment()">전송</button>
+    </div>
+  </div>`;
+
+  el.innerHTML = html;
+}
+
+function castVote(vote) {
+  const myName = state.identity && state.identity.name;
+  if(!myName) { alert('먼저 접속자를 선택하세요.'); return; }
+  if(!state.pollState || !state.pollState.weekId) return;
+  if(state.pollState.status !== 'open') { alert('투표가 마감되었습니다.'); return; }
+  const weekId = state.pollState.weekId;
+  const key = myName.replace(/[.#$[\]/]/g, '_');
+  if(db) db.ref(`jmt/poll/${weekId}/votes/${key}`).set({ name: myName, vote, votedAt: new Date().toISOString() }).catch(fbErr);
+}
+
+function addPollGuest() {
+  const nameEl = document.getElementById('poll-guest-name');
+  const name = nameEl ? nameEl.value.trim() : '';
+  const gender = (document.getElementById('poll-guest-gender') || {}).value || 'male';
+  if(!name) { alert('게스트 이름을 입력하세요.'); return; }
+  if(!state.pollState || !state.pollState.weekId || state.pollState.status !== 'open') return;
+  const weekId = state.pollState.weekId;
+  if(db) db.ref(`jmt/poll/${weekId}/guests`).push({ name, gender, addedAt: new Date().toISOString() }).catch(fbErr);
+  if(nameEl) nameEl.value = '';
+}
+
+function removePollGuest(key) {
+  if(!state.pollState || !state.pollState.weekId) return;
+  if(db) db.ref(`jmt/poll/${state.pollState.weekId}/guests/${key}`).remove().catch(fbErr);
+}
+
+function addPollComment() {
+  const input = document.getElementById('poll-comment-input');
+  const text = input ? input.value.trim() : '';
+  if(!text) return;
+  if(!state.pollState || !state.pollState.weekId) return;
+  const author = (state.identity && state.identity.name) || '익명';
+  const weekId = state.pollState.weekId;
+  if(db) {
+    db.ref(`jmt/poll/${weekId}/comments`).push({ author, text, at: new Date().toISOString() }).catch(fbErr);
+    if(input) input.value = '';
+  }
+}
+
+function createBracketFromPoll() {
+  const pd = state.pollData;
+  if(!pd) { alert('투표 데이터가 없습니다.'); return; }
+  const votes = pd.votes ? Object.values(pd.votes) : [];
+  const guestEntries = pd.guests ? Object.values(pd.guests) : [];
+  const attendingNames = new Set(votes.filter(v=>v.vote==='attend'||v.vote==='late').map(v=>v.name));
+  const selectedIds = new Set();
+  state.members.forEach(m => { if(attendingNames.has(m.name)) selectedIds.add(m.id); });
+  const pollGuests = guestEntries.map(g => ({ name: g.name, gender: g.gender }));
+  const total = selectedIds.size + pollGuests.length;
+  if(total < 4) { alert(`참석+늦참 인원이 ${total}명으로 대진 생성에 필요한 최소 인원(4명)이 부족합니다.`); return; }
+  if(!confirm(`참석+늦참 ${selectedIds.size}명 + 게스트 ${pollGuests.length}명으로 대진을 생성합니다.\n대회 정보를 확인하고 대진 생성 버튼을 누르세요.`)) return;
+  state.selectedIds = selectedIds;
+  state.guests = pollGuests;
+  if(state.pollState && state.pollState.satDate) document.getElementById('t-date').value = state.pollState.satDate;
+  switchPage('setup');
+  updateParticipantSummary();
+  updateSummary();
 }
 
 // ══ HISTORY LIST ══
