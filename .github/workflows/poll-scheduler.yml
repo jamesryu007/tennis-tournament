@@ -25,10 +25,10 @@ jobs:
           MANUAL_ACTION: ${{ github.event.inputs.action }}
         run: |
           python3 << 'EOF'
-          from datetime import datetime, timedelta
+          from datetime import datetime, timedelta, timezone
           import json, os, urllib.request, urllib.error
 
-          utc_now = datetime.utcnow()
+          utc_now = datetime.now(timezone.utc).replace(tzinfo=None)
           kst_now = utc_now + timedelta(hours=9)
           weekday = kst_now.weekday()  # 0=월, 4=금
 
