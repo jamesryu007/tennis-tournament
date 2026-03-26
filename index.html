@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>자미터 테니스 대회</title>
+<title>자미터 테니스</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; color: #1e293b; min-height: 100vh; padding-bottom: 70px; font-size: 15px; }
@@ -18,8 +18,10 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
 
 /* ── BOTTOM NAV ── */
 .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 64px; background: #ffffff; border-top: 1px solid #e2e8f0; display: flex; z-index: 50; padding-bottom: env(safe-area-inset-bottom, 0px); box-shadow: 0 -2px 10px rgba(0,0,0,0.06); }
-.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: #94a3b8; font-size: 0.6rem; letter-spacing: 0.2px; transition: color 0.15s; padding: 6px 2px; position: relative; }
-.nav-item .ni { font-size: 1.25rem; line-height: 1; }
+.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: #94a3b8; font-size: 0.6rem; letter-spacing: 0.2px; transition: color 0.15s, transform 0.08s, background 0.08s; padding: 6px 2px; position: relative; user-select: none; -webkit-tap-highlight-color: transparent; }
+.nav-item .ni { font-size: 1.25rem; line-height: 1; transition: transform 0.08s; }
+.nav-item:active { transform: translateY(2px); background: rgba(37,99,235,0.06); border-radius: 10px; }
+.nav-item:active .ni { transform: scale(0.88); }
 .nav-item.active { color: #2563eb; }
 .nav-item.active::after { content: ''; position: absolute; top: 0; left: 15%; right: 15%; height: 2.5px; background: #2563eb; border-radius: 0 0 3px 3px; }
 
@@ -245,7 +247,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <body>
 
 <div class="app-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-  <h1 style="flex:1;min-width:0">🎾 자미터 테니스 대회 <span style="font-size:0.72rem;font-weight:500;color:#94a3b8;letter-spacing:0">(복식 토너먼트 관리 시스템)</span><span id="conn-status" class="conn-dot" title="Firebase 연결 상태"></span></h1>
+  <h1 style="flex:1;min-width:0">🎾 자미터 테니스<span id="conn-status" class="conn-dot" title="Firebase 연결 상태"></span></h1>
   <button onclick="openIdentityModal()" style="flex-shrink:0;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:6px 10px;cursor:pointer;text-align:center;min-width:58px">
     <div id="identity-name" style="font-size:0.78rem;font-weight:700;color:#2563eb;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">👤 선택</div>
     <div style="font-size:0.58rem;color:#94a3b8;margin-top:1px">접속자</div>
@@ -291,8 +293,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <!-- 대회 설정 폼 (대진 생성 전) -->
   <div id="setup-form-section">
     <div class="card">
-      <div class="card-title">🏆 대회 정보</div>
-      <div class="field-label" style="margin-top:0">대회명</div>
+      <div class="card-title">🏆 모임정보</div>
+      <div class="field-label" style="margin-top:0">제목</div>
       <input type="text" id="t-name" placeholder="예) 제5회 자미터 정기전">
       <div class="field-label">장소</div>
       <input type="text" id="t-venue" placeholder="장소 입력">
@@ -420,7 +422,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div class="sub-tab active" id="htab-meetup" onclick="switchHistoryTab('meetup')">🏃 정기모임</div>
       <div class="sub-tab" id="htab-tournament" onclick="switchHistoryTab('tournament')">🏆 대회이력</div>
     </div>
-    <button onclick="reloadHistory()" style="background:none;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:0.8rem;color:#64748b;cursor:pointer">🔄</button>
+    <button id="reload-history-btn" onclick="reloadHistory()" style="background:none;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:0.8rem;color:#64748b;cursor:pointer;transition:transform 0.1s,background 0.1s;-webkit-tap-highlight-color:transparent" onmousedown="this.style.transform='translateY(2px)';this.style.background='#f1f5f9'" onmouseup="this.style.transform='';this.style.background=''" onmouseleave="this.style.transform='';this.style.background=''" ontouchstart="this.style.transform='translateY(2px)';this.style.background='#f1f5f9'" ontouchend="this.style.transform='';this.style.background=''">🔄</button>
   </div>
   <div id="tournament-history-list">
     <div class="empty-state"><div class="icon">📋</div><p>이력이 없습니다</p></div>
@@ -624,7 +626,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     <span class="ni">✋</span><span>출첵</span>
   </div>
   <div class="nav-item" id="nav-setup" onclick="switchPage('setup')">
-    <span class="ni">🏆</span><span>대회만들기</span>
+    <span class="ni">🏆</span><span>모임만들기</span>
   </div>
   <div class="nav-item" id="nav-matches" onclick="switchPage('matches')">
     <span class="ni">🎾</span><span>경기진행</span>
@@ -1817,6 +1819,7 @@ function renderCheckinPage() {
 
   const [y, mo, d] = (ps.satDate || '----').split('-');
   const satLabel = ps.satDate ? `${parseInt(mo)}월 ${parseInt(d)}일(토)` : '날짜 미정';
+  const meetingNum = ps.satDate ? 308 + Math.round((new Date(ps.satDate) - new Date('2026-03-28')) / (7*24*60*60*1000)) : '';
 
   const gBadge = g => `<span class="badge ${g.gender==='male'?'badge-male':'badge-female'}" style="font-size:0.6rem">${g.gender==='male'?'남':'여'}</span>`;
   const mBadge = name => { const m=state.members.find(mb=>mb.name===name); return m?gBadge(m):''; };
@@ -1834,7 +1837,7 @@ function renderCheckinPage() {
   // Header
   html += `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-      <div style="font-size:1rem;font-weight:800;color:#1e293b">🎾 ${satLabel} 모임 출첵</div>
+      <div style="font-size:1rem;font-weight:800;color:#1e293b">🎾 ${satLabel}${meetingNum ? ` ${meetingNum}번째` : ''} 모임 출첵</div>
       <span class="status-badge ${isOpen?'badge-active':'badge-done'}">${isOpen?'진행중':'마감'}</span>
     </div>
     <div style="font-size:0.75rem;color:#64748b">${isOpen?'📅 마감: 금요일 정오 12:00':'✅ 투표 마감 · 참석 예정 '+totalAttending+'명'}</div>
@@ -2020,8 +2023,10 @@ let _historyTab = 'meetup'; // 'meetup' | 'tournament'
 
 function reloadHistory(showLoading) {
   const el = document.getElementById('tournament-history-list');
+  const btn = document.getElementById('reload-history-btn');
   if(!db) { switchHistoryTab(_historyTab); return; }
   if(showLoading !== false && el) el.innerHTML = '<div class="card" style="text-align:center;padding:16px;color:#94a3b8">🔄 새로고침 중...</div>';
+  if(btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
   db.ref('jmt/history').once('value', snap => {
     try {
       const data = snap.val();
@@ -2038,9 +2043,12 @@ function reloadHistory(showLoading) {
       renderHistoryList();
     } catch(err) {
       if(el) el.innerHTML = `<div class="card"><p style="color:#dc2626;font-size:0.85rem">❌ 렌더링 오류: ${err.message}</p><p style="font-size:0.7rem;color:#94a3b8;margin-top:4px">${err.stack||''}</p></div>`;
+    } finally {
+      if(btn) { btn.disabled = false; btn.style.opacity = ''; }
     }
   }, e => {
     if(el) el.innerHTML = `<div class="card"><p style="color:#dc2626;font-size:0.85rem">❌ Firebase 읽기 오류: ${e.message||e.code||'권한 없음'}</p></div>`;
+    if(btn) { btn.disabled = false; btn.style.opacity = ''; }
   });
 }
 
