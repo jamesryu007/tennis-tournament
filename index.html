@@ -469,6 +469,21 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
 <!-- ══ PAGE: 출첵 ══ -->
 <div class="page" id="page-checkin">
+
+  <!-- 모임 영상 프레임 -->
+  <div style="margin-bottom:14px;border-radius:18px;overflow:hidden;box-shadow:0 4px 20px rgba(37,99,235,0.13),0 1px 4px rgba(0,0,0,0.08);background:#000;border:1px solid #e2e8f0;position:relative;">
+    <video id="team-video" autoplay muted loop playsinline
+      style="width:100%;display:block;max-height:220px;object-fit:cover;object-position:center;">
+    </video>
+    <!-- 하단 그라디언트 오버레이 -->
+    <div style="position:absolute;bottom:0;left:0;right:0;height:72px;background:linear-gradient(to top,rgba(15,23,42,0.72),transparent);pointer-events:none;"></div>
+    <!-- 텍스트 오버레이 -->
+    <div style="position:absolute;bottom:0;left:0;right:0;padding:10px 14px;">
+      <div style="color:#fff;font-size:0.82rem;font-weight:700;letter-spacing:0.3px;text-shadow:0 1px 4px rgba(0,0,0,0.4)">🎾 자미터 테니스</div>
+      <div style="color:rgba(255,255,255,0.8);font-size:0.68rem;margin-top:1px;text-shadow:0 1px 3px rgba(0,0,0,0.4)">재미와 열정이 있는 공간, 사랑하는 사람들의 모임</div>
+    </div>
+  </div>
+
   <div id="checkin-content"><div class="card"><p style="color:#94a3b8;text-align:center;padding:20px 0">로딩 중...</p></div></div>
 </div>
 
@@ -1947,12 +1962,27 @@ function switchMatchTab(type) {
 }
 
 // ══ NAV ══
+const _teamVideos = ['images/team1.mp4','images/team2.mp4','images/team3.mp4'];
+let _lastVideoIdx = -1;
+
 function switchPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById(`page-${id}`).classList.add('active');
   document.getElementById(`nav-${id}`).classList.add('active');
   window.scrollTo(0,0);
+  // 출첵 탭 진입 시 랜덤 영상 선택 (직전과 다른 것으로)
+  if(id === 'checkin') {
+    const v = document.getElementById('team-video');
+    if(v) {
+      let idx;
+      do { idx = Math.floor(Math.random() * _teamVideos.length); } while(idx === _lastVideoIdx && _teamVideos.length > 1);
+      _lastVideoIdx = idx;
+      v.src = _teamVideos[idx];
+      v.load();
+      v.play().catch(()=>{});
+    }
+  }
   if(id === 'matches') {
     if(state.currentHistoryId) {
       const t = visibleMatchTab();
