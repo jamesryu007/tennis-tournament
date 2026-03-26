@@ -1011,12 +1011,11 @@ function renderChecks() {
 
 function checkItem(m) {
   const chk = state.selectedIds.has(m.id);
-  const age = calcAge(m.birthday);
   return `<div class="p-item ${chk?'checked':''}" onclick="toggleMember(${m.id})">
     <input type="checkbox" ${chk?'checked':''} onclick="event.stopPropagation();toggleMember(${m.id})">
     <span class="p-name">${m.name}</span>
     ${m.ntrp?`<span class="badge badge-ntrp">${m.ntrp}</span>`:''}
-    ${age!==null?`<span class="p-sub">${age}세</span>`:''}
+    ${m.gender?`<span class="badge ${m.gender==='male'?'badge-male':'badge-female'}">${m.gender==='male'?'남':'여'}</span>`:''}
   </div>`;
 }
 
@@ -1505,8 +1504,23 @@ function switchPage(id) {
   document.getElementById(`nav-${id}`).classList.add('active');
   window.scrollTo(0,0);
   if(id === 'matches') {
-    const t = visibleMatchTab();
-    if(state.tournaments[t]) renderTournament(t);
+    if(state.currentHistoryId) {
+      const t = visibleMatchTab();
+      if(state.tournaments[t]) renderTournament(t);
+    } else if(state.lastFinished) {
+      applyLastFinished(state.lastFinished);
+    } else if(db) {
+      // Firebase에서 직접 읽어 직전 결과 복원
+      db.ref('jmt/activeState').once('value').then(snap => {
+        try {
+          const raw = snap.val();
+          if(raw) {
+            const saved = JSON.parse(raw);
+            if(saved.finished) applyLastFinished(saved);
+          }
+        } catch(e) {}
+      });
+    }
   }
   if(id === 'members') renderMemberList();
   if(id === 'history') renderHistoryList();
