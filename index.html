@@ -2022,7 +2022,7 @@ function reloadHistory() {
   const el = document.getElementById('tournament-history-list');
   if(!db) { renderHistoryList(); return; }
   if(el) el.innerHTML = '<div class="card" style="text-align:center;padding:16px;color:#94a3b8">🔄 새로고침 중...</div>';
-  db.ref('jmt/history').get().then(snap => {
+  db.ref('jmt/history').once('value', snap => {
     const data = snap.val();
     state.history = data
       ? Object.values(data).map(s => {
@@ -2032,7 +2032,7 @@ function reloadHistory() {
         }).filter(r => r && r.id).sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''))
       : [];
     renderHistoryList();
-  }).catch(e => {
+  }, e => {
     if(el) el.innerHTML = `<div class="card"><p style="color:#dc2626;font-size:0.85rem">❌ 읽기 오류: ${e.message||e.code||'Firebase 권한 없음'}</p></div>`;
   });
 }
