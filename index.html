@@ -2738,6 +2738,8 @@ function selectIdentity(name) {
   state.identity = { name };
   localStorage.setItem(LS_IDENTITY, JSON.stringify(state.identity));
   document.getElementById('identity-modal').classList.remove('open');
+  // 푸시 알림으로 진입한 경우 해당 탭으로 이동
+  if (window._pendingTab) { setTimeout(() => switchPage(window._pendingTab), 100); window._pendingTab = null; }
   // FCM: 처음 로그인이면 초기화(권한 요청 포함), 이미 초기화됐으면 토큰 재매핑
   if (!_fcmMessaging) {
     initFCM(true); // 사용자 클릭 제스처 시점이므로 권한 요청 가능
@@ -2909,7 +2911,10 @@ function updateSetupPageUI() {
 // ══ INIT ══
 initBirthdaySelects();
 // FCM 초기화 (접속자 선택 후 실행 — identity 모달 닫힐 때 호출)
-setTimeout(() => { if(state.identity) initFCM(); }, 1500);
+setTimeout(() => {
+  if(state.identity) initFCM();
+  if(window._pendingTab) { switchPage(window._pendingTab); window._pendingTab = null; }
+}, 1500);
 document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
 // 초기 로드 시 회원관리 탭 사진 랜덤 설정
 (function(){
@@ -2980,12 +2985,15 @@ document.getElementById('t-date').value = new Date().toISOString().split('T')[0]
     });
     // SW postMessage로 탭 이동
     navigator.serviceWorker.addEventListener('message', e => {
-      if (e.data && e.data.type === 'NAVIGATE_TAB') switchPage(e.data.tab);
+      if (e.data && e.data.type === 'NAVIGATE_TAB') {
+        if (state.identity) switchPage(e.data.tab);
+        else window._pendingTab = e.data.tab;
+      }
     });
   }
-  // URL 파라미터로 탭 이동 (?tab=checkin 등) — 앱 초기화 후 실행
+  // URL 파라미터로 탭 이동 (?tab=checkin 등)
   const urlTab = new URLSearchParams(location.search).get('tab');
-  if (urlTab) setTimeout(() => switchPage(urlTab), 500);
+  if (urlTab) window._pendingTab = urlTab;
 </script>
 </body>
 </html>
