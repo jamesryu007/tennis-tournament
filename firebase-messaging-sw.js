@@ -60,23 +60,26 @@ messaging.onBackgroundMessage(payload => {
   const title = n.title || d.title || '자미터 테니스';
   const body  = n.body  || d.body  || '';
   const tab   = d.tab   || 'checkin';
+  const commentId = d.commentId || '';
   self.registration.showNotification(title, {
     body,
     icon: BASE + '/images/icon-192.png',
     badge: BASE + '/images/icon-192.png',
-    data: { tab }
+    data: { tab, commentId }
   });
 });
 
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  const tab = (e.notification.data && e.notification.data.tab) || 'checkin';
-  const url = self.location.origin + BASE + '/?tab=' + tab;
+  const tab       = (e.notification.data && e.notification.data.tab)       || 'checkin';
+  const commentId = (e.notification.data && e.notification.data.commentId) || '';
+  let url = self.location.origin + BASE + '/?tab=' + tab;
+  if (commentId) url += '&commentId=' + commentId;
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       for (const client of list) {
         if (client.url.startsWith(self.location.origin + BASE) && 'focus' in client) {
-          setTimeout(() => client.postMessage({ type: 'NAVIGATE_TAB', tab }), 500);
+          setTimeout(() => client.postMessage({ type: 'NAVIGATE_TAB', tab, commentId }), 500);
           return client.focus();
         }
       }

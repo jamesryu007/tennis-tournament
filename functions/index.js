@@ -30,14 +30,16 @@ async function getTokensByNames(names) {
 }
 
 // ── 유틸: FCM 멀티캐스트 발송 ─────────────────────────────────────
-async function sendPush(tokens, title, body, tab = 'checkin') {
+async function sendPush(tokens, title, body, tab = 'checkin', commentId = '') {
   if (!tokens || tokens.length === 0) return;
   const chunks = [];
   for (let i = 0; i < tokens.length; i += 500) chunks.push(tokens.slice(i, i + 500));
   for (const chunk of chunks) {
+    const data = { title, body, tab };
+    if (commentId) data.commentId = commentId;
     await fcm.sendEachForMulticast({
       tokens: chunk,
-      data: { title, body, tab },
+      data,
       webpush: { headers: { Urgency: 'high' } }
     });
   }
@@ -92,8 +94,9 @@ exports.notifyCommentReply = onValueCreated(
     if (!reply) return;
     const { commentAuthor, author, text } = reply;
     if (!commentAuthor || commentAuthor === author) return;
+    const commentId = event.params.commentId;
     const tokens = await getTokensByNames([commentAuthor]);
-    await sendPush(tokens, `💬 ${author}님이 답글을 달았습니다`, text, 'checkin');
+    await sendPush(tokens, `💬 ${author}님이 답글을 달았습니다`, text, 'checkin', commentId);
   }
 );
 
