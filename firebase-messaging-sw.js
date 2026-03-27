@@ -75,15 +75,22 @@ self.addEventListener('notificationclick', e => {
   const commentId = (e.notification.data && e.notification.data.commentId) || '';
   let url = self.location.origin + BASE + '/?tab=' + tab;
   if (commentId) url += '&commentId=' + commentId;
+
+  // iOS PWA는 openWindow URL 대신 start_url로 열리므로 Cache에 탭 정보 저장
+  const navPayload = new Response(JSON.stringify({ tab, commentId, ts: Date.now() }));
+
   e.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
-      for (const client of list) {
-        if (client.url.startsWith(self.location.origin + BASE) && 'focus' in client) {
-          setTimeout(() => client.postMessage({ type: 'NAVIGATE_TAB', tab, commentId }), 500);
-          return client.focus();
+    caches.open('jamite-nav')
+      .then(c => c.put('/pending-nav', navPayload))
+      .then(() => clients.matchAll({ type: 'window', includeUncontrolled: true }))
+      .then(list => {
+        for (const client of list) {
+          if (client.url.startsWith(self.location.origin + BASE) && 'focus' in client) {
+            client.postMessage({ type: 'NAVIGATE_TAB', tab, commentId });
+            return client.focus();
+          }
         }
-      }
-      return clients.openWindow(url);
-    })
+        return clients.openWindow(url);
+      })
   );
 });
