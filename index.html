@@ -262,6 +262,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <!-- Firebase SDK (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 </head>
 <body>
 
@@ -2690,10 +2691,51 @@ function loadIdentity() {
   return false;
 }
 
+// ══ FCM 푸시 알림 ══
+const VAPID_KEY = 'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc';
+let _fcmMessaging = null;
+
+async function initFCM() {
+  if (!db || !firebase.messaging) return;
+  try {
+    _fcmMessaging = firebase.messaging();
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+    const token = await _fcmMessaging.getToken({ vapidKey: VAPID_KEY });
+    if (token) await saveFCMToken(token);
+    _fcmMessaging.onMessage(payload => {
+      const n = payload.notification;
+      if (n) new Notification(n.title, { body: n.body, icon: 'images/icon-192.png' });
+    });
+  } catch(e) { console.log('FCM 초기화 실패:', e); }
+}
+
+async function saveFCMToken(token) {
+  const name = state.identity && state.identity.name;
+  if (!name || !db) return;
+  // 기존 이 토큰의 다른 이름 항목 삭제 후 현재 이름으로 저장
+  const snap = await db.ref('jmt/fcmTokens').once('value');
+  const data = snap.val() || {};
+  const updates = {};
+  Object.entries(data).forEach(([key, val]) => {
+    if (val.token === token && val.name !== name) updates[`jmt/fcmTokens/${key}`] = null;
+  });
+  updates[`jmt/fcmTokens/${token.slice(-20)}`] = { name, token };
+  await db.ref().update(updates);
+}
+
 function selectIdentity(name) {
   state.identity = { name };
   localStorage.setItem(LS_IDENTITY, JSON.stringify(state.identity));
   document.getElementById('identity-modal').classList.remove('open');
+  // FCM: 처음 로그인이면 초기화, 이미 초기화됐으면 토큰 재매핑
+  if (!_fcmMessaging) {
+    initFCM();
+  } else {
+    _fcmMessaging.getToken({ vapidKey: VAPID_KEY })
+      .then(token => { if (token) saveFCMToken(token); })
+      .catch(() => {});
+  }
 
   // 대회 진행 중이면 생성자 권한 재평가
   if(state.currentHistoryId) {
@@ -2855,6 +2897,8 @@ function updateSetupPageUI() {
 
 // ══ INIT ══
 initBirthdaySelects();
+// FCM 초기화 (접속자 선택 후 실행 — identity 모달 닫힐 때 호출)
+setTimeout(() => { if(state.identity) initFCM(); }, 1500);
 document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
 // 초기 로드 시 회원관리 탭 사진 랜덤 설정
 (function(){
