@@ -30,15 +30,15 @@ async function getTokensByNames(names) {
 }
 
 // ── 유틸: FCM 멀티캐스트 발송 ─────────────────────────────────────
-async function sendPush(tokens, title, body) {
+async function sendPush(tokens, title, body, tab = 'checkin') {
   if (!tokens || tokens.length === 0) return;
   const chunks = [];
   for (let i = 0; i < tokens.length; i += 500) chunks.push(tokens.slice(i, i + 500));
   for (const chunk of chunks) {
     await fcm.sendEachForMulticast({
       tokens: chunk,
-      notification: { title, body },
-      webpush: { notification: { icon: '/tennis-tournament/images/icon-192.png' } }
+      data: { title, body, tab },
+      webpush: { headers: { Urgency: 'high' } }
     });
   }
 }
@@ -111,9 +111,9 @@ exports.notifyBracketUpdate = onValueWritten(
 
     const tokens = await getAllTokens();
     if (!hadTournament) {
-      await sendPush(tokens, '🎾 대진표가 생성되었습니다!', '앱에서 이번 주 대진표를 확인하세요.');
+      await sendPush(tokens, '🎾 대진표가 생성되었습니다!', '앱에서 이번 주 대진표를 확인하세요.', 'matches');
     } else {
-      await sendPush(tokens, '🔄 대진표가 수정되었습니다!', '앱에서 변경된 대진표를 확인하세요.');
+      await sendPush(tokens, '🔄 대진표가 수정되었습니다!', '앱에서 변경된 대진표를 확인하세요.', 'matches');
     }
   }
 );

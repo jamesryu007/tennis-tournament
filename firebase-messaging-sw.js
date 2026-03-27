@@ -2,7 +2,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
 
 // ── 캐싱 (sw.js 통합) ──────────────────────────────────────────────
-const CACHE = 'jamite-v5';
+const CACHE = 'jamite-v6';
 const BASE = self.location.pathname.startsWith('/tennis-tournament') ? '/tennis-tournament' : '';
 const ASSETS = [
   BASE + '/',
@@ -56,11 +56,31 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage(payload => {
   const n = payload.notification || {};
-  const title = n.title || (payload.data && payload.data.title) || '자미터 테니스';
-  const body  = n.body  || (payload.data && payload.data.body)  || '';
+  const d = payload.data || {};
+  const title = n.title || d.title || '자미터 테니스';
+  const body  = n.body  || d.body  || '';
+  const tab   = d.tab   || 'checkin';
   self.registration.showNotification(title, {
     body,
     icon: BASE + '/images/icon-192.png',
-    badge: BASE + '/images/icon-192.png'
+    badge: BASE + '/images/icon-192.png',
+    data: { tab }
   });
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const tab = (e.notification.data && e.notification.data.tab) || 'checkin';
+  const url = self.location.origin + BASE + '/?tab=' + tab;
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const client of list) {
+        if (client.url.startsWith(self.location.origin + BASE) && 'focus' in client) {
+          client.postMessage({ type: 'NAVIGATE_TAB', tab });
+          return client.focus();
+        }
+      }
+      return clients.openWindow(url);
+    })
+  );
 });
