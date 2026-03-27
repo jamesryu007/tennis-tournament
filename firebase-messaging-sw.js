@@ -2,7 +2,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
 
 // ── 캐싱 (sw.js 통합) ──────────────────────────────────────────────
-const CACHE = 'jamite-v6';
+const CACHE = 'jamite-v7';
 const BASE = self.location.pathname.startsWith('/tennis-tournament') ? '/tennis-tournament' : '';
 const ASSETS = [
   BASE + '/',
@@ -76,7 +76,7 @@ self.addEventListener('notificationclick', e => {
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       for (const client of list) {
         if (client.url.startsWith(self.location.origin + BASE) && 'focus' in client) {
-          client.postMessage({ type: 'NAVIGATE_TAB', tab });
+          setTimeout(() => client.postMessage({ type: 'NAVIGATE_TAB', tab }), 500);
           return client.focus();
         }
       }

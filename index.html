@@ -2980,12 +2980,12 @@ document.getElementById('t-date').value = new Date().toISOString().split('T')[0]
     });
     // SW postMessage로 탭 이동
     navigator.serviceWorker.addEventListener('message', e => {
-      if (e.data && e.data.type === 'NAVIGATE_TAB') showPage(e.data.tab);
+      if (e.data && e.data.type === 'NAVIGATE_TAB') switchPage(e.data.tab);
     });
   }
-  // URL 파라미터로 탭 이동 (?tab=checkin 등)
+  // URL 파라미터로 탭 이동 (?tab=checkin 등) — 앱 초기화 후 실행
   const urlTab = new URLSearchParams(location.search).get('tab');
-  if (urlTab) showPage(urlTab);
+  if (urlTab) setTimeout(() => switchPage(urlTab), 500);
 </script>
 </body>
 </html>
