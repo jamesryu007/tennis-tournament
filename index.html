@@ -757,15 +757,15 @@ const state = {
 let modalCtx = null;
 let _pollDataRef = null;
 
-// ══ FIREBASE CONFIG (DEV) ══
+// ══ FIREBASE CONFIG ══
 const firebaseConfig = {
-  apiKey:            "AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI",
-  authDomain:        "jamite-dev.firebaseapp.com",
-  databaseURL:       "https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:         "jamite-dev",
-  storageBucket:     "jamite-dev.firebasestorage.app",
-  messagingSenderId: "168236820456",
-  appId:             "1:168236820456:web:32fab6a04d85702055e65d"
+  apiKey:            "AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14",
+  authDomain:        "jamite-tennis.firebaseapp.com",
+  databaseURL:       "https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "jamite-tennis",
+  storageBucket:     "jamite-tennis.firebasestorage.app",
+  messagingSenderId: "1023676041344",
+  appId:             "1:1023676041344:web:d9a9fcf47f3b280bcbfe65"
 };
 
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
@@ -2692,7 +2692,7 @@ function loadIdentity() {
 }
 
 // ══ FCM 푸시 알림 ══
-const VAPID_KEY = 'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc';
+const VAPID_KEY = 'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg';
 let _fcmMessaging = null;
 
 async function initFCM(askPermission = false) {
@@ -2707,11 +2707,15 @@ async function initFCM(askPermission = false) {
       permission = await Notification.requestPermission();
       if (permission !== 'granted') return;
     }
-    const token = await _fcmMessaging.getToken({ vapidKey: VAPID_KEY });
+    // 이미 등록된 SW registration을 FCM에 전달
+    const swReg = await navigator.serviceWorker.ready;
+    const token = await _fcmMessaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg });
     if (token) await saveFCMToken(token);
-    _fcmMessaging.onMessage(payload => {
+    _fcmMessaging.onMessage(async payload => {
       const n = payload.notification;
-      if (n) new Notification(n.title, { body: n.body, icon: 'images/icon-192.png' });
+      if (!n) return;
+      const reg = await navigator.serviceWorker.ready;
+      reg.showNotification(n.title, { body: n.body, icon: 'images/icon-192.png' });
     });
   } catch(e) { console.log('FCM 초기화 실패:', e); }
 }
@@ -2738,7 +2742,8 @@ function selectIdentity(name) {
   if (!_fcmMessaging) {
     initFCM(true); // 사용자 클릭 제스처 시점이므로 권한 요청 가능
   } else {
-    _fcmMessaging.getToken({ vapidKey: VAPID_KEY })
+    navigator.serviceWorker.ready
+      .then(swReg => _fcmMessaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg }))
       .then(token => { if (token) saveFCMToken(token); })
       .catch(() => {});
   }
@@ -2966,7 +2971,9 @@ document.getElementById('t-date').value = new Date().toISOString().split('T')[0]
 <script>
   if('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      const swPath = location.hostname === 'localhost' ? '/sw.js' : '/tennis-tournament/sw.js';
+      const swPath = location.pathname.startsWith('/tennis-tournament')
+        ? '/tennis-tournament/firebase-messaging-sw.js'
+        : '/firebase-messaging-sw.js';
       navigator.serviceWorker.register(swPath)
         .then(r => console.log('SW 등록:', r.scope))
         .catch(e => console.log('SW 실패:', e));

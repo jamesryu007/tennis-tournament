@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6d28d9"/>
+      <stop offset="100%" style="stop-color:#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="ballGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fde68a"/>
+      <stop offset="100%" style="stop-color:#f59e0b"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="rgba(0,0,0,0.25)"/>
+    </filter>
+  </defs>
+
+  <!-- 배경 원형 -->
+  <rect width="512" height="512" rx="110" fill="url(#bg)"/>
+
+  <!-- 광택 효과 -->
+  <ellipse cx="200" cy="130" rx="160" ry="80" fill="rgba(255,255,255,0.08)"/>
+
+  <!-- 테니스공 (좌상단) -->
+  <g transform="translate(72, 58)" filter="url(#shadow)">
+    <circle cx="72" cy="72" r="66" fill="url(#ballGrad)"/>
+    <!-- 테니스공 곡선 라인 -->
+    <path d="M 20 45 Q 72 72 20 99" fill="none" stroke="white" stroke-width="5.5" stroke-linecap="round" opacity="0.85"/>
+    <path d="M 124 45 Q 72 72 124 99" fill="none" stroke="white" stroke-width="5.5" stroke-linecap="round" opacity="0.85"/>
+  </g>
+
+  <!-- 와인잔 (우상단) -->
+  <g transform="translate(298, 48)" filter="url(#shadow)">
+    <!-- 잔 볼 -->
+    <path d="M 24 10 L 8 58 Q 6 82 46 82 Q 86 82 84 58 L 68 10 Z" fill="rgba(255,255,255,0.22)" stroke="rgba(255,255,255,0.7)" stroke-width="3"/>
+    <!-- 와인 액체 -->
+    <path d="M 14 40 Q 12 72 46 72 Q 80 72 78 40 Z" fill="rgba(220,38,127,0.55)"/>
+    <!-- 잔 줄기 -->
+    <rect x="42" y="82" width="8" height="38" fill="rgba(255,255,255,0.7)" rx="3"/>
+    <!-- 잔 받침 -->
+    <rect x="24" y="118" width="44" height="7" fill="rgba(255,255,255,0.7)" rx="3.5"/>
+  </g>
+
+  <!-- JAMITE 텍스트 -->
+  <text x="256" y="295"
+    font-family="'Arial Black', 'Arial', sans-serif"
+    font-size="88"
+    font-weight="900"
+    fill="white"
+    text-anchor="middle"
+    letter-spacing="4"
+    filter="url(#shadow)">JAMITE</text>
+
+  <!-- 하단 서브텍스트 -->
+  <text x="256" y="348"
+    font-family="'Arial', sans-serif"
+    font-size="28"
+    font-weight="600"
+    fill="rgba(255,255,255,0.75)"
+    text-anchor="middle"
+    letter-spacing="6">TENNIS</text>
+
+  <!-- 하단 장식 라인 -->
+  <rect x="136" y="368" width="240" height="3" rx="1.5" fill="rgba(255,255,255,0.3)"/>
+
+  <!-- 별빛 장식 -->
+  <circle cx="108" cy="370" r="4" fill="rgba(255,255,255,0.5)"/>
+  <circle cx="404" cy="370" r="4" fill="rgba(255,255,255,0.5)"/>
+  <circle cx="256" cy="420" r="3" fill="rgba(255,255,255,0.35)"/>
+  <circle cx="180" cy="440" r="2" fill="rgba(255,255,255,0.25)"/>
+  <circle cx="332" cy="440" r="2" fill="rgba(255,255,255,0.25)"/>
+</svg>

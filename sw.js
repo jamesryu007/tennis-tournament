@@ -1,16 +1,17 @@
 const CACHE = 'jamite-v1';
+const BASE = self.location.hostname === 'localhost' ? '' : '/tennis-tournament';
 const ASSETS = [
-  '/tennis-tournament/',
-  '/tennis-tournament/index.html',
-  '/tennis-tournament/manifest.json',
-  '/tennis-tournament/images/icon-192.png',
-  '/tennis-tournament/images/icon-512.png',
-  '/tennis-tournament/images/team1.jpeg',
-  '/tennis-tournament/images/team2.jpeg',
-  '/tennis-tournament/images/team3.jpeg',
-  '/tennis-tournament/images/team1.mp4',
-  '/tennis-tournament/images/team2.mp4',
-  '/tennis-tournament/images/team3.mp4',
+  BASE + '/',
+  BASE + '/index.html',
+  BASE + '/manifest.json',
+  BASE + '/images/icon-192.png',
+  BASE + '/images/icon-512.png',
+  BASE + '/images/team1.jpeg',
+  BASE + '/images/team2.jpeg',
+  BASE + '/images/team3.jpeg',
+  BASE + '/images/team1.mp4',
+  BASE + '/images/team2.mp4',
+  BASE + '/images/team3.mp4',
 ];
 
 self.addEventListener('install', e => {
