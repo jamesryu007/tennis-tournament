@@ -1,0 +1,25 @@
+{
+  "name": "자미터 테니스",
+  "short_name": "JAMITE",
+  "description": "재미와 열정이 있는 공간, 사랑하는 사람들의 모임",
+  "start_url": "/tennis-tournament/",
+  "scope": "/tennis-tournament/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#7c3aed",
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
