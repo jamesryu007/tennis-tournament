@@ -1,5 +1,5 @@
 const { onSchedule } = require('firebase-functions/v2/scheduler');
-const { onValueWritten } = require('firebase-functions/v2/database');
+const { onValueWritten, onValueCreated } = require('firebase-functions/v2/database');
 const { setGlobalOptions } = require('firebase-functions');
 const { initializeApp } = require('firebase-admin/app');
 const { getDatabase } = require('firebase-admin/database');
@@ -84,7 +84,20 @@ exports.notifyCheckinClose = onSchedule(
   }
 );
 
-// ══ 4. 대진 생성/수정 감지 — DB 트리거 ═══════════════════════════
+// ══ 4. 답글 알림 — DB 트리거 ══════════════════════════════════════
+exports.notifyCommentReply = onValueCreated(
+  { ref: 'jmt/poll/{weekId}/comments/{commentId}/replies/{replyId}', region: 'asia-southeast1' },
+  async (event) => {
+    const reply = event.data.val();
+    if (!reply) return;
+    const { commentAuthor, author, text } = reply;
+    if (!commentAuthor || commentAuthor === author) return;
+    const tokens = await getTokensByNames([commentAuthor]);
+    await sendPush(tokens, `💬 ${author}님이 답글을 달았습니다`, text, 'checkin');
+  }
+);
+
+// ══ 5. 대진 생성/수정 감지 — DB 트리거 ═══════════════════════════
 exports.notifyBracketUpdate = onValueWritten(
   { ref: 'jmt/activeState', region: 'asia-southeast1' },
   async (event) => {
