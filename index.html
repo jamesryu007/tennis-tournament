@@ -2960,7 +2960,8 @@ document.getElementById('t-date').value = new Date().toISOString().split('T')[0]
 <script>
   if('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/tennis-tournament/sw.js')
+      const swPath = location.hostname === 'localhost' ? '/sw.js' : '/tennis-tournament/sw.js';
+      navigator.serviceWorker.register(swPath)
         .then(r => console.log('SW 등록:', r.scope))
         .catch(e => console.log('SW 실패:', e));
     });
