@@ -2695,12 +2695,18 @@ function loadIdentity() {
 const VAPID_KEY = 'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc';
 let _fcmMessaging = null;
 
-async function initFCM() {
+async function initFCM(askPermission = false) {
   if (!db || !firebase.messaging) return;
   try {
     _fcmMessaging = firebase.messaging();
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') return;
+    // 이미 허용된 경우 바로 토큰 발급, 미결정인 경우만 사용자 제스처 필요
+    let permission = Notification.permission;
+    if (permission === 'denied') return;
+    if (permission !== 'granted') {
+      if (!askPermission) return; // 제스처 없이는 요청 안 함
+      permission = await Notification.requestPermission();
+      if (permission !== 'granted') return;
+    }
     const token = await _fcmMessaging.getToken({ vapidKey: VAPID_KEY });
     if (token) await saveFCMToken(token);
     _fcmMessaging.onMessage(payload => {
@@ -2728,9 +2734,9 @@ function selectIdentity(name) {
   state.identity = { name };
   localStorage.setItem(LS_IDENTITY, JSON.stringify(state.identity));
   document.getElementById('identity-modal').classList.remove('open');
-  // FCM: 처음 로그인이면 초기화, 이미 초기화됐으면 토큰 재매핑
+  // FCM: 처음 로그인이면 초기화(권한 요청 포함), 이미 초기화됐으면 토큰 재매핑
   if (!_fcmMessaging) {
-    initFCM();
+    initFCM(true); // 사용자 클릭 제스처 시점이므로 권한 요청 가능
   } else {
     _fcmMessaging.getToken({ vapidKey: VAPID_KEY })
       .then(token => { if (token) saveFCMToken(token); })
