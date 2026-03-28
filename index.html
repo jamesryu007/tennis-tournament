@@ -1411,6 +1411,12 @@ function shuffle(a) {
 }
 function pow2(n){let p=1;while(p<n)p<<=1;return p;}
 function pairName(p){return p?p.join(' / '):'부전승';}
+function getGender(name){
+  const m=state.members.find(m=>m.name===name);
+  if(m) return m.gender;
+  const g=(state.guests||[]).find(g=>g.name===name);
+  return g?g.gender:null;
+}
 
 // NTRP 숫자 조회 (없으면 0) — 정회원 및 게스트 모두 조회
 function getNtrp(name) {
@@ -1825,8 +1831,16 @@ function renderTournament(type, opts) {
           return `<div class="team ${slotCls}" data-mi="${mi}" data-side="${side}"><span class="team-name">${team?'✏️ ':'➕ '}${nm}</span></div>`;
         }
         const cls=match.winner===side?'winner':match.winner!==null&&match.winner!==-1?'loser':(!team?(ri===0?'bye-team':'tbd-team'):'');
-        const nm=!team?(ri===0?'부전승':'TBD'):pairName(team);
         const sc=side===0?match.score0:match.score1;
+        let nm;
+        if(!team) { nm=ri===0?'부전승':'TBD'; }
+        else if(myName && team.includes(myName)) {
+          nm=team.map(n=>{
+            const g=getGender(n);
+            const c=g==='male'?'#2563eb':g==='female'?'#db2777':'';
+            return c?`<span style="color:${c};font-weight:700">${n}</span>`:n;
+          }).join(' / ');
+        } else { nm=pairName(team); }
         return `<div class="team ${cls}"><span class="team-name">${nm}</span>${sc?`<span class="team-score">${sc}</span>`:''}</div>`;
       };
       div.innerHTML=row(match.team0,0)+row(match.team1,1);
