@@ -2383,7 +2383,7 @@ function renderCheckinPage() {
           </div>`;
         }).join('')}
         <div style="margin-top:4px">
-          <button class="btn btn-outline btn-sm" style="font-size:0.7rem;padding:3px 8px;box-shadow:none" onclick="toggleReplyInput('${c._key}')">↩ 답글</button>
+          <button class="btn btn-outline btn-sm" style="font-size:0.7rem;padding:3px 8px;box-shadow:none;color:#1e293b;border-color:#94a3b8" onclick="toggleReplyInput('${c._key}')">↩ 답글</button>
         </div>
         <div id="reply-input-${c._key}" class="reply-input-row" style="display:none">
           <input type="text" id="reply-text-${c._key}" placeholder="답글 입력..." style="flex:1;font-size:0.83rem" onkeydown="if(event.key==='Enter')addReply('${c._key}','${c.author}')">
