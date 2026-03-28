@@ -161,7 +161,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .dc-edit-btn2 { flex-shrink:0; padding:6px 11px; border:1.5px solid #bfdbfe; border-radius:9px; background:#eff6ff; color:#2563eb; font-size:0.75rem; font-weight:600; cursor:pointer; white-space:nowrap; }
 .dc-score-set { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
 .dc-score-label { font-size:0.78rem; color:#64748b; min-width:38px; }
-.dc-score-inp { width:52px; text-align:center; font-size:1.1rem; font-weight:700; padding:8px 4px; border:1.5px solid #e2e8f0; border-radius:8px; background:#f8fafc; }
+.dc-score-inp { width:54px; text-align:center; font-size:1.1rem; font-weight:700; padding:8px 4px; border:1.5px solid #e2e8f0; border-radius:8px; background:#f8fafc; }
 .dc-card2-row2 { display:flex; align-items:center; gap:7px; margin-top:6px; }
 .dc-sets-grid { display:flex; gap:10px; margin-top:6px; align-items:flex-start; flex:1; }
 .dc-set-col { display:flex; flex-direction:column; align-items:center; gap:3px; min-width:52px; }
@@ -253,33 +253,33 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .carousel-track { display:flex; transition:transform 0.8s cubic-bezier(0.25,0.46,0.45,0.94); }
 /* 카드 전체 */
 .carousel-card { min-width:100%; box-sizing:border-box; border-radius:18px; overflow:hidden; position:relative; background:#0f172a; }
-.cc-bg { position:absolute; inset:0; background:url('images/ca1.png') center/cover no-repeat; opacity:0.42; pointer-events:none; }
+.cc-bg { position:absolute; inset:0; background:url('images/ca1.png') center/cover no-repeat; opacity:0.68; pointer-events:none; }
 /* 날짜 헤더 */
-.cc-date { position:relative; text-align:center; padding:8px 0 6px; font-size:0.7rem; font-weight:800; letter-spacing:0.1em; color:rgba(255,255,255,0.75); background:rgba(0,0,0,0.45); }
+.cc-date { position:relative; text-align:center; padding:8px 0 6px; font-size:0.7rem; font-weight:800; letter-spacing:0.1em; color:#fff; background:rgba(0,0,0,0.58); }
 /* 좌우 바디 */
-.cc-body { position:relative; display:flex; align-items:stretch; min-height:110px; }
+.cc-body { position:relative; display:flex; align-items:stretch; min-height:130px; }
 /* 이긴 팀 (왼쪽) */
-.cc-winner-col { flex:1; background:linear-gradient(135deg,rgba(5,150,105,0.78),rgba(16,185,129,0.55)); padding:14px 10px 14px 14px; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:6px; }
+.cc-winner-col { flex:1; background:linear-gradient(135deg,rgba(5,150,105,0.55),rgba(16,185,129,0.35)); padding:16px 10px 16px 14px; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:7px; }
 /* 진 팀 (오른쪽) */
-.cc-loser-col  { flex:1; background:linear-gradient(135deg,rgba(239,68,68,0.55),rgba(153,27,27,0.78)); padding:14px 14px 14px 10px; display:flex; flex-direction:column; justify-content:center; align-items:flex-end; gap:6px; }
+.cc-loser-col  { flex:1; background:linear-gradient(135deg,rgba(239,68,68,0.35),rgba(153,27,27,0.55)); padding:16px 14px 16px 10px; display:flex; flex-direction:column; justify-content:center; align-items:flex-end; gap:7px; }
 /* 무승부 컬럼 */
-.cc-draw-col { flex:1; background:linear-gradient(135deg,rgba(37,99,235,0.65),rgba(99,102,241,0.55)); padding:14px 12px; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:6px; }
+.cc-draw-col { flex:1; background:linear-gradient(135deg,rgba(37,99,235,0.45),rgba(99,102,241,0.35)); padding:16px 12px; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:7px; }
 /* 팀 텍스트 */
 .cc-emoji { font-size:2.0rem; line-height:1; }
 .cc-winner-col .cc-emoji { animation:bounce-celebrate 1.4s ease-in-out infinite; }
 .cc-loser-col  .cc-emoji { animation:shake-sad 2.2s ease-in-out infinite; opacity:0.85; }
-.cc-team-nick { font-size:0.88rem; font-weight:900; color:#fff; text-shadow:0 1px 5px rgba(0,0,0,0.6); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cc-team-nick { font-size:1.1rem; font-weight:900; color:#fff; text-shadow:0 2px 8px rgba(0,0,0,0.9); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .cc-loser-col .cc-team-nick { text-align:right; }
-.cc-team-members { font-size:0.65rem; color:rgba(255,255,255,0.72); }
+.cc-team-members { font-size:0.84rem; font-weight:700; color:#fff; text-shadow:0 1px 6px rgba(0,0,0,0.85); }
 .cc-loser-col .cc-team-members { text-align:right; }
-.cc-badge-win  { background:#fff; color:#059669; font-size:0.65rem; font-weight:900; border-radius:20px; padding:3px 9px; letter-spacing:0.05em; box-shadow:0 2px 6px rgba(0,0,0,0.25); }
-.cc-badge-loss { background:rgba(255,255,255,0.18); color:rgba(255,255,255,0.8); font-size:0.65rem; font-weight:800; border-radius:20px; padding:3px 9px; letter-spacing:0.05em; }
+.cc-badge-win  { background:#fff; color:#059669; font-size:0.7rem; font-weight:900; border-radius:20px; padding:4px 11px; letter-spacing:0.05em; box-shadow:0 2px 8px rgba(0,0,0,0.4); }
+.cc-badge-loss { background:rgba(0,0,0,0.45); color:#fff; font-size:0.7rem; font-weight:800; border-radius:20px; padding:4px 11px; letter-spacing:0.05em; }
 /* 세로 점수 (가운데) */
-.cc-score-col { flex-shrink:0; width:52px; background:rgba(0,0,0,0.52); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:6px; padding:8px 0; }
+.cc-score-col { flex-shrink:0; width:52px; background:rgba(0,0,0,0.65); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:7px; padding:8px 0; }
 .cc-set { display:flex; flex-direction:column; align-items:center; gap:1px; }
-.cc-set-num { font-size:0.58rem; font-weight:700; color:rgba(255,255,255,0.4); letter-spacing:0.05em; }
+.cc-set-num { font-size:0.58rem; font-weight:700; color:rgba(255,255,255,0.55); letter-spacing:0.05em; }
 .cc-set-score { display:flex; gap:2px; align-items:center; }
-.cc-sc { font-size:0.95rem; font-weight:900; }
+.cc-sc { font-size:1.0rem; font-weight:900; }
 .cc-sc.w { color:#34d399; }
 .cc-sc.l { color:#f87171; }
 .cc-sc-sep { color:rgba(255,255,255,0.35); font-size:0.65rem; }
