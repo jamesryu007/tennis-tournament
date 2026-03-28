@@ -124,6 +124,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .comment-author { font-size:0.72rem; font-weight:700; color:#2563eb; }
 .comment-text { font-size:0.85rem; color:#1e293b; margin-top:2px; word-break:break-word; }
 .comment-at { font-size:0.62rem; color:#94a3b8; }
+.comment-reactions { display:flex; gap:6px; margin-top:5px; }
+.reaction-btn { display:inline-flex; align-items:center; gap:3px; font-size:0.72rem; padding:2px 7px; border-radius:20px; border:1.5px solid #e2e8f0; background:#fff; cursor:pointer; color:#64748b; transition:all 0.15s; }
+.reaction-btn.active { border-color:#2563eb; background:#eff6ff; color:#2563eb; font-weight:700; }
 .comment-input-row { display:flex; gap:7px; margin-top:8px; }
 .reply-item { padding:5px 9px; border-radius:8px; background:#f1f5f9; margin-top:4px; margin-left:16px; border-left:2px solid #bfdbfe; }
 .reply-input-row { display:flex; gap:6px; margin-top:5px; margin-left:16px; }
@@ -2356,11 +2359,20 @@ function renderCheckinPage() {
       const replies = c.replies
         ? Object.values(c.replies).sort((a,b)=>(a.at||'').localeCompare(b.at||''))
         : [];
+      const rx = c.reactions || {};
+      const me = (state.identity && state.identity.name) || '';
+      const rxHtml = [['love','❤️'],['good','👍'],['bad','👎']].map(([type,icon])=>{
+        const users = rx[type] || {};
+        const cnt = Object.keys(users).length;
+        const active = me && users[me] ? ' active' : '';
+        return `<button class="reaction-btn${active}" onclick="toggleReaction('${c._key}','${type}')">${icon}${cnt>0?` ${cnt}`:''}</button>`;
+      }).join('');
       return `<div class="comment-item" id="comment-${c._key}">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span class="comment-author">${c.author}</span><span class="comment-at">${t}</span>
         </div>
         <div class="comment-text">${c.text.replace(/</g,'&lt;')}</div>
+        <div class="comment-reactions">${rxHtml}</div>
         ${replies.map(r=>{
           const rt=r.at?new Date(r.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
           return `<div class="reply-item">
@@ -2433,6 +2445,18 @@ function toggleReplyInput(commentId) {
   const visible = el.style.display !== 'none';
   el.style.display = visible ? 'none' : 'flex';
   if (!visible) document.getElementById(`reply-text-${commentId}`)?.focus();
+}
+
+function toggleReaction(commentId, type) {
+  if (!db || !state.pollState || !state.pollState.weekId) return;
+  const me = state.identity && state.identity.name;
+  if (!me) return;
+  const weekId = state.pollState.weekId;
+  const ref = db.ref(`jmt/poll/${weekId}/comments/${commentId}/reactions/${type}/${me}`);
+  ref.once('value').then(snap => {
+    if (snap.val()) ref.remove().catch(fbErr);
+    else ref.set(true).catch(fbErr);
+  });
 }
 
 function addReply(commentId, commentAuthor) {
