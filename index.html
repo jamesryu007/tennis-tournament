@@ -131,6 +131,34 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .reply-item { padding:5px 9px; border-radius:8px; background:#f1f5f9; margin-top:4px; margin-left:16px; border-left:2px solid #bfdbfe; }
 .reply-input-row { display:flex; gap:6px; margin-top:5px; margin-left:16px; }
 
+/* ── DAILY MATCH ── */
+.daily-card { background:#fff; border:1.5px solid #e2e8f0; border-radius:14px; padding:14px; margin-bottom:12px; }
+.daily-card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.daily-team-label { font-size:0.7rem; font-weight:700; color:#64748b; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px; }
+.daily-players { display:flex; gap:6px; margin-bottom:6px; }
+.daily-players select { flex:1; font-size:0.82rem; min-width:0; }
+.daily-vs { text-align:center; font-size:0.8rem; font-weight:800; color:#cbd5e1; margin:8px 0; letter-spacing:2px; }
+.daily-set-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.daily-set-label { font-size:0.72rem; color:#64748b; min-width:36px; }
+.daily-score-input { width:52px; text-align:center; font-size:1.1rem; font-weight:700; padding:8px 4px; border:1.5px solid #e2e8f0; border-radius:8px; }
+.daily-save-btn { width:100%; background:#2563eb; border:none; border-radius:10px; color:#fff; font-size:0.92rem; font-weight:700; padding:11px; cursor:pointer; margin-top:10px; }
+.daily-save-btn:disabled { background:#86efac; color:#fff; cursor:default; }
+.daily-add-match-btn { width:100%; border:2px dashed #bfdbfe; background:#f0f9ff; border-radius:12px; color:#2563eb; font-size:0.95rem; font-weight:700; padding:14px; cursor:pointer; margin-top:4px; }
+
+/* ── RANKING ── */
+.rank-toggle { display:flex; background:#f1f5f9; border-radius:10px; padding:3px; margin-bottom:14px; }
+.rank-toggle-btn { flex:1; text-align:center; padding:8px; font-size:0.85rem; font-weight:600; border-radius:8px; cursor:pointer; color:#64748b; transition:all 0.15s; }
+.rank-toggle-btn.active { background:#fff; color:#2563eb; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+.rank-item { padding:10px 12px; border-radius:10px; background:#f8fafc; margin-bottom:6px; cursor:pointer; border:1.5px solid #e2e8f0; transition:all 0.15s; }
+.rank-item.selected { border-color:#2563eb; background:#eff6ff; }
+.rank-num { font-size:0.72rem; font-weight:700; color:#94a3b8; min-width:24px; }
+.rank-name { font-size:0.85rem; font-weight:700; color:#1e293b; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.rank-stat { font-size:0.75rem; color:#64748b; white-space:nowrap; }
+.rank-winrate { font-size:0.88rem; font-weight:800; white-space:nowrap; }
+.rank-detail { background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+.rank-detail-row { display:flex; align-items:center; gap:6px; padding:5px 0; border-bottom:1px solid #bfdbfe; font-size:0.78rem; }
+.rank-detail-row:last-child { border-bottom:none; }
+
 /* ── PARTICIPANT CHECKBOXES ── */
 .p-item { display: flex; align-items: center; gap: 9px; padding: 9px 11px; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 10px; margin-bottom: 6px; cursor: pointer; transition: all 0.12s; }
 .p-item.checked { border-color: #2563eb; background: #eff6ff; }
@@ -379,9 +407,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     </div>
   </div>
   <div class="sub-tabs">
-    <div class="sub-tab active" id="mtab-mixed" onclick="switchMatchTab('mixed')">🔀 혼합복식</div>
+    <div class="sub-tab active" id="mtab-daily" onclick="switchMatchTab('daily')">⚡ 오늘의 경기</div>
+    <div class="sub-tab" id="mtab-mixed" onclick="switchMatchTab('mixed')">🔀 혼합복식</div>
     <div class="sub-tab" id="mtab-mens" onclick="switchMatchTab('mens')">👨 남자복식</div>
     <div class="sub-tab" id="mtab-womens" onclick="switchMatchTab('womens')">👩 여자복식</div>
+  </div>
+
+  <!-- 오늘의 경기 -->
+  <div id="match-panel-daily" style="padding:12px">
+    <div id="daily-match-cards"></div>
+    <button class="daily-add-match-btn" onclick="addDailyMatchCard()">＋ 경기 추가</button>
   </div>
 
   <!-- 혼합복식 -->
@@ -470,10 +505,19 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <div class="page" id="page-history">
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
     <div class="sub-tabs" style="flex:1;margin-bottom:0">
+      <div class="sub-tab" id="htab-ranking" onclick="switchHistoryTab('ranking')">🏅 자미터랭킹</div>
       <div class="sub-tab active" id="htab-meetup" onclick="switchHistoryTab('meetup')">🏃 정기모임</div>
       <div class="sub-tab" id="htab-tournament" onclick="switchHistoryTab('tournament')">🏆 대회이력</div>
     </div>
     <button id="reload-history-btn" onclick="reloadHistory()" style="background:none;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:0.8rem;color:#64748b;cursor:pointer;transition:transform 0.1s,background 0.1s;-webkit-tap-highlight-color:transparent" onmousedown="this.style.transform='translateY(2px)';this.style.background='#f1f5f9'" onmouseup="this.style.transform='';this.style.background=''" onmouseleave="this.style.transform='';this.style.background=''" ontouchstart="this.style.transform='translateY(2px)';this.style.background='#f1f5f9'" ontouchend="this.style.transform='';this.style.background=''">🔄</button>
+  </div>
+  <!-- 자미터랭킹 패널 -->
+  <div id="ranking-panel" style="display:none;padding:4px 0">
+    <div class="rank-toggle">
+      <div class="rank-toggle-btn active" id="rtog-pair" onclick="setRankingMode('pair')">팀페어</div>
+      <div class="rank-toggle-btn" id="rtog-player" onclick="setRankingMode('player')">개인</div>
+    </div>
+    <div id="ranking-list"></div>
   </div>
   <div id="tournament-history-list">
     <div class="empty-state"><div class="icon">📋</div><p>이력이 없습니다</p></div>
@@ -975,7 +1019,7 @@ let _pendingBracketParticipants = null; // 출첵 토스 후 대진 생성 전�
 
 // 현재 경기진행 탭에서 보이는 서브탭 타입 반환
 function visibleMatchTab() {
-  for(const t of ['mixed','mens','womens']) {
+  for(const t of ['daily','mixed','mens','womens']) {
     if(document.getElementById(`mtab-${t}`)?.classList.contains('active')) return t;
   }
   return 'mixed';
@@ -1410,6 +1454,228 @@ function shuffle(a) {
 }
 function pow2(n){let p=1;while(p<n)p<<=1;return p;}
 function pairName(p){return p?p.join(' / '):'부전승';}
+function getGender(name){
+  const m=state.members.find(m=>m.name===name);
+  if(m) return m.gender;
+  const g=(state.guests||[]).find(g=>g.name===name);
+  return g?g.gender:null;
+}
+
+// ══ DAILY MATCH & RANKING UTILITIES ══════════════════════════════
+function getPairKey(p1,p2){ return [p1,p2].sort().join('_'); }
+
+function getPairDisplayName(players, nickname) {
+  if(!players||players.length<2) return '?';
+  const [p1,p2]=players;
+  const g1=getGender(p1),g2=getGender(p2);
+  let a=p1,b=p2;
+  if(g1==='female'&&g2==='male'){a=p2;b=p1;}
+  const autoNick=(a[0]||'?')+(b[0]||'?')+'팀';
+  const nick=nickname||autoNick;
+  return `${nick}(${a}-${b})`;
+}
+
+async function updateMatchStats(team0,team1,winner,nick0,nick1){
+  if(!db) return;
+  const INC=firebase.database.ServerValue.increment;
+  const k0=getPairKey(team0[0],team0[1]),k1=getPairKey(team1[0],team1[1]);
+  const w0=winner===0?1:0,w1=1-w0;
+  const u={};
+  u[`jmt/pairStats/${k0}/wins`]=INC(w0);u[`jmt/pairStats/${k0}/losses`]=INC(w1);
+  u[`jmt/pairStats/${k0}/players`]=team0;if(nick0)u[`jmt/pairStats/${k0}/nickname`]=nick0;
+  u[`jmt/pairStats/${k1}/wins`]=INC(w1);u[`jmt/pairStats/${k1}/losses`]=INC(w0);
+  u[`jmt/pairStats/${k1}/players`]=team1;if(nick1)u[`jmt/pairStats/${k1}/nickname`]=nick1;
+  u[`jmt/pairMatchups/${k0}/${k1}/wins`]=INC(w0);u[`jmt/pairMatchups/${k0}/${k1}/losses`]=INC(w1);
+  u[`jmt/pairMatchups/${k1}/${k0}/wins`]=INC(w1);u[`jmt/pairMatchups/${k1}/${k0}/losses`]=INC(w0);
+  for(const p of team0){u[`jmt/playerStats/${p}/wins`]=INC(w0);u[`jmt/playerStats/${p}/losses`]=INC(w1);}
+  for(const p of team1){u[`jmt/playerStats/${p}/wins`]=INC(w1);u[`jmt/playerStats/${p}/losses`]=INC(w0);}
+  for(const p0 of team0)for(const p1 of team1){
+    u[`jmt/playerMatchups/${p0}/${p1}/wins`]=INC(w0);u[`jmt/playerMatchups/${p0}/${p1}/losses`]=INC(w1);
+    u[`jmt/playerMatchups/${p1}/${p0}/wins`]=INC(w1);u[`jmt/playerMatchups/${p1}/${p0}/losses`]=INC(w0);
+  }
+  await db.ref().update(u).catch(fbErr);
+}
+
+// ══ 오늘의 경기 탭 ═══════════════════════════════════════════════
+let _dailyCardCounter=0;
+const _dailyCards={};
+
+function renderDailyTab(){
+  if(Object.keys(_dailyCards).length===0) addDailyMatchCard();
+}
+
+function _buildPlayerOptions(){
+  const all=[...state.members.map(m=>m.name),...(state.guests||[]).map(g=>g.name)];
+  return '<option value="">선수 선택</option>'+all.map(n=>`<option value="${n}">${n}</option>`).join('');
+}
+
+function addDailyMatchCard(){
+  const id=++_dailyCardCounter;
+  _dailyCards[id]={sets:1,saved:false};
+  const container=document.getElementById('daily-match-cards');
+  const wrap=document.createElement('div');
+  wrap.id=`daily-card-${id}`;
+  const opts=_buildPlayerOptions();
+  wrap.innerHTML=`<div class="daily-card">
+    <div class="daily-card-header">
+      <span style="font-size:0.82rem;font-weight:700;color:#475569">경기 ${id}</span>
+      <button onclick="removeDailyCard(${id})" style="background:none;border:none;color:#94a3b8;font-size:1.1rem;cursor:pointer">✕</button>
+    </div>
+    <div class="daily-team-label">팀 A</div>
+    <div class="daily-players"><select id="daily-a0-${id}">${opts}</select><select id="daily-a1-${id}">${opts}</select></div>
+    <input type="text" id="daily-anick-${id}" placeholder="닉네임 (선택)" style="width:100%;font-size:0.78rem;margin-bottom:10px;box-sizing:border-box">
+    <div class="daily-vs">VS</div>
+    <div class="daily-team-label">팀 B</div>
+    <div class="daily-players"><select id="daily-b0-${id}">${opts}</select><select id="daily-b1-${id}">${opts}</select></div>
+    <input type="text" id="daily-bnick-${id}" placeholder="닉네임 (선택)" style="width:100%;font-size:0.78rem;margin-top:6px;margin-bottom:10px;box-sizing:border-box">
+    <div class="daily-sets" id="daily-sets-${id}">
+      <div class="daily-set-row">
+        <span class="daily-set-label">1세트</span>
+        <input type="text" id="daily-s0-${id}-0" class="daily-score-input" placeholder="0" inputmode="numeric" maxlength="2">
+        <span style="font-weight:800;color:#cbd5e1;font-size:1.1rem">:</span>
+        <input type="text" id="daily-s1-${id}-0" class="daily-score-input" placeholder="0" inputmode="numeric" maxlength="2">
+      </div>
+    </div>
+    <div id="daily-addset-${id}" style="margin-top:4px">
+      <button onclick="addDailySet(${id})" style="font-size:0.75rem;background:none;border:1px dashed #bfdbfe;color:#3b82f6;border-radius:8px;padding:4px 12px;cursor:pointer">+ 2세트 추가</button>
+    </div>
+    <button class="daily-save-btn" id="daily-save-btn-${id}" onclick="saveDailyMatch(${id})">저장</button>
+    <div id="daily-saved-${id}" style="display:none;text-align:center;color:#16a34a;font-size:0.85rem;font-weight:700;margin-top:8px">✅ 저장 완료!</div>
+  </div>`;
+  container.appendChild(wrap);
+}
+
+function addDailySet(id){
+  if(!_dailyCards[id]||_dailyCards[id].sets>=3) return;
+  const i=_dailyCards[id].sets++;
+  const container=document.getElementById(`daily-sets-${id}`);
+  const row=document.createElement('div');
+  row.className='daily-set-row';
+  row.innerHTML=`<span class="daily-set-label">${i+1}세트</span>
+    <input type="text" id="daily-s0-${id}-${i}" class="daily-score-input" placeholder="0" inputmode="numeric" maxlength="2">
+    <span style="font-weight:800;color:#cbd5e1;font-size:1.1rem">:</span>
+    <input type="text" id="daily-s1-${id}-${i}" class="daily-score-input" placeholder="0" inputmode="numeric" maxlength="2">`;
+  container.appendChild(row);
+  const addDiv=document.getElementById(`daily-addset-${id}`);
+  addDiv.innerHTML=_dailyCards[id].sets<3
+    ?`<button onclick="addDailySet(${id})" style="font-size:0.75rem;background:none;border:1px dashed #bfdbfe;color:#3b82f6;border-radius:8px;padding:4px 12px;cursor:pointer">+ ${_dailyCards[id].sets+1}세트 추가</button>`
+    :'';
+}
+
+function removeDailyCard(id){
+  delete _dailyCards[id];
+  const el=document.getElementById(`daily-card-${id}`);
+  if(el) el.remove();
+}
+
+async function saveDailyMatch(id){
+  if(!db||!_dailyCards[id]||_dailyCards[id].saved) return;
+  const a0=document.getElementById(`daily-a0-${id}`).value;
+  const a1=document.getElementById(`daily-a1-${id}`).value;
+  const b0=document.getElementById(`daily-b0-${id}`).value;
+  const b1=document.getElementById(`daily-b1-${id}`).value;
+  if(!a0||!a1||!b0||!b1){alert('선수를 모두 선택해주세요.');return;}
+  if(a0===a1||b0===b1){alert('같은 선수를 두 번 선택했습니다.');return;}
+  if([a0,a1].some(p=>[b0,b1].includes(p))){alert('양 팀에 같은 선수가 있습니다.');return;}
+  const sets=[];
+  for(let i=0;i<_dailyCards[id].sets;i++){
+    const s0v=document.getElementById(`daily-s0-${id}-${i}`).value.trim();
+    const s1v=document.getElementById(`daily-s1-${id}-${i}`).value.trim();
+    if(!s0v&&!s1v&&i>0) continue;
+    if(!s0v||!s1v){alert(`${i+1}세트 점수를 입력해주세요.`);return;}
+    const n0=parseInt(s0v),n1=parseInt(s1v);
+    if(isNaN(n0)||isNaN(n1)){alert('숫자를 입력해주세요.');return;}
+    if(n0===n1){alert(`${i+1}세트 동점입니다.`);return;}
+    sets.push({s0:n0,s1:n1});
+  }
+  if(!sets.length){alert('세트 점수를 입력해주세요.');return;}
+  const sw0=sets.filter(s=>s.s0>s.s1).length,sw1=sets.filter(s=>s.s1>s.s0).length;
+  if(sw0===sw1){alert('세트 스코어가 동률입니다.');return;}
+  const winner=sw0>sw1?0:1;
+  const nick0=document.getElementById(`daily-anick-${id}`).value.trim();
+  const nick1=document.getElementById(`daily-bnick-${id}`).value.trim();
+  const team0=[a0,a1].sort(),team1=[b0,b1].sort();
+  const today=new Date().toISOString().split('T')[0];
+  try{
+    await db.ref('jmt/matches').push({date:today,team0,team1,sets,winner,source:'daily'});
+    await updateMatchStats(team0,team1,winner,nick0,nick1);
+    _dailyCards[id].saved=true;
+    const btn=document.getElementById(`daily-save-btn-${id}`);
+    if(btn){btn.disabled=true;btn.textContent='✅ 저장됨';btn.style.background='#86efac';}
+    document.getElementById(`daily-saved-${id}`).style.display='block';
+  }catch(e){alert('저장 실패: '+e.message);}
+}
+
+// ══ 자미터랭킹 탭 ═════════════════════════════════════════════════
+let _rankingMode='pair';
+let _selectedRankKey=null;
+
+function setRankingMode(mode){
+  _rankingMode=mode;_selectedRankKey=null;
+  document.getElementById('rtog-pair').className='rank-toggle-btn'+(mode==='pair'?' active':'');
+  document.getElementById('rtog-player').className='rank-toggle-btn'+(mode==='player'?' active':'');
+  renderRankingTab();
+}
+
+async function renderRankingTab(){
+  const el=document.getElementById('ranking-list');
+  if(!el||!db) return;
+  el.innerHTML='<div style="text-align:center;padding:20px;color:#94a3b8;font-size:0.85rem">불러오는 중...</div>';
+  if(_rankingMode==='pair'){
+    const [ssSnap,vsSnap]=await Promise.all([
+      db.ref('jmt/pairStats').once('value'),
+      _selectedRankKey?db.ref(`jmt/pairMatchups/${_selectedRankKey}`).once('value'):Promise.resolve(null)
+    ]);
+    const stats=ssSnap.val()||{},vsData=vsSnap?vsSnap.val()||{}:{};
+    const pairs=Object.entries(stats)
+      .map(([k,v])=>({key:k,players:v.players||k.split('_'),nickname:v.nickname,wins:v.wins||0,losses:v.losses||0}))
+      .filter(p=>p.wins+p.losses>=2)
+      .sort((a,b)=>{const ra=a.wins/(a.wins+a.losses),rb=b.wins/(b.wins+b.losses);return rb-ra||b.wins-a.wins;});
+    if(!pairs.length){el.innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>경기 기록이 없습니다<br><small style="color:#94a3b8">2경기 이상 필요</small></p></div>';return;}
+    el.innerHTML=pairs.map((p,i)=>{
+      const wr=Math.round(p.wins/(p.wins+p.losses)*100);
+      const disp=getPairDisplayName(p.players,p.nickname);
+      const isSel=p.key===_selectedRankKey;
+      let det='';
+      if(isSel){
+        const vs=Object.entries(vsData).filter(([k,v])=>(v.wins||0)+(v.losses||0)>=1)
+          .map(([k,v])=>{const t=(v.wins||0)+(v.losses||0);const vr=Math.round((v.wins||0)/t*100);const op=stats[k]||{};return{disp:getPairDisplayName(op.players||k.split('_'),op.nickname),wins:v.wins||0,losses:v.losses||0,wr:vr};})
+          .sort((a,b)=>b.wr-a.wr);
+        det=`<div class="rank-detail"><div style="font-size:0.72rem;font-weight:700;color:#2563eb;margin-bottom:6px">📊 상대팀 전적</div>${vs.length?vs.map(v=>`<div class="rank-detail-row"><span style="flex:1">${v.disp}</span><span style="color:#16a34a;font-weight:700;min-width:32px">${v.wins}승</span><span style="color:#dc2626;font-weight:700;min-width:32px">${v.losses}패</span><span class="rank-winrate" style="color:${v.wr>=50?'#16a34a':'#dc2626'};min-width:40px;text-align:right">${v.wr}%</span></div>`).join(''):'<p style="font-size:0.78rem;color:#94a3b8;text-align:center;margin:0">상대 기록 없음</p>'}</div>`;
+      }
+      return `<div class="rank-item${isSel?' selected':''}" onclick="toggleRankDetail('${p.key}')"><div style="display:flex;align-items:center;gap:8px"><span class="rank-num">${i+1}위</span><span class="rank-name">${disp}</span><span class="rank-stat">${p.wins}승 ${p.losses}패</span><span class="rank-winrate" style="color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span></div></div>${det}`;
+    }).join('');
+  } else {
+    const [ssSnap,vsSnap]=await Promise.all([
+      db.ref('jmt/playerStats').once('value'),
+      _selectedRankKey?db.ref(`jmt/playerMatchups/${_selectedRankKey}`).once('value'):Promise.resolve(null)
+    ]);
+    const stats=ssSnap.val()||{},vsData=vsSnap?vsSnap.val()||{}:{};
+    const players=Object.entries(stats)
+      .map(([k,v])=>({name:k,wins:v.wins||0,losses:v.losses||0}))
+      .filter(p=>p.wins+p.losses>=2)
+      .sort((a,b)=>{const ra=a.wins/(a.wins+a.losses),rb=b.wins/(b.wins+b.losses);return rb-ra||b.wins-a.wins;});
+    if(!players.length){el.innerHTML='<div class="empty-state"><div class="icon">👤</div><p>경기 기록이 없습니다<br><small style="color:#94a3b8">2경기 이상 필요</small></p></div>';return;}
+    el.innerHTML=players.map((p,i)=>{
+      const wr=Math.round(p.wins/(p.wins+p.losses)*100);
+      const g=getGender(p.name);const nc=g==='male'?'#2563eb':g==='female'?'#db2777':'#1e293b';
+      const isSel=p.name===_selectedRankKey;
+      let det='';
+      if(isSel){
+        const vs=Object.entries(vsData).filter(([k,v])=>(v.wins||0)+(v.losses||0)>=1)
+          .map(([k,v])=>{const t=(v.wins||0)+(v.losses||0);const vr=Math.round((v.wins||0)/t*100);const og=getGender(k);const oc=og==='male'?'#2563eb':og==='female'?'#db2777':'#1e293b';return{name:k,wins:v.wins||0,losses:v.losses||0,wr:vr,color:oc};})
+          .sort((a,b)=>b.wr-a.wr);
+        det=`<div class="rank-detail"><div style="font-size:0.72rem;font-weight:700;color:#2563eb;margin-bottom:6px">📊 상대선수 전적</div>${vs.length?vs.map(v=>`<div class="rank-detail-row"><span style="flex:1;color:${v.color};font-weight:600">${v.name}</span><span style="color:#16a34a;font-weight:700;min-width:32px">${v.wins}승</span><span style="color:#dc2626;font-weight:700;min-width:32px">${v.losses}패</span><span class="rank-winrate" style="color:${v.wr>=50?'#16a34a':'#dc2626'};min-width:40px;text-align:right">${v.wr}%</span></div>`).join(''):'<p style="font-size:0.78rem;color:#94a3b8;text-align:center;margin:0">상대 기록 없음</p>'}</div>`;
+      }
+      return `<div class="rank-item${isSel?' selected':''}" onclick="toggleRankDetail('${p.name}')"><div style="display:flex;align-items:center;gap:8px"><span class="rank-num">${i+1}위</span><span class="rank-name" style="color:${nc}">${p.name}</span><span class="rank-stat">${p.wins}승 ${p.losses}패</span><span class="rank-winrate" style="color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span></div></div>${det}`;
+    }).join('');
+  }
+}
+
+function toggleRankDetail(key){
+  _selectedRankKey=_selectedRankKey===key?null:key;
+  renderRankingTab();
+}
 
 // NTRP 숫자 조회 (없으면 0) — 정회원 및 게스트 모두 조회
 function getNtrp(name) {
@@ -1962,16 +2228,20 @@ function submitScore() {
   saveActiveState();
   closeModal();
   renderTournament(type);
+  // 통계 테이블 업데이트 (팀 구성이 있는 경우만)
+  if(match.team0&&match.team0.length===2&&match.team1&&match.team1.length===2) {
+    updateMatchStats(match.team0,match.team1,match.winner,'','');
+  }
 }
 
 // ══ MATCH SUB-TABS ══
 function switchMatchTab(type) {
-  ['mixed','mens','womens'].forEach(t => {
+  ['daily','mixed','mens','womens'].forEach(t => {
     document.getElementById(`match-panel-${t}`).style.display = t===type?'block':'none';
     document.getElementById(`mtab-${t}`).className = 'sub-tab'+(t===type?' active':'');
   });
-  // 탭 전환 시 해당 브래킷 렌더링 (lazy render)
-  if(state.tournaments[type]) renderTournament(type);
+  if(type==='daily') renderDailyTab();
+  else if(state.tournaments[type]) renderTournament(type);
 }
 
 // ══ NAV ══
@@ -2574,7 +2844,12 @@ function switchHistoryTab(tab) {
   document.querySelectorAll('[id^="htab-"]').forEach(el => el.classList.remove('active'));
   const tabEl = document.getElementById(`htab-${tab}`);
   if(tabEl) tabEl.classList.add('active');
-  renderHistoryList();
+  const isRanking = tab === 'ranking';
+  document.getElementById('ranking-panel').style.display = isRanking ? 'block' : 'none';
+  document.getElementById('tournament-history-list').style.display = isRanking ? 'none' : 'block';
+  document.getElementById('reload-history-btn').style.display = isRanking ? 'none' : '';
+  if(isRanking) renderRankingTab();
+  else renderHistoryList();
 }
 
 function renderHistoryList() {
