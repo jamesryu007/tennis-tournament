@@ -1810,7 +1810,9 @@ function renderTournament(type, opts) {
       const cy=mcy(ri,mi), my=cy-MH/2;
       const div=document.createElement('div');
       const editMode = _bracketEditMode===type && !readOnly && ri===0;
-      const canClick = !editMode && match.team0 && match.team1 && state.isCreator && !readOnly;
+      const myName = (state.identity && state.identity.name) || '';
+      const isMatchPlayer = myName && ((match.team0 && match.team0.includes(myName)) || (match.team1 && match.team1.includes(myName)));
+      const canClick = !editMode && match.team0 && match.team1 && (isManager() || state.isCreator || isMatchPlayer) && !readOnly;
       div.className='match'+(canClick?' clickable':'')+(editMode?' edit-active':'');
       div.style.cssText=`left:${mx}px;top:${my}px;width:${MW}px;height:${MH}px;`;
       if(canClick) div.onclick=()=>openModal(type,ri,mi);
