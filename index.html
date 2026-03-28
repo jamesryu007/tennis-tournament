@@ -943,6 +943,7 @@ function saveActiveState() {
 // 파싱된 activeState 객체를 state에 반영
 function applyActiveState(saved) {
   if(!saved || !saved.currentHistoryId) return false;
+  hideFinishedBanner();
   state.currentHistoryId = saved.currentHistoryId;
   state.tournaments = saved.tournaments || { mixed: null, mens: null, womens: null };
   state.guests = saved.guests || [];
