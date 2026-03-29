@@ -918,9 +918,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <button class="modal-close" onclick="closeDailyPickModal()">✕</button>
     </div>
     <div style="padding:14px 16px">
-      <p style="font-size:0.82rem;color:#64748b;margin-bottom:12px">페어링된 닉네임을 선택하거나 선수 <strong>2명</strong>을 선택하세요</p>
+      <p style="font-size:0.82rem;color:#64748b;margin-bottom:6px">페어링된 닉네임을 선택하거나 선수 <strong>2명</strong>을 선택하세요</p>
+      <div id="daily-pick-info" style="font-size:0.85rem;font-weight:600;margin-bottom:10px;color:#94a3b8;display:none"></div>
       <div id="daily-pick-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px"></div>
-      <div id="daily-pick-info" style="font-size:0.85rem;font-weight:600;margin-bottom:14px;color:#94a3b8;display:none"></div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-warning btn-full" onclick="closeDailyPickModal()">취소</button>
         <button class="btn btn-primary btn-full" id="daily-pick-confirm" onclick="confirmDailyPick()" disabled>확인</button>
