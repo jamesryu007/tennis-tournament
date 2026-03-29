@@ -1952,10 +1952,10 @@ function _renderDailyPickList(){
   const list=document.getElementById('daily-pick-list');
   let html='';
 
-  // 기존 팀 섹션
+  // 기존 팀 섹션 — 참가자 필터 없이 닉네임 있는 전체 팀 표시 (상대팀에 배정된 선수만 제외)
   const knownPairs=Object.entries(state.pairNicknames||{}).filter(([key])=>{
     const [a,b]=key.split('_');
-    return players.includes(a)&&players.includes(b)&&!other.includes(a)&&!other.includes(b);
+    return !other.includes(a)&&!other.includes(b);
   });
   if(knownPairs.length){
     const btns=knownPairs.map(([key,nick])=>{
