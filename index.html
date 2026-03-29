@@ -1730,6 +1730,7 @@ async function updateMatchStats(team0,team1,winner,nick0,nick1){
 
 // ══ 오늘의 경기 탭 ═══════════════════════════════════════════════
 const _dailyCards={};
+let _dailyCardCounter=0;
 let _dailyPickCtx=null;
 let _dailyPickSel=[];
 let _dailyScoreCtx=null;
@@ -1812,12 +1813,16 @@ function _allPlayers(){
 
 const _DC_BG_IMAGES=['ca2.png','ca3.png','ca4.png','ca5.png','ca6.png','ca7.png','ca8.png','ca9.png','ca10.png','ca11.png'];
 function addDailyMatchCard(){
-  if(!db) return;
+  const id=++_dailyCardCounter;
   const bgImage='images/'+_DC_BG_IMAGES[Math.floor(Math.random()*_DC_BG_IMAGES.length)];
   const num=Object.keys(_dailyCards).length+1;
-  const newCard={phase:'setup',team0:[],team1:[],sets:[],winner:-1,bgImage,num};
-  const ref=db.ref('jmt/dailyCards').push(newCard);
-  _pendingScrollKey=ref.key;
+  _dailyCards[id]={phase:'setup',team0:[],team1:[],sets:[],winner:-1,bgImage,num};
+  const container=document.getElementById('daily-match-cards');
+  const el=document.createElement('div');
+  el.id=`daily-card-${id}`;
+  container.appendChild(el);
+  _renderDailyCard(id);
+  setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),50);
 }
 
 function _renderDailyCard(id){
@@ -1987,7 +1992,7 @@ function confirmDailyPick(){
   _dailyCards[id][`team${side}`]=[..._dailyPickSel];
   _dailyPickCtx=null;_dailyPickSel=[];
   document.getElementById('daily-pick-modal').classList.remove('open');
-  _saveCardToFirebase(id);
+  if(_dailyCards[id]&&_dailyCards[id].phase!=='setup') _saveCardToFirebase(id);
 }
 
 function closeDailyPickModal(){
@@ -1999,7 +2004,16 @@ function startDailyMatch(id){
   const d=_dailyCards[id];
   if(!d||d.team0.length!==2||d.team1.length!==2) return;
   d.phase='playing';
-  _saveCardToFirebase(id);
+  if(db){
+    const cardData={phase:'playing',team0:[...d.team0],team1:[...d.team1],sets:[],winner:-1,bgImage:d.bgImage,num:d.num};
+    const ref=db.ref('jmt/dailyCards').push(cardData);
+    _pendingScrollKey=ref.key;
+    delete _dailyCards[id];
+    const el=document.getElementById(`daily-card-${id}`);
+    if(el) el.remove();
+  } else {
+    _renderDailyCard(id);
+  }
 }
 
 function openDailyScore(id){
@@ -2118,7 +2132,10 @@ async function saveDailyScore(){
 }
 
 function removeDailyCard(id){
-  if(db) db.ref(`jmt/dailyCards/${id}`).remove().catch(()=>{});
+  // setup phase only — not yet in Firebase
+  delete _dailyCards[id];
+  const el=document.getElementById(`daily-card-${id}`);
+  if(el) el.remove();
 }
 
 // ══ 최근 경기 요약 캐러셀 ══════════════════════════════════════════
