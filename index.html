@@ -177,7 +177,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .dc-win-icon  { font-size:2.2rem; line-height:1; animation:bounce-celebrate 1.4s ease-in-out infinite; }
 .dc-lose-icon { font-size:2.2rem; line-height:1; animation:shake-sad 2.2s ease-in-out infinite; opacity:0.85; }
 /* 점수 입력 폼 */
-.dc-score-set { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.dc-score-set { display:flex; align-items:center; gap:8px; margin-bottom:8px; width:100%; }
 .dc-score-label { font-size:0.78rem; color:#64748b; min-width:38px; }
 .dc-score-inp { width:54px; text-align:center; font-size:1.1rem; font-weight:700; padding:8px 4px; border:1.5px solid #e2e8f0; border-radius:8px; background:#f8fafc; }
 .dc-score-btn { width:54px; height:44px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; font-weight:700; border:2px solid #e2e8f0; border-radius:10px; background:#f8fafc; color:#94a3b8; cursor:pointer; -webkit-tap-highlight-color:transparent; }
@@ -2141,12 +2141,19 @@ function _renderDailyScoreSets(){
   for(let i=0;i<_dailyScoreSets;i++){
     const row=document.createElement('div');
     row.className='dc-score-set';
-    row.innerHTML=`<span class="dc-score-label">${i+1}세트</span>
-      <div class="dc-score-btn" id="dscore-btn-a-${i}" onclick="selectScoreField('dscore-a-${i}')">-</div>
-      <input type="hidden" id="dscore-a-${i}" value="">
-      <span style="font-weight:800;color:#cbd5e1;font-size:1.1rem">:</span>
-      <div class="dc-score-btn" id="dscore-btn-b-${i}" onclick="selectScoreField('dscore-b-${i}')">-</div>
-      <input type="hidden" id="dscore-b-${i}" value="">`;
+    row.innerHTML=`
+      <div style="flex:1;display:flex;justify-content:center">
+        <div class="dc-score-btn" id="dscore-btn-a-${i}" onclick="selectScoreField('dscore-a-${i}')">-</div>
+        <input type="hidden" id="dscore-a-${i}" value="">
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:28px">
+        <span style="font-size:0.65rem;color:#94a3b8;font-weight:600">${i+1}세트</span>
+        <span style="font-weight:800;color:#cbd5e1;font-size:1.1rem">:</span>
+      </div>
+      <div style="flex:1;display:flex;justify-content:center">
+        <div class="dc-score-btn" id="dscore-btn-b-${i}" onclick="selectScoreField('dscore-b-${i}')">-</div>
+        <input type="hidden" id="dscore-b-${i}" value="">
+      </div>`;
     sets.appendChild(row);
   }
   // 첫 번째 필드 자동 선택
@@ -2164,12 +2171,19 @@ function addDailyScoreSet(){
   const sets=document.getElementById('daily-score-sets');
   const row=document.createElement('div');
   row.className='dc-score-set';
-  row.innerHTML=`<span class="dc-score-label">${i+1}세트</span>
-    <div class="dc-score-btn" id="dscore-btn-a-${i}" onclick="selectScoreField('dscore-a-${i}')">-</div>
-    <input type="hidden" id="dscore-a-${i}" value="">
-    <span style="font-weight:800;color:#cbd5e1;font-size:1.1rem">:</span>
-    <div class="dc-score-btn" id="dscore-btn-b-${i}" onclick="selectScoreField('dscore-b-${i}')">-</div>
-    <input type="hidden" id="dscore-b-${i}" value="">`;
+  row.innerHTML=`
+    <div style="flex:1;display:flex;justify-content:center">
+      <div class="dc-score-btn" id="dscore-btn-a-${i}" onclick="selectScoreField('dscore-a-${i}')">-</div>
+      <input type="hidden" id="dscore-a-${i}" value="">
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:28px">
+      <span style="font-size:0.65rem;color:#94a3b8;font-weight:600">${i+1}세트</span>
+      <span style="font-weight:800;color:#cbd5e1;font-size:1.1rem">:</span>
+    </div>
+    <div style="flex:1;display:flex;justify-content:center">
+      <div class="dc-score-btn" id="dscore-btn-b-${i}" onclick="selectScoreField('dscore-b-${i}')">-</div>
+      <input type="hidden" id="dscore-b-${i}" value="">
+    </div>`;
   setTimeout(()=>selectScoreField(`dscore-a-${i}`),50);
   sets.appendChild(row);
   const addDiv=document.getElementById('daily-score-addset');
