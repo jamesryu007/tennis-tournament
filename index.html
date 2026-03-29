@@ -1698,15 +1698,16 @@ async function reverseMatchStats(team0,team1,oldWinner){
   const k0=getPairKey(team0[0],team0[1]),k1=getPairKey(team1[0],team1[1]);
   const w0=oldWinner===0?-1:0,w1=oldWinner===1?-1:0,dr=oldWinner===-1?-1:0;
   const u={};
-  u[`jmt/pairStats/${k0}/wins`]=INC(w0);   u[`jmt/pairStats/${k0}/losses`]=INC(w1);   u[`jmt/pairStats/${k0}/draws`]=INC(dr);
-  u[`jmt/pairStats/${k1}/wins`]=INC(w1);   u[`jmt/pairStats/${k1}/losses`]=INC(w0);   u[`jmt/pairStats/${k1}/draws`]=INC(dr);
-  u[`jmt/pairMatchups/${k0}/${k1}/wins`]=INC(w0);u[`jmt/pairMatchups/${k0}/${k1}/losses`]=INC(w1);u[`jmt/pairMatchups/${k0}/${k1}/draws`]=INC(dr);
-  u[`jmt/pairMatchups/${k1}/${k0}/wins`]=INC(w1);u[`jmt/pairMatchups/${k1}/${k0}/losses`]=INC(w0);u[`jmt/pairMatchups/${k1}/${k0}/draws`]=INC(dr);
-  for(const p of team0){u[`jmt/playerStats/${p}/wins`]=INC(w0);u[`jmt/playerStats/${p}/losses`]=INC(w1);u[`jmt/playerStats/${p}/draws`]=INC(dr);}
-  for(const p of team1){u[`jmt/playerStats/${p}/wins`]=INC(w1);u[`jmt/playerStats/${p}/losses`]=INC(w0);u[`jmt/playerStats/${p}/draws`]=INC(dr);}
+  const yr=_rankYear;
+  u[`jmt/pairStats/${yr}/${k0}/wins`]=INC(w0);   u[`jmt/pairStats/${yr}/${k0}/losses`]=INC(w1);   u[`jmt/pairStats/${yr}/${k0}/draws`]=INC(dr);
+  u[`jmt/pairStats/${yr}/${k1}/wins`]=INC(w1);   u[`jmt/pairStats/${yr}/${k1}/losses`]=INC(w0);   u[`jmt/pairStats/${yr}/${k1}/draws`]=INC(dr);
+  u[`jmt/pairMatchups/${yr}/${k0}/${k1}/wins`]=INC(w0);u[`jmt/pairMatchups/${yr}/${k0}/${k1}/losses`]=INC(w1);u[`jmt/pairMatchups/${yr}/${k0}/${k1}/draws`]=INC(dr);
+  u[`jmt/pairMatchups/${yr}/${k1}/${k0}/wins`]=INC(w1);u[`jmt/pairMatchups/${yr}/${k1}/${k0}/losses`]=INC(w0);u[`jmt/pairMatchups/${yr}/${k1}/${k0}/draws`]=INC(dr);
+  for(const p of team0){u[`jmt/playerStats/${yr}/${p}/wins`]=INC(w0);u[`jmt/playerStats/${yr}/${p}/losses`]=INC(w1);u[`jmt/playerStats/${yr}/${p}/draws`]=INC(dr);}
+  for(const p of team1){u[`jmt/playerStats/${yr}/${p}/wins`]=INC(w1);u[`jmt/playerStats/${yr}/${p}/losses`]=INC(w0);u[`jmt/playerStats/${yr}/${p}/draws`]=INC(dr);}
   for(const p0 of team0)for(const p1 of team1){
-    u[`jmt/playerMatchups/${p0}/${p1}/wins`]=INC(w0);u[`jmt/playerMatchups/${p0}/${p1}/losses`]=INC(w1);u[`jmt/playerMatchups/${p0}/${p1}/draws`]=INC(dr);
-    u[`jmt/playerMatchups/${p1}/${p0}/wins`]=INC(w1);u[`jmt/playerMatchups/${p1}/${p0}/losses`]=INC(w0);u[`jmt/playerMatchups/${p1}/${p0}/draws`]=INC(dr);
+    u[`jmt/playerMatchups/${yr}/${p0}/${p1}/wins`]=INC(w0);u[`jmt/playerMatchups/${yr}/${p0}/${p1}/losses`]=INC(w1);u[`jmt/playerMatchups/${yr}/${p0}/${p1}/draws`]=INC(dr);
+    u[`jmt/playerMatchups/${yr}/${p1}/${p0}/wins`]=INC(w1);u[`jmt/playerMatchups/${yr}/${p1}/${p0}/losses`]=INC(w0);u[`jmt/playerMatchups/${yr}/${p1}/${p0}/draws`]=INC(dr);
   }
   await db.ref().update(u).catch(fbErr);
 }
@@ -1717,17 +1718,18 @@ async function updateMatchStats(team0,team1,winner,nick0,nick1){
   const k0=getPairKey(team0[0],team0[1]),k1=getPairKey(team1[0],team1[1]);
   const w0=winner===0?1:0, w1=winner===1?1:0, dr=winner===-1?1:0;
   const u={};
-  u[`jmt/pairStats/${k0}/wins`]=INC(w0);  u[`jmt/pairStats/${k0}/losses`]=INC(w1);  u[`jmt/pairStats/${k0}/draws`]=INC(dr);
-  u[`jmt/pairStats/${k0}/players`]=team0; if(nick0)u[`jmt/pairStats/${k0}/nickname`]=nick0;
-  u[`jmt/pairStats/${k1}/wins`]=INC(w1);  u[`jmt/pairStats/${k1}/losses`]=INC(w0);  u[`jmt/pairStats/${k1}/draws`]=INC(dr);
-  u[`jmt/pairStats/${k1}/players`]=team1; if(nick1)u[`jmt/pairStats/${k1}/nickname`]=nick1;
-  u[`jmt/pairMatchups/${k0}/${k1}/wins`]=INC(w0); u[`jmt/pairMatchups/${k0}/${k1}/losses`]=INC(w1); u[`jmt/pairMatchups/${k0}/${k1}/draws`]=INC(dr);
-  u[`jmt/pairMatchups/${k1}/${k0}/wins`]=INC(w1); u[`jmt/pairMatchups/${k1}/${k0}/losses`]=INC(w0); u[`jmt/pairMatchups/${k1}/${k0}/draws`]=INC(dr);
-  for(const p of team0){u[`jmt/playerStats/${p}/wins`]=INC(w0);u[`jmt/playerStats/${p}/losses`]=INC(w1);u[`jmt/playerStats/${p}/draws`]=INC(dr);}
-  for(const p of team1){u[`jmt/playerStats/${p}/wins`]=INC(w1);u[`jmt/playerStats/${p}/losses`]=INC(w0);u[`jmt/playerStats/${p}/draws`]=INC(dr);}
+  const yr=_rankYear;
+  u[`jmt/pairStats/${yr}/${k0}/wins`]=INC(w0);  u[`jmt/pairStats/${yr}/${k0}/losses`]=INC(w1);  u[`jmt/pairStats/${yr}/${k0}/draws`]=INC(dr);
+  u[`jmt/pairStats/${yr}/${k0}/players`]=team0; if(nick0)u[`jmt/pairStats/${yr}/${k0}/nickname`]=nick0;
+  u[`jmt/pairStats/${yr}/${k1}/wins`]=INC(w1);  u[`jmt/pairStats/${yr}/${k1}/losses`]=INC(w0);  u[`jmt/pairStats/${yr}/${k1}/draws`]=INC(dr);
+  u[`jmt/pairStats/${yr}/${k1}/players`]=team1; if(nick1)u[`jmt/pairStats/${yr}/${k1}/nickname`]=nick1;
+  u[`jmt/pairMatchups/${yr}/${k0}/${k1}/wins`]=INC(w0); u[`jmt/pairMatchups/${yr}/${k0}/${k1}/losses`]=INC(w1); u[`jmt/pairMatchups/${yr}/${k0}/${k1}/draws`]=INC(dr);
+  u[`jmt/pairMatchups/${yr}/${k1}/${k0}/wins`]=INC(w1); u[`jmt/pairMatchups/${yr}/${k1}/${k0}/losses`]=INC(w0); u[`jmt/pairMatchups/${yr}/${k1}/${k0}/draws`]=INC(dr);
+  for(const p of team0){u[`jmt/playerStats/${yr}/${p}/wins`]=INC(w0);u[`jmt/playerStats/${yr}/${p}/losses`]=INC(w1);u[`jmt/playerStats/${yr}/${p}/draws`]=INC(dr);}
+  for(const p of team1){u[`jmt/playerStats/${yr}/${p}/wins`]=INC(w1);u[`jmt/playerStats/${yr}/${p}/losses`]=INC(w0);u[`jmt/playerStats/${yr}/${p}/draws`]=INC(dr);}
   for(const p0 of team0)for(const p1 of team1){
-    u[`jmt/playerMatchups/${p0}/${p1}/wins`]=INC(w0);u[`jmt/playerMatchups/${p0}/${p1}/losses`]=INC(w1);u[`jmt/playerMatchups/${p0}/${p1}/draws`]=INC(dr);
-    u[`jmt/playerMatchups/${p1}/${p0}/wins`]=INC(w1);u[`jmt/playerMatchups/${p1}/${p0}/losses`]=INC(w0);u[`jmt/playerMatchups/${p1}/${p0}/draws`]=INC(dr);
+    u[`jmt/playerMatchups/${yr}/${p0}/${p1}/wins`]=INC(w0);u[`jmt/playerMatchups/${yr}/${p0}/${p1}/losses`]=INC(w1);u[`jmt/playerMatchups/${yr}/${p0}/${p1}/draws`]=INC(dr);
+    u[`jmt/playerMatchups/${yr}/${p1}/${p0}/wins`]=INC(w1);u[`jmt/playerMatchups/${yr}/${p1}/${p0}/losses`]=INC(w0);u[`jmt/playerMatchups/${yr}/${p1}/${p0}/draws`]=INC(dr);
   }
   await db.ref().update(u).catch(fbErr);
 }
@@ -2146,8 +2148,8 @@ async function saveDailyScore(){
   try{
     // 닉네임 저장
     const nickUpdates={};
-    if(nick0){nickUpdates[`jmt/pairNicknames/${k0}`]=nick0;nickUpdates[`jmt/pairStats/${k0}/nickname`]=nick0;}
-    if(nick1){nickUpdates[`jmt/pairNicknames/${k1}`]=nick1;nickUpdates[`jmt/pairStats/${k1}/nickname`]=nick1;}
+    if(nick0){nickUpdates[`jmt/pairNicknames/${k0}`]=nick0;nickUpdates[`jmt/pairStats/${_rankYear}/${k0}/nickname`]=nick0;}
+    if(nick1){nickUpdates[`jmt/pairNicknames/${k1}`]=nick1;nickUpdates[`jmt/pairStats/${_rankYear}/${k1}/nickname`]=nick1;}
     if(Object.keys(nickUpdates).length) await db.ref().update(nickUpdates);
     if(d.matchKey){
       const oldWinner=d.winner; // 이전 결과 (undefined이면 아직 통계 미적용)
@@ -2308,6 +2310,7 @@ function goCarousel(idx,animate){
 })();
 
 // ══ 자미터랭킹 탭 ═════════════════════════════════════════════════
+const _rankYear = new Date().getFullYear();   // 연도별 경로 분리용
 function effWr(wins,draws,losses){ const t=wins+(draws||0)+losses; return t?((wins+(draws||0)*0.5)/t*100):0; }
 
 let _rankingMode='pair';
@@ -2317,8 +2320,8 @@ let _selectedRankKey=null;
 async function loadRankingTop3(){
   if(!db) return;
   const [psSnap,plSnap]=await Promise.all([
-    db.ref('jmt/pairStats').once('value'),
-    db.ref('jmt/playerStats').once('value')
+    db.ref(`jmt/pairStats/${_rankYear}`).once('value'),
+    db.ref(`jmt/playerStats/${_rankYear}`).once('value')
   ]);
   const psData=psSnap.val()||{};
   const plData=plSnap.val()||{};
@@ -2326,7 +2329,7 @@ async function loadRankingTop3(){
     .map(([k,v])=>({key:k,players:v.players||k.split('_'),wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
     .filter(p=>p.wins+p.draws+p.losses>=1);
   const t3PairAvg=t3PairRaw.length?t3PairRaw.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/t3PairRaw.length:0;
-  const t3PairTh=t3PairAvg*0.6;
+  const t3PairTh=t3PairAvg*0.5;
   const t3PairQ=t3PairRaw.filter(p=>p.wins+p.draws+p.losses>=t3PairTh).sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
   const t3PairU=t3PairRaw.filter(p=>p.wins+p.draws+p.losses<t3PairTh).sort((a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins;});
   state._pairTop3=[...t3PairQ,...t3PairU].slice(0,3);
@@ -2335,7 +2338,7 @@ async function loadRankingTop3(){
     .map(([name,v])=>({name,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
     .filter(p=>p.wins+p.draws+p.losses>=1);
   const t3PlAvg=t3PlRaw.length?t3PlRaw.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/t3PlRaw.length:0;
-  const t3PlTh=t3PlAvg*0.6;
+  const t3PlTh=t3PlAvg*0.5;
   const t3PlQ=t3PlRaw.filter(p=>p.wins+p.draws+p.losses>=t3PlTh).sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
   const t3PlU=t3PlRaw.filter(p=>p.wins+p.draws+p.losses<t3PlTh).sort((a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins;});
   state._playerTop3=[...t3PlQ,...t3PlU].slice(0,3);
@@ -2390,8 +2393,8 @@ async function renderRankingTab(){
 
   if(_rankingMode==='pair'){
     const [ssSnap,vsSnap]=await Promise.all([
-      db.ref('jmt/pairStats').once('value'),
-      _selectedRankKey?db.ref(`jmt/pairMatchups/${_selectedRankKey}`).once('value'):Promise.resolve(null)
+      db.ref(`jmt/pairStats/${_rankYear}`).once('value'),
+      _selectedRankKey?db.ref(`jmt/pairMatchups/${_rankYear}/${_selectedRankKey}`).once('value'):Promise.resolve(null)
     ]);
     const stats=ssSnap.val()||{},vsData=vsSnap?vsSnap.val()||{}:{};
     const pairsRaw=Object.entries(stats)
@@ -2399,7 +2402,7 @@ async function renderRankingTab(){
       .filter(p=>p.wins+p.draws+p.losses>=1);
     if(!pairsRaw.length){el.innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>경기 기록이 없습니다</p></div>';return;}
     const pairAvgG=pairsRaw.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/pairsRaw.length;
-    const pairThresh=pairAvgG*0.6;
+    const pairThresh=pairAvgG*0.5;
     const sortFnQ=(a,b)=>{const ra=effWr(a.wins,a.draws,a.losses),rb=effWr(b.wins,b.draws,b.losses);return rb-ra||b.wins-a.wins;};
     const sortFnU=(a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins;};
     const pairsQ=pairsRaw.filter(p=>p.wins+p.draws+p.losses>=pairThresh).sort(sortFnQ).map(p=>({...p,qualified:true}));
@@ -2452,8 +2455,8 @@ async function renderRankingTab(){
 
   } else {
     const [ssSnap,vsSnap]=await Promise.all([
-      db.ref('jmt/playerStats').once('value'),
-      _selectedRankKey?db.ref(`jmt/playerMatchups/${_selectedRankKey}`).once('value'):Promise.resolve(null)
+      db.ref(`jmt/playerStats/${_rankYear}`).once('value'),
+      _selectedRankKey?db.ref(`jmt/playerMatchups/${_rankYear}/${_selectedRankKey}`).once('value'):Promise.resolve(null)
     ]);
     const stats=ssSnap.val()||{},vsData=vsSnap?vsSnap.val()||{}:{};
     const playersRaw=Object.entries(stats)
@@ -2461,7 +2464,7 @@ async function renderRankingTab(){
       .filter(p=>p.wins+p.draws+p.losses>=1);
     if(!playersRaw.length){el.innerHTML='<div class="empty-state"><div class="icon">👤</div><p>경기 기록이 없습니다</p></div>';return;}
     const playerAvgG=playersRaw.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/playersRaw.length;
-    const playerThresh=playerAvgG*0.6;
+    const playerThresh=playerAvgG*0.5;
     const sortFnPlQ=(a,b)=>{const ra=effWr(a.wins,a.draws,a.losses),rb=effWr(b.wins,b.draws,b.losses);return rb-ra||b.wins-a.wins;};
     const sortFnPlU=(a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins;};
     const playersQ=playersRaw.filter(p=>p.wins+p.draws+p.losses>=playerThresh).sort(sortFnPlQ).map(p=>({...p,qualified:true}));
