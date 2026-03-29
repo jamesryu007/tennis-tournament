@@ -3340,11 +3340,9 @@ function renderCheckinPage() {
       ${guestEntries.length?`<span class="poll-pill guest">👤 게스트 ${guestEntries.length}명</span>`:''}
       ${notVoted.length?`<span class="poll-pill notvoted">❓ 미투표 ${notVoted.length}명</span>`:''}
     </div>
-    ${totalAttending>=4?(pd.bracketCreated
+    ${totalAttending>=4&&isManager()?(pd.bracketCreated
       ? `<button class="btn btn-full" style="margin:8px 0 10px;background:#94a3b8;cursor:not-allowed" disabled>✅ 이미 모임만들기로 보냈습니다</button>`
-      : isManager()
-        ? `<button class="btn btn-success btn-full" style="margin:8px 0 10px" onclick="createBracketFromPoll()">🎾 ${totalAttending}명으로 확정되어 모임만들기로 토스</button>`
-        : `<button class="btn btn-full" style="margin:8px 0 10px;background:#94a3b8;cursor:not-allowed" disabled title="관리자만 사용할 수 있습니다">🎾 ${totalAttending}명으로 확정되어 모임만들기로 토스</button>`)
+      : `<button class="btn btn-success btn-full" style="margin:8px 0 10px" onclick="createBracketFromPoll()">🎾 ${totalAttending}명으로 확정되어 모임만들기로 토스</button>`)
     :''}`;
   }
   html += voterGroup(attendVoters, '✅ 참석');
