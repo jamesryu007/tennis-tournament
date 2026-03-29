@@ -1968,8 +1968,8 @@ function _renderDailyPickList(){
     const btns=allPairs.map(([key,nick])=>{
       const [a,b]=key.split('_');
       const isSel=_dailyPickSel.length===2&&_dailyPickSel.includes(a)&&_dailyPickSel.includes(b);
-      // 비활성화: 상대팀으로 확정된 정확한 페어이거나, 진행 중 경기 선수 포함
-      const isOtherTeam=other.length===2&&otherSet.has(a)&&otherSet.has(b);
+      // 비활성화: 상대팀 선수와 한 명이라도 겹치거나, 진행 중 경기 선수 포함
+      const isOtherTeam=other.length>0&&(otherSet.has(a)||otherSet.has(b));
       const isPlaying=playingPlayers.has(a)||playingPlayers.has(b);
       const dis=isOtherTeam||isPlaying;
       const style=`background:${dis?'#f1f5f9':'#fef3c7'};border-color:${dis?'#cbd5e1':'#fcd34d'};color:${dis?'#94a3b8':'#92400e'};font-size:0.7rem;padding:4px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;${dis?'cursor:not-allowed;':''}`;
