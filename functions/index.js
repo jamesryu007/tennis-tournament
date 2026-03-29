@@ -47,7 +47,7 @@ async function sendPush(tokens, title, body, tab = 'checkin', commentId = '') {
 
 // ══ 0. 월요일 오전 8:30 — pollState 자동 오픈 ════════════════════
 exports.autoOpenCheckin = onSchedule(
-  { schedule: '30 8 * * 1', timeZone: 'Asia/Seoul' },
+  { schedule: '0 0 * * 1', timeZone: 'Asia/Seoul' },
   async () => {
     // 이번 주 토요일 날짜 계산 (월요일 기준 +5일, KST)
     const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
