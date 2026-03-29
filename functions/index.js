@@ -113,7 +113,26 @@ exports.notifyCheckinClose = onSchedule(
   }
 );
 
-// ══ 4. 답글 알림 — DB 트리거 ══════════════════════════════════════
+// ══ 4. 댓글 작성 알림 — DB 트리거 (전체) ═════════════════════════
+exports.notifyNewComment = onValueCreated(
+  { ref: 'jmt/poll/{weekId}/comments/{commentId}', region: 'asia-southeast1' },
+  async (event) => {
+    const comment = event.data.val();
+    if (!comment) return;
+    const { author, text } = comment;
+    if (!author) return;
+    const tokens = await getAllTokens();
+    // 작성자 본인 제외
+    const snap = await db.ref('jmt/fcmTokens').once('value');
+    const data = snap.val() || {};
+    const otherTokens = Object.values(data)
+      .filter(v => v.name !== author && v.token)
+      .map(v => v.token);
+    await sendPush(otherTokens, `💬 ${author}님이 댓글을 달았습니다`, text, 'checkin', event.params.commentId);
+  }
+);
+
+// ══ 6. 답글 알림 — DB 트리거 ══════════════════════════════════════
 exports.notifyCommentReply = onValueCreated(
   { ref: 'jmt/poll/{weekId}/comments/{commentId}/replies/{replyId}', region: 'asia-southeast1' },
   async (event) => {
@@ -127,7 +146,7 @@ exports.notifyCommentReply = onValueCreated(
   }
 );
 
-// ══ 5. 대진 생성/수정 감지 — DB 트리거 ═══════════════════════════
+// ══ 7. 대진 생성/수정 감지 — DB 트리거 ═══════════════════════════
 exports.notifyBracketUpdate = onValueWritten(
   { ref: 'jmt/activeState', region: 'asia-southeast1' },
   async (event) => {
