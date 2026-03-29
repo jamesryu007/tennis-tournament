@@ -134,7 +134,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
 /* ── DAILY MATCH 카드 (캐러셀 완전 동일 스타일) ── */
 .dc-card { background:#0f172a; border-radius:18px; overflow:hidden; position:relative; margin-bottom:10px; box-shadow:0 6px 24px rgba(0,0,0,0.22); }
-.dc-card-bg { position:absolute; inset:0; background-size:cover; background-position:center; background-repeat:no-repeat; opacity:0.68; pointer-events:none; }
+.dc-card-bg { position:absolute; inset:0; opacity:0.68; pointer-events:none; }
 .dc-card-header { position:relative; display:flex; align-items:center; justify-content:space-between; padding:8px 12px 6px; background:rgba(0,0,0,0.58); }
 .dc-num { font-size:0.72rem; font-weight:800; color:#fff; letter-spacing:0.1em; }
 .dc-del-btn { background:none; border:none; color:rgba(255,255,255,0.5); font-size:1.0rem; cursor:pointer; padding:2px 4px; line-height:1; }
@@ -263,7 +263,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .carousel-track { display:flex; transition:transform 0.8s cubic-bezier(0.25,0.46,0.45,0.94); }
 /* 카드 전체 */
 .carousel-card { min-width:100%; box-sizing:border-box; border-radius:18px; overflow:hidden; position:relative; background:#0f172a; }
-.cc-bg { position:absolute; inset:0; background-size:cover; background-position:center; background-repeat:no-repeat; opacity:0.68; pointer-events:none; }
+.cc-bg { position:absolute; inset:0; opacity:0.68; pointer-events:none; }
 /* 날짜 헤더 */
 .cc-date { position:relative; text-align:center; padding:8px 0 6px; font-size:0.7rem; font-weight:800; letter-spacing:0.1em; color:#fff; background:rgba(0,0,0,0.48); }
 /* 좌우 바디 */
@@ -1820,7 +1820,7 @@ function _renderDailyCard(id){
   function mkCard(numLabel, leftCol, midCol, rightCol, bgOverride){
     const bgImg = bgOverride || d.bgImage || 'images/ca1.png';
     return `<div class="dc-card">
-      <div class="dc-card-bg" style="background-image:url('${bgImg}')"></div>
+      <div class="dc-card-bg" style="background:url('${bgImg}') center/cover no-repeat"></div>
       <div class="dc-card-header">
         <span class="dc-num">${numLabel}</span>
         <button class="dc-del-btn" onclick="removeDailyCard(${id})">✕</button>
@@ -2160,7 +2160,7 @@ async function renderRecentMatchesCarousel(){
     const _doneBg=_DONE_BGS[Math.floor(Math.random()*_DONE_BGS.length)];
     if(isDraw){
       return `<div class="carousel-card">
-        <div class="cc-bg" style="background-image:url('${_doneBg}')"></div>
+        <div class="cc-bg" style="background:url('${_doneBg}') center/cover no-repeat"></div>
         <div class="cc-date">${dateStr} · 무승부 🤝</div>
         <div class="cc-body">
           <div class="cc-draw-col">
@@ -2178,7 +2178,7 @@ async function renderRecentMatchesCarousel(){
       </div>`;
     }
     return `<div class="carousel-card">
-      <div class="cc-bg" style="background-image:url('${_doneBg}')"></div>
+      <div class="cc-bg" style="background:url('${_doneBg}') center/cover no-repeat"></div>
       <div class="cc-date">${dateStr}</div>
       <div class="cc-body">
         <div class="cc-winner-col">
