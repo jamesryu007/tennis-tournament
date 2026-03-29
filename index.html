@@ -2321,7 +2321,7 @@ let _selectedRankYear = _rankYear;           // 랭킹 조회용 (연도 선택 
 function renderRankYearRow(){
   const row=document.getElementById('rank-year-row');
   if(!row) return;
-  const startYear=2025;
+  const startYear=2026;
   const years=[];
   for(let y=startYear;y<=_rankYear;y++) years.push(y);
   if(years.length<=1){row.style.display='none';return;}
