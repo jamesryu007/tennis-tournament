@@ -2323,8 +2323,8 @@ async function loadRankingTop3(){
   const t3PairRaw=Object.entries(psData)
     .map(([k,v])=>({key:k,players:v.players||k.split('_'),wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
     .filter(p=>p.wins+p.draws+p.losses>=1);
-  const t3PairMaxG=t3PairRaw.length?Math.max(...t3PairRaw.map(p=>p.wins+p.draws+p.losses)):0;
-  const t3PairTh=t3PairMaxG*0.6;
+  const t3PairAvg=t3PairRaw.length?t3PairRaw.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/t3PairRaw.length:0;
+  const t3PairTh=t3PairAvg*0.6;
   const t3PairQ=t3PairRaw.filter(p=>p.wins+p.draws+p.losses>=t3PairTh).sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
   const t3PairU=t3PairRaw.filter(p=>p.wins+p.draws+p.losses<t3PairTh).sort((a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins;});
   state._pairTop3=[...t3PairQ,...t3PairU].slice(0,3);
@@ -2332,8 +2332,8 @@ async function loadRankingTop3(){
   const t3PlRaw=Object.entries(plData)
     .map(([name,v])=>({name,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
     .filter(p=>p.wins+p.draws+p.losses>=1);
-  const t3PlMaxG=t3PlRaw.length?Math.max(...t3PlRaw.map(p=>p.wins+p.draws+p.losses)):0;
-  const t3PlTh=t3PlMaxG*0.6;
+  const t3PlAvg=t3PlRaw.length?t3PlRaw.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/t3PlRaw.length:0;
+  const t3PlTh=t3PlAvg*0.6;
   const t3PlQ=t3PlRaw.filter(p=>p.wins+p.draws+p.losses>=t3PlTh).sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
   const t3PlU=t3PlRaw.filter(p=>p.wins+p.draws+p.losses<t3PlTh).sort((a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins;});
   state._playerTop3=[...t3PlQ,...t3PlU].slice(0,3);
@@ -2396,8 +2396,8 @@ async function renderRankingTab(){
       .map(([k,v])=>({key:k,players:v.players||k.split('_'),nickname:v.nickname,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
       .filter(p=>p.wins+p.draws+p.losses>=1);
     if(!pairsRaw.length){el.innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>경기 기록이 없습니다</p></div>';return;}
-    const pairMaxG=Math.max(...pairsRaw.map(p=>p.wins+p.draws+p.losses));
-    const pairThresh=pairMaxG*0.6;
+    const pairAvgG=pairsRaw.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/pairsRaw.length;
+    const pairThresh=pairAvgG*0.6;
     const sortFnQ=(a,b)=>{const ra=effWr(a.wins,a.draws,a.losses),rb=effWr(b.wins,b.draws,b.losses);return rb-ra||b.wins-a.wins;};
     const sortFnU=(a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins;};
     const pairsQ=pairsRaw.filter(p=>p.wins+p.draws+p.losses>=pairThresh).sort(sortFnQ);
@@ -2458,8 +2458,8 @@ async function renderRankingTab(){
       .map(([k,v])=>({name:k,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
       .filter(p=>p.wins+p.draws+p.losses>=1);
     if(!playersRaw.length){el.innerHTML='<div class="empty-state"><div class="icon">👤</div><p>경기 기록이 없습니다</p></div>';return;}
-    const playerMaxG=Math.max(...playersRaw.map(p=>p.wins+p.draws+p.losses));
-    const playerThresh=playerMaxG*0.6;
+    const playerAvgG=playersRaw.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/playersRaw.length;
+    const playerThresh=playerAvgG*0.6;
     const sortFnPlQ=(a,b)=>{const ra=effWr(a.wins,a.draws,a.losses),rb=effWr(b.wins,b.draws,b.losses);return rb-ra||b.wins-a.wins;};
     const sortFnPlU=(a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins;};
     const playersQ=playersRaw.filter(p=>p.wins+p.draws+p.losses>=playerThresh).sort(sortFnPlQ);
