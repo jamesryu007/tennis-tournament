@@ -2298,7 +2298,7 @@ async function renderRecentMatchesCarousel(){
     const scoreHtml=m.sets.map((s,i)=>{
       const ws=isW0?s.s0:s.s1, ls=isW0?s.s1:s.s0;
       const ws0=isDraw?s.s0:ws, ls0=isDraw?s.s1:ls;
-      return `<div class="cc-set"><span class="cc-set-num">${i+1}S</span><div class="cc-set-score"><span class="cc-sc w">${ws0}</span><span class="cc-sc-sep">:</span><span class="cc-sc l">${ls0}</span></div></div>`;
+      return `<div class="cc-set"><span class="cc-set-num">${i+1}세트</span><div class="cc-set-score"><span class="cc-sc w">${ws0}</span><span class="cc-sc-sep">:</span><span class="cc-sc l">${ls0}</span></div></div>`;
     }).join('<div class="cc-divider"></div>');
     const [,mo,d]=(m.date||'').split('-');
     const dateStr=m.date?`${parseInt(mo)}월 ${parseInt(d)}일`:'';
