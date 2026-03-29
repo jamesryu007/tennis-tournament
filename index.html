@@ -1729,39 +1729,54 @@ async function updateMatchStats(team0,team1,winner,nick0,nick1){
 }
 
 // ══ 오늘의 경기 탭 ═══════════════════════════════════════════════
-const LS_DAILY='jmt_daily';
-let _dailyCardCounter=0;
 const _dailyCards={};
 let _dailyPickCtx=null;
 let _dailyPickSel=[];
 let _dailyScoreCtx=null;
 let _dailyScoreSets=1;
+let _dailyCardsListenerSet=false;
+let _pendingScrollKey=null;
 
-function _saveDailyLocal(){
-  try{
-    const arr=Object.entries(_dailyCards).map(([id,d])=>({id:parseInt(id),...d}));
-    localStorage.setItem(LS_DAILY,JSON.stringify({counter:_dailyCardCounter,cards:arr}));
-  }catch(e){}
+function _saveCardToFirebase(id){
+  if(!db||!_dailyCards[id]) return;
+  db.ref(`jmt/dailyCards/${id}`).set(_dailyCards[id]).catch(()=>{});
 }
 
-function _loadDailyLocal(){
-  try{
-    const raw=localStorage.getItem(LS_DAILY);
-    if(!raw) return;
-    const {counter,cards}=JSON.parse(raw);
-    _dailyCardCounter=counter||0;
+function _setupDailyCardsListener(){
+  if(_dailyCardsListenerSet||!db) return;
+  _dailyCardsListenerSet=true;
+  db.ref('jmt/dailyCards').once('value').then(snap=>{
+    if(!snap.val()||Object.keys(snap.val()).length===0) addDailyMatchCard();
+  });
+  db.ref('jmt/dailyCards').on('child_added',snap=>{
+    const id=snap.key, data=snap.val();
+    _dailyCards[id]=data;
     const container=document.getElementById('daily-match-cards');
-    for(const c of (cards||[])){
-      const {id,...d}=c;
-      _dailyCards[id]=d;
-      if(container){
-        const el=document.createElement('div');
-        el.id=`daily-card-${id}`;
-        container.appendChild(el);
-      }
-      _renderDailyCard(id);
+    if(container&&!document.getElementById(`daily-card-${id}`)){
+      const el=document.createElement('div');
+      el.id=`daily-card-${id}`;
+      container.appendChild(el);
     }
-  }catch(e){}
+    _renderDailyCard(id);
+    if(_pendingScrollKey===id){
+      _pendingScrollKey=null;
+      setTimeout(()=>{
+        const el=document.getElementById(`daily-card-${id}`);
+        if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+      },50);
+    }
+  });
+  db.ref('jmt/dailyCards').on('child_changed',snap=>{
+    const id=snap.key;
+    _dailyCards[id]=snap.val();
+    _renderDailyCard(id);
+  });
+  db.ref('jmt/dailyCards').on('child_removed',snap=>{
+    const id=snap.key;
+    delete _dailyCards[id];
+    const el=document.getElementById(`daily-card-${id}`);
+    if(el) el.remove();
+  });
 }
 
 function _clearDailyCards(){
@@ -1770,8 +1785,7 @@ function _clearDailyCards(){
     if(el) el.remove();
     delete _dailyCards[id];
   }
-  _dailyCardCounter=0;
-  localStorage.removeItem(LS_DAILY);
+  if(db) db.ref('jmt/dailyCards').remove().catch(()=>{});
 }
 
 function renderDailyTab(){
@@ -1780,10 +1794,7 @@ function renderDailyTab(){
   const days=['일','월','화','수','목','금','토'];
   const dateEl=document.getElementById('daily-today-date');
   if(dateEl) dateEl.textContent=`${now.getMonth()+1}월 ${now.getDate()}일(${days[now.getDay()]})`;
-  if(Object.keys(_dailyCards).length===0){
-    _loadDailyLocal();
-    if(Object.keys(_dailyCards).length===0) addDailyMatchCard();
-  }
+  _setupDailyCardsListener();
 }
 
 function _allPlayers(){
@@ -1801,15 +1812,12 @@ function _allPlayers(){
 
 const _DC_BG_IMAGES=['ca2.png','ca3.png','ca4.png','ca5.png','ca6.png','ca7.png','ca8.png','ca9.png','ca10.png','ca11.png'];
 function addDailyMatchCard(){
-  const id=++_dailyCardCounter;
+  if(!db) return;
   const bgImage='images/'+_DC_BG_IMAGES[Math.floor(Math.random()*_DC_BG_IMAGES.length)];
-  _dailyCards[id]={phase:'setup',team0:[],team1:[],nick0:'',nick1:'',sets:[],winner:-1,bgImage};
-  const container=document.getElementById('daily-match-cards');
-  const el=document.createElement('div');
-  el.id=`daily-card-${id}`;
-  container.appendChild(el);
-  _renderDailyCard(id);
-  setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),50);
+  const num=Object.keys(_dailyCards).length+1;
+  const newCard={phase:'setup',team0:[],team1:[],sets:[],winner:-1,bgImage,num};
+  const ref=db.ref('jmt/dailyCards').push(newCard);
+  _pendingScrollKey=ref.key;
 }
 
 function _renderDailyCard(id){
@@ -1823,7 +1831,7 @@ function _renderDailyCard(id){
       <div class="dc-card-bg" style="background:url('${bgImg}') center/cover no-repeat"></div>
       <div class="dc-card-header">
         <span class="dc-num">${numLabel}</span>
-        <button class="dc-del-btn" onclick="removeDailyCard(${id})">✕</button>
+        ${d.phase==='setup'?`<button class="dc-del-btn" onclick="removeDailyCard('${id}')">✕</button>`:''}
       </div>
       <div class="dc-body">
         ${leftCol}
@@ -1847,7 +1855,7 @@ function _renderDailyCard(id){
       </button>
     </div>`;
     const mid=`<button class="dc-start-btn" onclick="startDailyMatch(${id})"${t0f&&t1f?'':' disabled'}>시작</button>`;
-    el.innerHTML=mkCard(`경기${id}`, left, mid, right);
+    el.innerHTML=mkCard(`경기${d.num}`, left, mid, right);
 
   } else if(d.phase==='playing'){
     const t0=_getTeamDisplay(d.team0),t1=_getTeamDisplay(d.team1);
@@ -1860,7 +1868,7 @@ function _renderDailyCard(id){
       <div class="dc-tmembers">${t1.memberStr}</div>
     </div>`;
     const mid=`<button class="dc-score-reg-btn" onclick="openDailyScore(${id})">🎾<br>점수<br>등록</button>`;
-    el.innerHTML=mkCard(`경기${id} <span style="font-size:0.72rem;font-weight:600;color:#a78bfa">(경기진행 중)</span>`, left, mid, right);
+    el.innerHTML=mkCard(`경기${d.num} <span style="font-size:0.72rem;font-weight:600;color:#a78bfa">(경기진행 중)</span>`, left, mid, right);
 
   } else {
     const isDraw=d.winner===-1;
@@ -1903,7 +1911,7 @@ function _renderDailyCard(id){
       return ws===6&&ls<=2;
     });
     const _doneCardBg=_cardDominant?'images/ca.png':'images/ca1.png';
-    el.innerHTML=mkCard(`✅ 경기${id}`, left, mid, right, _doneCardBg);
+    el.innerHTML=mkCard(`✅ 경기${d.num}`, left, mid, right, _doneCardBg);
   }
 }
 
@@ -1979,8 +1987,7 @@ function confirmDailyPick(){
   _dailyCards[id][`team${side}`]=[..._dailyPickSel];
   _dailyPickCtx=null;_dailyPickSel=[];
   document.getElementById('daily-pick-modal').classList.remove('open');
-  _renderDailyCard(id);
-  _saveDailyLocal();
+  _saveCardToFirebase(id);
 }
 
 function closeDailyPickModal(){
@@ -1992,8 +1999,7 @@ function startDailyMatch(id){
   const d=_dailyCards[id];
   if(!d||d.team0.length!==2||d.team1.length!==2) return;
   d.phase='playing';
-  _renderDailyCard(id);
-  _saveDailyLocal();
+  _saveCardToFirebase(id);
 }
 
 function openDailyScore(id){
@@ -2002,7 +2008,7 @@ function openDailyScore(id){
   _dailyScoreCtx=id;
   _dailyScoreSets=Math.max(1,d.sets.length);
   const t0=_getTeamDisplay(d.team0),t1=_getTeamDisplay(d.team1);
-  document.getElementById('daily-score-title').textContent=`경기${id} · ${t0.nick} vs ${t1.nick}`;
+  document.getElementById('daily-score-title').textContent=`경기${d.num} · ${t0.nick} vs ${t1.nick}`;
   // 닉네임 pre-populate
   const k0=getPairKey(d.team0[0],d.team0[1]),k1=getPairKey(d.team1[0],d.team1[1]);
   document.getElementById('daily-nick-0').value=(state.pairNicknames&&state.pairNicknames[k0])||'';
@@ -2107,15 +2113,12 @@ async function saveDailyScore(){
     d.sets=sets;d.winner=winner;d.phase='done';
     document.getElementById('daily-score-modal').classList.remove('open');
     _dailyScoreCtx=null;
-    _renderDailyCard(id);
-    _saveDailyLocal();
+    _saveCardToFirebase(id);
   }catch(e){alert('저장 실패: '+e.message);}
 }
 
 function removeDailyCard(id){
-  delete _dailyCards[id];
-  const el=document.getElementById(`daily-card-${id}`);
-  if(el) el.remove();
+  if(db) db.ref(`jmt/dailyCards/${id}`).remove().catch(()=>{});
 }
 
 // ══ 최근 경기 요약 캐러셀 ══════════════════════════════════════════
