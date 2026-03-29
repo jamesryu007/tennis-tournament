@@ -45,7 +45,27 @@ async function sendPush(tokens, title, body, tab = 'checkin', commentId = '') {
   }
 }
 
-// ══ 1. 화요일 오전 9시 — 출첵 오픈 알림 ══════════════════════════
+// ══ 0. 월요일 오전 8:30 — pollState 자동 오픈 ════════════════════
+exports.autoOpenCheckin = onSchedule(
+  { schedule: '30 8 * * 1', timeZone: 'Asia/Seoul' },
+  async () => {
+    // 이번 주 토요일 날짜 계산 (월요일 기준 +5일, KST)
+    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    const sat = new Date(now);
+    sat.setDate(now.getDate() + 5);
+    const satDate = sat.toISOString().split('T')[0];
+    const weekId = satDate;
+
+    await db.ref('jmt/pollState').set({
+      status: 'open',
+      weekId,
+      satDate,
+      openedAt: new Date().toISOString(),
+    });
+  }
+);
+
+// ══ 1. 월요일 오전 9시 — 출첵 오픈 알림 ══════════════════════════
 exports.notifyCheckinOpen = onSchedule(
   { schedule: '0 9 * * 1', timeZone: 'Asia/Seoul' },
   async () => {
@@ -76,10 +96,17 @@ exports.notifyCheckinReminder = onSchedule(
   }
 );
 
-// ══ 3. 금요일 정오 — 출첵 클로즈 알림 (매니저 3명) ═══════════════
+// ══ 3. 금요일 정오 — 출첵 자동 마감 + 매니저 알림 ════════════════
 exports.notifyCheckinClose = onSchedule(
   { schedule: '0 12 * * 5', timeZone: 'Asia/Seoul' },
   async () => {
+    // pollState 자동 close
+    const snap = await db.ref('jmt/pollState').once('value');
+    const ps = snap.val();
+    if (ps && ps.status === 'open') {
+      await db.ref('jmt/pollState').update({ status: 'closed', closedAt: new Date().toISOString() });
+    }
+
     const MANAGERS = ['유지원', '천지은', '김승수'];
     const tokens = await getTokensByNames(MANAGERS);
     await sendPush(tokens, '🔴 출첵이 마감되었습니다', '참석 인원을 확인하고 대진을 생성해 주세요.');
