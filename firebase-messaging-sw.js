@@ -1,5 +1,6 @@
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
+importScripts('./firebase-config.js');
 
 // ── 캐싱 (sw.js 통합) ──────────────────────────────────────────────
 const CACHE = 'jamite-v13';
@@ -42,15 +43,8 @@ self.addEventListener('fetch', e => {
 });
 
 // ── Firebase Messaging ────────────────────────────────────────────
-firebase.initializeApp({
-  apiKey:            "AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14",
-  authDomain:        "jamite-tennis.firebaseapp.com",
-  databaseURL:       "https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:         "jamite-tennis",
-  storageBucket:     "jamite-tennis.firebasestorage.app",
-  messagingSenderId: "1023676041344",
-  appId:             "1:1023676041344:web:d9a9fcf47f3b280bcbfe65"
-});
+// firebaseConfig 는 importScripts('./firebase-config.js') 에서 로드됩니다
+firebase.initializeApp(firebaseConfig);
 
 const messaging = firebase.messaging();
 

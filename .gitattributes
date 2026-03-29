@@ -1,0 +1,3 @@
+# firebase-config.js 는 브랜치별로 다른 내용을 가집니다.
+# 머지 시 각 브랜치 자신의 파일을 유지합니다 (merge=ours).
+firebase-config.js merge=ours

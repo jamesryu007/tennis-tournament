@@ -446,6 +446,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+<script src="firebase-config.js"></script>
 </head>
 <body>
 
@@ -999,15 +1000,7 @@ let modalCtx = null;
 let _pollDataRef = null;
 
 // ══ FIREBASE CONFIG ══
-const firebaseConfig = {
-  apiKey:            "AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14",
-  authDomain:        "jamite-tennis.firebaseapp.com",
-  databaseURL:       "https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:         "jamite-tennis",
-  storageBucket:     "jamite-tennis.firebasestorage.app",
-  messagingSenderId: "1023676041344",
-  appId:             "1:1023676041344:web:d9a9fcf47f3b280bcbfe65"
-};
+// firebaseConfig 는 firebase-config.js 에서 로드됩니다 (브랜치별 분리)
 
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
