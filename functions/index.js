@@ -47,7 +47,7 @@ async function sendPush(tokens, title, body, tab = 'checkin', commentId = '') {
 
 // ══ 1. 화요일 오전 9시 — 출첵 오픈 알림 ══════════════════════════
 exports.notifyCheckinOpen = onSchedule(
-  { schedule: '0 9 * * 2', timeZone: 'Asia/Seoul' },
+  { schedule: '0 9 * * 1', timeZone: 'Asia/Seoul' },
   async () => {
     const tokens = await getAllTokens();
     await sendPush(tokens, '🎾 자미터 테니스 출첵 오픈!', '이번 주 토요일 모임 출첵을 해주세요 ✋');
