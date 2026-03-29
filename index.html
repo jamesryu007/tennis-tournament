@@ -180,6 +180,12 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .dc-score-set { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
 .dc-score-label { font-size:0.78rem; color:#64748b; min-width:38px; }
 .dc-score-inp { width:54px; text-align:center; font-size:1.1rem; font-weight:700; padding:8px 4px; border:1.5px solid #e2e8f0; border-radius:8px; background:#f8fafc; }
+.dc-score-btn { width:54px; height:44px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; font-weight:700; border:2px solid #e2e8f0; border-radius:10px; background:#f8fafc; color:#94a3b8; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+.dc-score-btn.active { border-color:#3b82f6; background:#eff6ff; color:#2563eb; }
+.dc-score-btn.filled { color:#1e293b; }
+.dc-numpad { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px 0; }
+.dc-numpad-btn { padding:14px 0; font-size:1.15rem; font-weight:700; border:1.5px solid #e2e8f0; border-radius:10px; background:#f8fafc; cursor:pointer; text-align:center; -webkit-tap-highlight-color:transparent; }
+.dc-numpad-btn:active { background:#e2e8f0; }
 /* ── RANKING 전면 리디자인 ── */
 /* 연도 선택 */
 .rank-year-row { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
@@ -951,7 +957,21 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <input type="text" id="daily-nick-1" placeholder="팀B 닉네임 (선택)" style="flex:1;font-size:0.82rem">
       </div>
       <div id="daily-score-sets"></div>
-      <div id="daily-score-addset" style="margin-bottom:12px"></div>
+      <div id="daily-score-addset" style="margin-bottom:4px"></div>
+      <div class="dc-numpad">
+        <button class="dc-numpad-btn" onclick="numpadInput('1')">1</button>
+        <button class="dc-numpad-btn" onclick="numpadInput('2')">2</button>
+        <button class="dc-numpad-btn" onclick="numpadInput('3')">3</button>
+        <button class="dc-numpad-btn" onclick="numpadInput('4')">4</button>
+        <button class="dc-numpad-btn" onclick="numpadInput('5')">5</button>
+        <button class="dc-numpad-btn" onclick="numpadInput('6')">6</button>
+        <button class="dc-numpad-btn" onclick="numpadInput('7')">7</button>
+        <button class="dc-numpad-btn" onclick="numpadInput('8')">8</button>
+        <button class="dc-numpad-btn" onclick="numpadInput('9')">9</button>
+        <button class="dc-numpad-btn" onclick="numpadInput('⌫')" style="font-size:1.4rem">⌫</button>
+        <button class="dc-numpad-btn" onclick="numpadInput('0')">0</button>
+        <button class="dc-numpad-btn" style="background:#f1f5f9;border-color:#f1f5f9"></button>
+      </div>
       <button class="btn btn-primary btn-full" onclick="saveDailyScore()">저장</button>
     </div>
   </div>
@@ -1739,6 +1759,45 @@ let _dailyPickCtx=null;
 let _dailyPickSel=[];
 let _dailyScoreCtx=null;
 let _dailyScoreSets=1;
+let _dscoreActive=null;
+
+function _updateScoreBtn(id, val){
+  const btn=document.getElementById(id.replace('dscore-','dscore-btn-'));
+  if(!btn) return;
+  btn.textContent=val||'-';
+  btn.classList.toggle('filled', !!val);
+}
+
+function selectScoreField(id){
+  if(_dscoreActive){
+    const prev=document.getElementById(_dscoreActive.replace('dscore-','dscore-btn-'));
+    if(prev) prev.classList.remove('active');
+  }
+  _dscoreActive=id;
+  const btn=document.getElementById(id.replace('dscore-','dscore-btn-'));
+  if(btn) btn.classList.add('active');
+}
+
+function numpadInput(val){
+  if(!_dscoreActive) return;
+  const inp=document.getElementById(_dscoreActive);
+  if(!inp) return;
+  if(val==='⌫'){
+    inp.value=inp.value.slice(0,-1);
+  } else {
+    if(inp.value.length>=2) inp.value=val; // 2자리 넘으면 교체
+    else inp.value+=val;
+  }
+  _updateScoreBtn(_dscoreActive, inp.value);
+  // 2자리 입력 완료 시 다음 필드로 자동 이동
+  if(val!=='⌫' && inp.value.length>=2){
+    const parts=_dscoreActive.split('-'); // ['dscore','a','0']
+    const side=parts[1], idx=parseInt(parts[2]);
+    const nextId=side==='a'?`dscore-b-${idx}`:`dscore-a-${idx+1}`;
+    const nextBtn=document.getElementById(nextId.replace('dscore-','dscore-btn-'));
+    if(nextBtn) selectScoreField(nextId);
+  }
+}
 let _dailyCardsListenerSet=false;
 let _pendingScrollKey=null;
 
@@ -2070,8 +2129,8 @@ function openDailyScore(id){
   d.sets.forEach((s,i)=>{
     const a=document.getElementById(`dscore-a-${i}`);
     const b=document.getElementById(`dscore-b-${i}`);
-    if(a) a.value=s.s0;
-    if(b) b.value=s.s1;
+    if(a){ a.value=s.s0; _updateScoreBtn(`dscore-a-${i}`,String(s.s0)); }
+    if(b){ b.value=s.s1; _updateScoreBtn(`dscore-b-${i}`,String(s.s1)); }
   });
   document.getElementById('daily-score-modal').classList.add('open');
 }
@@ -2083,12 +2142,15 @@ function _renderDailyScoreSets(){
     const row=document.createElement('div');
     row.className='dc-score-set';
     row.innerHTML=`<span class="dc-score-label">${i+1}세트</span>
-      <input type="text" id="dscore-a-${i}" class="dc-score-inp" placeholder="0" inputmode="numeric" maxlength="2"
-        oninput="autoNextScore(this,'dscore-b-${i}')">
+      <div class="dc-score-btn" id="dscore-btn-a-${i}" onclick="selectScoreField('dscore-a-${i}')">-</div>
+      <input type="hidden" id="dscore-a-${i}" value="">
       <span style="font-weight:800;color:#cbd5e1;font-size:1.1rem">:</span>
-      <input type="text" id="dscore-b-${i}" class="dc-score-inp" placeholder="0" inputmode="numeric" maxlength="2">`;
+      <div class="dc-score-btn" id="dscore-btn-b-${i}" onclick="selectScoreField('dscore-b-${i}')">-</div>
+      <input type="hidden" id="dscore-b-${i}" value="">`;
     sets.appendChild(row);
   }
+  // 첫 번째 필드 자동 선택
+  setTimeout(()=>selectScoreField('dscore-a-0'),50);
   const addDiv=document.getElementById('daily-score-addset');
   addDiv.innerHTML=_dailyScoreSets<3
     ?`<button onclick="addDailyScoreSet()" style="font-size:0.75rem;background:none;border:1px dashed #bfdbfe;color:#3b82f6;border-radius:8px;padding:4px 12px;cursor:pointer">+ ${_dailyScoreSets+1}세트 추가</button>`
@@ -2103,10 +2165,12 @@ function addDailyScoreSet(){
   const row=document.createElement('div');
   row.className='dc-score-set';
   row.innerHTML=`<span class="dc-score-label">${i+1}세트</span>
-    <input type="text" id="dscore-a-${i}" class="dc-score-inp" placeholder="0" inputmode="numeric" maxlength="2"
-      oninput="autoNextScore(this,'dscore-b-${i}')">
+    <div class="dc-score-btn" id="dscore-btn-a-${i}" onclick="selectScoreField('dscore-a-${i}')">-</div>
+    <input type="hidden" id="dscore-a-${i}" value="">
     <span style="font-weight:800;color:#cbd5e1;font-size:1.1rem">:</span>
-    <input type="text" id="dscore-b-${i}" class="dc-score-inp" placeholder="0" inputmode="numeric" maxlength="2">`;
+    <div class="dc-score-btn" id="dscore-btn-b-${i}" onclick="selectScoreField('dscore-b-${i}')">-</div>
+    <input type="hidden" id="dscore-b-${i}" value="">`;
+  setTimeout(()=>selectScoreField(`dscore-a-${i}`),50);
   sets.appendChild(row);
   const addDiv=document.getElementById('daily-score-addset');
   addDiv.innerHTML=_dailyScoreSets<3
