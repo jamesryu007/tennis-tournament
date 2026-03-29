@@ -1898,7 +1898,7 @@ function _renderDailyCard(id){
       <div class="dc-tmembers">${lTeam.memberStr}</div>
       ${rightBadge}
     </div>`;
-    const _DONE_BGS2=['images/ca.png','images/ca0.png','images/ca1.png'];
+    const _DONE_BGS2=['images/ca.png','images/ca1.png'];
     const _doneCardBg = d.doneBgImage || _DONE_BGS2[Math.floor(Math.random()*_DONE_BGS2.length)];
     if(!d.doneBgImage){ d.doneBgImage=_doneCardBg; _saveDailyLocal(); }
     el.innerHTML=mkCard(`✅ 경기${id}`, left, mid, right, _doneCardBg);
@@ -2156,7 +2156,7 @@ async function renderRecentMatchesCarousel(){
     }).join('<div class="cc-divider"></div>');
     const [,mo,d]=(m.date||'').split('-');
     const dateStr=m.date?`${parseInt(mo)}월 ${parseInt(d)}일`:'';
-    const _DONE_BGS=['images/ca.png','images/ca0.png','images/ca1.png'];
+    const _DONE_BGS=['images/ca.png','images/ca1.png'];
     const _doneBg=_DONE_BGS[Math.floor(Math.random()*_DONE_BGS.length)];
     if(isDraw){
       return `<div class="carousel-card">
