@@ -132,44 +132,38 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .reply-item { padding:5px 9px; border-radius:8px; background:#f1f5f9; margin-top:4px; margin-left:16px; border-left:2px solid #bfdbfe; }
 .reply-input-row { display:flex; gap:6px; margin-top:5px; margin-left:16px; }
 
-/* ── DAILY MATCH (compact) ── */
-.dc-card { display:flex; align-items:center; gap:8px; background:#fff; border:1.5px solid #e2e8f0; border-radius:14px; padding:12px 14px; margin-bottom:9px; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
-.dc-num { font-size:0.72rem; font-weight:700; color:#94a3b8; white-space:nowrap; min-width:30px; flex-shrink:0; }
-.dc-team-btn { flex:1; min-width:0; padding:8px 9px; border:1.5px solid #bfdbfe; border-radius:10px; background:#eff6ff; color:#1e40af; font-size:0.8rem; font-weight:600; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
-.dc-team-btn.filled { border-color:#2563eb; background:#dbeafe; }
-.dc-vs { font-size:0.68rem; font-weight:800; color:#cbd5e1; flex-shrink:0; }
-.dc-start-btn { flex-shrink:0; padding:9px 16px; border:none; border-radius:10px; background:linear-gradient(135deg,#7c3aed,#2563eb); color:#fff; font-size:0.78rem; font-weight:700; cursor:pointer; white-space:nowrap; box-shadow:0 3px 8px rgba(99,60,180,0.38); letter-spacing:0.02em; }
-.dc-start-btn:disabled { background:linear-gradient(135deg,#dde3ef,#e2e8f0); color:#94a3b8; cursor:not-allowed; box-shadow:none; }
-.dc-del-btn { flex-shrink:0; background:none; border:none; color:#94a3b8; font-size:0.95rem; cursor:pointer; padding:2px 3px; line-height:1; }
-.dc-play-tap { font-size:0.72rem; color:#64748b; flex-shrink:0; }
-/* ── 2행 카드 (진행중 / 완료) ── */
-.dc-card2 { background:#fff; border:1.5px solid #e2e8f0; border-radius:14px; padding:11px 13px; margin-bottom:9px; box-shadow:0 1px 4px rgba(0,0,0,0.05); }
-.dc-card2.playing { background:linear-gradient(135deg,#f0f9ff,#eff6ff); border-color:#bfdbfe; }
-.dc-card2.done { background:linear-gradient(135deg,#f0fdf4,#ecfdf5); border-color:#86efac; cursor:pointer; }
-.dc-card2-row1 { display:flex; align-items:center; gap:7px; margin-bottom:8px; }
-.dc-card2-row2 { display:flex; align-items:center; gap:7px; }
-.dc-c2num { font-size:0.68rem; font-weight:700; color:#94a3b8; flex-shrink:0; min-width:28px; }
-.dc-tname { flex:1; font-size:0.84rem; font-weight:700; color:#1e293b; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.dc-tname .tm { font-weight:400; font-size:0.7rem; color:#64748b; }
-.dc-vs2 { font-size:0.7rem; font-weight:800; color:#cbd5e1; flex-shrink:0; }
-.dc-winner-badge { font-size:0.68rem; font-weight:700; background:#fef3c7; color:#b45309; border:1px solid #fde68a; border-radius:20px; padding:2px 8px; flex-shrink:0; white-space:nowrap; }
-.dc-score-chips { display:flex; gap:5px; flex:1; flex-wrap:wrap; align-items:center; }
-.dc-score-chip { font-size:0.82rem; font-weight:700; color:#64748b; background:#f1f5f9; border-radius:7px; padding:3px 9px; white-space:nowrap; border:1px solid #e2e8f0; }
-.dc-score-chip.w { color:#166534; background:#dcfce7; border-color:#86efac; }
-.dc-action-btn { flex-shrink:0; padding:7px 15px; border:none; border-radius:9px; background:#2563eb; color:#fff; font-size:0.78rem; font-weight:700; cursor:pointer; white-space:nowrap; box-shadow:0 2px 0 #1a4abf; }
-.dc-action-btn:active { transform:translateY(2px); box-shadow:none; }
-.dc-edit-btn2 { flex-shrink:0; padding:6px 11px; border:1.5px solid #bfdbfe; border-radius:9px; background:#eff6ff; color:#2563eb; font-size:0.75rem; font-weight:600; cursor:pointer; white-space:nowrap; }
+/* ── DAILY MATCH 카드 (캐러셀 동일 레이아웃) ── */
+.dc-card { background:#0f172a; border-radius:18px; overflow:hidden; position:relative; margin-bottom:10px; box-shadow:0 4px 16px rgba(0,0,0,0.18); }
+.dc-card-header { position:relative; display:flex; align-items:center; justify-content:space-between; padding:7px 12px 6px; background:rgba(0,0,0,0.5); }
+.dc-num { font-size:0.7rem; font-weight:800; color:rgba(255,255,255,0.7); letter-spacing:0.05em; }
+.dc-del-btn { background:none; border:none; color:rgba(255,255,255,0.45); font-size:1.0rem; cursor:pointer; padding:2px 4px; line-height:1; }
+.dc-body { position:relative; display:flex; align-items:stretch; min-height:120px; }
+.dc-team-left  { flex:1; background:linear-gradient(135deg,rgba(5,150,105,0.42),rgba(16,185,129,0.25)); padding:14px 8px 14px 12px; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:5px; }
+.dc-team-right { flex:1; background:linear-gradient(135deg,rgba(239,68,68,0.25),rgba(153,27,27,0.42)); padding:14px 12px 14px 8px; display:flex; flex-direction:column; justify-content:center; align-items:flex-end; gap:5px; }
+.dc-team-left.win  { background:linear-gradient(135deg,rgba(5,150,105,0.62),rgba(16,185,129,0.42)); }
+.dc-team-right.win { background:linear-gradient(135deg,rgba(239,68,68,0.42),rgba(153,27,27,0.62)); }
+.dc-mid { flex-shrink:0; width:60px; background:rgba(0,0,0,0.55); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:5px; padding:8px 0; }
+.dc-tnick { font-size:0.92rem; font-weight:900; color:#fff; text-shadow:0 2px 6px rgba(0,0,0,0.8); max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.dc-team-right .dc-tnick { text-align:right; }
+.dc-tmembers { font-size:0.72rem; font-weight:600; color:rgba(255,255,255,0.85); text-shadow:0 1px 4px rgba(0,0,0,0.7); }
+.dc-team-right .dc-tmembers { text-align:right; }
+.dc-team-btn { width:100%; padding:8px 6px; border:1.5px dashed rgba(255,255,255,0.4); border-radius:10px; background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.7); font-size:0.78rem; font-weight:600; cursor:pointer; text-align:center; }
+.dc-team-btn.filled { border-style:solid; border-color:rgba(255,255,255,0.7); background:rgba(255,255,255,0.15); color:#fff; }
+.dc-start-btn { padding:7px 6px; border:none; border-radius:9px; background:linear-gradient(135deg,#7c3aed,#2563eb); color:#fff; font-size:0.68rem; font-weight:700; cursor:pointer; text-align:center; width:46px; box-shadow:0 2px 6px rgba(99,60,180,0.4); }
+.dc-start-btn:disabled { background:rgba(255,255,255,0.15); color:rgba(255,255,255,0.4); cursor:not-allowed; box-shadow:none; }
+.dc-score-reg-btn { padding:6px 4px; border:1.5px solid rgba(255,255,255,0.5); border-radius:9px; background:rgba(255,255,255,0.12); color:#fff; font-size:0.6rem; font-weight:700; cursor:pointer; text-align:center; width:46px; line-height:1.3; }
+.dc-set-item { display:flex; flex-direction:column; align-items:center; gap:1px; }
+.dc-set-lbl { font-size:0.56rem; font-weight:700; color:rgba(255,255,255,0.45); }
+.dc-set-sc { font-size:0.88rem; font-weight:900; color:#fff; white-space:nowrap; }
+.dc-set-divider { width:20px; height:1px; background:rgba(255,255,255,0.2); }
+.dc-win-badge  { background:#fff; color:#059669; font-size:0.65rem; font-weight:900; border-radius:20px; padding:3px 8px; box-shadow:0 2px 6px rgba(0,0,0,0.3); white-space:nowrap; }
+.dc-lose-badge { background:rgba(0,0,0,0.35); color:rgba(255,255,255,0.8); font-size:0.65rem; font-weight:800; border-radius:20px; padding:3px 8px; white-space:nowrap; }
+.dc-draw-badge { background:rgba(255,255,255,0.2); color:#fff; font-size:0.65rem; font-weight:800; border-radius:20px; padding:3px 8px; white-space:nowrap; }
+.dc-win-icon { font-size:1.5rem; line-height:1; }
+.dc-lose-icon { font-size:1.3rem; line-height:1; opacity:0.8; }
 .dc-score-set { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
 .dc-score-label { font-size:0.78rem; color:#64748b; min-width:38px; }
 .dc-score-inp { width:54px; text-align:center; font-size:1.1rem; font-weight:700; padding:8px 4px; border:1.5px solid #e2e8f0; border-radius:8px; background:#f8fafc; }
-.dc-card2-row2 { display:flex; align-items:center; gap:7px; margin-top:6px; }
-.dc-sets-grid { display:flex; gap:10px; margin-top:6px; align-items:flex-start; flex:1; }
-.dc-set-col { display:flex; flex-direction:column; align-items:center; gap:3px; min-width:52px; }
-.dc-set-lbl { font-size:0.68rem; font-weight:600; color:#94a3b8; background:#f1f5f9; border-radius:4px; padding:2px 7px; white-space:nowrap; }
-.dc-set-score { display:flex; align-items:center; gap:2px; }
-.dc-sc-colon { font-size:0.8rem; font-weight:700; color:#cbd5e1; }
-.dc-sc-val { font-size:0.88rem; font-weight:700; color:#64748b; background:#f1f5f9; border-radius:7px; padding:3px 10px; border:1px solid #e2e8f0; }
-.dc-sc-val.w { color:#166534; background:#dcfce7; border-color:#86efac; }
 /* ── RANKING 전면 리디자인 ── */
 /* 토글 */
 .rank-toggle { display:flex; background:linear-gradient(135deg,#4c1d95,#6d28d9); border-radius:12px; padding:4px; margin-bottom:16px; gap:4px; }
@@ -194,16 +188,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .rank-podium { align-items:flex-end; }
 .rank-pod-medal { line-height:1; }
 .rank-pod.p1 .rank-pod-medal { font-size:2.0rem; }
-.rank-pod.p2 .rank-pod-medal { font-size:1.7rem; }
-.rank-pod.p3 .rank-pod-medal { font-size:1.5rem; }
+.rank-pod.p2 .rank-pod-medal { font-size:1.82rem; }
+.rank-pod.p3 .rank-pod-medal { font-size:1.65rem; }
 .rank-pod-nick    { font-weight:900; color:#1e293b; margin:6px 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .rank-pod.p1 .rank-pod-nick { font-size:0.88rem; }
-.rank-pod.p2 .rank-pod-nick { font-size:0.78rem; }
-.rank-pod.p3 .rank-pod-nick { font-size:0.7rem; }
+.rank-pod.p2 .rank-pod-nick { font-size:0.92rem; }
+.rank-pod.p3 .rank-pod-nick { font-size:0.85rem; }
 .rank-pod-members { font-size:0.6rem; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:4px; }
 .rank-pod-wr   { font-weight:900; margin-top:4px; }
 .rank-pod.p1 .rank-pod-wr { font-size:1.25rem; }
-.rank-pod.p2 .rank-pod-wr { font-size:1.05rem; }
+.rank-pod.p2 .rank-pod-wr { font-size:1.1rem; }
 .rank-pod.p3 .rank-pod-wr { font-size:0.9rem; }
 .rank-pod-wr.hot  { color:#15803d; }
 .rank-pod-wr.cold { color:#dc2626; }
@@ -255,15 +249,15 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .carousel-card { min-width:100%; box-sizing:border-box; border-radius:18px; overflow:hidden; position:relative; background:#0f172a; }
 .cc-bg { position:absolute; inset:0; background:url('images/ca1.png') center/cover no-repeat; opacity:0.68; pointer-events:none; }
 /* 날짜 헤더 */
-.cc-date { position:relative; text-align:center; padding:8px 0 6px; font-size:0.7rem; font-weight:800; letter-spacing:0.1em; color:#fff; background:rgba(0,0,0,0.58); }
+.cc-date { position:relative; text-align:center; padding:8px 0 6px; font-size:0.7rem; font-weight:800; letter-spacing:0.1em; color:#fff; background:rgba(0,0,0,0.48); }
 /* 좌우 바디 */
 .cc-body { position:relative; display:flex; align-items:stretch; min-height:130px; }
 /* 이긴 팀 (왼쪽) */
-.cc-winner-col { flex:1; background:linear-gradient(135deg,rgba(5,150,105,0.55),rgba(16,185,129,0.35)); padding:16px 10px 16px 14px; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:7px; }
+.cc-winner-col { flex:1; background:linear-gradient(135deg,rgba(5,150,105,0.42),rgba(16,185,129,0.25)); padding:16px 10px 16px 14px; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:7px; }
 /* 진 팀 (오른쪽) */
-.cc-loser-col  { flex:1; background:linear-gradient(135deg,rgba(239,68,68,0.35),rgba(153,27,27,0.55)); padding:16px 14px 16px 10px; display:flex; flex-direction:column; justify-content:center; align-items:flex-end; gap:7px; }
+.cc-loser-col  { flex:1; background:linear-gradient(135deg,rgba(239,68,68,0.25),rgba(153,27,27,0.42)); padding:16px 14px 16px 10px; display:flex; flex-direction:column; justify-content:center; align-items:flex-end; gap:7px; }
 /* 무승부 컬럼 */
-.cc-draw-col { flex:1; background:linear-gradient(135deg,rgba(37,99,235,0.45),rgba(99,102,241,0.35)); padding:16px 12px; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:7px; }
+.cc-draw-col { flex:1; background:linear-gradient(135deg,rgba(37,99,235,0.35),rgba(99,102,241,0.25)); padding:16px 12px; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:7px; }
 /* 팀 텍스트 */
 .cc-emoji { font-size:2.0rem; line-height:1; }
 .cc-winner-col .cc-emoji { animation:bounce-celebrate 1.4s ease-in-out infinite; }
@@ -275,7 +269,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .cc-badge-win  { background:#fff; color:#059669; font-size:0.7rem; font-weight:900; border-radius:20px; padding:4px 11px; letter-spacing:0.05em; box-shadow:0 2px 8px rgba(0,0,0,0.4); }
 .cc-badge-loss { background:rgba(0,0,0,0.45); color:#fff; font-size:0.7rem; font-weight:800; border-radius:20px; padding:4px 11px; letter-spacing:0.05em; }
 /* 세로 점수 (가운데) */
-.cc-score-col { flex-shrink:0; width:52px; background:rgba(0,0,0,0.65); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:7px; padding:8px 0; }
+.cc-score-col { flex-shrink:0; width:52px; background:rgba(0,0,0,0.58); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:7px; padding:8px 0; }
 .cc-set { display:flex; flex-direction:column; align-items:center; gap:1px; }
 .cc-set-num { font-size:0.58rem; font-weight:700; color:rgba(255,255,255,0.55); letter-spacing:0.05em; }
 .cc-set-score { display:flex; gap:2px; align-items:center; }
@@ -290,7 +284,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .carousel-dot.active { background:#7c3aed; transform:scale(1.3); }
 @keyframes bounce-celebrate { 0%,100%{transform:translateY(0) rotate(0deg)} 30%{transform:translateY(-8px) rotate(-6deg)} 60%{transform:translateY(-4px) rotate(4deg)} }
 @keyframes shake-sad { 0%,100%{transform:rotate(0deg) translateY(0)} 20%{transform:rotate(-5deg) translateY(2px)} 40%{transform:rotate(5deg) translateY(0)} 70%{transform:rotate(-2deg) translateY(1px)} }
-.daily-add-btn { width:100%; border:2px dashed #bfdbfe; background:#f0f9ff; border-radius:12px; color:#2563eb; font-size:0.9rem; font-weight:700; padding:12px; cursor:pointer; margin-top:4px; }
+.daily-add-btn { width:100%; border:2px dashed rgba(124,58,237,0.4); background:rgba(124,58,237,0.08); border-radius:14px; color:#7c3aed; font-size:1.8rem; font-weight:400; padding:10px; cursor:pointer; margin-top:6px; line-height:1; }
 
 
 /* ── PARTICIPANT CHECKBOXES ── */
@@ -623,7 +617,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <div class="page" id="page-matches">
   <!-- 오늘의 경기 헤더 -->
   <div class="daily-page-header">
-    <div class="daily-page-title">⚡ 오늘의 경기</div>
+    <div style="position:relative;display:flex;align-items:flex-start;justify-content:space-between">
+      <div class="daily-page-title">⚡ 오늘의 경기</div>
+      <div id="daily-today-date" style="font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.85);background:rgba(255,255,255,0.15);border-radius:8px;padding:3px 9px;white-space:nowrap;margin-top:2px"></div>
+    </div>
     <div class="daily-page-sub">경기를 추가하고 실시간으로 결과를 기록하세요</div>
   </div>
 
@@ -640,7 +637,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <div id="match-panel-daily" style="padding:4px 12px 0">
     <div id="daily-guide-row" style="text-align:center;padding:10px 0 8px;color:#94a3b8;font-size:0.82rem;font-weight:600;letter-spacing:0.02em">🎾 오늘의 멋진 경기를 만드세요</div>
     <div id="daily-match-cards"></div>
-    <button class="daily-add-btn" onclick="addDailyMatchCard()">＋ 경기 추가</button>
+    <button class="daily-add-btn" onclick="addDailyMatchCard()">⊕</button>
   </div>
 </div>
 
@@ -1762,6 +1759,11 @@ function _clearDailyCards(){
 }
 
 function renderDailyTab(){
+  // 오늘 날짜 헤더
+  const now=new Date();
+  const days=['일','월','화','수','목','금','토'];
+  const dateEl=document.getElementById('daily-today-date');
+  if(dateEl) dateEl.textContent=`${now.getMonth()+1}월 ${now.getDate()}일(${days[now.getDay()]})`;
   if(Object.keys(_dailyCards).length===0){
     _loadDailyLocal();
     if(Object.keys(_dailyCards).length===0) addDailyMatchCard();
@@ -1795,64 +1797,75 @@ function _renderDailyCard(id){
   const d=_dailyCards[id];
   const el=document.getElementById(`daily-card-${id}`);
   if(!d||!el) return;
-  if(d.phase==='setup'){
-    const t0l=d.team0.length===2?d.team0.join(' / '):'팀 A 선택 ▾';
-    const t1l=d.team1.length===2?d.team1.join(' / '):'팀 B 선택 ▾';
-    const t0f=d.team0.length===2,t1f=d.team1.length===2;
-    el.innerHTML=`<div class="dc-card">
-      <span class="dc-num">경기${id}</span>
-      <button class="dc-team-btn${t0f?' filled':''}" onclick="openDailyPick(${id},0)">${t0l}</button>
-      <span class="dc-vs">VS</span>
-      <button class="dc-team-btn${t1f?' filled':''}" onclick="openDailyPick(${id},1)">${t1l}</button>
-      <button class="dc-start-btn" onclick="startDailyMatch(${id})"${t0f&&t1f?'':' disabled'}>시작</button>
-      <button class="dc-del-btn" onclick="removeDailyCard(${id})">✕</button>
+
+  function mkCard(numLabel, leftCol, midCol, rightCol){
+    return `<div class="dc-card">
+      <div class="dc-card-header">
+        <span class="dc-num">${numLabel}</span>
+        <button class="dc-del-btn" onclick="removeDailyCard(${id})">✕</button>
+      </div>
+      <div class="dc-body">
+        ${leftCol}
+        <div class="dc-mid">${midCol}</div>
+        ${rightCol}
+      </div>
     </div>`;
+  }
+
+  if(d.phase==='setup'){
+    const t0=_getTeamDisplay(d.team0),t1=_getTeamDisplay(d.team1);
+    const t0f=d.team0.length===2,t1f=d.team1.length===2;
+    const left=`<div class="dc-team-left">
+      <button class="dc-team-btn${t0f?' filled':''}" onclick="openDailyPick(${id},0)">
+        ${t0f?`<div class="dc-tnick">${t0.nick}</div><div class="dc-tmembers">${t0.memberStr}</div>`:'팀 A 선택 ▾'}
+      </button>
+    </div>`;
+    const right=`<div class="dc-team-right">
+      <button class="dc-team-btn${t1f?' filled':''}" onclick="openDailyPick(${id},1)">
+        ${t1f?`<div class="dc-tnick">${t1.nick}</div><div class="dc-tmembers">${t1.memberStr}</div>`:'팀 B 선택 ▾'}
+      </button>
+    </div>`;
+    const mid=`<button class="dc-start-btn" onclick="startDailyMatch(${id})"${t0f&&t1f?'':' disabled'}>시작</button>`;
+    el.innerHTML=mkCard(`경기${id}`, left, mid, right);
+
   } else if(d.phase==='playing'){
     const t0=_getTeamDisplay(d.team0),t1=_getTeamDisplay(d.team1);
-    el.innerHTML=`<div class="dc-card2 playing">
-      <div class="dc-card2-row1">
-        <span class="dc-c2num">▶${id}</span>
-        <span class="dc-tname">${t0.html}</span>
-        <span class="dc-vs2">VS</span>
-        <span class="dc-tname">${t1.html}</span>
-      </div>
-      <div class="dc-card2-row2">
-        <span style="flex:1;font-size:0.73rem;color:#64748b">경기 진행중</span>
-        <button class="dc-action-btn" onclick="openDailyScore(${id})">🎾 점수 등록</button>
-      </div>
+    const left=`<div class="dc-team-left">
+      <div class="dc-tnick">${t0.nick}</div>
+      <div class="dc-tmembers">${t0.memberStr}</div>
     </div>`;
+    const right=`<div class="dc-team-right">
+      <div class="dc-tnick">${t1.nick}</div>
+      <div class="dc-tmembers">${t1.memberStr}</div>
+    </div>`;
+    const mid=`<button class="dc-score-reg-btn" onclick="openDailyScore(${id})">🎾<br>점수<br>등록</button>`;
+    el.innerHTML=mkCard(`▶ 경기${id}`, left, mid, right);
+
   } else {
     const t0=_getTeamDisplay(d.team0),t1=_getTeamDisplay(d.team1);
     const isDraw=d.winner===-1;
-    const wn=isDraw?null:(d.winner===0?t0.nick:t1.nick);
-    const winBadge=isDraw
-      ?`<span class="dc-winner-badge" style="background:#e2e8f0;color:#64748b;border-color:#cbd5e1">🤝 무승부</span>`
-      :`<span class="dc-winner-badge">🏆 ${wn}</span>`;
-    // 세트 컬럼 (라벨+점수 정렬)
-    const setCols=d.sets.map((s,i)=>{
-      const a0=s.s0>s.s1,a1=s.s1>s.s0;
-      return `<div class="dc-set-col">
+    const isW0=d.winner===0, isW1=d.winner===1;
+    const scoreItems=d.sets.map((s,i)=>{
+      return `<div class="dc-set-item">
         <span class="dc-set-lbl">${i+1}세트</span>
-        <div class="dc-set-score">
-          <span class="dc-sc-val${a0?' w':''}">${s.s0}</span>
-          <span class="dc-sc-colon">:</span>
-          <span class="dc-sc-val${a1?' w':''}">${s.s1}</span>
-        </div>
+        <span class="dc-set-sc">${s.s0}:${s.s1}</span>
       </div>`;
-    }).join('');
-    el.innerHTML=`<div class="dc-card2 done">
-      <div class="dc-card2-row1">
-        <span class="dc-c2num">✅${id}</span>
-        <span class="dc-tname">${t0.html}</span>
-        <span class="dc-vs2">VS</span>
-        <span class="dc-tname">${t1.html}</span>
-        ${winBadge}
-      </div>
-      <div class="dc-card2-row2">
-        <div class="dc-sets-grid">${setCols}</div>
-        <button class="dc-edit-btn2" onclick="openDailyScore(${id})">✏️ 수정</button>
-      </div>
+    }).join('<div class="dc-set-divider"></div>');
+    const mid=`<div onclick="openDailyScore(${id})" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer">${scoreItems}</div>`;
+    const leftWin=isW0, rightWin=isW1;
+    const leftBadge=isDraw?'<span class="dc-draw-badge">무승부</span>':(leftWin?'<span class="dc-win-badge">WIN</span><div class="dc-win-icon">🏆</div>':'<span class="dc-lose-badge">LOSE</span><div class="dc-lose-icon">😢</div>');
+    const rightBadge=isDraw?'<span class="dc-draw-badge">무승부</span>':(rightWin?'<span class="dc-win-badge">WIN</span><div class="dc-win-icon">🏆</div>':'<span class="dc-lose-badge">LOSE</span><div class="dc-lose-icon">😢</div>');
+    const left=`<div class="dc-team-left${leftWin?' win':''}" onclick="openDailyScore(${id})" style="cursor:pointer">
+      <div class="dc-tnick">${t0.nick}</div>
+      <div class="dc-tmembers">${t0.memberStr}</div>
+      ${leftBadge}
     </div>`;
+    const right=`<div class="dc-team-right${rightWin?' win':''}" onclick="openDailyScore(${id})" style="cursor:pointer">
+      <div class="dc-tnick">${t1.nick}</div>
+      <div class="dc-tmembers">${t1.memberStr}</div>
+      ${rightBadge}
+    </div>`;
+    el.innerHTML=mkCard(`✅ 경기${id}`, left, mid, right);
   }
 }
 
@@ -1881,7 +1894,7 @@ function _renderDailyPickList(){
     const btns=knownPairs.map(([key,nick])=>{
       const [a,b]=key.split('_');
       const isSel=_dailyPickSel.length===2&&_dailyPickSel.includes(a)&&_dailyPickSel.includes(b);
-      return `<button class="player-pick-btn${isSel?' selected':''}" onclick="selectDailyPair('${a}','${b}')" style="background:#fef3c7;border-color:#fcd34d;color:#92400e;font-size:0.7rem;padding:4px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%">${nick}(${a}-${b})</button>`;
+      return `<button class="player-pick-btn${isSel?' selected':''}" onclick="selectDailyPair('${a}','${b}')" style="background:#fef3c7;border-color:#fcd34d;color:#92400e;font-size:0.7rem;padding:4px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%">${a}-${b}(${nick})</button>`;
     }).join('');
     html+=`<div style="margin-bottom:12px"><div class="pick-group-label">⭐ 기존 팀</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px">${btns}</div></div>`;
   }
