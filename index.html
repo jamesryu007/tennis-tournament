@@ -1961,9 +1961,9 @@ function _renderDailyPickList(){
     const btns=knownPairs.map(([key,nick])=>{
       const [a,b]=key.split('_');
       const isSel=_dailyPickSel.length===2&&_dailyPickSel.includes(a)&&_dailyPickSel.includes(b);
-      return `<button class="player-pick-btn${isSel?' selected':''}" onclick="selectDailyPair('${a}','${b}')" style="background:#fef3c7;border-color:#fcd34d;color:#92400e;font-size:0.7rem;padding:4px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%">${a}-${b}(${nick})</button>`;
+      return `<button class="player-pick-btn${isSel?' selected':''}" onclick="selectDailyPair('${a}','${b}')" style="background:#fef3c7;border-color:#fcd34d;color:#92400e;font-size:0.7rem;padding:4px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%">${nick}(${a}-${b})</button>`;
     }).join('');
-    html+=`<div style="margin-bottom:12px"><div class="pick-group-label">⭐ 기존 팀</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px">${btns}</div></div>`;
+    html+=`<div style="margin-bottom:12px"><div class="pick-group-label">⭐ 페어링된 닉네임</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px">${btns}</div></div>`;
   }
 
   // 성별 그룹
@@ -1984,7 +1984,7 @@ function _renderDailyPickList(){
   list.innerHTML=html;
 
   const info=document.getElementById('daily-pick-info');
-  if(!_dailyPickSel.length){info.textContent='2명을 선택하세요';info.style.color='#94a3b8';}
+  if(!_dailyPickSel.length){info.textContent='페어링된 닉네임을 선택하거나 선수 2명을 선택하세요';info.style.color='#94a3b8';}
   else if(_dailyPickSel.length===1){info.textContent=`${_dailyPickSel[0]} 선택됨 · 1명 더`;info.style.color='#f59e0b';}
   else{info.textContent=`✅ ${_dailyPickSel.join(' / ')}`;info.style.color='#16a34a';}
   document.getElementById('daily-pick-confirm').disabled=_dailyPickSel.length!==2;
