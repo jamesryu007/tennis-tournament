@@ -920,7 +920,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     <div style="padding:14px 16px">
       <p style="font-size:0.82rem;color:#64748b;margin-bottom:12px">페어링된 닉네임을 선택하거나 선수 <strong>2명</strong>을 선택하세요</p>
       <div id="daily-pick-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px"></div>
-      <div id="daily-pick-info" style="font-size:0.85rem;font-weight:600;min-height:22px;margin-bottom:14px;color:#94a3b8"></div>
+      <div id="daily-pick-info" style="font-size:0.85rem;font-weight:600;margin-bottom:14px;color:#94a3b8;display:none"></div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-warning btn-full" onclick="closeDailyPickModal()">취소</button>
         <button class="btn btn-primary btn-full" id="daily-pick-confirm" onclick="confirmDailyPick()" disabled>확인</button>
@@ -1948,45 +1948,57 @@ function _renderDailyPickList(){
   if(!_dailyPickCtx) return;
   const {id,side}=_dailyPickCtx;
   const other=_dailyCards[id][`team${1-side}`]||[];
+  const otherSet=new Set(other);
   const players=_allPlayers();
   const list=document.getElementById('daily-pick-list');
   let html='';
 
-  // 기존 팀 섹션 — 참가자 필터 없이 닉네임 있는 전체 팀 표시 (상대팀에 배정된 선수만 제외)
-  const knownPairs=Object.entries(state.pairNicknames||{}).filter(([key])=>{
-    const [a,b]=key.split('_');
-    return !other.includes(a)&&!other.includes(b);
+  // 현재 진행 중(playing)인 다른 카드의 선수 목록
+  const playingPlayers=new Set();
+  Object.entries(_dailyCards).forEach(([cid,cd])=>{
+    if(String(cid)!==String(id)&&cd.phase==='playing'){
+      (cd.team0||[]).forEach(p=>playingPlayers.add(p));
+      (cd.team1||[]).forEach(p=>playingPlayers.add(p));
+    }
   });
-  if(knownPairs.length){
-    const btns=knownPairs.map(([key,nick])=>{
+
+  // 페어링된 닉네임 섹션 — 전체 표시, 비활성화만 처리
+  const allPairs=Object.entries(state.pairNicknames||{});
+  if(allPairs.length){
+    const btns=allPairs.map(([key,nick])=>{
       const [a,b]=key.split('_');
       const isSel=_dailyPickSel.length===2&&_dailyPickSel.includes(a)&&_dailyPickSel.includes(b);
-      return `<button class="player-pick-btn${isSel?' selected':''}" onclick="selectDailyPair('${a}','${b}')" style="background:#fef3c7;border-color:#fcd34d;color:#92400e;font-size:0.7rem;padding:4px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%">${nick}(${a}-${b})</button>`;
+      // 비활성화: 상대팀으로 확정된 정확한 페어이거나, 진행 중 경기 선수 포함
+      const isOtherTeam=other.length===2&&otherSet.has(a)&&otherSet.has(b);
+      const isPlaying=playingPlayers.has(a)||playingPlayers.has(b);
+      const dis=isOtherTeam||isPlaying;
+      const style=`background:${dis?'#f1f5f9':'#fef3c7'};border-color:${dis?'#cbd5e1':'#fcd34d'};color:${dis?'#94a3b8':'#92400e'};font-size:0.7rem;padding:4px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;${dis?'cursor:not-allowed;':''}`;
+      const click=dis?'':`onclick="selectDailyPair('${a}','${b}')"`;
+      return `<button class="player-pick-btn${isSel?' selected':''}" ${click} style="${style}">${nick}(${a}-${b})</button>`;
     }).join('');
     html+=`<div style="margin-bottom:12px"><div class="pick-group-label">⭐ 페어링된 닉네임</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px">${btns}</div></div>`;
   }
 
-  // 성별 그룹
+  // 성별 그룹 — 상대팀 선수 또는 진행 중 선수는 비활성화
   const mkGroup=(group,label)=>{
     if(!group.length) return '';
     const btns=group.map(p=>{
       const sel=_dailyPickSel.includes(p);
-      const dis=!sel&&(other.includes(p)||_dailyPickSel.length>=2);
+      const dis=!sel&&(other.includes(p)||playingPlayers.has(p)||_dailyPickSel.length>=2);
       return `<button class="player-pick-btn${sel?' selected':''}${dis?' pick-disabled':''}" onclick="toggleDailyPick('${p}')">${p}</button>`;
     }).join('');
     return `<div style="margin-bottom:10px"><div class="pick-group-label">${label}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${btns}</div></div>`;
   };
   html+=mkGroup(players.filter(p=>getGender(p)==='male'),'👨 남자');
   html+=mkGroup(players.filter(p=>getGender(p)==='female'),'👩 여자');
-  // 성별 미등록자 별도
   const noGender=players.filter(p=>!getGender(p));
   if(noGender.length) html+=mkGroup(noGender,'👤 기타');
   list.innerHTML=html;
 
   const info=document.getElementById('daily-pick-info');
-  if(!_dailyPickSel.length){info.textContent='';info.style.color='#94a3b8';}
-  else if(_dailyPickSel.length===1){info.textContent=`${_dailyPickSel[0]} 선택됨 · 1명 더`;info.style.color='#f59e0b';}
-  else{info.textContent=`✅ ${_dailyPickSel.join(' / ')}`;info.style.color='#16a34a';}
+  if(!_dailyPickSel.length){info.textContent='';info.style.display='none';}
+  else if(_dailyPickSel.length===1){info.textContent=`${_dailyPickSel[0]} 선택됨 · 1명 더`;info.style.color='#f59e0b';info.style.display='block';}
+  else{info.textContent=`✅ ${_dailyPickSel.join(' / ')}`;info.style.color='#16a34a';info.style.display='block';}
   document.getElementById('daily-pick-confirm').disabled=_dailyPickSel.length!==2;
 }
 
