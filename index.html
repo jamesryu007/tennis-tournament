@@ -1809,6 +1809,7 @@ function addDailyMatchCard(){
   el.id=`daily-card-${id}`;
   container.appendChild(el);
   _renderDailyCard(id);
+  setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),50);
 }
 
 function _renderDailyCard(id){
