@@ -1833,7 +1833,7 @@ function _renderDailyCard(id){
   function mkCard(numLabel, leftCol, midCol, rightCol, bgOverride){
     const bgImg = bgOverride || d.bgImage || 'images/ca1.png';
     return `<div class="dc-card">
-      <div class="dc-card-bg" style="background:url('${bgImg}') center/cover no-repeat"></div>
+      <div class="dc-card-bg" style="background-image:url('${bgImg}');background-size:cover;background-position:center;background-repeat:no-repeat"></div>
       <div class="dc-card-header">
         <span class="dc-num">${numLabel}</span>
         ${d.phase==='setup'?`<button class="dc-del-btn" onclick="removeDailyCard('${id}')">✕</button>`:''}
@@ -2185,7 +2185,7 @@ async function renderRecentMatchesCarousel(){
     const _doneBg=_dominant?'images/ca.png':'images/ca1.png';
     if(isDraw){
       return `<div class="carousel-card">
-        <div class="cc-bg" style="background:url('${_doneBg}') center/cover no-repeat"></div>
+        <div class="cc-bg" style="background-image:url('${_doneBg}');background-size:cover;background-position:center;background-repeat:no-repeat"></div>
         <div class="cc-date">${dateStr} · 무승부 🤝</div>
         <div class="cc-body">
           <div class="cc-draw-col">
@@ -2203,7 +2203,7 @@ async function renderRecentMatchesCarousel(){
       </div>`;
     }
     return `<div class="carousel-card">
-      <div class="cc-bg" style="background:url('${_doneBg}') center/cover no-repeat"></div>
+      <div class="cc-bg" style="background-image:url('${_doneBg}');background-size:cover;background-position:center;background-repeat:no-repeat"></div>
       <div class="cc-date">${dateStr}</div>
       <div class="cc-body">
         <div class="cc-winner-col">
