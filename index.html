@@ -1972,7 +1972,10 @@ function _renderDailyPickList(){
       const isOtherTeam=other.length>0&&(otherSet.has(a)||otherSet.has(b));
       const isPlaying=playingPlayers.has(a)||playingPlayers.has(b);
       const dis=isOtherTeam||isPlaying;
-      const style=`background:${dis?'#f1f5f9':'#fef3c7'};border-color:${dis?'#cbd5e1':'#fcd34d'};color:${dis?'#94a3b8':'#92400e'};font-size:0.7rem;padding:4px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;${dis?'cursor:not-allowed;':''}`;
+      const baseStyle=`font-size:0.7rem;padding:4px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;`;
+      const style=dis?baseStyle+`background:#f1f5f9;border-color:#cbd5e1;color:#94a3b8;cursor:not-allowed;`
+                    :isSel?baseStyle  // 선택됨: CSS .selected 클래스가 파란색 처리
+                          :baseStyle+`background:#fef3c7;border-color:#fcd34d;color:#92400e;`;
       const click=dis?'':`onclick="selectDailyPair('${a}','${b}')"`;
       return `<button class="player-pick-btn${isSel?' selected':''}" ${click} style="${style}">${nick}(${a}-${b})</button>`;
     }).join('');
