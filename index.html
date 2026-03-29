@@ -1872,7 +1872,7 @@ function _renderDailyCard(id){
       <div class="dc-tnick">${t1.nick}</div>
       <div class="dc-tmembers">${t1.memberStr}</div>
     </div>`;
-    const mid=`<button class="dc-score-reg-btn" onclick="openDailyScore(${id})">🎾<br>점수<br>등록</button>`;
+    const mid=`<button class="dc-score-reg-btn" onclick="openDailyScore('${id}')">🎾<br>점수<br>등록</button>`;
     el.innerHTML=mkCard(`경기${d.num} <span style="font-size:0.72rem;font-weight:600;color:#a78bfa">(경기진행 중)</span>`, left, mid, right);
 
   } else {
@@ -1894,18 +1894,18 @@ function _renderDailyCard(id){
         </div>
       </div>`;
     }).join('<div class="dc-set-divider"></div>');
-    const mid=`<div onclick="openDailyScore(${id})" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer">${scoreItems}</div>`;
+    const mid=`<div onclick="openDailyScore('${id}')" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer">${scoreItems}</div>`;
     const leftEmoji=isDraw?'':`<div class="dc-win-icon">🎉</div>`;
     const rightEmoji=isDraw?'':`<div class="dc-lose-icon">😢</div>`;
     const leftBadge=isDraw?'<span class="dc-draw-badge">무승부</span>':'<span class="dc-win-badge">WIN 🏆</span>';
     const rightBadge=isDraw?'<span class="dc-draw-badge">무승부</span>':'<span class="dc-lose-badge">LOSE</span>';
-    const left=`<div class="dc-team-left win" onclick="openDailyScore(${id})" style="cursor:pointer">
+    const left=`<div class="dc-team-left win" onclick="openDailyScore('${id}')" style="cursor:pointer">
       ${leftEmoji}
       <div class="dc-tnick">${wTeam.nick}</div>
       <div class="dc-tmembers">${wTeam.memberStr}</div>
       ${leftBadge}
     </div>`;
-    const right=`<div class="dc-team-right" onclick="openDailyScore(${id})" style="cursor:pointer">
+    const right=`<div class="dc-team-right" onclick="openDailyScore('${id}')" style="cursor:pointer">
       ${rightEmoji}
       <div class="dc-tnick">${lTeam.nick}</div>
       <div class="dc-tmembers">${lTeam.memberStr}</div>
