@@ -2416,11 +2416,20 @@ async function renderRankingTab(){
   }
 
   if(_rankingMode==='pair'){
-    const [ssSnap,vsSnap]=await Promise.all([
-      db.ref(`jmt/pairStats/${_selectedRankYear}`).once('value'),
-      _selectedRankKey?db.ref(`jmt/pairMatchups/${_selectedRankYear}/${_selectedRankKey}`).once('value'):Promise.resolve(null)
-    ]);
-    const stats=ssSnap.val()||{},vsData=vsSnap?vsSnap.val()||{}:{};
+    let ssSnap=await db.ref(`jmt/pairStats/${_selectedRankYear}`).once('value');
+    let stats=ssSnap.val();
+    if(!stats){
+      const legSnap=await db.ref('jmt/pairStats').once('value');
+      const legData=legSnap.val()||{};
+      stats=Object.fromEntries(Object.entries(legData).filter(([k])=>!/^\d{4}$/.test(k)));
+    }
+    stats=stats||{};
+    let vsData={};
+    if(_selectedRankKey){
+      let vsSnap=await db.ref(`jmt/pairMatchups/${_selectedRankYear}/${_selectedRankKey}`).once('value');
+      if(!vsSnap.val()) vsSnap=await db.ref(`jmt/pairMatchups/${_selectedRankKey}`).once('value');
+      vsData=vsSnap.val()||{};
+    }
     const pairsRaw=Object.entries(stats)
       .map(([k,v])=>({key:k,players:v.players||k.split('_'),nickname:v.nickname,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
       .filter(p=>p.wins+p.draws+p.losses>=1);
@@ -2478,11 +2487,20 @@ async function renderRankingTab(){
     el.innerHTML=html;
 
   } else {
-    const [ssSnap,vsSnap]=await Promise.all([
-      db.ref(`jmt/playerStats/${_selectedRankYear}`).once('value'),
-      _selectedRankKey?db.ref(`jmt/playerMatchups/${_selectedRankYear}/${_selectedRankKey}`).once('value'):Promise.resolve(null)
-    ]);
-    const stats=ssSnap.val()||{},vsData=vsSnap?vsSnap.val()||{}:{};
+    let ssSnap=await db.ref(`jmt/playerStats/${_selectedRankYear}`).once('value');
+    let stats=ssSnap.val();
+    if(!stats){
+      const legSnap=await db.ref('jmt/playerStats').once('value');
+      const legData=legSnap.val()||{};
+      stats=Object.fromEntries(Object.entries(legData).filter(([k])=>!/^\d{4}$/.test(k)));
+    }
+    stats=stats||{};
+    let vsData={};
+    if(_selectedRankKey){
+      let vsSnap=await db.ref(`jmt/playerMatchups/${_selectedRankYear}/${_selectedRankKey}`).once('value');
+      if(!vsSnap.val()) vsSnap=await db.ref(`jmt/playerMatchups/${_selectedRankKey}`).once('value');
+      vsData=vsSnap.val()||{};
+    }
     const playersRaw=Object.entries(stats)
       .map(([k,v])=>({name:k,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
       .filter(p=>p.wins+p.draws+p.losses>=1);
