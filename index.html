@@ -231,6 +231,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .rank-item.top10 .rank-item-bar { background:linear-gradient(180deg,#38bdf8,#0284c7); }
 .rank-item.top20 .rank-item-bar { background:linear-gradient(180deg,#a78bfa,#7c3aed); }
 .rank-item.other .rank-item-bar { background:#e2e8f0; }
+.rank-item.unqualified .rank-item-bar { background:linear-gradient(180deg,#fcd34d,#f59e0b); }
+.rank-item.unqualified .rank-num { color:#d97706; }
 .rank-item-body { display:flex; align-items:center; gap:8px; flex:1; padding:10px 12px; }
 .rank-item.selected { border-color:#2563eb; background:#eff6ff; }
 .rank-item.selected .rank-item-bar { background:linear-gradient(180deg,#60a5fa,#2563eb); }
@@ -2368,9 +2370,9 @@ async function renderRankingTab(){
       :'<p style="font-size:0.78rem;color:#94a3b8;text-align:center;margin:4px 0 0">상대 기록 없음</p>'
     }</div>`;
   }
-  function mkListItem(key,rankNum,name,wins,draws,losses,isSel,detHtml){
+  function mkListItem(key,rankNum,name,wins,draws,losses,isSel,detHtml,isUnqualified){
     const wr=Math.round(effWr(wins,draws,losses));
-    const rc=rankNum<10?'top10':rankNum<20?'top20':'other';
+    const rc=isUnqualified?'unqualified':rankNum<10?'top10':rankNum<20?'top20':'other';
     const wdl=draws?`${wins}승 <span style="color:#f59e0b">${draws}무</span> ${losses}패`:`${wins}승 ${losses}패`;
     return `<div class="rank-item ${rc}${isSel?' selected':''}" onclick="toggleRankDetail('${key}')">
       <div class="rank-item-bar"></div>
@@ -2400,8 +2402,8 @@ async function renderRankingTab(){
     const pairThresh=pairAvgG*0.6;
     const sortFnQ=(a,b)=>{const ra=effWr(a.wins,a.draws,a.losses),rb=effWr(b.wins,b.draws,b.losses);return rb-ra||b.wins-a.wins;};
     const sortFnU=(a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins;};
-    const pairsQ=pairsRaw.filter(p=>p.wins+p.draws+p.losses>=pairThresh).sort(sortFnQ);
-    const pairsU=pairsRaw.filter(p=>p.wins+p.draws+p.losses<pairThresh).sort(sortFnU);
+    const pairsQ=pairsRaw.filter(p=>p.wins+p.draws+p.losses>=pairThresh).sort(sortFnQ).map(p=>({...p,qualified:true}));
+    const pairsU=pairsRaw.filter(p=>p.wins+p.draws+p.losses<pairThresh).sort(sortFnU).map(p=>({...p,qualified:false}));
     const pairs=[...pairsQ,...pairsU];
     if(!pairs.length){el.innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>경기 기록이 없습니다</p></div>';return;}
 
@@ -2443,7 +2445,7 @@ async function renderRankingTab(){
         const i=idx+3,isSel=p.key===_selectedRankKey;
         const det=isSel?mkDetail(vsData,stats,'pair',true):'';
         const disp=`<span>${getPairDisplayName(p.players,p.nickname)}</span>`;
-        return mkListItem(p.key,i,disp,p.wins,p.draws,p.losses,isSel,det);
+        return mkListItem(p.key,i,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified);
       }).join('');
     }
     el.innerHTML=html;
@@ -2462,8 +2464,8 @@ async function renderRankingTab(){
     const playerThresh=playerAvgG*0.6;
     const sortFnPlQ=(a,b)=>{const ra=effWr(a.wins,a.draws,a.losses),rb=effWr(b.wins,b.draws,b.losses);return rb-ra||b.wins-a.wins;};
     const sortFnPlU=(a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins;};
-    const playersQ=playersRaw.filter(p=>p.wins+p.draws+p.losses>=playerThresh).sort(sortFnPlQ);
-    const playersU=playersRaw.filter(p=>p.wins+p.draws+p.losses<playerThresh).sort(sortFnPlU);
+    const playersQ=playersRaw.filter(p=>p.wins+p.draws+p.losses>=playerThresh).sort(sortFnPlQ).map(p=>({...p,qualified:true}));
+    const playersU=playersRaw.filter(p=>p.wins+p.draws+p.losses<playerThresh).sort(sortFnPlU).map(p=>({...p,qualified:false}));
     const players=[...playersQ,...playersU];
     if(!players.length){el.innerHTML='<div class="empty-state"><div class="icon">👤</div><p>경기 기록이 없습니다</p></div>';return;}
 
@@ -2497,7 +2499,7 @@ async function renderRankingTab(){
         const g=getGender(p.name),nc=g==='male'?'#2563eb':g==='female'?'#db2777':'#1e293b';
         const det=isSel?mkDetail(vsData,stats,'player',true):'';
         const disp=`<span style="color:${nc}">${p.name}</span>`;
-        return mkListItem(p.name,i,disp,p.wins,p.draws,p.losses,isSel,det);
+        return mkListItem(p.name,i,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified);
       }).join('');
     }
     el.innerHTML=html;
