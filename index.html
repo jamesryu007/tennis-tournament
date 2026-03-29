@@ -1751,6 +1751,9 @@ function _setupDailyCardsListener(){
   });
   db.ref('jmt/dailyCards').on('child_added',snap=>{
     const id=snap.key, data=snap.val();
+    data.sets=Array.isArray(data.sets)?data.sets:(data.sets?Object.values(data.sets):[]);
+    data.team0=Array.isArray(data.team0)?data.team0:(data.team0?Object.values(data.team0):[]);
+    data.team1=Array.isArray(data.team1)?data.team1:(data.team1?Object.values(data.team1):[]);
     _dailyCards[id]=data;
     const container=document.getElementById('daily-match-cards');
     if(container&&!document.getElementById(`daily-card-${id}`)){
@@ -1769,7 +1772,11 @@ function _setupDailyCardsListener(){
   });
   db.ref('jmt/dailyCards').on('child_changed',snap=>{
     const id=snap.key;
-    _dailyCards[id]=snap.val();
+    const data=snap.val();
+    data.sets=Array.isArray(data.sets)?data.sets:(data.sets?Object.values(data.sets):[]);
+    data.team0=Array.isArray(data.team0)?data.team0:(data.team0?Object.values(data.team0):[]);
+    data.team1=Array.isArray(data.team1)?data.team1:(data.team1?Object.values(data.team1):[]);
+    _dailyCards[id]=data;
     _renderDailyCard(id);
   });
   db.ref('jmt/dailyCards').on('child_removed',snap=>{
