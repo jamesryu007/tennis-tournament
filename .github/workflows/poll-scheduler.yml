@@ -1,9 +1,8 @@
 name: 출첵 Poll Scheduler
 
 on:
-  schedule:
-    - cron: '0 15 * * 0'   # 월요일 00:00 KST (일요일 15:00 UTC)
-    - cron: '0 3 * * 5'    # 금요일 12:00 KST (금요일 03:00 UTC)
+  # 스케줄 비활성화 — pollState 자동 오픈/마감은 Firebase Cloud Function이 담당
+  # autoOpenCheckin: 월요일 08:30 KST / notifyCheckinClose: 금요일 12:00 KST
   workflow_dispatch:
     inputs:
       action:
