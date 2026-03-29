@@ -2381,8 +2381,8 @@ async function renderRankingTab(){
         <span class="rank-name">${name}</span>
         <span class="rank-stat">${wdl}</span>
         <div class="rank-wr-col">
-          <span class="rank-winrate" style="color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span>
-          <div class="rank-wr-bar"><div class="rank-wr-bar-fill ${wr>=50?'hot':'cold'}" style="width:${wr}%"></div></div>
+          ${isUnqualified?'':` <span class="rank-winrate" style="color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span>
+          <div class="rank-wr-bar"><div class="rank-wr-bar-fill ${wr>=50?'hot':'cold'}" style="width:${wr}%"></div></div>`}
         </div>
       </div>
     </div>${detHtml}`;
