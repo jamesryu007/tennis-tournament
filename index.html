@@ -2003,7 +2003,11 @@ function _renderDailyPickList(){
 }
 
 function selectDailyPair(p1,p2){
-  _dailyPickSel=[p1,p2];
+  // 이미 선택된 페어 클릭 시 선택 취소
+  if(_dailyPickSel.length===2&&_dailyPickSel.includes(p1)&&_dailyPickSel.includes(p2))
+    _dailyPickSel=[];
+  else
+    _dailyPickSel=[p1,p2];
   _renderDailyPickList();
 }
 
