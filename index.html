@@ -181,6 +181,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .dc-score-label { font-size:0.78rem; color:#64748b; min-width:38px; }
 .dc-score-inp { width:54px; text-align:center; font-size:1.1rem; font-weight:700; padding:8px 4px; border:1.5px solid #e2e8f0; border-radius:8px; background:#f8fafc; }
 /* ── RANKING 전면 리디자인 ── */
+/* 연도 선택 */
+.rank-year-row { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
+.rank-year-btn { padding:5px 13px; border-radius:20px; border:1.5px solid #e2e8f0; background:#fff; font-size:0.78rem; font-weight:700; color:#64748b; cursor:pointer; transition:all 0.15s; }
+.rank-year-btn.active { background:#4c1d95; border-color:#4c1d95; color:#fff; }
 /* 토글 */
 .rank-toggle { display:flex; background:linear-gradient(135deg,#4c1d95,#6d28d9); border-radius:12px; padding:4px; margin-bottom:16px; gap:4px; }
 .rank-toggle-btn { flex:1; text-align:center; padding:9px; font-size:0.85rem; font-weight:700; border-radius:9px; cursor:pointer; color:rgba(255,255,255,0.5); transition:all 0.2s; -webkit-tap-highlight-color:transparent; }
@@ -662,6 +666,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <!-- ══ PAGE: 랭킹 ══ -->
 <div class="page" id="page-history">
   <div id="ranking-panel" style="padding:4px 0">
+    <div class="rank-year-row" id="rank-year-row"></div>
     <div class="rank-toggle">
       <div class="rank-toggle-btn active" id="rtog-pair" onclick="setRankingMode('pair')">팀페어 랭킹</div>
       <div class="rank-toggle-btn" id="rtog-player" onclick="setRankingMode('player')">개인 랭킹</div>
@@ -2310,7 +2315,26 @@ function goCarousel(idx,animate){
 })();
 
 // ══ 자미터랭킹 탭 ═════════════════════════════════════════════════
-const _rankYear = new Date().getFullYear();   // 연도별 경로 분리용
+const _rankYear = new Date().getFullYear();   // 경기 기록 저장용 (항상 현재 연도)
+let _selectedRankYear = _rankYear;           // 랭킹 조회용 (연도 선택 가능)
+
+function renderRankYearRow(){
+  const row=document.getElementById('rank-year-row');
+  if(!row) return;
+  const startYear=2025;
+  const years=[];
+  for(let y=startYear;y<=_rankYear;y++) years.push(y);
+  if(years.length<=1){row.style.display='none';return;}
+  row.style.display='flex';
+  row.innerHTML=years.map(y=>`<button class="rank-year-btn${y===_selectedRankYear?' active':''}" onclick="setRankingYear(${y})">${y}년</button>`).join('');
+}
+
+function setRankingYear(year){
+  _selectedRankYear=year;_selectedRankKey=null;
+  renderRankYearRow();
+  renderRankingTab();
+}
+
 function effWr(wins,draws,losses){ const t=wins+(draws||0)+losses; return t?((wins+(draws||0)*0.5)/t*100):0; }
 
 let _rankingMode='pair';
@@ -2393,8 +2417,8 @@ async function renderRankingTab(){
 
   if(_rankingMode==='pair'){
     const [ssSnap,vsSnap]=await Promise.all([
-      db.ref(`jmt/pairStats/${_rankYear}`).once('value'),
-      _selectedRankKey?db.ref(`jmt/pairMatchups/${_rankYear}/${_selectedRankKey}`).once('value'):Promise.resolve(null)
+      db.ref(`jmt/pairStats/${_selectedRankYear}`).once('value'),
+      _selectedRankKey?db.ref(`jmt/pairMatchups/${_selectedRankYear}/${_selectedRankKey}`).once('value'):Promise.resolve(null)
     ]);
     const stats=ssSnap.val()||{},vsData=vsSnap?vsSnap.val()||{}:{};
     const pairsRaw=Object.entries(stats)
@@ -2455,8 +2479,8 @@ async function renderRankingTab(){
 
   } else {
     const [ssSnap,vsSnap]=await Promise.all([
-      db.ref(`jmt/playerStats/${_rankYear}`).once('value'),
-      _selectedRankKey?db.ref(`jmt/playerMatchups/${_rankYear}/${_selectedRankKey}`).once('value'):Promise.resolve(null)
+      db.ref(`jmt/playerStats/${_selectedRankYear}`).once('value'),
+      _selectedRankKey?db.ref(`jmt/playerMatchups/${_selectedRankYear}/${_selectedRankKey}`).once('value'):Promise.resolve(null)
     ]);
     const stats=ssSnap.val()||{},vsData=vsSnap?vsSnap.val()||{}:{};
     const playersRaw=Object.entries(stats)
@@ -3161,6 +3185,7 @@ function switchPage(id) {
   }
   if(id === 'members') { loadRankingTop3().then(renderMemberList); renderMemberList(); }
   if(id === 'history') {
+    renderRankYearRow();
     renderRankingTab();
   }
   if(id === 'matches') {
