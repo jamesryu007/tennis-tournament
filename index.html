@@ -1992,6 +1992,7 @@ function confirmDailyPick(){
   _dailyCards[id][`team${side}`]=[..._dailyPickSel];
   _dailyPickCtx=null;_dailyPickSel=[];
   document.getElementById('daily-pick-modal').classList.remove('open');
+  _renderDailyCard(id);
   if(_dailyCards[id]&&_dailyCards[id].phase!=='setup') _saveCardToFirebase(id);
 }
 
