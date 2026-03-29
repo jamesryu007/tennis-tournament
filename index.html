@@ -258,7 +258,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .daily-page-title { font-size:1.1rem; font-weight:900; color:#fff; letter-spacing:0.08em; text-shadow:0 1px 6px rgba(0,0,0,0.25); position:relative; }
 .daily-page-sub { font-size:0.68rem; color:rgba(255,255,255,0.65); margin-top:3px; position:relative; }
 /* ── 캐러셀 ── */
-.carousel-section-title { font-size:0.68rem; font-weight:800; color:#94a3b8; letter-spacing:0.1em; margin-bottom:8px; text-align:center; }
+.carousel-section-title { font-size:0.82rem; font-weight:800; color:#94a3b8; letter-spacing:0.1em; margin-bottom:8px; text-align:center; }
 .carousel-container { overflow:hidden; border-radius:18px; position:relative; box-shadow:0 6px 24px rgba(0,0,0,0.22); }
 .carousel-track { display:flex; transition:transform 0.8s cubic-bezier(0.25,0.46,0.45,0.94); }
 /* 카드 전체 */
@@ -1476,6 +1476,8 @@ function renderMemberList() {
     // 개인 랭킹 메달
     const playerRankIdx = playerTop3.findIndex(p => p.name === m.name);
     const playerMedal = playerRankIdx >= 0 ? `<span style="font-size:2rem;line-height:1" title="개인 ${playerRankIdx+1}위">${rankMedals[playerRankIdx]}</span>` : '';
+    // 팀 메달 없고 개인 메달 있으면 팀 슬롯 자리 확보
+    const medalTeamSlot = pairMedal || (playerMedal ? '<span style="display:inline-block;width:2rem;height:2rem;flex-shrink:0"></span>' : '');
     return `<div class="member-card ${m.gender}">
       <div class="member-info">
         <div class="member-name">
@@ -1485,7 +1487,7 @@ function renderMemberList() {
           <span class="badge ${m.gender==='male'?'badge-male':'badge-female'}">${m.gender==='male'?'남':'여'}</span>
           ${m.ntrp?`<span class="badge badge-ntrp">NTRP ${m.ntrp}</span>`:''}
           ${bday ? `<span class="bday-col">${isBirthMonth ? '<span class="birthday-pill">🎉 생일</span>' : ''}<span>🎂 ${bday}</span></span>` : (isBirthMonth ? '<span class="birthday-pill">🎉 생일</span>' : '')}
-          ${pairMedal||playerMedal ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:2px">${pairMedal}${playerMedal}</span>` : ''}
+          ${pairMedal||playerMedal ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:2px">${medalTeamSlot}${playerMedal}</span>` : ''}
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
@@ -1760,7 +1762,11 @@ function _setupDailyCardsListener(){
     if(container&&!document.getElementById(`daily-card-${id}`)){
       const el=document.createElement('div');
       el.id=`daily-card-${id}`;
+      el.dataset.num=data.num||0;
       container.appendChild(el);
+      // num 순서대로 DOM 정렬
+      Array.from(container.children).sort((a,b)=>parseInt(a.dataset.num||0)-parseInt(b.dataset.num||0))
+        .forEach(ch=>container.appendChild(ch));
     }
     _renderDailyCard(id);
     if(_pendingScrollKey===id){
@@ -1829,6 +1835,7 @@ function addDailyMatchCard(){
   const container=document.getElementById('daily-match-cards');
   const el=document.createElement('div');
   el.id=`daily-card-${id}`;
+  el.dataset.num=num;
   container.appendChild(el);
   _renderDailyCard(id);
   setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),50);
@@ -2258,6 +2265,27 @@ function goCarousel(idx,animate){
   document.querySelectorAll('.carousel-dot').forEach((d,i)=>d.classList.toggle('active',i===idx));
 }
 
+// 캐러셀 스와이프 지원
+(function(){
+  let _swX=null,_swY=null;
+  function onTouchStart(e){_swX=e.touches[0].clientX;_swY=e.touches[0].clientY;}
+  function onTouchEnd(e){
+    if(_swX===null) return;
+    const dx=e.changedTouches[0].clientX-_swX;
+    const dy=e.changedTouches[0].clientY-_swY;
+    if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>30){
+      if(dx<0) goCarousel((_carouselIdx+1)%Math.max(1,_carouselData.length),true);
+      else goCarousel((_carouselIdx-1+_carouselData.length)%Math.max(1,_carouselData.length),true);
+      if(_carouselTimer){clearInterval(_carouselTimer);_carouselTimer=setInterval(()=>goCarousel((_carouselIdx+1)%_carouselData.length,true),7000);}
+    }
+    _swX=null;_swY=null;
+  }
+  document.addEventListener('DOMContentLoaded',()=>{
+    const c=document.getElementById('recent-carousel');
+    if(c){c.addEventListener('touchstart',onTouchStart,{passive:true});c.addEventListener('touchend',onTouchEnd,{passive:true});}
+  });
+})();
+
 // ══ 자미터랭킹 탭 ═════════════════════════════════════════════════
 function effWr(wins,draws,losses){ const t=wins+(draws||0)+losses; return t?((wins+(draws||0)*0.5)/t*100):0; }
 
@@ -2273,16 +2301,23 @@ async function loadRankingTop3(){
   ]);
   const psData=psSnap.val()||{};
   const plData=plSnap.val()||{};
-  state._pairTop3=Object.entries(psData)
+  const t3PairRaw=Object.entries(psData)
     .map(([k,v])=>({key:k,players:v.players||k.split('_'),wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
-    .filter(p=>p.wins+p.draws+p.losses>=1)
-    .sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins)
-    .slice(0,3);
-  state._playerTop3=Object.entries(plData)
+    .filter(p=>p.wins+p.draws+p.losses>=1);
+  const t3PairMaxG=t3PairRaw.length?Math.max(...t3PairRaw.map(p=>p.wins+p.draws+p.losses)):0;
+  const t3PairTh=t3PairMaxG*0.6;
+  const t3PairQ=t3PairRaw.filter(p=>p.wins+p.draws+p.losses>=t3PairTh).sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+  const t3PairU=t3PairRaw.filter(p=>p.wins+p.draws+p.losses<t3PairTh).sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+  state._pairTop3=[...t3PairQ,...t3PairU].slice(0,3);
+
+  const t3PlRaw=Object.entries(plData)
     .map(([name,v])=>({name,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
-    .filter(p=>p.wins+p.draws+p.losses>=1)
-    .sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins)
-    .slice(0,3);
+    .filter(p=>p.wins+p.draws+p.losses>=1);
+  const t3PlMaxG=t3PlRaw.length?Math.max(...t3PlRaw.map(p=>p.wins+p.draws+p.losses)):0;
+  const t3PlTh=t3PlMaxG*0.6;
+  const t3PlQ=t3PlRaw.filter(p=>p.wins+p.draws+p.losses>=t3PlTh).sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+  const t3PlU=t3PlRaw.filter(p=>p.wins+p.draws+p.losses<t3PlTh).sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+  state._playerTop3=[...t3PlQ,...t3PlU].slice(0,3);
 }
 
 function setRankingMode(mode){
@@ -2338,10 +2373,16 @@ async function renderRankingTab(){
       _selectedRankKey?db.ref(`jmt/pairMatchups/${_selectedRankKey}`).once('value'):Promise.resolve(null)
     ]);
     const stats=ssSnap.val()||{},vsData=vsSnap?vsSnap.val()||{}:{};
-    const pairs=Object.entries(stats)
+    const pairsRaw=Object.entries(stats)
       .map(([k,v])=>({key:k,players:v.players||k.split('_'),nickname:v.nickname,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
-      .filter(p=>p.wins+p.draws+p.losses>=1)
-      .sort((a,b)=>{const ra=effWr(a.wins,a.draws,a.losses),rb=effWr(b.wins,b.draws,b.losses);return rb-ra||b.wins-a.wins;});
+      .filter(p=>p.wins+p.draws+p.losses>=1);
+    if(!pairsRaw.length){el.innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>경기 기록이 없습니다</p></div>';return;}
+    const pairMaxG=Math.max(...pairsRaw.map(p=>p.wins+p.draws+p.losses));
+    const pairThresh=pairMaxG*0.6;
+    const sortFnP=(a,b)=>{const ra=effWr(a.wins,a.draws,a.losses),rb=effWr(b.wins,b.draws,b.losses);return rb-ra||b.wins-a.wins;};
+    const pairsQ=pairsRaw.filter(p=>p.wins+p.draws+p.losses>=pairThresh).sort(sortFnP);
+    const pairsU=pairsRaw.filter(p=>p.wins+p.draws+p.losses<pairThresh).sort(sortFnP);
+    const pairs=[...pairsQ,...pairsU];
     if(!pairs.length){el.innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>경기 기록이 없습니다</p></div>';return;}
 
     let html=`<div class="rank-banner"><div class="rank-banner-title">🏆 자미터 팀페어 랭킹</div><div class="rank-banner-sub">총 ${pairs.length}팀 등록 · 클릭하면 상대 전적을 볼 수 있어요</div></div>`;
@@ -2393,10 +2434,16 @@ async function renderRankingTab(){
       _selectedRankKey?db.ref(`jmt/playerMatchups/${_selectedRankKey}`).once('value'):Promise.resolve(null)
     ]);
     const stats=ssSnap.val()||{},vsData=vsSnap?vsSnap.val()||{}:{};
-    const players=Object.entries(stats)
+    const playersRaw=Object.entries(stats)
       .map(([k,v])=>({name:k,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
-      .filter(p=>p.wins+p.draws+p.losses>=1)
-      .sort((a,b)=>{const ra=effWr(a.wins,a.draws,a.losses),rb=effWr(b.wins,b.draws,b.losses);return rb-ra||b.wins-a.wins;});
+      .filter(p=>p.wins+p.draws+p.losses>=1);
+    if(!playersRaw.length){el.innerHTML='<div class="empty-state"><div class="icon">👤</div><p>경기 기록이 없습니다</p></div>';return;}
+    const playerMaxG=Math.max(...playersRaw.map(p=>p.wins+p.draws+p.losses));
+    const playerThresh=playerMaxG*0.6;
+    const sortFnPl=(a,b)=>{const ra=effWr(a.wins,a.draws,a.losses),rb=effWr(b.wins,b.draws,b.losses);return rb-ra||b.wins-a.wins;};
+    const playersQ=playersRaw.filter(p=>p.wins+p.draws+p.losses>=playerThresh).sort(sortFnPl);
+    const playersU=playersRaw.filter(p=>p.wins+p.draws+p.losses<playerThresh).sort(sortFnPl);
+    const players=[...playersQ,...playersU];
     if(!players.length){el.innerHTML='<div class="empty-state"><div class="icon">👤</div><p>경기 기록이 없습니다</p></div>';return;}
 
     let html=`<div class="rank-banner"><div class="rank-banner-title">🏆 자미터 개인 랭킹</div><div class="rank-banner-sub">총 ${players.length}명 등록 · 클릭하면 상대 전적을 볼 수 있어요</div></div>`;
