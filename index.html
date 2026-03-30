@@ -843,12 +843,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div id="identity-list">
         <div class="empty-state" style="padding:16px 0"><p>회원 목록 로딩 중...</p></div>
       </div>
-      <div class="divider" style="margin:10px 0 12px"></div>
-      <div class="field-label" style="margin-top:0">목록에 없으면 직접 입력</div>
-      <div class="form-row">
-        <input type="text" id="identity-input" placeholder="이름 입력" onkeydown="if(event.key==='Enter')confirmIdentityInput()">
-        <button class="btn btn-primary btn-sm" style="flex-shrink:0" onclick="confirmIdentityInput()">확인</button>
-      </div>
+      <input type="text" id="identity-input" style="display:none">
     </div>
   </div>
 </div>
@@ -4168,7 +4163,7 @@ function renderIdentityList() {
   const el = document.getElementById('identity-list');
   if(!el) return;
   if(!state.members.length) {
-    el.innerHTML = '<div class="empty-state" style="padding:16px 0"><p>정회원 목록이 없습니다.<br>이름을 직접 입력하세요.</p></div>';
+    el.innerHTML = '<div class="empty-state" style="padding:16px 0"><p>정회원 목록이 없습니다.</p></div>';
     return;
   }
   const cur = state.identity ? state.identity.name : null;
