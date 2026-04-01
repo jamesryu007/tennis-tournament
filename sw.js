@@ -1,4 +1,4 @@
-const CACHE = 'jamite-v1';
+const CACHE = 'jamite-v2';
 const BASE = self.location.hostname === 'localhost' ? '' : '/tennis-tournament';
 const ASSETS = [
   BASE + '/',
