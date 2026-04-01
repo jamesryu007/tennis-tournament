@@ -4576,6 +4576,7 @@ const atpState = {
   preferBetTab: false,  // 베팅 있는 동안 bet 서브탭 우선
   lastGrandSlam: null,  // {tournamentInfo, matches, savedAt} 직전 GS
   gsRoundTab: null,     // Grand Slam 선택된 라운드 탭
+  loaded: false,        // Firebase 첫 데이터 수신 여부
 };
 
 // ── Firebase 구독 초기화 ──────────────────────────────────────────
@@ -4588,6 +4589,7 @@ function initAtpListeners() {
     atpState.tournamentInfo = d ? (d.tournamentInfo || null) : null;
     atpState.matches = d ? (d.matches || []) : [];
     atpState.gsRoundTab = null; // 새 데이터 → 라운드 탭 초기화
+    atpState.loaded = true;
     if (document.getElementById('page-atp').classList.contains('active')) {
       renderAtpPage();
     }
@@ -4784,6 +4786,8 @@ function renderAtpTourneyInfo() {
   if (!el) return;
   const t = atpState.tournamentInfo;
   if (!t || !t.name) {
+    // Firebase 아직 응답 전 → 로딩 중 표시 유지
+    if (!atpState.loaded) return;
     // 활성 대회 없으면 직전 Grand Slam 표시
     const gs = atpState.lastGrandSlam;
     if (gs && gs.tournamentInfo && gs.tournamentInfo.name) {
