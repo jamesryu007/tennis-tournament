@@ -3,20 +3,13 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-com
 importScripts('./firebase-config.js');
 
 // ── 캐싱 (sw.js 통합) ──────────────────────────────────────────────
-const CACHE = 'jamite-v13';
+const CACHE = 'jamite-v14';
 const BASE = self.location.pathname.startsWith('/tennis-tournament') ? '/tennis-tournament' : '';
+
+// 아이콘만 캐시 — 팀 사진/영상/HTML은 교체 즉시 반영되도록 제외
 const ASSETS = [
-  BASE + '/',
-  BASE + '/index.html',
-  BASE + '/manifest.json',
   BASE + '/images/icon-192.png',
   BASE + '/images/icon-512.png',
-  BASE + '/images/team1.jpeg',
-  BASE + '/images/team2.jpeg',
-  BASE + '/images/team3.jpeg',
-  BASE + '/images/team1.mp4',
-  BASE + '/images/team2.mp4',
-  BASE + '/images/team3.mp4',
 ];
 
 self.addEventListener('install', e => {
@@ -30,13 +23,27 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+      Promise.all(keys.filter(k => k !== CACHE && k !== 'jamite-nav').map(k => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', e => {
   if (e.request.url.includes('firebaseio.com') || e.request.url.includes('googleapis.com')) return;
+
+  // HTML → 네트워크 우선 (배포 즉시 반영)
+  if (e.request.mode === 'navigate') {
+    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+    return;
+  }
+
+  // 팀 사진/영상/로고 → 항상 네트워크 (교체 즉시 반영)
+  if (/\/(team\d\.(jpeg|jpg|png|mp4)|logo)/.test(e.request.url)) {
+    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+    return;
+  }
+
+  // 아이콘 등 고정 자산 → 캐시 우선
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
   );
