@@ -36,6 +36,34 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
 .page { display: none; padding: 12px 12px 20px; max-width: 520px; margin: 0 auto; }
 .page.active { display: block; }
 
+/* ── ATP LIVE ── */
+.atp-tab {
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+  flex: 1; padding: 10px 4px; font-size: 0.78rem; font-weight: 600;
+  background: #f1f5f9; color: #94a3b8; border: none; cursor: pointer;
+  position: relative;
+}
+.atp-tab:not(:last-child) { border-right: 1px solid #e2e8f0; }
+.atp-tab.active {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,0.15);
+}
+.atp-match-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:0.82rem; }
+.atp-match-row:last-child { border-bottom:none; }
+.atp-player { flex:1; font-weight:600; color:#1e293b; }
+.atp-player.winner { color:#2563eb; }
+.atp-score { font-size:0.75rem; color:#64748b; text-align:center; min-width:80px; }
+.atp-round-label { font-size:0.72rem; font-weight:700; color:#94a3b8; padding:8px 0 4px; letter-spacing:0.3px; }
+.fav-btn { border-radius:20px; padding:5px 12px; font-size:0.78rem; font-weight:600; cursor:pointer; border:1.5px solid #e2e8f0; background:#fff; color:#64748b; transition:all 0.15s; }
+.fav-btn.selected { background:#eff6ff; border-color:#2563eb; color:#2563eb; }
+.bet-card { border:1.5px solid #e2e8f0; border-radius:12px; padding:12px; margin-bottom:8px; }
+.bet-player-btn { flex:1; padding:10px 8px; border-radius:10px; border:1.5px solid #e2e8f0; background:#fff; font-size:0.85rem; font-weight:600; cursor:pointer; text-align:center; transition:all 0.15s; }
+.bet-player-btn.selected { border-color:#2563eb; background:#eff6ff; color:#2563eb; }
+.bet-player-btn.winner-side { border-color:#22c55e; background:#f0fdf4; color:#166534; }
+.bet-player-btn.loser-side { border-color:#f87171; background:#fef2f2; color:#991b1b; }
+
 /* ── CARDS ── */
 .card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 15px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
 .card-title { font-size: 0.92rem; color: #2563eb; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
@@ -365,9 +393,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .edit-mode-notice { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; color: #1d4ed8; margin-bottom: 8px; text-align: center; }
 
 /* ── MODALS ── */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 100; align-items: flex-end; justify-content: center; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 100; align-items: flex-end; justify-content: center; }
 .modal-overlay.open { display: flex; }
 .modal { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
+.modal-sheet { background: #ffffff; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
 .modal-handle { width: 34px; height: 4px; background: #e2e8f0; border-radius: 2px; margin: 10px auto 0; }
 .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px 9px; border-bottom: 1px solid #f1f5f9; }
 .modal-round { font-size: 0.76rem; color: #94a3b8; letter-spacing: 0.5px; font-weight: 600; }
@@ -452,33 +481,176 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="firebase-config.js"></script>
 </head>
 <body>
 
-<div class="app-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-  <h1 style="flex:1;min-width:0">🎾 자미터 테니스<span id="conn-status" class="conn-dot" title="Firebase 연결 상태"></span></h1>
+<div class="app-header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:6px;padding-bottom:6px">
+  <div style="flex:1;min-width:0;display:flex;align-items:center;gap:6px">
+    <img src="images/logo1.png" alt="자미터 테니스" style="height:44px;object-fit:contain;display:block;cursor:pointer" onclick="document.getElementById('logo-popup').style.display='flex'">
+    <span style="font-size:1rem;font-weight:800;color:#2563eb;letter-spacing:0.3px">자미터 테니스</span>
+    <span id="conn-status" class="conn-dot" title="Firebase 연결 상태"></span>
+  </div>
+  <button id="admin-members-btn" onclick="switchPage('members')" title="회원관리" style="display:none;flex-shrink:0;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:10px;padding:6px 9px;cursor:pointer;font-size:1.1rem;line-height:1;transition:background 0.2s">⚙️</button>
   <button id="identity-btn" onclick="openIdentityModal()" style="flex-shrink:0;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:6px 10px;cursor:pointer;text-align:center;min-width:58px;transition:background 0.2s,border-color 0.2s">
     <div id="identity-name" style="font-size:0.78rem;font-weight:700;color:#2563eb;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">👤 선택</div>
     <div id="identity-role" style="font-size:0.55rem;color:#94a3b8;margin-top:1px;letter-spacing:0.3px;font-weight:600">접속자</div>
   </button>
 </div>
 
-<!-- ══ PAGE: 회원관리 ══ -->
-<div class="page active" id="page-members">
-  <!-- 모임 사진 프레임 -->
-  <div style="margin-bottom:14px;border-radius:18px;overflow:hidden;box-shadow:0 4px 20px rgba(37,99,235,0.13),0 1px 4px rgba(0,0,0,0.08);background:#fff;border:1px solid #e2e8f0;">
-    <div style="position:relative;">
-      <img id="team-photo" src="" alt="자미터 테니스 모임" style="width:100%;display:block;max-height:240px;object-fit:cover;object-position:center;">
-      <!-- 하단 그라디언트 오버레이 -->
-      <div style="position:absolute;bottom:0;left:0;right:0;height:72px;background:linear-gradient(to top,rgba(15,23,42,0.72),transparent);pointer-events:none;"></div>
-      <!-- 사진 하단 텍스트 -->
-      <div style="position:absolute;bottom:0;left:0;right:0;padding:10px 14px;">
-        <div style="color:#fff;font-size:0.82rem;font-weight:700;letter-spacing:0.3px;text-shadow:0 1px 4px rgba(0,0,0,0.4)">🎾 자미터 테니스</div>
-        <div style="color:rgba(255,255,255,0.8);font-size:0.68rem;margin-top:1px;text-shadow:0 1px 3px rgba(0,0,0,0.4)">재미와 열정이 있는 공간, 사랑하는 사람들의 모임</div>
+<!-- ══ PAGE: ATPLive ══ -->
+<div class="page" id="page-atp">
+
+  <!-- 대회 정보 프레임 -->
+  <div id="atp-tournament-card" style="margin-bottom:10px">
+    <div class="rank-banner" style="margin-bottom:0;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;padding:12px 16px">
+      <div>
+        <div style="font-size:1rem;font-weight:900;color:#fff;letter-spacing:0.05em"><i style="color:#ef4444;font-style:italic">LIVE</i> <span style="font-size:0.72rem;font-weight:400;font-style:italic;color:rgba(255,255,255,0.8)">Dive into the global live, right now.</span></div>
+      </div>
+      <button onclick="openFavPlayerModal()" style="background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.4);border-radius:20px;padding:4px 11px;font-size:0.75rem;font-weight:700;color:#fff;cursor:pointer">⭐ Global Ranking</button>
+    </div>
+    <div style="background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 16px 16px;padding:12px 14px">
+      <div id="atp-tourney-info">
+        <div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.85rem">대회 정보를 불러오는 중...</div>
       </div>
     </div>
   </div>
+
+  <!-- 내 관심선수 경기 -->
+  <div id="atp-fav-matches-card" class="card" style="margin-bottom:10px;display:none">
+    <div class="card-title">⭐ 내 관심선수 경기</div>
+    <div id="atp-fav-matches-list"></div>
+  </div>
+
+  <!-- 내부 탭: 대진표 / 일정결과 / 베팅 -->
+  <div style="display:flex;border-radius:12px;overflow:hidden;border:1.5px solid #e2e8f0;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">
+    <button class="atp-tab active" id="atp-tab-draw"    onclick="switchAtpTab('draw')">🎾 대진표</button>
+    <button class="atp-tab"        id="atp-tab-results" onclick="switchAtpTab('results')">📅 일정/결과</button>
+    <button class="atp-tab"        id="atp-tab-bet"     onclick="switchAtpTab('bet')">🎯 베팅</button>
+  </div>
+
+  <!-- 대진표 탭 -->
+  <div id="atp-panel-draw" class="atp-panel">
+    <div id="atp-draw-content" class="card">
+      <div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:0.85rem">대진표를 불러오는 중...</div>
+    </div>
+  </div>
+
+  <!-- 일정/결과 탭 -->
+  <div id="atp-panel-results" class="atp-panel" style="display:none">
+    <div id="atp-results-content" class="card">
+      <div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:0.85rem">일정/결과를 불러오는 중...</div>
+    </div>
+  </div>
+
+  <!-- 베팅 탭 -->
+  <div id="atp-panel-bet" class="atp-panel" style="display:none">
+    <div id="atp-bet-content" class="card">
+      <div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:0.85rem">진행 중인 베팅이 없습니다.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 관심선수 등록 모달 -->
+<div id="fav-player-modal" class="modal-overlay">
+  <div class="modal-sheet" style="height:82vh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <div style="padding:16px 18px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div>
+        <div style="font-size:1rem;font-weight:800;color:#1e293b">⭐ 관심선수 등록</div>
+        <div style="font-size:0.75rem;color:#64748b;margin-top:2px">최대 2명 선택 · 선택된 선수의 경기를 상단에 표시</div>
+      </div>
+      <button onclick="closeFavPlayerModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8">✕</button>
+    </div>
+    <div id="fav-selected-bar" style="padding:0 18px 10px;flex-shrink:0;display:none">
+      <div style="background:#eff6ff;border-radius:10px;padding:8px 12px;font-size:0.78rem;color:#2563eb;font-weight:600" id="fav-selected-names">선택된 선수 없음</div>
+    </div>
+    <div style="padding:0 18px 10px;flex-shrink:0">
+      <input type="text" id="fav-search-input" placeholder="🔍 선수 이름 검색..." oninput="filterFavPlayerList(this.value)" style="width:100%;border-radius:10px;border:1.5px solid #e2e8f0;padding:9px 12px;font-size:0.85rem;outline:none">
+    </div>
+    <div id="fav-player-list" style="overflow-y:auto;flex:1;padding:0 18px 10px"></div>
+    <div style="padding:12px 18px 20px;flex-shrink:0;border-top:1px solid #f1f5f9">
+      <button onclick="saveFavPlayers()" class="btn btn-primary btn-full">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 날짜별 ATP 데이터 로드 모달 (관리자용) -->
+<div id="load-historical-modal" class="modal-overlay">
+  <div class="modal-sheet" style="display:flex;flex-direction:column;max-height:50vh">
+    <div class="modal-handle"></div>
+    <div style="padding:14px 18px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="font-size:1rem;font-weight:800;color:#1e293b">📅 날짜별 데이터 로드</div>
+      <button onclick="document.getElementById('load-historical-modal').classList.remove('open')" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8">✕</button>
+    </div>
+    <div style="padding:0 18px 16px;flex:1;overflow-y:auto">
+      <div style="font-size:0.8rem;color:#64748b;margin-bottom:12px">ESPN API에서 특정 날짜의 ATP 데이터를 가져옵니다.<br>예: Roland Garros 2025 → <b>20250602</b></div>
+      <input id="historical-date-input" type="text" maxlength="8" placeholder="YYYYMMDD (예: 20250602)"
+        style="width:100%;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:0.9rem;margin-bottom:8px">
+      <div id="historical-load-result" style="font-size:0.8rem;color:#64748b;min-height:20px;margin-bottom:10px"></div>
+      <button onclick="submitLoadHistorical()" style="width:100%;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:11px;font-size:0.9rem;font-weight:700;cursor:pointer">불러오기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 베팅 결과 입력 모달 (관리자용) -->
+<div id="bet-settle-modal" class="modal-overlay">
+  <div class="modal-sheet" style="display:flex;flex-direction:column;max-height:70vh">
+    <div class="modal-handle"></div>
+    <div style="padding:14px 18px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="font-size:1rem;font-weight:800;color:#1e293b">🏆 결과 입력</div>
+      <button onclick="document.getElementById('bet-settle-modal').classList.remove('open')" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8">✕</button>
+    </div>
+    <div style="padding:0 18px 8px;font-size:0.78rem;color:#64748b;flex-shrink:0" id="bet-settle-desc"></div>
+    <div id="bet-settle-list" style="overflow-y:auto;flex:1;padding:0 18px 10px"></div>
+    <div style="padding:12px 18px 20px;flex-shrink:0;border-top:1px solid #f1f5f9">
+      <button onclick="submitBetSettle()" class="btn btn-primary btn-full">확정</button>
+    </div>
+  </div>
+</div>
+
+<!-- 베팅 오픈 모달 (관리자용) -->
+<div id="bet-open-modal" class="modal-overlay">
+  <div class="modal-sheet" style="height:72vh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <!-- 헤더 -->
+    <div style="padding:14px 18px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="font-size:1rem;font-weight:800;color:#1e293b">🎯 베팅 오픈</div>
+      <button onclick="closeBetOpenModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8">✕</button>
+    </div>
+    <!-- 탭 -->
+    <div style="display:flex;padding:10px 18px 0;gap:0;border-bottom:1px solid #e2e8f0;flex-shrink:0">
+      <button id="bet-open-tab-winner" onclick="switchBetOpenTab('winner')" style="flex:1;padding:8px 4px;background:none;border:none;border-bottom:2.5px solid #2563eb;font-size:0.82rem;font-weight:700;color:#2563eb;cursor:pointer">🏆 우승자 맞추기</button>
+      <button id="bet-open-tab-match"  onclick="switchBetOpenTab('match')"  style="flex:1;padding:8px 4px;background:none;border:none;border-bottom:2.5px solid transparent;font-size:0.82rem;font-weight:600;color:#94a3b8;cursor:pointer">⚔️ 준결승/결승</button>
+    </div>
+    <!-- 탭 A: 우승자 맞추기 -->
+    <div id="bet-open-panel-winner" style="flex:1;overflow-y:auto;padding:14px 18px 20px">
+      <div style="font-size:0.78rem;color:#64748b;margin-bottom:12px">현재 토너먼트 우승자를 예측해보세요! 멤버들이 선수 목록에서 1명을 선택합니다.</div>
+      <div style="font-size:0.82rem;font-weight:700;color:#1e293b;margin-bottom:6px">베팅 내용 (스테이크)</div>
+      <input type="text" id="bet-winner-stake" placeholder="예: 우승자 맞추면 커피 한 잔" style="margin-bottom:16px">
+      <div style="display:flex;gap:8px">
+        <button onclick="closeBetOpenModal()" class="btn btn-outline btn-full">취소</button>
+        <button onclick="submitBetOpenWinner()" class="btn btn-primary btn-full">베팅 오픈</button>
+      </div>
+    </div>
+    <!-- 탭 B: 준결승/결승 경기 -->
+    <div id="bet-open-panel-match" style="display:none;flex:1;overflow-y:auto;padding:14px 18px 20px">
+      <div style="font-size:0.78rem;color:#64748b;margin-bottom:8px">준결승/결승 경기를 선택하세요.</div>
+      <div id="bet-match-selector" style="margin-bottom:12px"></div>
+      <div style="font-size:0.82rem;font-weight:700;color:#1e293b;margin-bottom:6px">베팅 내용 (스테이크)</div>
+      <input type="text" id="bet-stake-input" placeholder="예: 진 팀이 밥 산다" style="margin-bottom:16px">
+      <div style="display:flex;gap:8px">
+        <button onclick="closeBetOpenModal()" class="btn btn-outline btn-full">취소</button>
+        <button onclick="submitBetOpenMatch()" class="btn btn-primary btn-full">베팅 오픈</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE: 회원관리 ══ -->
+<div class="page" id="page-members">
 
   <div class="card">
     <div class="card-title" style="justify-content:space-between;margin-bottom:0">
@@ -605,8 +777,11 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
   <!-- 대회 설정 폼 (대진 생성 전) -->
   <div id="setup-form-section">
-    <div class="card">
-      <div class="card-title">🏆 모임정보</div>
+    <div style="margin-bottom:10px">
+      <div class="rank-banner" style="border-radius:16px 16px 0 0;margin-bottom:0;padding:11px 16px">
+        <div style="font-size:0.98rem;font-weight:900;color:#fff">🏆 모임정보</div>
+      </div>
+      <div class="card" style="border-radius:0 0 14px 14px;border-top:none;margin-bottom:0">
       <div class="field-label" style="margin-top:0">제목</div>
       <input type="text" id="t-name" placeholder="예) 제5회 자미터 정기전">
       <div class="field-label">장소</div>
@@ -615,7 +790,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <input type="date" id="t-date" style="text-align:left;display:block;width:100%">
       <div class="field-label">비고</div>
       <input type="text" id="t-notes" placeholder="(선택사항)">
-    </div>
+      </div><!-- card -->
+    </div><!-- banner+card wrapper -->
 
     <div class="card">
       <div class="card-title" style="justify-content:space-between;margin-bottom:0">
@@ -671,12 +847,23 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 </div>
 
 <!-- ══ PAGE: 랭킹 ══ -->
-<div class="page" id="page-history">
+<div class="page active" id="page-history">
+  <!-- 모임 사진 프레임 (탭하면 랜덤 변경) -->
+  <div onclick="changeTeamPhotoRandom()" style="margin-bottom:14px;border-radius:18px;overflow:hidden;box-shadow:0 4px 20px rgba(37,99,235,0.13),0 1px 4px rgba(0,0,0,0.08);background:#fff;border:1px solid #e2e8f0;cursor:pointer;-webkit-tap-highlight-color:transparent">
+    <div style="position:relative;">
+      <img id="team-photo" src="" alt="자미터 테니스 모임" style="width:100%;display:block;max-height:220px;object-fit:cover;object-position:center top;">
+      <div style="position:absolute;bottom:0;left:0;right:0;height:72px;background:linear-gradient(to top,rgba(15,23,42,0.72),transparent);pointer-events:none;"></div>
+      <div style="position:absolute;bottom:0;left:0;right:0;padding:10px 14px;">
+        <div style="color:#fff;font-size:0.82rem;font-weight:700;letter-spacing:0.3px;text-shadow:0 1px 4px rgba(0,0,0,0.4)">🎾 자미터 테니스</div>
+        <div style="color:rgba(255,255,255,0.8);font-size:0.68rem;margin-top:1px;text-shadow:0 1px 3px rgba(0,0,0,0.4)">사진을 탭하면 바뀝니다 📷</div>
+      </div>
+    </div>
+  </div>
   <div id="ranking-panel" style="padding:4px 0">
     <div class="rank-year-row" id="rank-year-row"></div>
     <div class="rank-toggle">
-      <div class="rank-toggle-btn active" id="rtog-pair" onclick="setRankingMode('pair')">팀페어 랭킹</div>
-      <div class="rank-toggle-btn" id="rtog-player" onclick="setRankingMode('player')">개인 랭킹</div>
+      <div class="rank-toggle-btn active" id="rtog-player" onclick="setRankingMode('player')">개인 랭킹</div>
+      <div class="rank-toggle-btn" id="rtog-pair" onclick="setRankingMode('pair')">팀페어 랭킹</div>
     </div>
     <div id="ranking-list"></div>
   </div>
@@ -976,8 +1163,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
 <!-- ══ BOTTOM NAV ══ -->
 <nav class="bottom-nav">
-  <div class="nav-item active" id="nav-members" onclick="switchPage('members')">
-    <span class="ni">👥</span><span>회원관리</span>
+  <div class="nav-item active" id="nav-history" onclick="switchPage('history')">
+    <span class="ni">🏅</span><span>랭킹</span>
   </div>
   <div class="nav-item" id="nav-checkin" onclick="switchPage('checkin')">
     <span class="ni">✋</span><span>출첵</span>
@@ -988,8 +1175,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <div class="nav-item" id="nav-setup" onclick="switchPage('setup')">
     <span class="ni">🏆</span><span>모임만들기</span>
   </div>
-  <div class="nav-item" id="nav-history" onclick="switchPage('history')">
-    <span class="ni">🏅</span><span>랭킹</span>
+  <div class="nav-item" id="nav-atp" onclick="switchPage('atp')">
+    <span class="ni">🎾</span><span><i style="color:#ef4444;font-style:italic">Live</i></span>
   </div>
 </nav>
 
@@ -2411,7 +2598,7 @@ function setRankingYear(year){
 
 function effWr(wins,draws,losses){ const t=wins+(draws||0)+losses; return t?((wins+(draws||0)*0.5)/t*100):0; }
 
-let _rankingMode='pair';
+let _rankingMode='player';
 let _selectedRankKey=null;
 
 // 회원관리탭용 Top3 캐시
@@ -2588,6 +2775,19 @@ async function renderRankingTab(){
     const players=[...playersQ,...playersU];
     if(!players.length){el.innerHTML='<div class="empty-state"><div class="icon">👤</div><p>경기 기록이 없습니다</p></div>';return;}
 
+    const curMonth = String(new Date().getMonth()+1).padStart(2,'0');
+    function getMemberBirthday(name) {
+      const m = state.members.find(x => x.name === name);
+      return m ? (m.birthday || '') : '';
+    }
+    function bdayBadge(name) {
+      const bd = getMemberBirthday(name);
+      if (!bd) return '';
+      const [,mm,dd] = bd.split('-');
+      const isBirthMonth = mm === curMonth;
+      return `<span style="font-size:0.68rem;color:#64748b;margin-left:4px">${mm}/${dd}</span>${isBirthMonth ? '<span class="birthday-pill" style="margin-left:4px">🎂 생일</span>' : ''}`;
+    }
+
     let html=`<div class="rank-banner"><div class="rank-banner-title">🏆 자미터 개인 랭킹</div><div class="rank-banner-sub">총 ${players.length}명 등록 · 클릭하면 상대 전적을 볼 수 있어요</div></div>`;
 
     const podItems=players.slice(0,Math.min(3,players.length));
@@ -2598,9 +2798,13 @@ async function renderRankingTab(){
       const isSel=p.name===_selectedRankKey;
       const g=getGender(p.name),nc=g==='male'?'#1e40af':g==='female'?'#9d174d':'#1e293b';
       const wdl=p.draws?`${p.wins}승 ${p.draws}무 ${p.losses}패`:`${p.wins}승 ${p.losses}패`;
+      const bd=getMemberBirthday(p.name);
+      const [,mm,dd]= bd ? bd.split('-') : [];
+      const isBM = mm === curMonth;
       html+=`<div class="rank-pod ${podCls[i]}${isSel?' selected':''}" onclick="toggleRankDetail('${p.name}')">
         <div class="rank-pod-medal">${medals[i]}</div>
-        <div class="rank-pod-nick" style="color:${nc}">${p.name}</div>
+        <div class="rank-pod-nick" style="color:${nc}">${p.name}${isBM?'<span class="birthday-pill" style="margin-left:5px;font-size:0.6rem">🎂 생일</span>':''}</div>
+        ${bd?`<div style="font-size:0.65rem;color:#94a3b8">${mm}/${dd}</div>`:''}
         <div class="rank-pod-wr ${wr>=50?'hot':'cold'}">${wr}%</div>
         <div class="rank-pod-wl">${wdl}</div>
         <div class="rank-pod-bar"><div class="rank-pod-bar-fill" style="width:${wr}%"></div></div>
@@ -2617,7 +2821,7 @@ async function renderRankingTab(){
         const i=idx+3,isSel=p.name===_selectedRankKey;
         const g=getGender(p.name),nc=g==='male'?'#2563eb':g==='female'?'#db2777':'#1e293b';
         const det=isSel?mkDetail(vsData,stats,'player',true):'';
-        const disp=`<span style="color:${nc}">${p.name}</span>`;
+        const disp=`<span style="color:${nc}">${p.name}</span>${bdayBadge(p.name)}`;
         return mkListItem(p.name,i,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified);
       }).join('');
     }
@@ -3227,15 +3431,9 @@ function switchPage(id) {
   document.getElementById(`page-${id}`).classList.add('active');
   document.getElementById(`nav-${id}`).classList.add('active');
   window.scrollTo(0,0);
-  // 회원관리 탭 진입 시 랜덤 사진 선택 (직전과 다른 것으로)
-  if(id === 'members') {
-    const p = document.getElementById('team-photo');
-    if(p) {
-      let idx;
-      do { idx = Math.floor(Math.random() * _teamPhotos.length); } while(idx === _lastPhotoIdx && _teamPhotos.length > 1);
-      _lastPhotoIdx = idx;
-      p.src = _teamPhotos[idx];
-    }
+  // 랭킹 탭 진입 시 랜덤 사진 선택 (직전과 다른 것으로)
+  if(id === 'history') {
+    changeTeamPhotoRandom();
   }
   // 출첵 탭 진입 시 랜덤 영상 선택 (직전과 다른 것으로)
   if(id === 'checkin') {
@@ -3274,6 +3472,10 @@ function switchPage(id) {
         });
       });
     }
+  }
+  if(id === 'atp') {
+    renderAtpPage();
+    if (atpState.preferBetTab) switchAtpTab('bet');
   }
   if(id === 'members') { loadRankingTop3().then(renderMemberList); renderMemberList(); }
   if(id === 'history') {
@@ -3520,9 +3722,9 @@ function renderCheckinPage() {
   let html = '';
 
   // Header
-  html += `<div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-      <div style="font-size:1rem;font-weight:800;color:#1e293b">🎾 ${satLabel}${meetingNum ? ` ${meetingNum}번째` : ''} 모임 출첵</div>
+  html += `<div style="margin-bottom:10px">
+    <div class="rank-banner" style="border-radius:16px 16px 0 0;margin-bottom:0;padding:11px 14px;display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:0.98rem;font-weight:900;color:#fff">✋ ${satLabel}${meetingNum ? ` ${meetingNum}번째` : ''} 모임 출첵</div>
       <div style="display:flex;align-items:center;gap:6px">
         ${isAdmin() ? `
           ${!isOpen ? `<button onclick="forceOpenCheckin()" style="font-size:0.7rem;font-weight:700;background:#dcfce7;color:#16a34a;border:1.5px solid #86efac;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">🔓 강제오픈</button>` : ''}
@@ -3531,7 +3733,9 @@ function renderCheckinPage() {
         <span class="status-badge ${isOpen?'badge-active':'badge-done'}">${isOpen?'진행중':'마감'}</span>
       </div>
     </div>
-    <div style="font-size:0.75rem;color:#64748b">${isOpen?'📅 마감: 금요일 정오 12:00':'✅ 투표 마감 · 참석 예정 '+totalAttending+'명'}</div>
+    <div style="background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 16px 16px;padding:8px 14px">
+      <div style="font-size:0.75rem;color:#64748b">${isOpen?'📅 마감: 금요일 정오 12:00':'✅ 투표 마감 · 참석 예정 '+totalAttending+'명'}</div>
+    </div>
   </div>`;
 
   // Vote buttons (open only)
@@ -3847,6 +4051,7 @@ function switchHistoryTab(tab) {
 
 function renderHistoryList() {
   const el = document.getElementById('tournament-history-list');
+  if (!el) return;  // 탭 미활성 시 null 방어
   // 대회이력: type이 'meetup'이 아닌 모든 레코드 (type 없는 기존 데이터 포함)
   // 정기모임: type이 명시적으로 'meetup'인 레코드만
   const filtered = state.history.filter(r =>
@@ -3947,7 +4152,7 @@ function openEditMember(id) {
   const m = state.members.find(x => x.id === id);
   if (!m) return;
   const curName = state.identity && state.identity.name;
-  if (curName !== m.name) { alert('본인 정보만 수정할 수 있습니다.'); return; }
+  if (curName !== m.name && !isAdmin()) { alert('본인 정보만 수정할 수 있습니다.'); return; }
   editingId = id;
   document.getElementById('edit-name').value = m.name;
   document.getElementById('edit-nickname').value = m.nickname || '';
@@ -4108,6 +4313,14 @@ function selectIdentity(name) {
   renderMemberList();       // 먼저 DOM 재생성
   updatePermissionUI();     // 그 다음 버튼 상태 적용
 
+  // ATP 관심선수 리스너 재연결 (접속자별)
+  if (db && name) {
+    db.ref(`jmt/favPlayers/${name}`).on('value', snap => {
+      atpState.favPlayers = snap.val() || [];
+      if (document.getElementById('page-atp').classList.contains('active')) renderAtpFavMatches();
+    });
+  }
+
   // 현재 활성 탭 재렌더링
   const activePage = document.querySelector('.page.active');
   if (activePage) {
@@ -4181,6 +4394,10 @@ function renderIdentityList() {
 function updatePermissionUI() {
   const admin   = isAdmin();
   const manager = isManager();
+
+  // ⚙️ 회원관리 버튼 (admin only)
+  const btnAdminMembers = document.getElementById('admin-members-btn');
+  if (btnAdminMembers) btnAdminMembers.style.display = admin ? '' : 'none';
 
   // 신규회원 등록 (관리자만)
   const btnMember = document.getElementById('btn-add-member');
@@ -4277,13 +4494,16 @@ setTimeout(() => {
   if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId; window._pendingTab=null; window._pendingCommentId=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); }
 }, 1500);
 document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
-// 초기 로드 시 회원관리 탭 사진 랜덤 설정
-(function(){
-  const idx = Math.floor(Math.random() * _teamPhotos.length);
+// 랜덤 사진 변경 함수 (탭 클릭 또는 초기 로드 시 사용)
+function changeTeamPhotoRandom() {
+  let idx;
+  do { idx = Math.floor(Math.random() * _teamPhotos.length); } while(idx === _lastPhotoIdx && _teamPhotos.length > 1);
   _lastPhotoIdx = idx;
   const p = document.getElementById('team-photo');
   if(p) p.src = _teamPhotos[idx];
-})();
+}
+// 초기 로드 시 랭킹탭 사진 랜덤 설정
+changeTeamPhotoRandom();
 
 (function() {
   try {
@@ -4324,6 +4544,13 @@ document.getElementById('t-date').value = new Date().toISOString().split('T')[0]
       // 미선택 → 600ms 후 모달 (Firebase 데이터 로드 여유 시간)
       setTimeout(openIdentityModal, 600);
     }
+
+    // ── 초기 페이지가 랭킹탭이므로 즉시 렌더링 ──────────────────
+    renderRankYearRow();
+    renderRankingTab();
+
+    // ── ATP 리스너 초기화 (ATP 스크립트 블록 로드 후 실행) ───────
+    setTimeout(() => { if (typeof initAtpListeners === 'function') initAtpListeners(); }, 0);
   } catch(e) {
     console.error('초기화 오류:', e);
     // 오류 시 로컬 폴백
@@ -4334,6 +4561,1377 @@ document.getElementById('t-date').value = new Date().toISOString().split('T')[0]
   }
 })();
 </script>
+
+<!-- ══ ATP LIVE 스크립트 ══ -->
+<script>
+// ── ATP 상태 ──────────────────────────────────────────────────────
+const atpState = {
+  tournamentInfo: null,
+  matches: [],
+  favPlayers: [],       // [{id, name, country}]
+  favPlayersTmp: [],    // 모달 임시 선택
+  top100: [],           // ESPN 랭킹 100위
+  bets: {},             // betId → bet 객체
+  currentTab: 'draw',
+  preferBetTab: false,  // 베팅 있는 동안 bet 서브탭 우선
+  lastGrandSlam: null,  // {tournamentInfo, matches, savedAt} 직전 GS
+  gsRoundTab: null,     // Grand Slam 선택된 라운드 탭
+};
+
+// ── Firebase 구독 초기화 ──────────────────────────────────────────
+function initAtpListeners() {
+  if (!db) return;
+
+  // ATP 데이터 구독
+  db.ref('jmt/atpData').on('value', snap => {
+    const d = snap.val();
+    atpState.tournamentInfo = d ? (d.tournamentInfo || null) : null;
+    atpState.matches = d ? (d.matches || []) : [];
+    atpState.gsRoundTab = null; // 새 데이터 → 라운드 탭 초기화
+    if (document.getElementById('page-atp').classList.contains('active')) {
+      renderAtpPage();
+    }
+  });
+
+  // 직전 Grand Slam 구독 — 가장 최근 항목 하나만 사용
+  db.ref('jmt/lastGrandSlam').orderByChild('savedAt').limitToLast(1).on('value', snap => {
+    const d = snap.val();
+    if (d) {
+      const keys = Object.keys(d);
+      atpState.lastGrandSlam = d[keys[keys.length - 1]];
+    } else {
+      atpState.lastGrandSlam = null;
+    }
+    if (!atpState.tournamentInfo && document.getElementById('page-atp').classList.contains('active')) {
+      renderAtpPage();
+    }
+  });
+
+  // 베팅 구독
+  db.ref('jmt/atpBets').on('value', snap => {
+    atpState.bets = snap.val() || {};
+    if (Object.keys(atpState.bets).length > 0) atpState.preferBetTab = true;
+    if (document.getElementById('page-atp').classList.contains('active')) {
+      renderAtpBetPanel();
+    }
+  });
+
+  // 개인 관심선수 구독
+  const myName = state.identity && state.identity.name;
+  if (myName) {
+    db.ref(`jmt/favPlayers/${myName}`).on('value', snap => {
+      atpState.favPlayers = snap.val() || [];
+      if (document.getElementById('page-atp').classList.contains('active')) {
+        renderAtpFavMatches();
+      }
+    });
+  }
+}
+
+// ── 탭 전환 ──────────────────────────────────────────────────────
+function switchAtpTab(tab) {
+  atpState.currentTab = tab;
+  ['draw', 'results', 'bet'].forEach(t => {
+    const btn = document.getElementById(`atp-tab-${t}`);
+    const panel = document.getElementById(`atp-panel-${t}`);
+    const active = t === tab;
+    btn.classList.toggle('active', active);
+    btn.style.background = active ? '#eff6ff' : '#fff';
+    btn.style.color = active ? '#2563eb' : '#64748b';
+    btn.style.fontWeight = active ? '700' : '600';
+    panel.style.display = active ? '' : 'none';
+  });
+}
+
+// ── ATP 페이지 전체 렌더 ──────────────────────────────────────────
+function renderAtpPage() {
+  renderAtpTourneyInfo();
+  renderAtpFavMatches();
+  renderAtpDrawPanel();
+  renderAtpResultsPanel();
+  renderAtpBetPanel();
+}
+
+// ── 티어별 배너 스타일 ────────────────────────────────────────────
+const TIER_STYLE = {
+  grandslam: { bg: 'linear-gradient(135deg,#fef9c3,#fde68a)', border: '#f59e0b', color: '#78350f', badge: '🏆 Grand Slam', badgeBg: '#f59e0b', badgeColor: '#fff' },
+  atp1000:   { bg: 'linear-gradient(135deg,#ede9fe,#ddd6fe)', border: '#8b5cf6', color: '#4c1d95', badge: 'ATP 1000',      badgeBg: '#8b5cf6', badgeColor: '#fff' },
+  atp500:    { bg: 'linear-gradient(135deg,#dbeafe,#bfdbfe)', border: '#3b82f6', color: '#1e3a8a', badge: 'ATP 500',       badgeBg: '#3b82f6', badgeColor: '#fff' },
+  atp250:    { bg: 'linear-gradient(135deg,#f1f5f9,#e2e8f0)', border: '#94a3b8', color: '#334155', badge: 'ATP 250',       badgeBg: '#94a3b8', badgeColor: '#fff' },
+};
+
+// ── 경기장 정보 하드코딩 매핑 ─────────────────────────────────────
+const VENUE_MAP = {
+  // ── Grand Slam ──────────────────────────────────────────────────
+  'australian open': {
+    venueName: 'Melbourne Park',
+    address:   '200 Batman Ave, Melbourne VIC 3004, Australia',
+  },
+  'roland garros': {
+    venueName: 'Stade Roland Garros',
+    address:   '2 Av. Gordon Bennett, 75016 Paris, France',
+  },
+  'wimbledon': {
+    venueName: 'All England Lawn Tennis Club (AELTC)',
+    address:   'Church Rd, London SW19 5AE, United Kingdom',
+  },
+  'us open': {
+    venueName: 'USTA Billie Jean King National Tennis Center',
+    address:   'Flushing Meadows Corona Park, Flushing, NY 11368, USA',
+  },
+  // ── ATP Masters 1000 (city 기반) ────────────────────────────────
+  'indian wells': {
+    venueName: 'Indian Wells Tennis Garden',
+    address:   '78-200 Miles Ave, Indian Wells, CA 92210, USA',
+  },
+  'miami': {
+    venueName: 'Hard Rock Stadium',
+    address:   '347 Don Shula Dr, Miami Gardens, FL 33056, USA',
+  },
+  'monte carlo': {
+    venueName: 'Monte-Carlo Country Club',
+    address:   '155 Av. Princesse Grâce, 06190 Roquebrune-Cap-Martin, France',
+  },
+  'monaco': {
+    venueName: 'Monte-Carlo Country Club',
+    address:   '155 Av. Princesse Grâce, 06190 Roquebrune-Cap-Martin, France',
+  },
+  'madrid': {
+    venueName: 'Caja Mágica',
+    address:   'Cmo. de Perales, 23, Usera, 28041 Madrid, Spain',
+  },
+  'rome': {
+    venueName: 'Foro Italico',
+    address:   'Viale delle Olimpiadi, 61, 00135 Roma RM, Italy',
+  },
+  'roma': {
+    venueName: 'Foro Italico',
+    address:   'Viale delle Olimpiadi, 61, 00135 Roma RM, Italy',
+  },
+  'toronto': {
+    venueName: 'Sobeys Stadium',
+    address:   '1 Shoreham Dr, Toronto, ON M3N 1S4, Canada',
+  },
+  'montreal': {
+    venueName: 'IGA Stadium',
+    address:   '285 Rue Gary-Carter, Montreal, QC H3C 6A8, Canada',
+  },
+  'cincinnati': {
+    venueName: 'Lindner Family Tennis Center',
+    address:   '5460 Courseview Dr, Mason, OH 45040, USA',
+  },
+  'shanghai': {
+    venueName: 'Qi Zhong Forest Sports City Tennis Center',
+    address:   '5500 Yuanjiang Rd, Minhang District, Shanghai, China',
+  },
+  'paris': {
+    venueName: 'Accor Arena',
+    address:   '8 Bd de Bercy, 75012 Paris, France',
+  },
+};
+
+function getVenueInfo(t) {
+  // Grand Slam은 대회명으로 매핑
+  const nameLower = (t.name || '').toLowerCase();
+  for (const key of Object.keys(VENUE_MAP)) {
+    if (nameLower.includes(key)) return VENUE_MAP[key];
+  }
+  // ATP1000은 도시명으로 매핑
+  const cityLower = (t.venueCity || '').toLowerCase();
+  return VENUE_MAP[cityLower] || null;
+}
+
+function renderTourneyInfoHtml(t, ended) {
+  const tier   = t.tier || 'atp250';
+  const style  = TIER_STYLE[tier] || TIER_STYLE.atp250;
+  const startDate = t.startDate ? t.startDate.split('T')[0] : '';
+  const endDate   = t.endDate   ? t.endDate.split('T')[0]   : '';
+  const displayName = t.displayName || t.name || '';
+
+  // 하드코딩 venue 정보 우선 사용
+  const venueInfo  = getVenueInfo(t);
+  const venueName  = venueInfo ? venueInfo.venueName : (t.venueName || '');
+  const address    = venueInfo ? venueInfo.address   : [t.venueCity, t.venueCountry].filter(Boolean).join(', ');
+  const mapsQuery  = encodeURIComponent(venueInfo ? venueInfo.address : `${venueName} ${address}`.trim());
+  const mapsUrl    = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
+
+  return `
+    <div style="background:${style.bg};border:1.5px solid ${style.border};border-radius:14px;padding:12px 14px;margin-bottom:4px">
+      <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px">
+        <span style="background:${style.badgeBg};color:${style.badgeColor};font-size:0.65rem;font-weight:800;padding:2px 8px;border-radius:10px;letter-spacing:0.3px">${style.badge}</span>
+        ${ended ? '<span style="background:#64748b;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:10px">종료</span>' : ''}
+      </div>
+      <div style="font-size:0.95rem;font-weight:800;color:${style.color};margin-bottom:4px">${displayName}</div>
+      <div style="font-size:0.76rem;color:#64748b;margin-bottom:2px">📅 ${startDate}${endDate && endDate !== startDate ? ' ~ ' + endDate : ''}</div>
+      ${venueName ? `<div style="font-size:0.76rem;font-weight:600;color:#475569;margin-bottom:1px">🏟️ ${venueName}</div>` : ''}
+      <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📍 ${address || '경기장 정보 없음'}</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <a href="${mapsUrl}" target="_blank" rel="noopener"
+           style="display:inline-flex;align-items:center;gap:5px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:20px;padding:5px 13px;font-size:0.75rem;font-weight:700;color:#166534;text-decoration:none">
+          🗺️ 지도보기
+        </a>
+        ${!ended ? `<button onclick="triggerAtpRefresh()" style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:20px;padding:5px 11px;font-size:0.75rem;font-weight:600;color:#64748b;cursor:pointer">🔄 새로고침</button>` : ''}
+        ${!ended ? `<button onclick="openBetOpenModal()" style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:20px;padding:5px 11px;font-size:0.75rem;font-weight:700;color:#92400e;cursor:pointer">🎯 베팅 오픈</button>` : ''}
+        ${isAdmin() && !ended ? `<button onclick="openLoadHistoricalModal()" style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:20px;padding:5px 11px;font-size:0.75rem;font-weight:600;color:#166534;cursor:pointer">📅 날짜 로드</button>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+// ── 대회 정보 렌더 ────────────────────────────────────────────────
+function renderAtpTourneyInfo() {
+  const el = document.getElementById('atp-tourney-info');
+  if (!el) return;
+  const t = atpState.tournamentInfo;
+  if (!t || !t.name) {
+    // 활성 대회 없으면 직전 Grand Slam 표시
+    const gs = atpState.lastGrandSlam;
+    if (gs && gs.tournamentInfo && gs.tournamentInfo.name) {
+      el.innerHTML = renderTourneyInfoHtml(gs.tournamentInfo, true) +
+        `<div style="text-align:center;padding:4px 0 0"><button onclick="triggerAtpRefresh()" style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:20px;padding:5px 11px;font-size:0.75rem;font-weight:600;color:#64748b;cursor:pointer">🔄 새로고침</button></div>`;
+    } else {
+      el.innerHTML = '<div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.85rem">현재 진행 중인 대회 정보가 없습니다.<br><button onclick="triggerAtpRefresh()" style="margin-top:8px;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:0.8rem;cursor:pointer">🔄 새로고침</button></div>';
+    }
+    return;
+  }
+  el.innerHTML = renderTourneyInfoHtml(t, false);
+}
+
+// ── 관심선수 이름 매칭 헬퍼 ──────────────────────────────────────
+function isFavPlayer(playerName) {
+  if (!playerName || !atpState.favPlayers.length) return false;
+  const lower = playerName.toLowerCase();
+  return atpState.favPlayers.some(p => p.name && lower.includes(p.name.toLowerCase()));
+}
+
+// ── 관심선수 경기 렌더 ────────────────────────────────────────────
+function renderAtpFavMatches() {
+  const card = document.getElementById('atp-fav-matches-card');
+  const list = document.getElementById('atp-fav-matches-list');
+  if (!card || !list) return;
+  if (!atpState.favPlayers.length) { card.style.display = 'none'; return; }
+
+  // 카드 타이틀에 선수 이름 + 랭킹 pills 표시
+  const titleEl = card.querySelector('.card-title');
+  if (titleEl) {
+    const pills = atpState.favPlayers.map(p => {
+      const ranked = ATP_TOP_PLAYERS.find(r => r.name.toLowerCase() === p.name.toLowerCase());
+      const rankStr = ranked ? `<span style="font-size:0.62rem;opacity:0.75">${ranked.rank}위</span> ` : '';
+      return `<span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:12px;padding:2px 9px;font-size:0.68rem;font-weight:700;display:inline-flex;align-items:center;gap:3px">${rankStr}${p.name}</span>`;
+    }).join('');
+    titleEl.innerHTML = `⭐ 내 관심선수 경기 <span style="display:inline-flex;gap:4px;flex-wrap:wrap;margin-left:4px">${pills}</span>`;
+  }
+
+  const useGS = atpState.lastGrandSlam && (!atpState.tournamentInfo || !atpState.tournamentInfo.name);
+  const allMatches = useGS ? (atpState.lastGrandSlam.matches || []) : atpState.matches;
+  const favMatches = allMatches.filter(m =>
+    isFavPlayer(m.player1Name) || isFavPlayer(m.player2Name)
+  );
+
+  if (!favMatches.length) {
+    card.style.display = '';
+    list.innerHTML = '<div style="text-align:center;padding:12px 0;color:#94a3b8;font-size:0.82rem">등록된 관심선수의 경기가 없습니다</div>';
+    return;
+  }
+  card.style.display = '';
+
+  // 라운드별 그룹핑
+  const rounds = {};
+  favMatches.forEach(m => {
+    const r = m.roundName || '기타';
+    if (!rounds[r]) rounds[r] = [];
+    rounds[r].push(m);
+  });
+  let html = '';
+  for (const [round, ms] of Object.entries(rounds)) {
+    html += `<div style="font-size:0.72rem;font-weight:700;color:#94a3b8;padding:6px 0 3px;letter-spacing:0.3px">${round}</div>`;
+    html += ms.map(m => renderMatchRow(m)).join('');
+  }
+  list.innerHTML = html;
+}
+
+// ── Grand Slam 라운드 순서 ────────────────────────────────────────
+const GS_ROUND_ORDER = ['First Round','Second Round','Third Round','Fourth Round',
+  'Quarterfinals','Semifinals','Final'];
+const GS_ROUND_LABEL = {
+  'First Round':'R1','Second Round':'R2','Third Round':'R3','Fourth Round':'R4',
+  'Quarterfinals':'QF','Semifinals':'SF','Final':'F'
+};
+
+function getGsRoundKey(roundName) {
+  for (const r of GS_ROUND_ORDER) {
+    if (roundName && roundName.toLowerCase().includes(r.toLowerCase().replace('round','').trim()) ||
+        roundName === r) return r;
+  }
+  // ESPN 표기가 다를 수 있으므로 포함 검사
+  if (/first/i.test(roundName))  return 'First Round';
+  if (/second/i.test(roundName)) return 'Second Round';
+  if (/third/i.test(roundName))  return 'Third Round';
+  if (/fourth/i.test(roundName)) return 'Fourth Round';
+  if (/quarter/i.test(roundName))return 'Quarterfinals';
+  if (/semi/i.test(roundName))   return 'Semifinals';
+  if (/^final$/i.test(roundName))return 'Final';
+  return roundName;
+}
+
+// ── 대진표 패널 ───────────────────────────────────────────────────
+function renderAtpDrawPanel() {
+  const el = document.getElementById('atp-draw-content');
+  if (!el) return;
+
+  const tier = atpState.tournamentInfo && atpState.tournamentInfo.tier;
+  const matches = atpState.matches;
+
+  // 활성 대회 없고 lastGrandSlam 있으면 해당 데이터 사용
+  const useGS = atpState.lastGrandSlam && (!atpState.tournamentInfo || !atpState.tournamentInfo.name);
+  const drawMatches = useGS ? (atpState.lastGrandSlam.matches || []) : matches;
+  const drawTier    = useGS ? 'grandslam' : tier;
+
+  if (!drawMatches.length) {
+    el.innerHTML = '<div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:0.85rem">대진표 데이터가 없습니다.<br><small style="color:#cbd5e1">🔄 새로고침 버튼으로 데이터를 가져오세요</small></div>';
+    return;
+  }
+
+  if (drawTier === 'grandslam') {
+    renderGsDrawPanel(el, drawMatches);
+  } else {
+    // ATP 일반 — 라운드 그룹핑
+    const rounds = {};
+    drawMatches.forEach(m => {
+      const r = m.roundName || '기타';
+      if (!rounds[r]) rounds[r] = [];
+      rounds[r].push(m);
+    });
+    let html = '';
+    for (const [round, ms] of Object.entries(rounds)) {
+      html += `<div class="atp-round-label">${round}</div>`;
+      html += ms.map(m => renderMatchRow(m)).join('');
+    }
+    el.innerHTML = html;
+  }
+}
+
+function renderGsDrawPanel(el, matches) {
+  // 라운드별 그룹핑
+  const roundGroups = {};
+  matches.forEach(m => {
+    const key = getGsRoundKey(m.roundName || '');
+    if (!roundGroups[key]) roundGroups[key] = [];
+    roundGroups[key].push(m);
+  });
+
+  // 존재하는 라운드만 순서대로
+  const availRounds = GS_ROUND_ORDER.filter(r => roundGroups[r]);
+
+  // 최신 활성 라운드 자동 선택: STATUS_FINAL 아닌 경기가 있는 첫 번째 라운드
+  // 없으면 마지막 라운드
+  if (!atpState.gsRoundTab || !availRounds.includes(atpState.gsRoundTab)) {
+    let autoRound = availRounds[availRounds.length - 1];
+    for (const r of availRounds) {
+      const hasActive = (roundGroups[r] || []).some(m => m.status !== 'STATUS_FINAL');
+      if (hasActive) { autoRound = r; break; }
+    }
+    atpState.gsRoundTab = autoRound;
+  }
+
+  const sel = atpState.gsRoundTab;
+
+  // 서브탭 버튼
+  const tabButtons = availRounds.map(r => {
+    const label = GS_ROUND_LABEL[r] || r;
+    const active = r === sel;
+    return `<button onclick="switchGsRoundTab('${r}')"
+      style="flex:0 0 auto;padding:5px 11px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;border:1.5px solid ${active ? '#f59e0b' : '#e2e8f0'};background:${active ? '#f59e0b' : '#f8fafc'};color:${active ? '#fff' : '#475569'}">${label}</button>`;
+  }).join('');
+
+  const roundMatches = roundGroups[sel] || [];
+  let html = `
+    <div style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch">${tabButtons}</div>
+    <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;margin-bottom:6px">${sel}</div>
+  `;
+  html += roundMatches.map(m => renderMatchRow(m)).join('') || '<div style="text-align:center;padding:12px 0;color:#94a3b8;font-size:0.82rem">경기 데이터 없음</div>';
+  el.innerHTML = html;
+}
+
+function switchGsRoundTab(roundKey) {
+  atpState.gsRoundTab = roundKey;
+  const el = document.getElementById('atp-draw-content');
+  if (!el) return;
+  const useGS = atpState.lastGrandSlam && (!atpState.tournamentInfo || !atpState.tournamentInfo.name);
+  const drawMatches = useGS ? (atpState.lastGrandSlam.matches || []) : atpState.matches;
+  renderGsDrawPanel(el, drawMatches);
+}
+
+// ── 일정/결과 패널 ────────────────────────────────────────────────
+function renderAtpResultsPanel() {
+  const el = document.getElementById('atp-results-content');
+  if (!el) return;
+  const matches = atpState.matches;
+  if (!matches.length) {
+    el.innerHTML = '<div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:0.85rem">일정/결과 데이터가 없습니다.<br><small style="color:#cbd5e1">🔄 새로고침 버튼으로 데이터를 가져오세요</small></div>';
+    return;
+  }
+
+  const completed = matches.filter(m => m.status === 'STATUS_FINAL');
+  const scheduled = matches.filter(m => m.status !== 'STATUS_FINAL');
+
+  let html = '';
+  if (scheduled.length) {
+    html += '<div class="atp-round-label">예정 경기</div>';
+    html += scheduled.map(m => renderMatchRow(m)).join('');
+  }
+  if (completed.length) {
+    html += '<div class="atp-round-label" style="margin-top:8px">완료된 경기</div>';
+    html += completed.map(m => renderMatchRow(m)).join('');
+  }
+  el.innerHTML = html;
+}
+
+// ── 경기 행 렌더 헬퍼 ────────────────────────────────────────────
+function toKSTStr(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    const date = d.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric' });
+    const time = d.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit' });
+    return `${date} ${time} KST`;
+  } catch(e) { return ''; }
+}
+
+function renderMatchRow(m) {
+  const fav1 = isFavPlayer(m.player1Name);
+  const fav2 = isFavPlayer(m.player2Name);
+  const isDone  = m.status === 'STATUS_FINAL';
+  const score1  = m.player1Score || '';
+  const score2  = m.player2Score || '';
+  const p1Name  = m.player1Name || 'TBD';
+  const p2Name  = m.player2Name || 'TBD';
+
+  return `
+    <div class="atp-match-row">
+      <div style="flex:1;min-width:0">
+        <div class="atp-player ${m.player1Winner ? 'winner' : ''}" style="${fav1 ? 'color:#f59e0b;font-weight:800' : ''}">
+          ${fav1 ? '⭐ ' : ''}${p1Name}${m.player1Country ? ` <span style="font-size:0.65rem;color:#94a3b8">${m.player1Country}</span>` : ''}
+          ${m.player1Winner && isDone ? ' <span style="font-size:0.65rem;color:#22c55e">✓</span>' : ''}
+        </div>
+        <div class="atp-player ${m.player2Winner ? 'winner' : ''}" style="margin-top:3px;${fav2 ? 'color:#f59e0b;font-weight:800' : ''}">
+          ${fav2 ? '⭐ ' : ''}${p2Name}${m.player2Country ? ` <span style="font-size:0.65rem;color:#94a3b8">${m.player2Country}</span>` : ''}
+          ${m.player2Winner && isDone ? ' <span style="font-size:0.65rem;color:#22c55e">✓</span>' : ''}
+        </div>
+      </div>
+      <div class="atp-score">
+        ${isDone
+          ? `<div style="font-size:0.72rem">${score1}</div><div style="font-size:0.72rem">${score2}</div>`
+          : `<div style="font-size:0.68rem;color:#64748b;line-height:1.5">${toKSTStr(m.date)}</div>`
+        }
+      </div>
+    </div>`;
+}
+
+// ── 베팅 패널 ─────────────────────────────────────────────────────
+// ── 토너먼트 참가 선수 목록 (랭킹순 정렬) ───────────────────────
+function getTournamentPlayersSorted() {
+  const seen = new Set();
+  const players = [];
+  for (const m of atpState.matches) {
+    const pairs = [
+      [m.player1Name, m.player1Country, m.player1Id],
+      [m.player2Name, m.player2Country, m.player2Id]
+    ];
+    for (const [name, country, id] of pairs) {
+      if (name && name !== 'TBD' && !seen.has(name.toLowerCase())) {
+        seen.add(name.toLowerCase());
+        const ranked = ATP_TOP_PLAYERS.find(p => p.name.toLowerCase() === name.toLowerCase());
+        players.push({ name, country, id: id || '', rank: ranked ? ranked.rank : 999 });
+      }
+    }
+  }
+  return players.sort((a, b) => a.rank - b.rank);
+}
+
+// ── 베팅 패널 렌더 ────────────────────────────────────────────────
+function renderAtpBetPanel() {
+  const el = document.getElementById('atp-bet-content');
+  if (!el) return;
+  const allBets = Object.entries(atpState.bets)
+    .sort((a, b) => (b[1].openedAt || '').localeCompare(a[1].openedAt || ''));
+
+  if (!allBets.length) {
+    el.innerHTML = '<div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:0.85rem">진행 중인 베팅이 없습니다.</div>';
+    return;
+  }
+  const myName = state.identity && state.identity.name;
+  el.innerHTML = allBets.map(([id, bet]) => renderBetCard(id, bet, myName)).join('');
+}
+
+function renderBetCard(betId, bet, myName) {
+  const myKey = myName ? myName.replace(/[.#$[\]]/g, '_') : null;
+  const myBet = myKey && bet.bets ? bet.bets[myKey] : null;
+  const isOpen = !!bet.open;
+  const hasResult = !!bet.result;
+  const showAll = isAdmin() || !isOpen; // admin 항상, 나머지는 close 후 공개
+
+  // ESPN 데이터로 자동 결과 체크
+  if (isOpen && !hasResult) tryAutoSettleBet(betId, bet);
+
+  const typeLabel = bet.type === 'winner'
+    ? '<span style="background:#fef3c7;color:#92400e;border-radius:10px;padding:2px 8px;font-size:0.68rem;font-weight:700">🏆 우승자 맞추기</span>'
+    : '<span style="background:#eff6ff;color:#1d4ed8;border-radius:10px;padding:2px 8px;font-size:0.68rem;font-weight:700">⚔️ 경기 베팅</span>';
+  const statusLabel = isOpen
+    ? '<span style="font-size:0.68rem;color:#22c55e;font-weight:700;margin-left:6px">● OPEN</span>'
+    : '<span style="font-size:0.68rem;color:#94a3b8;font-weight:700;margin-left:6px">● CLOSED</span>';
+  const closeBtn = isAdmin() && isOpen
+    ? `<button onclick="closeBet('${betId}')" style="background:#fee2e2;border:1px solid #fecaca;border-radius:8px;padding:3px 10px;font-size:0.7rem;font-weight:700;color:#dc2626;cursor:pointer">베팅 Close</button>`
+    : '';
+  const settleBtn = isAdmin() && !isOpen && !hasResult
+    ? `<button onclick="settleBetManual('${betId}')" style="margin-top:8px;width:100%;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:8px;padding:6px;font-size:0.75rem;font-weight:600;color:#475569;cursor:pointer">✏️ 결과 수동 입력</button>`
+    : '';
+  const settleOpenBtn = isAdmin() && isOpen
+    ? `<button onclick="settleBetManual('${betId}')" style="margin-top:6px;width:100%;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:8px;padding:5px;font-size:0.72rem;font-weight:600;color:#475569;cursor:pointer">✏️ 결과 수동 입력</button>`
+    : '';
+
+  const innerHtml = bet.type === 'winner'
+    ? renderWinnerBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAll)
+    : renderMatchBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAll);
+
+  return `
+    <div class="bet-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div>${typeLabel}${statusLabel}</div>
+        ${closeBtn}
+      </div>
+      <div style="font-size:0.9rem;font-weight:800;color:#1e293b;margin-bottom:4px">${bet.matchName || bet.tournamentName || '베팅'}</div>
+      ${bet.stake ? `<div style="font-size:0.75rem;color:#92400e;background:#fef3c7;border-radius:8px;padding:4px 9px;margin-bottom:8px;display:inline-block">🎯 ${bet.stake}</div>` : ''}
+      ${innerHtml}
+      ${settleBtn}${settleOpenBtn}
+    </div>`;
+}
+
+// ── Type A: 우승자 맞추기 카드 ────────────────────────────────────
+function renderWinnerBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAll) {
+  const allBetsArr = bet.bets ? Object.entries(bet.bets) : [];
+  const totalCount = allBetsArr.length;
+
+  // 결과 확정 후
+  if (hasResult) {
+    const winnerName = bet.result.winnerName;
+    const winnerBets = allBetsArr.filter(([, b]) => b.playerName === winnerName);
+    const loserBets  = allBetsArr.filter(([, b]) => b.playerName !== winnerName);
+    const myWon = myBet && myBet.playerName === winnerName;
+    return `
+      <div style="padding:8px;border-radius:10px;background:${myWon?'#f0fdf4':'#fef2f2'};margin-bottom:8px;text-align:center">
+        ${myWon ? '🎉🎉 베팅 성공! 축하해요!' : '😔 베팅 실패...'}
+        <div style="font-size:0.88rem;font-weight:800;margin-top:2px">🏆 우승: ${winnerName}</div>
+      </div>
+      <div style="font-size:0.78rem;margin-top:4px">
+        <div style="margin-bottom:4px"><b style="color:#22c55e">🎉 맞춘 멤버 (${winnerBets.length}명):</b> ${winnerBets.map(([k])=>k.replace(/_/g,' ')).join(', ')||'없음'}</div>
+        <div><b style="color:#ef4444">😔 틀린 멤버</b><br>
+          ${Object.entries(loserBets.reduce((acc,[k,b])=>{(acc[b.playerName]=acc[b.playerName]||[]).push(k.replace(/_/g,' '));return acc;},{})).map(([p,ms])=>`<span style="display:inline-block;margin-right:6px"><b>${p}</b> : ${ms.join(', ')}</span>`).join('')||'없음'}
+        </div>
+      </div>`;
+  }
+
+  // Close 전/후 공통 — 내 베팅 표시
+  const myBetHtml = myBet
+    ? `<div style="background:#eff6ff;border-radius:8px;padding:7px 10px;font-size:0.82rem;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+        <span>✅ <b>${myBet.playerName}</b>에 베팅 완료</span>
+        ${isOpen && (myBet.editCount || 0) < 1
+          ? `<button onclick="editBetWinner('${betId}')" style="background:#fff;border:1px solid #2563eb;border-radius:8px;padding:3px 9px;font-size:0.72rem;font-weight:700;color:#2563eb;cursor:pointer">✏️ 수정</button>`
+          : (isOpen ? '<span style="font-size:0.68rem;color:#94a3b8">수정 불가</span>' : '')}
+       </div>`
+    : '';
+
+  // 수정/투표 UI
+  const editGuide = !myBet && isOpen
+    ? `<div style="font-size:0.72rem;color:#64748b;margin-bottom:8px">💡 베팅은 1회 수정 가능합니다. 수정 후에는 변경이 불가합니다.</div>`
+    : '';
+
+  const editing = _betEditing.has(betId);
+  const playerListHtml = isOpen && (!myBet || editing)
+    ? `<div id="bet-player-list-${betId}">
+        ${renderWinnerBetPlayerList(betId)}
+       </div>`
+    : '';
+
+  // 참여자/미참여자 계산 (admin용)
+  const allMemberNames = (state.members || []).map(m => m.name).filter(Boolean);
+  const participatedKeys = new Set(allBetsArr.map(([k]) => k));
+  const notParticipated = allMemberNames.filter(n => !participatedKeys.has(n.replace(/[.#$[\]]/g, '_')));
+
+  // Close 후 현황
+  const closedStats = !isOpen && showAll
+    ? `<div style="font-size:0.75rem;color:#64748b;margin-top:8px;padding-top:8px;border-top:1px solid #f1f5f9">
+        <b>베팅 현황 (${totalCount}명)</b><br>
+        ${Object.entries(playerGroups).map(([p,ms])=>`<div style="margin-bottom:2px"><b style="color:#1e293b">${p}</b> : ${ms.join(', ')}</div>`).join('') || '없음'}
+       </div>`
+    : '';
+
+  // 선수별 멤버 그룹핑
+  const playerGroups = {};
+  allBetsArr.forEach(([k, b]) => {
+    const pName = b.playerName || '?';
+    if (!playerGroups[pName]) playerGroups[pName] = [];
+    playerGroups[pName].push(k.replace(/_/g,' '));
+  });
+  const groupedHtml = Object.entries(playerGroups)
+    .map(([player, members]) => `<div style="margin-bottom:3px"><b>${player}</b> : ${members.join(', ')}</div>`)
+    .join('') || '없음';
+
+  // 관리자 실시간 현황 (open 상태)
+  const adminStats = isAdmin()
+    ? `<div style="margin-top:8px;padding:8px 10px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;font-size:0.75rem">
+        <div style="font-weight:700;color:#475569;margin-bottom:5px">📊 베팅 현황 [관리자]</div>
+        <div style="color:#1e293b;margin-bottom:6px">
+          ✅ <b>참여 (${totalCount}명)</b><br>${groupedHtml}
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="color:#ef4444;flex:1">
+            ❌ <b>미참여 (${notParticipated.length}명)</b>: ${notParticipated.join(', ') || '없음'}
+          </div>
+          ${notParticipated.length > 0 && isOpen
+            ? `<button onclick="notifyBetNonParticipants('${betId}')" style="flex-shrink:0;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:4px 10px;font-size:0.72rem;font-weight:700;color:#92400e;cursor:pointer;white-space:nowrap">🔔 독촉 알림</button>`
+            : ''}
+        </div>
+       </div>`
+    : '';
+
+  const waitMsg = !isOpen && !hasResult
+    ? `<div style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:8px 0">결과 집계 대기 중...</div>` : '';
+
+  return `${editGuide}${myBetHtml}${playerListHtml}${adminStats}${closedStats}${waitMsg}`;
+}
+
+function renderWinnerBetPlayerList(betId) {
+  const players = getTournamentPlayersSorted();
+  if (!players.length) return '<div style="color:#94a3b8;font-size:0.82rem;padding:6px 0">선수 데이터가 없습니다. 🔄 새로고침 후 시도하세요.</div>';
+  return `<div style="max-height:180px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px">
+    ${players.map(p => `
+      <div onclick="placeBetWinner('${betId}','${p.name.replace(/'/g,"\\'")}',${p.rank})"
+        style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f1f5f9;cursor:pointer;active:background:#f8fafc">
+        <span style="font-size:0.68rem;color:#94a3b8;width:28px;flex-shrink:0">${p.rank < 999 ? p.rank+'위' : '-'}</span>
+        <span style="font-size:0.82rem;font-weight:700;color:#1e293b;flex:1">${p.name}</span>
+        <span style="font-size:0.7rem;color:#94a3b8">${p.country || ''}</span>
+      </div>`).join('')}
+  </div>`;
+}
+
+// ── Type B: 경기 베팅 카드 ────────────────────────────────────────
+function renderMatchBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAll) {
+  const allBetsArr = bet.bets ? Object.entries(bet.bets) : [];
+  const p1Bets = allBetsArr.filter(([, b]) => b.playerId === bet.player1Id || b.playerName === bet.player1Name);
+  const p2Bets = allBetsArr.filter(([, b]) => b.playerId === bet.player2Id || b.playerName === bet.player2Name);
+
+  // 결과 확정 후
+  if (hasResult) {
+    const winnerId = bet.result.winnerId;
+    const winnerName = bet.result.winnerName;
+    const myWon = myBet && (myBet.playerId === winnerId || myBet.playerName === winnerName);
+    const p1Win = winnerId === bet.player1Id || winnerName === bet.player1Name;
+    return `
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <div style="flex:1;padding:8px;border-radius:10px;text-align:center;background:${p1Win?'#f0fdf4':'#fef2f2'};border:1.5px solid ${p1Win?'#86efac':'#fca5a5'}">
+          <div style="font-size:0.7rem;font-weight:700">${p1Win?'🎉 우승':'😔 패배'}</div>
+          <div style="font-size:0.82rem;font-weight:800;margin:2px 0">${bet.player1Name}</div>
+          <div style="font-size:0.7rem;color:#64748b">${p1Bets.map(([k])=>k.replace(/_/g,' ')).join(', ')||'베팅 없음'}</div>
+        </div>
+        <div style="flex:1;padding:8px;border-radius:10px;text-align:center;background:${!p1Win?'#f0fdf4':'#fef2f2'};border:1.5px solid ${!p1Win?'#86efac':'#fca5a5'}">
+          <div style="font-size:0.7rem;font-weight:700">${!p1Win?'🎉 우승':'😔 패배'}</div>
+          <div style="font-size:0.82rem;font-weight:800;margin:2px 0">${bet.player2Name}</div>
+          <div style="font-size:0.7rem;color:#64748b">${p2Bets.map(([k])=>k.replace(/_/g,' ')).join(', ')||'베팅 없음'}</div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:0.82rem;font-weight:700;padding:4px;border-radius:8px;background:${myWon?'#f0fdf4':'#fef2f2'};color:${myWon?'#166534':'#991b1b'}">
+        ${myWon ? '🎉 베팅 성공!' : (myBet ? '😔 베팅 실패...' : '미참여')}
+      </div>`;
+  }
+
+  // 투표 진행 중
+  const myBetHtml = myBet
+    ? `<div style="background:#eff6ff;border-radius:8px;padding:7px 10px;font-size:0.82rem;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
+        <span>✅ <b>${myBet.playerName}</b>에 베팅 완료</span>
+        ${isOpen && (myBet.editCount || 0) < 1
+          ? `<button onclick="editBetMatch('${betId}')" style="background:#fff;border:1px solid #2563eb;border-radius:8px;padding:3px 9px;font-size:0.72rem;font-weight:700;color:#2563eb;cursor:pointer">✏️ 수정</button>`
+          : (isOpen ? '<span style="font-size:0.68rem;color:#94a3b8">수정 불가</span>' : '')}
+       </div>`
+    : '';
+
+  const editingMatch = _betEditing.has(betId);
+  const votingHtml = isOpen && (!myBet || editingMatch)
+    ? `<div style="font-size:0.72rem;color:#64748b;margin-bottom:8px">💡 베팅은 1회 수정 가능합니다. 수정 후에는 변경이 불가합니다.</div>
+       <div style="display:flex;gap:8px">
+         <button class="bet-player-btn" onclick="placeBetMatch('${betId}','${bet.player1Id}','${bet.player1Name}')">${bet.player1Name}</button>
+         <button class="bet-player-btn" onclick="placeBetMatch('${betId}','${bet.player2Id}','${bet.player2Name}')">${bet.player2Name}</button>
+       </div>`
+    : '';
+
+  const statsHtml = showAll
+    ? `<div style="display:flex;gap:8px;margin-top:8px;font-size:0.72rem;color:#64748b;text-align:center">
+        <div style="flex:1">${bet.player1Name}<br><b style="color:#2563eb">${p1Bets.length}명</b>${showAll && p1Bets.length ? `<br>${p1Bets.map(([k])=>k.replace(/_/g,' ')).join(', ')}` : ''}</div>
+        <div style="flex:1">${bet.player2Name}<br><b style="color:#2563eb">${p2Bets.length}명</b>${showAll && p2Bets.length ? `<br>${p2Bets.map(([k])=>k.replace(/_/g,' ')).join(', ')}` : ''}</div>
+       </div>`
+    : (myBet && isOpen ? '' : !myBet && isOpen ? '' : `<div style="font-size:0.75rem;color:#94a3b8;text-align:center;margin-top:6px">베팅 결과는 Close 후 공개됩니다</div>`);
+
+  const waitMsg = !isOpen && !hasResult
+    ? `<div style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:8px 0">결과 집계 대기 중...</div>` : '';
+
+  return `${myBetHtml}${votingHtml}${statsHtml}${waitMsg}`;
+}
+
+// ── 베팅 투표 ─────────────────────────────────────────────────────
+function placeBetWinner(betId, playerName, playerRank) {
+  const myName = state.identity && state.identity.name;
+  if (!myName || !db) return;
+  const bet = atpState.bets[betId];
+  if (!bet || !bet.open) { alert('베팅이 마감되었습니다.'); return; }
+  const myKey = myName.replace(/[.#$[\]]/g, '_');
+  const existing = bet.bets && bet.bets[myKey];
+  if (existing && (existing.editCount || 0) >= 1) { alert('수정 횟수를 초과했습니다.'); return; }
+  const editCount = existing ? (existing.editCount || 0) + 1 : 0;
+  db.ref(`jmt/atpBets/${betId}/bets/${myKey}`)
+    .set({ playerName, playerRank, at: new Date().toISOString(), editCount })
+    .then(() => { _betEditing.delete(betId); renderAtpBetPanel(); })
+    .catch(fbErr);
+}
+
+function placeBetMatch(betId, playerId, playerName) {
+  const myName = state.identity && state.identity.name;
+  if (!myName || !db) return;
+  const bet = atpState.bets[betId];
+  if (!bet || !bet.open) { alert('베팅이 마감되었습니다.'); return; }
+  const myKey = myName.replace(/[.#$[\]]/g, '_');
+  const existing = bet.bets && bet.bets[myKey];
+  if (existing && (existing.editCount || 0) >= 1) { alert('수정 횟수를 초과했습니다.'); return; }
+  const editCount = existing ? (existing.editCount || 0) + 1 : 0;
+  db.ref(`jmt/atpBets/${betId}/bets/${myKey}`)
+    .set({ playerId, playerName, at: new Date().toISOString(), editCount })
+    .then(() => { _betEditing.delete(betId); renderAtpBetPanel(); })
+    .catch(fbErr);
+}
+
+// 수정 버튼 클릭 — 편집 모드 플래그 설정 후 재렌더
+const _betEditing = new Set();
+
+function editBetWinner(betId) {
+  _betEditing.add(betId);
+  renderAtpBetPanel();
+}
+function editBetMatch(betId) {
+  _betEditing.add(betId);
+  renderAtpBetPanel();
+}
+
+// ── 베팅 Close (관리자) ───────────────────────────────────────────
+function closeBet(betId) {
+  if (!confirm('베팅을 마감하시겠습니까? 마감 후에는 멤버들의 베팅/수정이 불가합니다.')) return;
+  db.ref(`jmt/atpBets/${betId}`).update({ open: false, closedAt: new Date().toISOString() }).catch(fbErr);
+}
+
+// ── 결과 자동 감지 (ESPN 데이터) ─────────────────────────────────
+function tryAutoSettleBet(betId, bet) {
+  if (!atpState.matches.length) return;
+  let winnerName = null;
+
+  if (bet.type === 'winner') {
+    // Final 경기에서 우승자 추출
+    const finalMatch = atpState.matches.find(m => {
+      const r = (m.roundName || '').toLowerCase();
+      return (r === 'final' || r === '결승') && !r.includes('semi') && !r.includes('qualify') && m.status === 'STATUS_FINAL';
+    });
+    if (finalMatch) {
+      winnerName = finalMatch.player1Winner ? finalMatch.player1Name : (finalMatch.player2Winner ? finalMatch.player2Name : null);
+    }
+  } else {
+    // 특정 경기 결과 추출
+    const match = atpState.matches.find(m => m.id === bet.matchId && m.status === 'STATUS_FINAL');
+    if (match) {
+      const winId   = match.player1Winner ? match.player1Id   : (match.player2Winner ? match.player2Id   : null);
+      winnerName    = match.player1Winner ? match.player1Name : (match.player2Winner ? match.player2Name : null);
+      if (winnerName && db) {
+        db.ref(`jmt/atpBets/${betId}`).update({
+          open: false,
+          result: { winnerId: winId, winnerName, settledAt: new Date().toISOString(), source: 'auto' },
+          closedAt: new Date().toISOString(),
+        }).catch(fbErr);
+        return;
+      }
+    }
+  }
+
+  if (winnerName && db) {
+    db.ref(`jmt/atpBets/${betId}`).update({
+      open: false,
+      result: { winnerName, settledAt: new Date().toISOString(), source: 'auto' },
+      closedAt: new Date().toISOString(),
+    }).catch(fbErr);
+  }
+}
+
+// ── 결과 수동 입력 (관리자) ──────────────────────────────────────
+let _settlingBetId = null;
+
+function settleBetManual(betId) {
+  const bet = atpState.bets[betId];
+  if (!bet) return;
+  _settlingBetId = betId;
+
+  const desc = document.getElementById('bet-settle-desc');
+  const list = document.getElementById('bet-settle-list');
+
+  if (bet.type === 'winner') {
+    // 실제 베팅에 참여한 선수들만 추출 (중복 제거)
+    const betsArr = bet.bets ? Object.values(bet.bets) : [];
+    const playerMap = {};
+    betsArr.forEach(b => {
+      if (b.playerName) playerMap[b.playerName] = (playerMap[b.playerName] || 0) + 1;
+    });
+    const players = Object.entries(playerMap).sort((a, b) => b[1] - a[1]); // 베팅 많은 순
+
+    desc.textContent = `우승자를 선택하세요 (${bet.tournamentName || ''})`;
+    list.innerHTML = players.length
+      ? players.map(([name, count]) => `
+          <label style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid #f1f5f9;cursor:pointer">
+            <input type="radio" name="settle-pick" value="${name}" style="width:16px;height:16px;accent-color:#2563eb">
+            <span style="flex:1;font-size:0.88rem;font-weight:700;color:#1e293b">${name}</span>
+            <span style="font-size:0.75rem;color:#64748b;background:#f1f5f9;border-radius:8px;padding:2px 8px">${count}명 베팅</span>
+          </label>`).join('')
+      : '<div style="padding:16px 0;text-align:center;color:#94a3b8;font-size:0.85rem">베팅 참여자가 없습니다</div>';
+  } else {
+    // Type B: player1 vs player2
+    desc.textContent = `승자를 선택하세요`;
+    const p1Count = Object.values(bet.bets || {}).filter(b => b.playerName === bet.player1Name || b.playerId === bet.player1Id).length;
+    const p2Count = Object.values(bet.bets || {}).filter(b => b.playerName === bet.player2Name || b.playerId === bet.player2Id).length;
+    list.innerHTML = [
+      { name: bet.player1Name, id: bet.player1Id, count: p1Count },
+      { name: bet.player2Name, id: bet.player2Id, count: p2Count },
+    ].map(p => `
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid #f1f5f9;cursor:pointer">
+          <input type="radio" name="settle-pick" value="${p.name}" data-id="${p.id}" style="width:16px;height:16px;accent-color:#2563eb">
+          <span style="flex:1;font-size:0.88rem;font-weight:700;color:#1e293b">${p.name}</span>
+          <span style="font-size:0.75rem;color:#64748b;background:#f1f5f9;border-radius:8px;padding:2px 8px">${p.count}명 베팅</span>
+        </label>`).join('');
+  }
+
+  document.getElementById('bet-settle-modal').classList.add('open');
+}
+
+function openLoadHistoricalModal() {
+  document.getElementById('historical-date-input').value = '';
+  document.getElementById('historical-load-result').textContent = '';
+  document.getElementById('load-historical-modal').classList.add('open');
+}
+
+async function submitLoadHistorical() {
+  const date = document.getElementById('historical-date-input').value.trim();
+  const resultEl = document.getElementById('historical-load-result');
+  if (!/^\d{8}$/.test(date)) {
+    resultEl.style.color = '#ef4444';
+    resultEl.textContent = '날짜 형식이 올바르지 않습니다 (YYYYMMDD)';
+    return;
+  }
+  resultEl.style.color = '#64748b';
+  resultEl.textContent = '불러오는 중... ⏳';
+  try {
+    const fn = firebase.app().functions('asia-southeast1').httpsCallable('loadAtpDataByDate');
+    const res = await fn({ date });
+    if (res.data.success) {
+      resultEl.style.color = '#16a34a';
+      resultEl.textContent = `✅ ${res.data.tournament} (${res.data.tier}) — ${res.data.matchCount}경기 로드 완료`;
+      setTimeout(() => document.getElementById('load-historical-modal').classList.remove('open'), 1500);
+    } else {
+      resultEl.style.color = '#ef4444';
+      resultEl.textContent = '실패: ' + res.data.error;
+    }
+  } catch (e) {
+    resultEl.style.color = '#ef4444';
+    resultEl.textContent = '오류: ' + e.message;
+  }
+}
+
+function submitBetSettle() {
+  const selected = document.querySelector('input[name="settle-pick"]:checked');
+  if (!selected) { alert('우승자를 선택하세요.'); return; }
+  const bet = atpState.bets[_settlingBetId];
+  if (!bet || !db) return;
+
+  const winnerName = selected.value;
+  const winnerId   = selected.dataset.id || '';
+  db.ref(`jmt/atpBets/${_settlingBetId}`).update({
+    open: false,
+    result: { winnerId, winnerName, settledAt: new Date().toISOString(), source: 'manual' },
+    closedAt: bet.closedAt || new Date().toISOString(),
+  }).then(() => {
+    document.getElementById('bet-settle-modal').classList.remove('open');
+    _settlingBetId = null;
+  }).catch(e => { fbErr(e); alert('저장 실패: ' + (e.message || e)); });
+}
+
+// ── 관심선수 모달 ─────────────────────────────────────────────────
+const ATP_TOP_PLAYERS = [
+  { rank:1,  name:'Jannik Sinner',          country:'ITA' },
+  { rank:2,  name:'Carlos Alcaraz',          country:'ESP' },
+  { rank:3,  name:'Alexander Zverev',        country:'GER' },
+  { rank:4,  name:'Novak Djokovic',          country:'SRB' },
+  { rank:5,  name:'Daniil Medvedev',         country:'RUS' },
+  { rank:6,  name:'Taylor Fritz',            country:'USA' },
+  { rank:7,  name:'Casper Ruud',             country:'NOR' },
+  { rank:8,  name:'Andrey Rublev',           country:'RUS' },
+  { rank:9,  name:'Alex de Minaur',          country:'AUS' },
+  { rank:10, name:'Stefanos Tsitsipas',      country:'GRE' },
+  { rank:11, name:'Tommy Paul',              country:'USA' },
+  { rank:12, name:'Ben Shelton',             country:'USA' },
+  { rank:13, name:'Grigor Dimitrov',         country:'BUL' },
+  { rank:14, name:'Ugo Humbert',             country:'FRA' },
+  { rank:15, name:'Francisco Cerundolo',     country:'ARG' },
+  { rank:16, name:'Sebastian Baez',          country:'ARG' },
+  { rank:17, name:'Nicolas Jarry',           country:'CHI' },
+  { rank:18, name:'Karen Khachanov',         country:'RUS' },
+  { rank:19, name:'Felix Auger-Aliassime',   country:'CAN' },
+  { rank:20, name:'Lorenzo Musetti',         country:'ITA' },
+  { rank:21, name:'Holger Rune',             country:'DEN' },
+  { rank:22, name:'Jack Draper',             country:'GBR' },
+  { rank:23, name:'Frances Tiafoe',          country:'USA' },
+  { rank:24, name:'Flavio Cobolli',          country:'ITA' },
+  { rank:25, name:'Jakub Mensik',            country:'CZE' },
+  { rank:26, name:'Alexei Popyrin',          country:'AUS' },
+  { rank:27, name:'Tomas Martin Etcheverry', country:'ARG' },
+  { rank:28, name:'Arthur Fils',             country:'FRA' },
+  { rank:29, name:'Jiri Lehecka',            country:'CZE' },
+  { rank:30, name:'Matteo Berrettini',       country:'ITA' },
+];
+
+let _favAllPlayers = [];  // 모달용 전체 선수 목록 캐시
+
+function openFavPlayerModal() {
+  // 현재 등록된 관심선수를 임시 배열로 복사
+  atpState.favPlayersTmp = atpState.favPlayers.map(p => ({ ...p }));
+
+  // 전체 선수 목록 구성 (하드코딩 랭킹 + 현재 토너먼트 선수)
+  const seen = new Set(ATP_TOP_PLAYERS.map(p => p.name.toLowerCase()));
+  const players = [...ATP_TOP_PLAYERS];
+  let extraRank = ATP_TOP_PLAYERS.length + 1;
+  for (const m of atpState.matches) {
+    for (const n of [m.player1Name, m.player2Name]) {
+      if (n && !seen.has(n.toLowerCase())) {
+        seen.add(n.toLowerCase());
+        players.push({ rank: extraRank++, name: n, country: m.player1Name === n ? (m.player1Country || '') : (m.player2Country || '') });
+      }
+    }
+  }
+  _favAllPlayers = players;
+
+  // 검색창 초기화
+  const searchInput = document.getElementById('fav-search-input');
+  if (searchInput) searchInput.value = '';
+
+  renderFavPlayerList('');
+  updateFavSelectedBar();
+  document.getElementById('fav-player-modal').classList.add('open');
+}
+
+function renderFavPlayerList(query) {
+  const listEl = document.getElementById('fav-player-list');
+  if (!listEl) return;
+  const q = query.trim().toLowerCase();
+  const filtered = q ? _favAllPlayers.filter(p => p.name.toLowerCase().includes(q)) : _favAllPlayers;
+  const favNames = new Set(atpState.favPlayersTmp.map(p => p.name.toLowerCase()));
+  if (!filtered.length) {
+    listEl.innerHTML = `<div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:0.82rem">"${query}" 검색 결과 없음</div>`;
+    return;
+  }
+  listEl.innerHTML = filtered.map(p => {
+    const sel = favNames.has(p.name.toLowerCase());
+    return `<div onclick="toggleFavPlayerByName('${p.name.replace(/'/g,"\\'")}','${p.country}')"
+      style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #f1f5f9;cursor:pointer">
+      <div style="width:20px;height:20px;border-radius:5px;border:2px solid ${sel?'#2563eb':'#cbd5e1'};background:${sel?'#2563eb':'#fff'};flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.15s" id="favck-${p.name.replace(/[^a-zA-Z0-9]/g,'_')}">
+        ${sel ? '<span style="color:#fff;font-size:0.7rem;font-weight:900">✓</span>' : ''}
+      </div>
+      <div style="flex:1;min-width:0">
+        <span style="font-size:0.82rem;font-weight:700;color:#1e293b">${p.name}</span>
+        ${p.country ? `<span style="font-size:0.72rem;color:#94a3b8;margin-left:5px">${p.country}</span>` : ''}
+      </div>
+      <span style="font-size:0.72rem;color:#94a3b8;flex-shrink:0">${p.rank}위</span>
+    </div>`;
+  }).join('');
+}
+
+function filterFavPlayerList(value) {
+  renderFavPlayerList(value);
+}
+
+function toggleFavPlayerByName(name, country) {
+  const idx = atpState.favPlayersTmp.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+  if (idx >= 0) {
+    atpState.favPlayersTmp.splice(idx, 1);
+  } else {
+    if (atpState.favPlayersTmp.length >= 2) {
+      alert('최대 2명까지만 등록할 수 있습니다.');
+      return;
+    }
+    atpState.favPlayersTmp.push({ name, country });
+  }
+  // 체크박스 UI 업데이트
+  const key = name.replace(/[^a-zA-Z0-9]/g, '_');
+  const ck = document.getElementById(`favck-${key}`);
+  if (ck) {
+    const sel = atpState.favPlayersTmp.some(p => p.name.toLowerCase() === name.toLowerCase());
+    ck.style.borderColor = sel ? '#2563eb' : '#cbd5e1';
+    ck.style.background = sel ? '#2563eb' : '#fff';
+    ck.innerHTML = sel ? '<span style="color:#fff;font-size:0.7rem;font-weight:900">✓</span>' : '';
+  }
+  updateFavSelectedBar();
+}
+
+function updateFavSelectedBar() {
+  const bar = document.getElementById('fav-selected-bar');
+  const names = document.getElementById('fav-selected-names');
+  if (!bar || !names) return;
+  if (!atpState.favPlayersTmp.length) {
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = '';
+  names.textContent = '⭐ ' + atpState.favPlayersTmp.map(p => p.name).join(' · ');
+}
+
+function closeFavPlayerModal() {
+  document.getElementById('fav-player-modal').classList.remove('open');
+}
+
+async function loadTop100ForModal_UNUSED() {
+  const listEl = document.getElementById('fav-player-list');
+  if (!listEl) return;
+
+  // 캐시된 경우 바로 렌더
+  if (atpState.top100.length) { renderTop100List(); return; }
+
+  listEl.innerHTML = '<div style="text-align:center;padding:20px 0;color:#94a3b8;grid-column:1/-1">선수 목록 불러오는 중...</div>';
+
+  try {
+    // 스코어보드에서 선수 추출 (이미 DB에 있으면 사용, 없으면 직접 fetch)
+    let matches = atpState.matches;
+    if (!matches.length) {
+      const res = await fetch('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard');
+      const json = await res.json();
+      const events = json.events || [];
+      matches = [];
+      for (const e of events) {
+        for (const grp of (e.groupings || [])) {
+          for (const comp of (grp.competitions || [])) {
+            const c = comp.competitors || [];
+            const p1 = c[0] || {}, p2 = c[1] || {};
+            if (p1.athlete?.id) matches.push({ player1Id: p1.athlete.id, player1Name: p1.athlete.displayName, player1Country: p1.athlete.flag?.alt || '' });
+            if (p2.athlete?.id) matches.push({ player2Id: p2.athlete.id, player2Name: p2.athlete.displayName, player2Country: p2.athlete.flag?.alt || '' });
+          }
+        }
+      }
+    }
+
+    const seen = new Set();
+    const players = [];
+    for (const m of matches) {
+      if (m.player1Id && !seen.has(m.player1Id)) {
+        seen.add(m.player1Id);
+        players.push({ id: String(m.player1Id), rank: players.length + 1, name: m.player1Name || '', country: m.player1Country || '' });
+      }
+      if (m.player2Id && !seen.has(m.player2Id)) {
+        seen.add(m.player2Id);
+        players.push({ id: String(m.player2Id), rank: players.length + 1, name: m.player2Name || '', country: m.player2Country || '' });
+      }
+    }
+    atpState.top100 = players.filter(p => p.name);
+  } catch(e) {
+    console.error('loadTop100 error:', e);
+    atpState.top100 = [];
+  }
+
+  if (!atpState.top100.length) {
+    listEl.innerHTML = '<div style="text-align:center;padding:20px 0;color:#ef4444;grid-column:1/-1">선수 목록 로드 실패.<br>먼저 ATPLive 탭에서 🔄 새로고침을 눌러주세요.</div>';
+    return;
+  }
+  renderTop100List();
+}
+
+function buildTop100FromMatches() {
+  // ESPN 랭킹 API 실패 시 현재 경기 선수들로 목록 구성
+  const seen = new Set();
+  const players = [];
+  for (const m of atpState.matches) {
+    if (m.player1Id && !seen.has(m.player1Id)) {
+      seen.add(m.player1Id);
+      players.push({ id: String(m.player1Id), rank: players.length + 1, name: m.player1Name, country: m.player1Country });
+    }
+    if (m.player2Id && !seen.has(m.player2Id)) {
+      seen.add(m.player2Id);
+      players.push({ id: String(m.player2Id), rank: players.length + 1, name: m.player2Name, country: m.player2Country });
+    }
+  }
+  return players;
+}
+
+function renderTop100List() {
+  const listEl = document.getElementById('fav-player-list');
+  if (!listEl) return;
+  const favIds = new Set(atpState.favPlayersTmp.map(p => String(p.id)));
+  listEl.innerHTML = atpState.top100.map(p => `
+    <button class="fav-btn ${favIds.has(p.id) ? 'selected' : ''}" id="favbtn-${p.id}"
+      onclick="toggleFavPlayer('${p.id}','${p.name.replace(/'/g,"\\'")}','${p.country}')">
+      <span style="font-size:0.68rem;color:#94a3b8">${p.rank}위</span>
+      <span style="display:block;font-size:0.82rem;font-weight:700;color:#1e293b">${p.name}</span>
+      ${p.country ? `<span style="font-size:0.65rem;color:#94a3b8">${p.country}</span>` : ''}
+    </button>`).join('');
+}
+
+function toggleFavPlayer(id, name, country) {
+  const idx = atpState.favPlayersTmp.findIndex(p => String(p.id) === String(id));
+  if (idx >= 0) {
+    atpState.favPlayersTmp.splice(idx, 1);
+  } else {
+    atpState.favPlayersTmp.push({ id: String(id), name, country });
+  }
+  const btn = document.getElementById(`favbtn-${id}`);
+  if (btn) btn.classList.toggle('selected', idx < 0);
+}
+
+function saveFavPlayers() {
+  const myName = state.identity && state.identity.name;
+  const players = (atpState.favPlayersTmp || []).slice(0, 3);
+  atpState.favPlayers = players;
+  if (myName && db) {
+    db.ref(`jmt/favPlayers/${myName}`).set(players).catch(fbErr);
+  }
+  closeFavPlayerModal();
+  renderAtpFavMatches();
+  renderAtpDrawPanel();
+  renderAtpResultsPanel();
+}
+
+// ── 베팅 오픈 모달 ────────────────────────────────────────────────
+function openBetOpenModal() {
+  if (!isAdmin()) { alert('🎰 뱅커만이 베팅을 오픈할 수 있습니다.'); return; }
+  switchBetOpenTab('winner');
+  document.getElementById('bet-open-modal').classList.add('open');
+}
+
+function closeBetOpenModal() {
+  document.getElementById('bet-open-modal').classList.remove('open');
+}
+
+function switchBetOpenTab(tab) {
+  const isWinner = tab === 'winner';
+  document.getElementById('bet-open-panel-winner').style.display = isWinner ? '' : 'none';
+  document.getElementById('bet-open-panel-match').style.display  = isWinner ? 'none' : '';
+  const tw = document.getElementById('bet-open-tab-winner');
+  const tm = document.getElementById('bet-open-tab-match');
+  if (tw) { tw.style.color = isWinner ? '#2563eb' : '#94a3b8'; tw.style.borderBottomColor = isWinner ? '#2563eb' : 'transparent'; tw.style.fontWeight = isWinner ? '700' : '600'; }
+  if (tm) { tm.style.color = isWinner ? '#94a3b8' : '#2563eb'; tm.style.borderBottomColor = isWinner ? 'transparent' : '#2563eb'; tm.style.fontWeight = isWinner ? '600' : '700'; }
+
+  if (!isWinner) {
+    // 준결승/결승 경기만 필터
+    const sfFinalMatches = atpState.matches.filter(m => {
+      const r = (m.roundName || '').toLowerCase().trim();
+      const isSemi  = r.includes('semifinal') || r.includes('semi-final') || r === '4강';
+      const isFinal = r === 'final' || r === '결승';
+      return (isSemi || isFinal) && m.player1Name && m.player2Name && m.player1Name !== 'TBD' && m.player2Name !== 'TBD';
+    });
+    const selector = document.getElementById('bet-match-selector');
+    if (selector) {
+      selector.innerHTML = sfFinalMatches.length
+        ? sfFinalMatches.map(m => `
+            <label style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:0.82rem;cursor:pointer">
+              <input type="radio" name="bet-match" value="${m.id}"
+                data-p1id="${m.player1Id}" data-p1="${m.player1Name}"
+                data-p2id="${m.player2Id}" data-p2="${m.player2Name}"
+                data-round="${m.roundName || ''}">
+              <span><b>${m.roundName || ''}</b>: ${m.player1Name} vs ${m.player2Name}</span>
+            </label>`).join('')
+        : '<div style="color:#94a3b8;font-size:0.82rem;padding:8px 0">준결승/결승 경기가 없습니다. 🔄 새로고침 후 재시도하세요.</div>';
+    }
+    document.getElementById('bet-stake-input').value = '';
+  } else {
+    const ti = atpState.tournamentInfo;
+    document.getElementById('bet-winner-stake').value = '';
+  }
+}
+
+function submitBetOpenWinner() {
+  const stake = document.getElementById('bet-winner-stake').value.trim();
+  if (!stake) { alert('베팅 내용(스테이크)을 입력하세요.'); return; }
+  if (!db) { alert('Firebase 연결이 필요합니다.'); return; }
+  const ti = atpState.tournamentInfo;
+  const tournamentName = ti ? ti.name : '현재 토너먼트';
+  const betId = `betW_${Date.now()}`;
+  const bet = {
+    type: 'winner',
+    open: true,
+    tournamentName,
+    stake,
+    openedBy: (state.identity && state.identity.name) || '',
+    openedAt: new Date().toISOString(),
+  };
+  db.ref(`jmt/atpBets/${betId}`).set(bet)
+    .then(() => { closeBetOpenModal(); switchAtpTab('bet'); })
+    .catch(e => { fbErr(e); alert('저장 실패: ' + (e.message || e)); });
+}
+
+function submitBetOpenMatch() {
+  const selected = document.querySelector('input[name="bet-match"]:checked');
+  if (!selected) { alert('베팅할 경기를 선택하세요.'); return; }
+  const stake = document.getElementById('bet-stake-input').value.trim();
+  if (!stake) { alert('베팅 내용(스테이크)을 입력하세요.'); return; }
+  if (!db) { alert('Firebase 연결이 필요합니다.'); return; }
+  const betId = `betM_${selected.value}_${Date.now()}`;
+  const bet = {
+    type: 'match',
+    open: true,
+    matchId: selected.value,
+    matchName: `${selected.dataset.round}: ${selected.dataset.p1} vs ${selected.dataset.p2}`,
+    player1Id: selected.dataset.p1id,
+    player1Name: selected.dataset.p1,
+    player2Id: selected.dataset.p2id,
+    player2Name: selected.dataset.p2,
+    stake,
+    openedBy: (state.identity && state.identity.name) || '',
+    openedAt: new Date().toISOString(),
+  };
+  db.ref(`jmt/atpBets/${betId}`).set(bet)
+    .then(() => { closeBetOpenModal(); switchAtpTab('bet'); })
+    .catch(e => { fbErr(e); alert('저장 실패: ' + (e.message || e)); });
+}
+
+// ── 베팅 미참여자 독촉 알림 ──────────────────────────────────────
+async function notifyBetNonParticipants(betId) {
+  const bet = atpState.bets[betId];
+  if (!bet) return;
+
+  const allMemberNames = (state.members || []).map(m => m.name).filter(Boolean);
+  const participatedKeys = new Set(bet.bets ? Object.keys(bet.bets) : []);
+  const notParticipated = allMemberNames.filter(n => !participatedKeys.has(n.replace(/[.#$[\]]/g, '_')));
+
+  if (!notParticipated.length) { alert('미참여 멤버가 없습니다.'); return; }
+  if (!confirm(`${notParticipated.join(', ')}에게\n베팅 독촉 알림을 보내시겠습니까?`)) return;
+
+  try {
+    const fn = firebase.app().functions('asia-southeast1').httpsCallable('notifyBetReminder');
+    await fn({ names: notParticipated, betTitle: bet.tournamentName || bet.matchName || '베팅' });
+    alert('✅ 알림을 보냈습니다.');
+  } catch(e) {
+    console.error('notifyBetReminder error:', e);
+    alert('알림 전송 실패: ' + e.message);
+  }
+}
+
+// ── ATP 데이터 새로고침 (ESPN 직접 fetch → Firebase 저장) ────────
+async function triggerAtpRefresh() {
+  const el = document.getElementById('atp-tourney-info');
+  if (el) el.innerHTML = '<div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.85rem">데이터 가져오는 중... ⏳</div>';
+
+  try {
+    const res = await fetch('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard', { mode: 'cors' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const events = json.events || [];
+
+    // 토너먼트 선택: Grand Slam > ATP1000 > ATP500 > ATP250
+    const ATP1000_C = new Set(['indian wells','miami','monte carlo','monaco','madrid','rome','roma','toronto','montreal','cincinnati','shanghai','paris']);
+    const ATP500_C  = new Set(['rotterdam','rio','dubai','acapulco','barcelona','hamburg','washington','vienna','basel','tokyo','beijing','astana']);
+    const TIER_O    = { grandslam:0, atp1000:1, atp500:2, atp250:3 };
+    function clientGetTier(ev) {
+      if (ev.major) return 'grandslam';
+      const fc = ((ev.groupings||[])[0]?.competitions||[])[0];
+      const city = (fc?.venue?.fullName||'').split(',')[0].trim().toLowerCase();
+      if (ATP1000_C.has(city)) return 'atp1000';
+      if (ATP500_C.has(city))  return 'atp500';
+      return 'atp250';
+    }
+    const ev = events.reduce((best, e) => {
+      if (!best) return e;
+      return (TIER_O[clientGetTier(e)] ?? 99) < (TIER_O[clientGetTier(best)] ?? 99) ? e : best;
+    }, null) || {};
+
+    // venue
+    let venueFullName = '', venueCity = '', venueCountry = '';
+    const firstComp = ((ev.groupings||[])[0]?.competitions||[])[0];
+    if (firstComp?.venue) {
+      venueFullName = firstComp.venue.fullName || '';
+      const parts = venueFullName.split(',').map(s => s.trim());
+      venueCity    = parts[0] || '';
+      venueCountry = parts[1] || '';
+    }
+
+    const tier = clientGetTier(ev);
+    const displayName = venueCity ? `${ev.name||''} · ${venueCity}` : (ev.name||'');
+
+    const tournamentInfo = {
+      id:          ev.id || '',
+      name:        ev.name || '',
+      shortName:   ev.shortName || '',
+      displayName,
+      tier,
+      venueName:   venueFullName,
+      venueCity,
+      venueCountry,
+      startDate:   ev.date    || '',
+      endDate:     ev.endDate || '',
+      updatedAt:   new Date().toISOString(),
+    };
+
+    // 선택된 토너먼트 경기만
+    const matches = [];
+    for (const grp of (ev.groupings||[])) {
+      for (const comp of (grp.competitions||[])) {
+        const c = comp.competitors || [];
+        const p1 = c[0]||{}, p2 = c[1]||{};
+        const st = comp.status || {};
+        matches.push({
+          id:            comp.id,
+          roundName:     comp.round?.displayName || grp.displayName || '',
+          date:          comp.date || '',
+          status:        st.type?.name || '',
+          player1Id:     p1.athlete?.id          || '',
+          player1Name:   p1.athlete?.displayName || '',
+          player1Country:p1.athlete?.flag?.alt   || '',
+          player1Score:  (p1.linescores||[]).map(s=>s.value).join(' '),
+          player1Winner: p1.winner || false,
+          player2Id:     p2.athlete?.id          || '',
+          player2Name:   p2.athlete?.displayName || '',
+          player2Country:p2.athlete?.flag?.alt   || '',
+          player2Score:  (p2.linescores||[]).map(s=>s.value).join(' '),
+          player2Winner: p2.winner || false,
+        });
+      }
+    }
+
+    if (db) {
+      // 토너먼트 변경 시 베팅 전체 초기화
+      const prevId = atpState.tournamentInfo && atpState.tournamentInfo.id;
+      if (prevId && tournamentInfo.id && prevId !== tournamentInfo.id) {
+        await db.ref('jmt/atpBets').remove();
+      }
+      await db.ref('jmt/atpData').set({ tournamentInfo, matches, updatedAt: new Date().toISOString() });
+      // Grand Slam이면 lastGrandSlam에도 저장
+      if (tier === 'grandslam' && tournamentInfo.id) {
+        await db.ref(`jmt/lastGrandSlam/${tournamentInfo.id}`).set({
+          tournamentInfo, matches, savedAt: new Date().toISOString()
+        });
+      }
+      atpState.preferBetTab = false;
+      atpState.gsRoundTab = null;
+    } else {
+      atpState.tournamentInfo = tournamentInfo;
+      atpState.matches = matches;
+      atpState.preferBetTab = false;
+      atpState.gsRoundTab = null;
+      renderAtpPage();
+    }
+  } catch(e) {
+    console.error('ATP refresh error:', e);
+    if (el) el.innerHTML = '<div style="text-align:center;padding:16px 0;color:#ef4444;font-size:0.85rem">데이터 로드 실패. 다시 시도해주세요.<br><button onclick="triggerAtpRefresh()" style="margin-top:8px;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:0.8rem;cursor:pointer">🔄 다시 시도</button></div>';
+  }
+}
+
+// ── ATP 리스너 초기화는 Firebase 초기화 후 직접 호출됨 ──────────
+</script>
+
 <script>
   if('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -4370,5 +5968,12 @@ document.getElementById('t-date').value = new Date().toISOString().split('T')[0]
     }).catch(() => {});
   }
 </script>
+
+<!-- 로고 팝업 -->
+<div id="logo-popup" onclick="this.style.display='none'"
+  style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.82);align-items:center;justify-content:center;cursor:pointer">
+  <img src="images/logo1.png" alt="자미터 테니스"
+    style="max-width:85vw;max-height:85vh;object-fit:contain;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,0.5)">
+</div>
 </body>
 </html>
