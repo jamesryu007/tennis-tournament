@@ -4581,7 +4581,18 @@ const atpState = {
 
 // ── Firebase 구독 초기화 ──────────────────────────────────────────
 function initAtpListeners() {
-  if (!db) return;
+  if (!db) {
+    atpState.loaded = true; // db 없으면 즉시 로딩 완료 처리
+    return;
+  }
+
+  // 5초 내 Firebase 응답 없으면 로딩 해제 (무한 로딩 방지)
+  setTimeout(() => {
+    if (!atpState.loaded) {
+      atpState.loaded = true;
+      if (document.getElementById('page-atp').classList.contains('active')) renderAtpTourneyInfo();
+    }
+  }, 5000);
 
   // ATP 데이터 구독
   db.ref('jmt/atpData').on('value', snap => {

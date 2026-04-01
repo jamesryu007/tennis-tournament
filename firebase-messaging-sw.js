@@ -3,7 +3,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-com
 importScripts('./firebase-config.js');
 
 // ── 캐싱 (sw.js 통합) ──────────────────────────────────────────────
-const CACHE = 'jamite-v15';
+const CACHE = 'jamite-v16';
 const BASE = self.location.pathname.startsWith('/tennis-tournament') ? '/tennis-tournament' : '';
 
 // 아이콘만 캐시 — 팀 사진/영상/HTML은 교체 즉시 반영되도록 제외
@@ -37,9 +37,9 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // 팀 사진/영상/로고 → 항상 네트워크 (교체 즉시 반영)
+  // 팀 사진/영상/로고 → 항상 네트워크 (HTTP 캐시도 무시하고 교체 즉시 반영)
   if (/\/(team\d\.(jpeg|jpg|png|mp4)|logo)/.test(e.request.url)) {
-    e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
+    e.respondWith(fetch(e.request, { cache: 'reload' }).catch(() => caches.match(e.request)));
     return;
   }
 
