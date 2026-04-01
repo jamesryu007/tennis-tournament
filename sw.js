@@ -1,4 +1,4 @@
-const CACHE = 'jamite-v2';
+const CACHE = 'jamite-v3';
 const BASE = self.location.hostname === 'localhost' ? '' : '/tennis-tournament';
 const ASSETS = [
   BASE + '/',
@@ -31,6 +31,16 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   // Firebase 요청은 캐시 제외
   if (e.request.url.includes('firebaseio.com') || e.request.url.includes('googleapis.com')) return;
+
+  // HTML 페이지는 항상 네트워크 우선 → 배포 즉시 반영
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // 이미지/JS 등 정적 자산은 캐시 우선
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
   );
