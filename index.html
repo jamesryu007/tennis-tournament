@@ -4619,17 +4619,11 @@ function initAtpListeners() {
     return;
   }
 
-  // 3초 후 버튼 노출 (Firebase 느릴 때 사용자가 직접 가져올 수 있도록)
-  setTimeout(() => {
-    const btn = document.getElementById('atp-loading-retry');
-    if (btn && !atpState.loaded) btn.style.display = 'inline-block';
-  }, 3000);
-
-  // 8초 내 Firebase 응답 없으면 로딩 강제 해제
+  // 8초 내 Firebase 응답 없으면 로딩 강제 해제 (탭 활성 무관)
   setTimeout(() => {
     if (!atpState.loaded) {
       atpState.loaded = true;
-      renderAtpTourneyInfo(); // 탭 활성 여부 무관하게 실행
+      renderAtpTourneyInfo();
     }
   }, 8000);
 
@@ -4836,8 +4830,16 @@ function renderAtpTourneyInfo() {
   if (!el) return;
   const t = atpState.tournamentInfo;
   if (!t || !t.name) {
-    // Firebase 아직 응답 전 → 로딩 중 표시 유지
-    if (!atpState.loaded) return;
+    // Firebase 아직 응답 전 → 3초 후 버튼 노출 + 자기 자신 재호출
+    if (!atpState.loaded) {
+      const btn = document.getElementById('atp-loading-retry');
+      if (btn) {
+        setTimeout(() => {
+          if (!atpState.loaded) btn.style.display = 'inline-block';
+        }, 3000);
+      }
+      return;
+    }
     // 활성 대회 없으면 직전 Grand Slam 표시
     const gs = atpState.lastGrandSlam;
     if (gs && gs.tournamentInfo && gs.tournamentInfo.name) {
