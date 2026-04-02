@@ -24,13 +24,15 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
 .app-header p { font-size: 0.72rem; color: #94a3b8; margin-top: 1px; }
 
 /* ── BOTTOM NAV ── */
-.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 64px; background: #ffffff; border-top: 1px solid #e2e8f0; display: flex; z-index: 50; padding-bottom: env(safe-area-inset-bottom, 0px); box-shadow: 0 -2px 10px rgba(0,0,0,0.06); }
-.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; color: #94a3b8; font-size: 0.6rem; letter-spacing: 0.2px; transition: color 0.15s, transform 0.08s, background 0.08s; padding: 6px 2px; position: relative; user-select: none; -webkit-tap-highlight-color: transparent; }
-.nav-item .ni { font-size: 1.25rem; line-height: 1; transition: transform 0.08s; }
+.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 76px; background: #ffffff; border-top: 1px solid #e2e8f0; display: flex; z-index: 50; padding-bottom: env(safe-area-inset-bottom, 0px); box-shadow: 0 -2px 10px rgba(0,0,0,0.06); }
+.nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; color: #94a3b8; font-size: 0.65rem; letter-spacing: 0.2px; transition: color 0.15s, transform 0.08s, background 0.08s; padding: 8px 2px; position: relative; user-select: none; -webkit-tap-highlight-color: transparent; }
+.nav-item .ni { font-size: 1.45rem; line-height: 1; transition: transform 0.15s, filter 0.15s; }
 .nav-item:active { transform: translateY(2px); background: rgba(37,99,235,0.06); border-radius: 10px; }
 .nav-item:active .ni { transform: scale(0.88); }
 .nav-item.active { color: #2563eb; }
-.nav-item.active::after { content: ''; position: absolute; top: 0; left: 15%; right: 15%; height: 2.5px; background: #2563eb; border-radius: 0 0 3px 3px; }
+.nav-item.active .ni { transform: translateY(-2px) scale(1.12); filter: drop-shadow(0 3px 5px rgba(37,99,235,0.4)); }
+.nav-item.active::before { content: ''; position: absolute; top: 5px; left: 50%; transform: translateX(-50%); width: 48px; height: 34px; background: rgba(37,99,235,0.09); border-radius: 12px; }
+.nav-item.active::after { content: ''; position: absolute; top: 0; left: 12%; right: 12%; height: 3px; background: linear-gradient(90deg,#2563eb,#7c3aed); border-radius: 0 0 4px 4px; box-shadow: 0 1px 6px rgba(37,99,235,0.45); }
 
 /* ── PAGES ── */
 .page { display: none; padding: 12px 12px 20px; max-width: 520px; margin: 0 auto; }
@@ -2704,7 +2706,7 @@ async function renderRankingTab(){
     const pairs=[...pairsQ,...pairsU];
     if(!pairs.length){el.innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>경기 기록이 없습니다</p></div>';return;}
 
-    let html=`<div class="rank-banner" style="display:flex;align-items:center;justify-content:space-between"><div><div class="rank-banner-title">🏆 자미터 팀페어 랭킹</div><div class="rank-banner-sub">총 ${pairs.length}팀 등록 · 클릭하면 상대 전적을 볼 수 있어요</div></div><button onclick="document.getElementById('rank-info-modal').classList.add('open')" style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px">i</button></div>`;
+    let html=`<div class="rank-banner" style="position:relative"><div class="rank-banner-title">🏆 자미터 팀페어 랭킹</div><div class="rank-banner-sub">총 ${pairs.length}팀 등록 · 클릭하면 상대 전적을 볼 수 있어요</div><button onclick="document.getElementById('rank-info-modal').classList.add('open')" style="position:absolute;top:50%;right:0;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center">i</button></div>`;
 
     // ── 시상대 (1~3위) ──
     const podItems=pairs.slice(0,Math.min(3,pairs.length));
@@ -2788,7 +2790,7 @@ async function renderRankingTab(){
       return `<span style="font-size:0.68rem;color:#64748b;margin-left:4px">${mm}/${dd}</span>${isBirthMonth ? '<span class="birthday-pill" style="margin-left:4px">🎂 생일</span>' : ''}`;
     }
 
-    let html=`<div class="rank-banner" style="display:flex;align-items:center;justify-content:space-between"><div><div class="rank-banner-title">🏆 자미터 개인 랭킹</div><div class="rank-banner-sub">총 ${players.length}명 등록 · 클릭하면 상대 전적을 볼 수 있어요</div></div><button onclick="document.getElementById('rank-info-modal').classList.add('open')" style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px">i</button></div>`;
+    let html=`<div class="rank-banner" style="position:relative"><div class="rank-banner-title">🏆 자미터 개인 랭킹</div><div class="rank-banner-sub">총 ${players.length}명 등록 · 클릭하면 상대 전적을 볼 수 있어요</div><button onclick="document.getElementById('rank-info-modal').classList.add('open')" style="position:absolute;top:50%;right:0;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center">i</button></div>`;
 
     const podItems=players.slice(0,Math.min(3,players.length));
     const podCls=['p1','p2','p3'],medals=['🥇','🥈','🥉'];
