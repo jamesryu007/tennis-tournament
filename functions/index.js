@@ -98,20 +98,17 @@ exports.notifyCheckinReminder = onSchedule(
   }
 );
 
-// ══ 3. 금요일 정오 — 출첵 자동 마감 + 매니저 알림 ════════════════
+// ══ 3. 금요일 정오 — 출첵 자동 마감 + 전체 알림 ════════════════
 exports.notifyCheckinClose = onSchedule(
   { schedule: '0 12 * * 5', timeZone: 'Asia/Seoul' },
   async () => {
-    // pollState 자동 close
     const snap = await db.ref('jmt/pollState').once('value');
     const ps = snap.val();
     if (ps && ps.status === 'open') {
       await db.ref('jmt/pollState').update({ status: 'closed', closedAt: new Date().toISOString() });
     }
-
-    const MANAGERS = ['유지원', '천지은', '김승수'];
-    const tokens = await getTokensByNames(MANAGERS);
-    await sendPush(tokens, '🔴 출첵이 마감되었습니다', '참석 인원을 확인하고 대진을 생성해 주세요.');
+    const tokens = await getAllTokens();
+    await sendPush(tokens, '🔴 출첵이 마감되었습니다', '이번 주 출첵이 마감되었습니다. 참석 인원을 확인해 주세요.', 'checkin');
   }
 );
 
@@ -428,6 +425,152 @@ exports.notifyBracketUpdate = onValueWritten(
       await sendPush(tokens, '🎾 대진표가 생성되었습니다!', '앱에서 이번 주 대진표를 확인하세요.', 'matches');
     } else {
       await sendPush(tokens, '🔄 대진표가 수정되었습니다!', '앱에서 변경된 대진표를 확인하세요.', 'matches');
+    }
+  }
+);
+
+// ══ 12. 관리자 수동 출첵 압박 푸시 (callable) ══════════════════════
+exports.sendCheckinPressure = onCall(
+  { region: 'asia-southeast1' },
+  async () => {
+    const pollStateSnap = await db.ref('jmt/pollState').once('value');
+    const pollState = pollStateSnap.val();
+    if (!pollState || pollState.status !== 'open') return { success: false, error: '출첵이 열려있지 않습니다.' };
+
+    const weekId = pollState.weekId;
+    const pollSnap = await db.ref(`jmt/poll/${weekId}/votes`).once('value');
+    const voted = new Set(Object.values(pollSnap.val() || {}).map(v => v.name));
+
+    const membersSnap = await db.ref('jmt/members').once('value');
+    const unvotedNames = Object.values(membersSnap.val() || {}).map(m => m.name).filter(n => !voted.has(n));
+    if (!unvotedNames.length) return { success: true, sent: 0 };
+
+    const tokens = await getTokensByNames(unvotedNames);
+    if (tokens.length) {
+      await sendPush(tokens, '📣 출첵하세요!', '아직 이번 주 출첵을 안 하셨어요. 지금 바로 참석 여부를 알려주세요!', 'checkin');
+    }
+    return { success: true, sent: tokens.length, unvoted: unvotedNames };
+  }
+);
+
+// ══ 13. 개인 랭킹 1~3위 변동 감지 ════════════════════════════════
+function computePlayerTop3(stats) {
+  const effWr = (w, d, l) => { const t = w+(d||0)+l; return t ? ((w+(d||0)*0.5)/t*100) : 0; };
+  const players = Object.entries(stats || {})
+    .map(([name, v]) => ({ name, wins: v.wins||0, draws: v.draws||0, losses: v.losses||0 }))
+    .filter(p => p.wins+p.draws+p.losses >= 1);
+  const avg = players.reduce((s, p) => s+p.wins+p.draws+p.losses, 0) / (players.length||1);
+  const thresh = avg * 0.5;
+  return players
+    .filter(p => p.wins+p.draws+p.losses >= thresh)
+    .sort((a, b) => effWr(b.wins,b.draws,b.losses) - effWr(a.wins,a.draws,a.losses) || b.wins-a.wins)
+    .slice(0, 3).map(p => p.name);
+}
+
+exports.notifyPlayerRankingChange = onValueWritten(
+  { ref: 'jmt/playerStats/{year}', region: 'asia-southeast1' },
+  async (event) => {
+    const year = event.params.year;
+    if (year !== new Date().getFullYear().toString()) return;
+    const before = computePlayerTop3(event.data.before.val());
+    const after  = computePlayerTop3(event.data.after.val());
+    const medals = ['🥇','🥈','🥉'];
+    const changes = [];
+    for (let i = 0; i < 3; i++) {
+      if (after[i] && after[i] !== before[i]) {
+        const action = !before[i] ? '진입' : before.includes(after[i]) ? '탈환' : '진입';
+        changes.push(`${after[i]} ${i+1}위 ${action}`);
+      }
+    }
+    if (!changes.length) return;
+    const tokens = await getAllTokens();
+    await sendPush(tokens, `${medals[changes[0].includes('1위')?0:changes[0].includes('2위')?1:2]} 개인 랭킹 변동!`, changes.join(' · '), 'history');
+  }
+);
+
+// ══ 14. 팀페어 랭킹 1~3위 변동 감지 ══════════════════════════════
+function computePairTop3(stats) {
+  const effWr = (w, d, l) => { const t = w+(d||0)+l; return t ? ((w+(d||0)*0.5)/t*100) : 0; };
+  const pairs = Object.entries(stats || {})
+    .map(([key, v]) => ({ key, wins: v.wins||0, draws: v.draws||0, losses: v.losses||0, nickname: v.nickname, players: v.players||key.split('_') }))
+    .filter(p => p.wins+p.draws+p.losses >= 1);
+  const avg = pairs.reduce((s, p) => s+p.wins+p.draws+p.losses, 0) / (pairs.length||1);
+  const thresh = avg * 0.5;
+  return pairs
+    .filter(p => p.wins+p.draws+p.losses >= thresh)
+    .sort((a, b) => effWr(b.wins,b.draws,b.losses) - effWr(a.wins,a.draws,a.losses) || b.wins-a.wins)
+    .slice(0, 3)
+    .map(p => p.nickname || ((p.players[0]||'?')[0]+(p.players[1]||'?')[0]+'팀'));
+}
+
+exports.notifyPairRankingChange = onValueWritten(
+  { ref: 'jmt/pairStats/{year}', region: 'asia-southeast1' },
+  async (event) => {
+    const year = event.params.year;
+    if (year !== new Date().getFullYear().toString()) return;
+    const before = computePairTop3(event.data.before.val());
+    const after  = computePairTop3(event.data.after.val());
+    const medals = ['🥇','🥈','🥉'];
+    const changes = [];
+    for (let i = 0; i < 3; i++) {
+      if (after[i] && after[i] !== before[i]) {
+        const action = !before[i] ? '진입' : before.includes(after[i]) ? '탈환' : '진입';
+        changes.push(`${after[i]} ${i+1}위 ${action}`);
+      }
+    }
+    if (!changes.length) return;
+    const tokens = await getAllTokens();
+    await sendPush(tokens, `${medals[changes[0].includes('1위')?0:changes[0].includes('2위')?1:2]} 팀페어 랭킹 변동!`, changes.join(' · '), 'history');
+  }
+);
+
+// ══ 15. 새 대회 개막 감지 ═════════════════════════════════════════
+exports.notifyTournamentChange = onValueWritten(
+  { ref: 'jmt/atpData', region: 'asia-southeast1' },
+  async (event) => {
+    const tBefore = event.data.before.val()?.tournamentInfo;
+    const tAfter  = event.data.after.val()?.tournamentInfo;
+    if (!tAfter || !tAfter.name) return;
+    if (tBefore && tBefore.id === tAfter.id) return; // 대회 변경 없음
+    const tier = tAfter.tier || 'atp250';
+    const tierLabel = tier === 'grandslam' ? ' [Grand Slam 🏆]' : tier === 'atp1000' ? ' [ATP 1000 ⭐]' : '';
+    const name = tAfter.displayName || tAfter.name;
+    const tokens = await getAllTokens();
+    await sendPush(tokens, '🎾 새 대회 개막!', `${name}${tierLabel} 대회가 시작되었습니다.`, 'atp');
+  }
+);
+
+// ══ 16. 관심선수 경기 시작 감지 ══════════════════════════════════
+exports.notifyFavPlayerMatch = onValueWritten(
+  { ref: 'jmt/atpData', region: 'asia-southeast1' },
+  async (event) => {
+    const before = event.data.before.val();
+    const after  = event.data.after.val();
+    if (!after) return;
+
+    const matchesBefore = (before?.matches || []).reduce((m, x) => { m[x.id] = x; return m; }, {});
+    const justStarted = (after.matches || []).filter(m =>
+      m.status === 'STATUS_IN_PROGRESS' &&
+      (!matchesBefore[m.id] || matchesBefore[m.id].status !== 'STATUS_IN_PROGRESS')
+    );
+    if (!justStarted.length) return;
+
+    const favSnap = await db.ref('jmt/favPlayers').once('value');
+    const favData = favSnap.val() || {};
+    const fcmSnap = await db.ref('jmt/fcmTokens').once('value');
+    const fcmData = fcmSnap.val() || {};
+
+    for (const [memberName, favList] of Object.entries(favData)) {
+      if (!Array.isArray(favList) || !favList.length) continue;
+      const favNames = favList.map(f => f.name.toLowerCase());
+      const myMatches = justStarted.filter(m =>
+        favNames.some(fn => (m.player1Name||'').toLowerCase().includes(fn) || (m.player2Name||'').toLowerCase().includes(fn))
+      );
+      if (!myMatches.length) continue;
+      const tokens = Object.values(fcmData).filter(v => v.name === memberName && v.token).map(v => v.token);
+      if (!tokens.length) continue;
+      const body = myMatches.map(m => `${m.player1Name} vs ${m.player2Name} 경기가 시작되었습니다.`).join(' ');
+      await sendPush(tokens, '⭐ 관심선수 경기 시작!', body, 'atp');
     }
   }
 );

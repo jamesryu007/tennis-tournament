@@ -3692,6 +3692,20 @@ async function forceCloseCheckin() {
   } catch(e) { alert('마감 실패: ' + e.message); }
 }
 
+async function sendCheckinPressurePush() {
+  if (!isAdmin()) return;
+  if (!confirm('미출첵자에게 압박 푸시를 보내시겠습니까?')) return;
+  try {
+    const fn = firebase.app().functions('asia-southeast1').httpsCallable('sendCheckinPressure');
+    const result = await fn();
+    if (result.data.success) {
+      alert(result.data.sent > 0 ? `${result.data.sent}명에게 푸시를 보냈습니다.` : '미출첵자가 없습니다.');
+    } else {
+      alert(result.data.error || '푸시 전송 실패');
+    }
+  } catch(e) { alert('오류: ' + e.message); }
+}
+
 async function forceOpenCheckin() {
   if (!isAdmin()) return;
   if (!confirm('출첵을 다시 오픈하시겠습니까?\n투표가 다시 가능해집니다.')) return;
@@ -3762,6 +3776,7 @@ function renderCheckinPage() {
         ${isAdmin() ? `
           ${!isOpen ? `<button onclick="forceOpenCheckin()" style="font-size:0.7rem;font-weight:700;background:#dcfce7;color:#16a34a;border:1.5px solid #86efac;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">🔓 강제오픈</button>` : ''}
           ${isOpen ? `<button onclick="forceCloseCheckin()" style="font-size:0.7rem;font-weight:700;background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">🔒 강제마감</button>` : ''}
+          ${isOpen && notVoted.length > 0 ? `<button onclick="sendCheckinPressurePush()" style="font-size:0.7rem;font-weight:700;background:#fef9c3;color:#b45309;border:1.5px solid #fde68a;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">📣 압박(${notVoted.length})</button>` : ''}
         ` : ''}
         <span class="status-badge ${isOpen?'badge-active':'badge-done'}">${isOpen?'진행중':'마감'}</span>
       </div>
