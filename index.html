@@ -5957,27 +5957,26 @@ async function triggerAtpRefresh() {
       }
     }
 
+    // ESPN 데이터 즉시 로컬 반영 (Firebase 응답 기다리지 않음)
+    atpState.tournamentInfo = tournamentInfo;
+    atpState.matches = matches;
+    atpState.loaded = true;
+    atpState.preferBetTab = false;
+    atpState.gsRoundTab = null;
+    renderAtpPage();
+
+    // Firebase 저장은 백그라운드 (실패해도 화면에 영향 없음)
     if (db) {
-      // 토너먼트 변경 시 베팅 전체 초기화
       const prevId = atpState.tournamentInfo && atpState.tournamentInfo.id;
       if (prevId && tournamentInfo.id && prevId !== tournamentInfo.id) {
-        await db.ref('jmt/atpBets').remove();
+        db.ref('jmt/atpBets').remove().catch(() => {});
       }
-      await db.ref('jmt/atpData').set({ tournamentInfo, matches, updatedAt: new Date().toISOString() });
-      // Grand Slam이면 lastGrandSlam에도 저장
+      db.ref('jmt/atpData').set({ tournamentInfo, matches, updatedAt: new Date().toISOString() }).catch(() => {});
       if (tier === 'grandslam' && tournamentInfo.id) {
-        await db.ref(`jmt/lastGrandSlam/${tournamentInfo.id}`).set({
+        db.ref(`jmt/lastGrandSlam/${tournamentInfo.id}`).set({
           tournamentInfo, matches, savedAt: new Date().toISOString()
-        });
+        }).catch(() => {});
       }
-      atpState.preferBetTab = false;
-      atpState.gsRoundTab = null;
-    } else {
-      atpState.tournamentInfo = tournamentInfo;
-      atpState.matches = matches;
-      atpState.preferBetTab = false;
-      atpState.gsRoundTab = null;
-      renderAtpPage();
     }
   } catch(e) {
     console.error('ATP refresh error:', e);
