@@ -2706,7 +2706,7 @@ async function renderRankingTab(){
     const pairs=[...pairsQ,...pairsU];
     if(!pairs.length){el.innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>경기 기록이 없습니다</p></div>';return;}
 
-    let html=`<div class="rank-banner" style="position:relative"><div class="rank-banner-title">🏆 자미터 팀페어 랭킹</div><div class="rank-banner-sub">총 ${pairs.length}팀 등록 · 클릭하면 상대 전적을 볼 수 있어요</div><button onclick="document.getElementById('rank-info-modal').classList.add('open')" style="position:absolute;top:50%;right:4px;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center">i</button></div>`;
+    let html=`<div class="rank-banner" style="position:relative"><div class="rank-banner-title">🏆 자미터 팀페어 랭킹</div><div class="rank-banner-sub">총 ${pairs.length}팀 등록 · 클릭하면 상대 전적을 볼 수 있어요</div><button onclick="document.getElementById('rank-info-modal').classList.add('open')" style="position:absolute;top:50%;right:14px;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center">i</button></div>`;
 
     // ── 시상대 (1~3위) ──
     const podItems=pairs.slice(0,Math.min(3,pairs.length));
@@ -2790,7 +2790,7 @@ async function renderRankingTab(){
       return `<span style="font-size:0.68rem;color:#64748b;margin-left:4px">${mm}/${dd}</span>${isBirthMonth ? '<span class="birthday-pill" style="margin-left:4px">🎂 생일</span>' : ''}`;
     }
 
-    let html=`<div class="rank-banner" style="position:relative"><div class="rank-banner-title">🏆 자미터 개인 랭킹</div><div class="rank-banner-sub">총 ${players.length}명 등록 · 클릭하면 상대 전적을 볼 수 있어요</div><button onclick="document.getElementById('rank-info-modal').classList.add('open')" style="position:absolute;top:50%;right:4px;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center">i</button></div>`;
+    let html=`<div class="rank-banner" style="position:relative"><div class="rank-banner-title">🏆 자미터 개인 랭킹</div><div class="rank-banner-sub">총 ${players.length}명 등록 · 클릭하면 상대 전적을 볼 수 있어요</div><button onclick="document.getElementById('rank-info-modal').classList.add('open')" style="position:absolute;top:50%;right:14px;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center">i</button></div>`;
 
     const podItems=players.slice(0,Math.min(3,players.length));
     const podCls=['p1','p2','p3'],medals=['🥇','🥈','🥉'];
