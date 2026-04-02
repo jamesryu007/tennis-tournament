@@ -3776,7 +3776,6 @@ function renderCheckinPage() {
         ${isAdmin() ? `
           ${!isOpen ? `<button onclick="forceOpenCheckin()" style="font-size:0.7rem;font-weight:700;background:#dcfce7;color:#16a34a;border:1.5px solid #86efac;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">🔓 강제오픈</button>` : ''}
           ${isOpen ? `<button onclick="forceCloseCheckin()" style="font-size:0.7rem;font-weight:700;background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">🔒 강제마감</button>` : ''}
-          ${isOpen && notVoted.length > 0 ? `<button onclick="sendCheckinPressurePush()" style="font-size:0.7rem;font-weight:700;background:#fef9c3;color:#b45309;border:1.5px solid #fde68a;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">📣 압박(${notVoted.length})</button>` : ''}
         ` : ''}
         <span class="status-badge ${isOpen?'badge-active':'badge-done'}">${isOpen?'진행중':'마감'}</span>
       </div>
@@ -3840,7 +3839,7 @@ function renderCheckinPage() {
   }
   if(notVoted.length) {
     html += `<div class="poll-group">
-      <div class="poll-group-hdr" style="color:#94a3b8">${isOpen?'⏳ 미투표':'❓ 미투표'} <span style="font-weight:400">(${notVoted.length}명)</span></div>
+      <div class="poll-group-hdr" style="color:#94a3b8;display:flex;align-items:center;justify-content:space-between">${isOpen?'⏳ 미투표':'❓ 미투표'} <span style="font-weight:400">(${notVoted.length}명)</span>${isAdmin() && isOpen ? `<button onclick="sendCheckinPressurePush()" style="font-size:0.7rem;font-weight:700;background:#fef9c3;color:#b45309;border:1.5px solid #fde68a;border-radius:8px;padding:3px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">📣 투표요청</button>` : ''}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
         ${notVoted.map(m=>`<div class="poll-voter" style="opacity:0.45;padding:5px 8px">${gBadge(m)}<span style="flex:1;font-size:0.82rem">${m.name}</span></div>`).join('')}
       </div>
