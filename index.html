@@ -2704,7 +2704,7 @@ async function renderRankingTab(){
     const pairs=[...pairsQ,...pairsU];
     if(!pairs.length){el.innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>경기 기록이 없습니다</p></div>';return;}
 
-    let html=`<div class="rank-banner"><div class="rank-banner-title">🏆 자미터 팀페어 랭킹</div><div class="rank-banner-sub">총 ${pairs.length}팀 등록 · 클릭하면 상대 전적을 볼 수 있어요</div></div>`;
+    let html=`<div class="rank-banner" style="display:flex;align-items:center;justify-content:space-between"><div><div class="rank-banner-title">🏆 자미터 팀페어 랭킹</div><div class="rank-banner-sub">총 ${pairs.length}팀 등록 · 클릭하면 상대 전적을 볼 수 있어요</div></div><button onclick="document.getElementById('rank-info-modal').classList.add('open')" style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px">i</button></div>`;
 
     // ── 시상대 (1~3위) ──
     const podItems=pairs.slice(0,Math.min(3,pairs.length));
@@ -2788,7 +2788,7 @@ async function renderRankingTab(){
       return `<span style="font-size:0.68rem;color:#64748b;margin-left:4px">${mm}/${dd}</span>${isBirthMonth ? '<span class="birthday-pill" style="margin-left:4px">🎂 생일</span>' : ''}`;
     }
 
-    let html=`<div class="rank-banner"><div class="rank-banner-title">🏆 자미터 개인 랭킹</div><div class="rank-banner-sub">총 ${players.length}명 등록 · 클릭하면 상대 전적을 볼 수 있어요</div></div>`;
+    let html=`<div class="rank-banner" style="display:flex;align-items:center;justify-content:space-between"><div><div class="rank-banner-title">🏆 자미터 개인 랭킹</div><div class="rank-banner-sub">총 ${players.length}명 등록 · 클릭하면 상대 전적을 볼 수 있어요</div></div><button onclick="document.getElementById('rank-info-modal').classList.add('open')" style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-left:8px">i</button></div>`;
 
     const podItems=players.slice(0,Math.min(3,players.length));
     const podCls=['p1','p2','p3'],medals=['🥇','🥈','🥉'];
@@ -5985,6 +5985,40 @@ async function triggerAtpRefresh() {
 </script>
 
 <!-- 로고 팝업 -->
+<div id="rank-info-modal" onclick="if(event.target===this)this.classList.remove('open')"
+  class="modal-overlay" style="align-items:center">
+  <div style="background:#fff;border-radius:20px;padding:24px 20px 20px;max-width:360px;width:92%;max-height:80vh;overflow-y:auto;position:relative">
+    <button onclick="document.getElementById('rank-info-modal').classList.remove('open')"
+      style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:1.3rem;color:#94a3b8;cursor:pointer">✕</button>
+    <div style="font-size:1rem;font-weight:900;color:#4c1d95;margin-bottom:14px">🏆 자미터 랭킹 알고리즘</div>
+    <p style="font-size:0.78rem;color:#475569;margin:0 0 12px">개인랭킹과 팀페어랭킹은 동일한 알고리즘 적용</p>
+
+    <div style="background:#f8fafc;border-radius:12px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">📐 유효승률 공식</div>
+      <div style="font-size:0.82rem;color:#2563eb;font-weight:700;font-family:monospace">(승 + 무×0.5) ÷ 전체경기 × 100</div>
+      <div style="font-size:0.72rem;color:#64748b;margin-top:4px">무승부는 0.5승으로 계산 · 경기 없으면 0%</div>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">1단계 · 자격 분리</div>
+      <div style="font-size:0.75rem;color:#475569;line-height:1.6">
+        기준선 = 전체 평균 경기수 × 0.5<br>
+        <span style="color:#16a34a;font-weight:700">✓ 자격자</span> — 경기수 ≥ 기준선 (상위 노출)<br>
+        <span style="color:#94a3b8;font-weight:700">✗ 비자격자</span> — 경기수 &lt; 기준선 (하위 회색 표시)
+      </div>
+      <div style="font-size:0.7rem;color:#94a3b8;margin-top:4px">예) 평균 10경기 → 기준선 5 · 5경기 미만은 비자격자</div>
+    </div>
+
+    <div>
+      <div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">2단계 · 정렬</div>
+      <div style="font-size:0.75rem;color:#475569;line-height:1.7">
+        <span style="color:#16a34a;font-weight:700">자격자:</span> 유효승률 → 총 승수<br>
+        <span style="color:#94a3b8;font-weight:700">비자격자:</span> 총 경기수 → 유효승률 → 총 승수
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="logo-popup" onclick="this.style.display='none'"
   style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.82);align-items:center;justify-content:center;cursor:pointer">
   <img src="images/logo1.png" alt="자미터 테니스"
