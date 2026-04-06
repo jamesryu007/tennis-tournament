@@ -539,24 +539,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     <div id="atp-fav-matches-list"></div>
   </div>
 
-  <!-- 내부 탭: 대진표 / 일정결과 / 베팅 -->
+  <!-- 내부 탭: 대진표 / 베팅 -->
   <div style="display:flex;border-radius:12px;overflow:hidden;border:1.5px solid #e2e8f0;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">
-    <button class="atp-tab active" id="atp-tab-draw"    onclick="switchAtpTab('draw')">🎾 대진표</button>
-    <button class="atp-tab"        id="atp-tab-results" onclick="switchAtpTab('results')">📅 일정/결과</button>
-    <button class="atp-tab"        id="atp-tab-bet"     onclick="switchAtpTab('bet')">🎯 베팅</button>
+    <button class="atp-tab active" id="atp-tab-draw" onclick="switchAtpTab('draw')">🎾 대진표</button>
+    <button class="atp-tab"        id="atp-tab-bet"  onclick="switchAtpTab('bet')">🎯 베팅</button>
   </div>
 
   <!-- 대진표 탭 -->
   <div id="atp-panel-draw" class="atp-panel">
     <div id="atp-draw-content" class="card">
       <div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:0.85rem">대진표를 불러오는 중...</div>
-    </div>
-  </div>
-
-  <!-- 일정/결과 탭 -->
-  <div id="atp-panel-results" class="atp-panel" style="display:none">
-    <div id="atp-results-content" class="card">
-      <div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:0.85rem">일정/결과를 불러오는 중...</div>
     </div>
   </div>
 
@@ -4843,7 +4835,7 @@ function initAtpListeners() {
 // ── 탭 전환 ──────────────────────────────────────────────────────
 function switchAtpTab(tab) {
   atpState.currentTab = tab;
-  ['draw', 'results', 'bet'].forEach(t => {
+  ['draw', 'bet'].forEach(t => {
     const btn = document.getElementById(`atp-tab-${t}`);
     const panel = document.getElementById(`atp-panel-${t}`);
     const active = t === tab;
@@ -4860,7 +4852,6 @@ function renderAtpPage() {
   renderAtpTourneyInfo();
   renderAtpFavMatches();
   renderAtpDrawPanel();
-  renderAtpResultsPanel();
   renderAtpBetPanel();
 }
 
@@ -5078,28 +5069,31 @@ function renderAtpFavMatches() {
 }
 
 // ── Grand Slam 라운드 순서 ────────────────────────────────────────
-const GS_ROUND_ORDER = ['First Round','Second Round','Third Round','Fourth Round',
-  'Quarterfinals','Semifinals','Final'];
-const GS_ROUND_LABEL = {
-  'First Round':'R1','Second Round':'R2','Third Round':'R3','Fourth Round':'R4',
-  'Quarterfinals':'QF','Semifinals':'SF','Final':'F'
+// ── 라운드 정의 (모든 티어 공통) ─────────────────────────────────
+const ROUND_ORDER = [
+  'Qualifying','First Round','Second Round','Third Round','Fourth Round',
+  'Quarterfinals','Semifinals','Final'
+];
+const ROUND_LABEL = {
+  'Qualifying':'Q','First Round':'R1','Second Round':'R2','Third Round':'R3',
+  'Fourth Round':'R4','Quarterfinals':'QF','Semifinals':'SF','Final':'🏆'
 };
-
-function getGsRoundKey(roundName) {
-  for (const r of GS_ROUND_ORDER) {
-    if (roundName && roundName.toLowerCase().includes(r.toLowerCase().replace('round','').trim()) ||
-        roundName === r) return r;
-  }
-  // ESPN 표기가 다를 수 있으므로 포함 검사
-  if (/first/i.test(roundName))  return 'First Round';
-  if (/second/i.test(roundName)) return 'Second Round';
-  if (/third/i.test(roundName))  return 'Third Round';
-  if (/fourth/i.test(roundName)) return 'Fourth Round';
-  if (/quarter/i.test(roundName))return 'Quarterfinals';
-  if (/semi/i.test(roundName))   return 'Semifinals';
-  if (/^final$/i.test(roundName))return 'Final';
+function getRoundKey(roundName) {
+  if (!roundName) return '';
+  if (/qualif/i.test(roundName))  return 'Qualifying';
+  if (/first/i.test(roundName))   return 'First Round';
+  if (/second/i.test(roundName))  return 'Second Round';
+  if (/third/i.test(roundName))   return 'Third Round';
+  if (/fourth/i.test(roundName))  return 'Fourth Round';
+  if (/quarter/i.test(roundName)) return 'Quarterfinals';
+  if (/semi/i.test(roundName))    return 'Semifinals';
+  if (/^final$/i.test(roundName)) return 'Final';
   return roundName;
 }
+// 하위 호환
+const GS_ROUND_ORDER = ROUND_ORDER;
+const GS_ROUND_LABEL = ROUND_LABEL;
+function getGsRoundKey(r) { return getRoundKey(r); }
 
 // ── 대진표 패널 ───────────────────────────────────────────────────
 function renderAtpDrawPanel() {
@@ -5107,11 +5101,8 @@ function renderAtpDrawPanel() {
   if (!el) return;
 
   const tier = atpState.tournamentInfo && atpState.tournamentInfo.tier;
-  const matches = atpState.matches;
-
-  // 활성 대회 없고 lastGrandSlam 있으면 해당 데이터 사용
   const useGS = atpState.lastGrandSlam && (!atpState.tournamentInfo || !atpState.tournamentInfo.name);
-  const drawMatches = useGS ? (atpState.lastGrandSlam.matches || []) : matches;
+  const drawMatches = useGS ? (atpState.lastGrandSlam.matches || []) : atpState.matches;
   const drawTier    = useGS ? 'grandslam' : tier;
 
   if (!drawMatches.length) {
@@ -5119,100 +5110,105 @@ function renderAtpDrawPanel() {
     return;
   }
 
-  if (drawTier === 'grandslam') {
-    renderGsDrawPanel(el, drawMatches);
+  if (drawTier === 'grandslam' || drawTier === 'atp1000' || drawTier === 'atp500') {
+    renderRoundDrawPanel(el, drawMatches, drawTier);
   } else {
-    // ATP 일반 — 라운드 그룹핑
+    // ATP250 — 라운드 헤더만 (경기 수 적음)
     const rounds = {};
     drawMatches.forEach(m => {
-      const r = m.roundName || '기타';
+      const r = getRoundKey(m.roundName || '') || m.roundName || '기타';
       if (!rounds[r]) rounds[r] = [];
       rounds[r].push(m);
     });
+    const ordered = ROUND_ORDER.filter(r => rounds[r]);
+    Object.keys(rounds).forEach(r => { if (!ordered.includes(r)) ordered.push(r); });
     let html = '';
-    for (const [round, ms] of Object.entries(rounds)) {
-      html += `<div class="atp-round-label">${round}</div>`;
-      html += ms.map(m => renderMatchRow(m)).join('');
-    }
+    ordered.forEach(r => {
+      html += `<div class="atp-round-label">${ROUND_LABEL[r] || r}</div>`;
+      html += rounds[r].map(m => renderMatchRow(m)).join('');
+    });
     el.innerHTML = html;
   }
 }
 
-function renderGsDrawPanel(el, matches) {
+// ── 라운드 탭 대진표 (GS / ATP1000 / ATP500) ──────────────────────
+function renderRoundDrawPanel(el, matches, tier) {
   // 라운드별 그룹핑
   const roundGroups = {};
   matches.forEach(m => {
-    const key = getGsRoundKey(m.roundName || '');
+    const key = getRoundKey(m.roundName || '') || m.roundName || '기타';
     if (!roundGroups[key]) roundGroups[key] = [];
     roundGroups[key].push(m);
   });
 
-  // 존재하는 라운드만 순서대로
-  const availRounds = GS_ROUND_ORDER.filter(r => roundGroups[r]);
+  // 존재하는 라운드를 순서대로
+  const availRounds = ROUND_ORDER.filter(r => roundGroups[r]);
+  Object.keys(roundGroups).forEach(r => { if (!availRounds.includes(r)) availRounds.push(r); });
 
-  // 최신 활성 라운드 자동 선택: STATUS_FINAL 아닌 경기가 있는 첫 번째 라운드
-  // 없으면 마지막 라운드
+  if (!availRounds.length) {
+    el.innerHTML = '<div style="text-align:center;padding:12px 0;color:#94a3b8;font-size:0.82rem">경기 데이터 없음</div>';
+    return;
+  }
+
+  // 현재 라운드 자동 선택 — 진행중인 경기가 있는 첫 라운드, 없으면 마지막
   if (!atpState.gsRoundTab || !availRounds.includes(atpState.gsRoundTab)) {
     let autoRound = availRounds[availRounds.length - 1];
     for (const r of availRounds) {
-      const hasActive = (roundGroups[r] || []).some(m => m.status !== 'STATUS_FINAL');
-      if (hasActive) { autoRound = r; break; }
+      if ((roundGroups[r] || []).some(m => m.status !== 'STATUS_FINAL')) { autoRound = r; break; }
     }
     atpState.gsRoundTab = autoRound;
   }
 
   const sel = atpState.gsRoundTab;
+  const ts = TIER_STYLE[tier] || TIER_STYLE['atp250'];
+  const selBg = ts.badgeBg;
 
-  // 서브탭 버튼
-  const tabButtons = availRounds.map(r => {
-    const label = GS_ROUND_LABEL[r] || r;
-    const active = r === sel;
-    return `<button onclick="switchGsRoundTab('${r}')"
-      style="flex:0 0 auto;padding:5px 11px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;border:1.5px solid ${active ? '#f59e0b' : '#e2e8f0'};background:${active ? '#f59e0b' : '#f8fafc'};color:${active ? '#fff' : '#475569'}">${label}</button>`;
-  }).join('');
+  // 라운드 탭 + 화살표 (트리 진행 방향 표현)
+  const parts = [];
+  availRounds.forEach((r, i) => {
+    const label = ROUND_LABEL[r] || r;
+    const isSelected = r === sel;
+    const allDone = (roundGroups[r] || []).every(m => m.status === 'STATUS_FINAL');
+    const prefix = (allDone && !isSelected) ? '✓ ' : '';
 
-  const roundMatches = roundGroups[sel] || [];
+    let bg, color, border;
+    if (isSelected)    { bg = selBg;    color = '#fff';    border = selBg; }
+    else if (allDone)  { bg = '#f1f5f9'; color = '#94a3b8'; border = '#e2e8f0'; }
+    else               { bg = '#fff';    color = '#475569'; border = '#e2e8f0'; }
+
+    parts.push(`<button onclick="switchRoundTab('${r.replace(/'/g,"\\'")}')"
+      style="flex:0 0 auto;padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;border:1.5px solid ${border};background:${bg};color:${color}">${prefix}${label}</button>`);
+    if (i < availRounds.length - 1) {
+      parts.push(`<span style="flex-shrink:0;color:#cbd5e1;font-size:0.8rem;line-height:1">›</span>`);
+    }
+  });
+
+  const selRoundMatches = roundGroups[sel] || [];
+  const selLabel = ROUND_LABEL[sel] === '🏆' ? '🏆 Final' : (ROUND_LABEL[sel] || sel);
+
   let html = `
-    <div style="display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch">${tabButtons}</div>
-    <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;margin-bottom:6px">${sel}</div>
+    <div style="display:flex;align-items:center;gap:4px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+      ${parts.join('')}
+    </div>
+    <div style="font-size:0.72rem;font-weight:700;color:#94a3b8;margin-bottom:8px;letter-spacing:0.3px">${selLabel}</div>
   `;
-  html += roundMatches.map(m => renderMatchRow(m)).join('') || '<div style="text-align:center;padding:12px 0;color:#94a3b8;font-size:0.82rem">경기 데이터 없음</div>';
+  html += selRoundMatches.map(m => renderMatchRow(m)).join('')
+    || '<div style="text-align:center;padding:12px 0;color:#94a3b8;font-size:0.82rem">경기 데이터 없음</div>';
   el.innerHTML = html;
 }
 
-function switchGsRoundTab(roundKey) {
+function switchRoundTab(roundKey) {
   atpState.gsRoundTab = roundKey;
   const el = document.getElementById('atp-draw-content');
   if (!el) return;
   const useGS = atpState.lastGrandSlam && (!atpState.tournamentInfo || !atpState.tournamentInfo.name);
   const drawMatches = useGS ? (atpState.lastGrandSlam.matches || []) : atpState.matches;
-  renderGsDrawPanel(el, drawMatches);
+  const tier = useGS ? 'grandslam' : (atpState.tournamentInfo && atpState.tournamentInfo.tier);
+  renderRoundDrawPanel(el, drawMatches, tier);
 }
-
-// ── 일정/결과 패널 ────────────────────────────────────────────────
-function renderAtpResultsPanel() {
-  const el = document.getElementById('atp-results-content');
-  if (!el) return;
-  const matches = atpState.matches;
-  if (!matches.length) {
-    el.innerHTML = '<div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:0.85rem">일정/결과 데이터가 없습니다.<br><small style="color:#cbd5e1">🔄 새로고침 버튼으로 데이터를 가져오세요</small></div>';
-    return;
-  }
-
-  const completed = matches.filter(m => m.status === 'STATUS_FINAL');
-  const scheduled = matches.filter(m => m.status !== 'STATUS_FINAL');
-
-  let html = '';
-  if (scheduled.length) {
-    html += '<div class="atp-round-label">예정 경기</div>';
-    html += scheduled.map(m => renderMatchRow(m)).join('');
-  }
-  if (completed.length) {
-    html += '<div class="atp-round-label" style="margin-top:8px">완료된 경기</div>';
-    html += completed.map(m => renderMatchRow(m)).join('');
-  }
-  el.innerHTML = html;
-}
+// 하위 호환
+function switchGsRoundTab(r) { switchRoundTab(r); }
+function renderGsDrawPanel(el, matches) { renderRoundDrawPanel(el, matches, 'grandslam'); }
 
 // ── 경기 행 렌더 헬퍼 ────────────────────────────────────────────
 function toKSTStr(dateStr) {
@@ -6047,7 +6043,6 @@ function saveFavPlayers() {
   closeFavPlayerModal();
   renderAtpFavMatches();
   renderAtpDrawPanel();
-  renderAtpResultsPanel();
 }
 
 // ── 베팅 마감 시간 선택 ───────────────────────────────────────────
