@@ -6462,6 +6462,7 @@ async function triggerAtpRefresh() {
     }
 
     // ESPN 데이터 즉시 로컬 반영 (Firebase 응답 기다리지 않음)
+    const prevId = atpState.tournamentInfo && atpState.tournamentInfo.id; // 덮어쓰기 전 캡처
     atpState.tournamentInfo = tournamentInfo;
     atpState.matches = matches;
     atpState.loaded = true;
@@ -6471,7 +6472,6 @@ async function triggerAtpRefresh() {
 
     // Firebase 저장은 백그라운드 (실패해도 화면에 영향 없음)
     if (db) {
-      const prevId = atpState.tournamentInfo && atpState.tournamentInfo.id;
       if (prevId && tournamentInfo.id && prevId !== tournamentInfo.id) {
         // 토너먼트 변경 전 현재 베팅을 히스토리에 아카이브
         // atpState.bets 대신 Firebase에서 직접 읽기 (리스너 로드 전 race condition 방지)
