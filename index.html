@@ -900,7 +900,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     <div class="rank-toggle">
       <div class="rank-toggle-btn active" id="rtog-player" onclick="setRankingMode('player')">개인 랭킹</div>
       <div class="rank-toggle-btn" id="rtog-pair" onclick="setRankingMode('pair')">팀페어 랭킹</div>
-      <div class="rank-toggle-btn" id="rtog-attendance" onclick="setRankingMode('attendance')">출석률</div>
+      <div class="rank-toggle-btn" id="rtog-attendance" onclick="setRankingMode('attendance')">출석 랭킹</div>
     </div>
     <div id="ranking-list"></div>
   </div>
@@ -2950,16 +2950,33 @@ async function renderAttendanceRanking() {
   const heightMap = [80, 110, 60]; // 2위, 1위, 3위 높이
 
   let html = `
-    <div style="text-align:right;font-size:0.68rem;color:#94a3b8;padding:4px 8px 0">전체 ${total}회 기준</div>
-    <div style="display:flex;align-items:flex-end;justify-content:center;gap:4px;padding:12px 8px 0">
+    <div class="rank-banner" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div class="rank-banner-title">🏃 출석 랭킹</div>
+          <div class="rank-banner-sub">전체 ${total}회 기준</div>
+        </div>
+        <button onclick="const p=document.getElementById('att-info-popup');p.style.display=p.style.display==='none'?'block':'none'" style="background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);border-radius:50%;width:26px;height:26px;font-size:0.8rem;font-weight:800;color:#fff;cursor:pointer;flex-shrink:0">ⓘ</button>
+      </div>
+      <div id="att-info-popup" style="display:none;margin-top:8px;background:rgba(255,255,255,0.15);border-radius:10px;padding:8px 10px;font-size:0.72rem;color:rgba(255,255,255,0.9);line-height:1.6;text-align:left">
+        · 참석률 = (출석 + 늦참) ÷ 전체 모임 횟수 × 100%<br>
+        · 동률 시 출석 횟수가 많은 멤버 우선<br>
+        · 게스트는 집계에서 제외됩니다
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-end;justify-content:center;gap:4px;padding:4px 8px 0">
       ${podOrder.map((p, i) => {
         const origIdx = top3.indexOf(p);
         const h = heightMap[i] || 70;
         const isMe = p.name === myName;
+        const bgColor = origIdx===0?'#fde68a':origIdx===1?'#e2e8f0':'#fed7aa';
         return `<div style="flex:1;text-align:center">
-          <div style="font-size:0.72rem;font-weight:700;margin-bottom:4px;color:${isMe?'#2563eb':'#1e293b'}">${p.name}</div>
-          <div style="font-size:0.7rem;color:#64748b;margin-bottom:3px">${p.rate}%<br><span style="font-size:0.62rem">${p.count}회</span></div>
-          <div style="background:${origIdx===0?'#fde68a':origIdx===1?'#e2e8f0':'#fed7aa'};border-radius:8px 8px 0 0;height:${h}px;display:flex;align-items:flex-start;justify-content:center;padding-top:6px;font-size:1.2rem">${medals[origIdx]||''}</div>
+          <div style="font-size:0.72rem;font-weight:700;margin-bottom:2px;color:${isMe?'#2563eb':'#1e293b'}">${p.name}</div>
+          <div style="background:${bgColor};border-radius:8px 8px 0 0;height:${h}px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:6px;gap:2px">
+            <div style="font-size:1.2rem">${medals[origIdx]||''}</div>
+            <div style="font-size:0.72rem;font-weight:700;color:#1e293b">${p.rate}%</div>
+            <div style="font-size:0.62rem;color:#475569">${p.count}회</div>
+          </div>
         </div>`;
       }).join('')}
     </div>`;
@@ -3635,7 +3652,8 @@ function switchPage(id) {
   if(id === 'members') { loadRankingTop3().then(renderMemberList); renderMemberList(); }
   if(id === 'history') {
     renderRankYearRow();
-    renderRankingTab();
+    if(_rankingMode === 'attendance') renderAttendanceRanking();
+    else renderRankingTab();
   }
   if(id === 'matches') {
     renderDailyTab();
@@ -5330,8 +5348,8 @@ function renderWinnerBetCard(betId, bet, myName, myBet, isOpen, hasResult, showA
         <div style="font-size:0.88rem;font-weight:800;margin-top:2px">🏆 우승: ${winnerName}</div>
       </div>
       <div style="font-size:0.78rem;margin-top:4px">
-        <div style="margin-bottom:4px"><b style="color:#22c55e">🎉 맞춘 멤버 (${winnerBets.length}명):</b> ${winnerBets.map(([k])=>k.replace(/_/g,' ')).join(', ')||'없음'}</div>
-        <div><b style="color:#ef4444">😔 틀린 멤버</b><br>
+        <div style="margin-bottom:4px"><b style="color:#22c55e">🎉 WINNERS (${winnerBets.length}명):</b> ${winnerBets.map(([k])=>k.replace(/_/g,' ')).join(', ')||'없음'}</div>
+        <div><b style="color:#ef4444">😔 LOSERS</b><br>
           ${Object.entries(loserBets.reduce((acc,[k,b])=>{(acc[b.playerName]=acc[b.playerName]||[]).push(k.replace(/_/g,' '));return acc;},{})).map(([p,ms])=>`<span style="display:inline-block;margin-right:6px"><b>${p}</b> : ${ms.join(', ')}</span>`).join('')||'없음'}
         </div>
       </div>`;
@@ -5383,8 +5401,8 @@ function renderWinnerBetCard(betId, bet, myName, myBet, isOpen, hasResult, showA
        </div>`
     : '';
 
-  // 일반 멤버용 % 현황 (open 중, 내 베팅 완료 후만 표시)
-  const memberPctHtml = isOpen && !isAdmin() && myBet && !editing && totalCount > 0
+  // 일반 멤버용 % 현황 (open 중, 투표 전/후 모두 표시)
+  const memberPctHtml = isOpen && !isAdmin() && !editing && totalCount > 0
     ? `<div style="margin-top:8px;padding:8px 10px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;font-size:0.75rem">
         <div style="font-weight:700;color:#475569;margin-bottom:6px">📊 베팅 현황 (${totalCount}명 참여)</div>
         ${Object.entries(playerGroups).sort((a,b)=>b[1].length-a[1].length).map(([p,ms])=>{
