@@ -4490,8 +4490,15 @@ function selectIdentity(name) {
 
   // ATP 관심선수 리스너 재연결 (접속자별)
   if (db && name) {
+    // localStorage에서 즉시 로드
+    try {
+      const cached = localStorage.getItem(`${LS_FAV_PLAYERS}_${name}`);
+      if (cached) atpState.favPlayers = JSON.parse(cached);
+    } catch(e) {}
     db.ref(`jmt/favPlayers/${name}`).on('value', snap => {
-      atpState.favPlayers = snap.val() || [];
+      const players = snap.val() || [];
+      atpState.favPlayers = players;
+      try { localStorage.setItem(`${LS_FAV_PLAYERS}_${name}`, JSON.stringify(players)); } catch(e) {}
       if (document.getElementById('page-atp').classList.contains('active')) renderAtpFavMatches();
     });
   }
@@ -4741,6 +4748,8 @@ changeTeamPhotoRandom();
 <!-- ══ ATP LIVE 스크립트 ══ -->
 <script>
 // ── ATP 상태 ──────────────────────────────────────────────────────
+const LS_FAV_PLAYERS = 'jmt_favPlayers'; // localStorage 키 (사용자별 접미사)
+
 const atpState = {
   tournamentInfo: null,
   matches: [],
@@ -4814,8 +4823,16 @@ function initAtpListeners() {
   // 개인 관심선수 구독
   const myName = state.identity && state.identity.name;
   if (myName) {
+    // localStorage에서 즉시 로드 (Firebase 응답 전 대비)
+    try {
+      const cached = localStorage.getItem(`${LS_FAV_PLAYERS}_${myName}`);
+      if (cached) atpState.favPlayers = JSON.parse(cached);
+    } catch(e) {}
+
     db.ref(`jmt/favPlayers/${myName}`).on('value', snap => {
-      atpState.favPlayers = snap.val() || [];
+      const players = snap.val() || [];
+      atpState.favPlayers = players;
+      try { localStorage.setItem(`${LS_FAV_PLAYERS}_${myName}`, JSON.stringify(players)); } catch(e) {}
       if (document.getElementById('page-atp').classList.contains('active')) {
         renderAtpFavMatches();
       }
@@ -6023,8 +6040,9 @@ function saveFavPlayers() {
   const myName = state.identity && state.identity.name;
   const players = (atpState.favPlayersTmp || []).slice(0, 3);
   atpState.favPlayers = players;
-  if (myName && db) {
-    db.ref(`jmt/favPlayers/${myName}`).set(players).catch(fbErr);
+  if (myName) {
+    try { localStorage.setItem(`${LS_FAV_PLAYERS}_${myName}`, JSON.stringify(players)); } catch(e) {}
+    if (db) db.ref(`jmt/favPlayers/${myName}`).set(players).catch(fbErr);
   }
   closeFavPlayerModal();
   renderAtpFavMatches();
