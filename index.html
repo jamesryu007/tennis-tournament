@@ -5080,14 +5080,14 @@ const ROUND_LABEL = {
 };
 function getRoundKey(roundName) {
   if (!roundName) return '';
-  if (/qualif/i.test(roundName))  return 'Qualifying';
-  if (/first/i.test(roundName))   return 'First Round';
-  if (/second/i.test(roundName))  return 'Second Round';
-  if (/third/i.test(roundName))   return 'Third Round';
-  if (/fourth/i.test(roundName))  return 'Fourth Round';
-  if (/quarter/i.test(roundName)) return 'Quarterfinals';
-  if (/semi/i.test(roundName))    return 'Semifinals';
-  if (/^final$/i.test(roundName)) return 'Final';
+  if (/qualif/i.test(roundName))              return 'Qualifying';
+  if (/first|round\s*1\b/i.test(roundName))   return 'First Round';
+  if (/second|round\s*2\b/i.test(roundName))  return 'Second Round';
+  if (/third|round\s*3\b/i.test(roundName))   return 'Third Round';
+  if (/fourth|round\s*4\b/i.test(roundName))  return 'Fourth Round';
+  if (/quarter/i.test(roundName))             return 'Quarterfinals';
+  if (/semi/i.test(roundName))                return 'Semifinals';
+  if (/^final$/i.test(roundName))             return 'Final';
   return roundName;
 }
 // 하위 호환
@@ -5110,25 +5110,7 @@ function renderAtpDrawPanel() {
     return;
   }
 
-  if (drawTier === 'grandslam' || drawTier === 'atp1000' || drawTier === 'atp500') {
-    renderRoundDrawPanel(el, drawMatches, drawTier);
-  } else {
-    // ATP250 — 라운드 헤더만 (경기 수 적음)
-    const rounds = {};
-    drawMatches.forEach(m => {
-      const r = getRoundKey(m.roundName || '') || m.roundName || '기타';
-      if (!rounds[r]) rounds[r] = [];
-      rounds[r].push(m);
-    });
-    const ordered = ROUND_ORDER.filter(r => rounds[r]);
-    Object.keys(rounds).forEach(r => { if (!ordered.includes(r)) ordered.push(r); });
-    let html = '';
-    ordered.forEach(r => {
-      html += `<div class="atp-round-label">${ROUND_LABEL[r] || r}</div>`;
-      html += rounds[r].map(m => renderMatchRow(m)).join('');
-    });
-    el.innerHTML = html;
-  }
+  renderRoundDrawPanel(el, drawMatches, drawTier);
 }
 
 // ── 라운드 탭 대진표 (GS / ATP1000 / ATP500) ──────────────────────
