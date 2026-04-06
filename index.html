@@ -5300,6 +5300,9 @@ function renderBetCard(betId, bet, myName) {
   const closeBtn = isAdmin() && isOpen
     ? `<button onclick="closeBet('${betId}')" style="background:#fee2e2;border:1px solid #fecaca;border-radius:8px;padding:3px 10px;font-size:0.7rem;font-weight:700;color:#dc2626;cursor:pointer">베팅 Close</button>`
     : '';
+  const deleteBtn = isAdmin()
+    ? `<button onclick="deleteBet('${betId}')" style="background:none;border:none;font-size:0.65rem;color:#cbd5e1;cursor:pointer;padding:0;text-decoration:underline">베팅카드 삭제</button>`
+    : '';
   const settleBtn = isAdmin() && !isOpen && !hasResult
     ? `<button onclick="settleBetManual('${betId}')" style="margin-top:8px;width:100%;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:8px;padding:6px;font-size:0.75rem;font-weight:600;color:#475569;cursor:pointer">✏️ 결과 수동 입력</button>`
     : '';
@@ -5312,8 +5315,9 @@ function renderBetCard(betId, bet, myName) {
     : renderMatchBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAll);
 
   return `
-    <div class="bet-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+    <div class="bet-card" style="position:relative">
+      ${deleteBtn ? `<div style="position:absolute;top:8px;right:10px">${deleteBtn}</div>` : ''}
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;${deleteBtn ? 'padding-right:72px' : ''}">
         <div>${typeLabel}${statusLabel}</div>
         ${closeBtn}
       </div>
@@ -5634,6 +5638,11 @@ function editBetMatch(betId) {
 function closeBet(betId) {
   if (!confirm('베팅을 마감하시겠습니까? 마감 후에는 멤버들의 베팅/수정이 불가합니다.')) return;
   db.ref(`jmt/atpBets/${betId}`).update({ open: false, closedAt: new Date().toISOString() }).catch(fbErr);
+}
+
+function deleteBet(betId) {
+  if (!confirm('이 베팅 카드를 삭제하시겠습니까? 복구할 수 없습니다.')) return;
+  db.ref(`jmt/atpBets/${betId}`).remove().catch(fbErr);
 }
 
 // ── 결과 자동 감지 (ESPN 데이터) ─────────────────────────────────
