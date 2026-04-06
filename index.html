@@ -4718,6 +4718,13 @@ changeTeamPhotoRandom();
       setTimeout(openIdentityModal, 600);
     }
 
+    // ── 앱 기동 시 로고 스플래시 (1초) ──────────────────────────
+    const logoPopup = document.getElementById('logo-popup');
+    if (logoPopup) {
+      logoPopup.style.display = 'flex';
+      setTimeout(() => { logoPopup.style.display = 'none'; }, 1000);
+    }
+
     // ── 초기 페이지가 랭킹탭이므로 즉시 렌더링 ──────────────────
     renderRankYearRow();
     renderRankingTab();
