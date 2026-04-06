@@ -5493,26 +5493,25 @@ function renderMatchBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAl
   const totalMatchBets = p1Bets.length + p2Bets.length;
   const p1Pct = totalMatchBets ? Math.round(p1Bets.length / totalMatchBets * 100) : 0;
   const p2Pct = totalMatchBets ? 100 - p1Pct : 0;
+  const pctBarHtml = `<div style="margin-top:8px;padding:8px 10px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;font-size:0.72rem;color:#64748b">
+      <div style="font-weight:700;color:#475569;margin-bottom:6px">📊 베팅 현황${totalMatchBets > 0 ? ` (${totalMatchBets}명 참여)` : ''}</div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+        <span style="flex:0 0 70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:#1e293b">${bet.player1Name}</span>
+        <div style="flex:1;background:#e2e8f0;border-radius:4px;height:7px"><div style="background:#3b82f6;border-radius:4px;height:7px;width:${p1Pct}%"></div></div>
+        <span style="font-weight:700;color:#1e293b;min-width:32px;text-align:right">${p1Pct}%</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="flex:0 0 70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:#1e293b">${bet.player2Name}</span>
+        <div style="flex:1;background:#e2e8f0;border-radius:4px;height:7px"><div style="background:#ec4899;border-radius:4px;height:7px;width:${p2Pct}%"></div></div>
+        <span style="font-weight:700;color:#1e293b;min-width:32px;text-align:right">${p2Pct}%</span>
+      </div>
+     </div>`;
   const statsHtml = showAll
-    ? `<div style="display:flex;gap:8px;margin-top:8px;font-size:0.72rem;color:#64748b;text-align:center">
+    ? pctBarHtml + `<div style="display:flex;gap:8px;margin-top:6px;font-size:0.72rem;color:#64748b;text-align:center">
         <div style="flex:1">${bet.player1Name}<br><b style="color:#2563eb">${p1Bets.length}명</b>${p1Bets.length ? `<br>${p1Bets.map(([k])=>k.replace(/_/g,' ')).join(', ')}` : ''}</div>
         <div style="flex:1">${bet.player2Name}<br><b style="color:#2563eb">${p2Bets.length}명</b>${p2Bets.length ? `<br>${p2Bets.map(([k])=>k.replace(/_/g,' ')).join(', ')}` : ''}</div>
        </div>`
-    : (isOpen
-        ? `<div style="margin-top:8px;padding:8px 10px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;font-size:0.72rem;color:#64748b">
-            <div style="font-weight:700;color:#475569;margin-bottom:6px">📊 베팅 현황${totalMatchBets > 0 ? ` (${totalMatchBets}명 참여)` : ''}</div>
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
-              <span style="flex:0 0 70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:#1e293b">${bet.player1Name}</span>
-              <div style="flex:1;background:#e2e8f0;border-radius:4px;height:7px"><div style="background:#3b82f6;border-radius:4px;height:7px;width:${p1Pct}%"></div></div>
-              <span style="font-weight:700;color:#1e293b;min-width:32px;text-align:right">${p1Pct}%</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:6px">
-              <span style="flex:0 0 70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:#1e293b">${bet.player2Name}</span>
-              <div style="flex:1;background:#e2e8f0;border-radius:4px;height:7px"><div style="background:#ec4899;border-radius:4px;height:7px;width:${p2Pct}%"></div></div>
-              <span style="font-weight:700;color:#1e293b;min-width:32px;text-align:right">${p2Pct}%</span>
-            </div>
-           </div>`
-        : `<div style="font-size:0.75rem;color:#94a3b8;text-align:center;margin-top:6px">베팅 결과는 Close 후 공개됩니다</div>`);
+    : (isOpen ? pctBarHtml : `<div style="font-size:0.75rem;color:#94a3b8;text-align:center;margin-top:6px">베팅 결과는 Close 후 공개됩니다</div>`);
 
   const waitMsg = !isOpen && !hasResult
     ? `<div style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:8px 0">결과 집계 대기 중...</div>` : '';
