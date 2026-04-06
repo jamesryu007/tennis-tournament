@@ -4502,6 +4502,7 @@ function selectIdentity(name) {
       ['mixed','mens','womens'].forEach(t => { if(state.tournaments[t]) renderTournament(t); });
     }
     if (pageId === 'checkin') renderCheckinPage();
+    if (pageId === 'atp') { renderAtpPage(); renderAtpBetPanel(); }
   }
 }
 
