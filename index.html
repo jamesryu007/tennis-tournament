@@ -5480,6 +5480,44 @@ function renderMatchBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAl
   const allBetsArr = bet.bets ? Object.entries(bet.bets) : [];
   const p1Bets = allBetsArr.filter(([, b]) => b.playerId === bet.player1Id || b.playerName === bet.player1Name);
   const p2Bets = allBetsArr.filter(([, b]) => b.playerId === bet.player2Id || b.playerName === bet.player2Name);
+  const totalMatchBets = p1Bets.length + p2Bets.length;
+
+  // 경기베팅 순서 계산 (admin용) — hasResult 전에 미리 계산
+  const mSortedByTime = [...allBetsArr].sort((a,b)=>(a[1].at||a[1].votedAt||'').localeCompare(b[1].at||b[1].votedAt||''));
+  const mOrderMap = {};
+  mSortedByTime.forEach(([k], i) => { mOrderMap[k] = i + 1; });
+  const mLast3Keys = new Set(mSortedByTime.slice(-3).map(([k]) => k));
+  const fmtMatchBettors = (arr) => arr.length
+    ? arr.sort((a,b)=>mOrderMap[a[0]]-mOrderMap[b[0]]).map(([k]) => {
+        const name = k.replace(/_/g,' '), isL3 = mLast3Keys.has(k), ord = mOrderMap[k];
+        return `<span style="color:${isL3?'#2563eb':'#1e293b'};font-weight:${isL3?'700':'400'}">${ord}. ${name}</span>`;
+      }).join(', ')
+    : '없음';
+
+  const allMemberNames = (state.members || []).map(m => m.name).filter(Boolean);
+  const participatedKeys = new Set(allBetsArr.map(([k]) => k));
+  const notParticipated = allMemberNames.filter(n => !participatedKeys.has(n.replace(/[.#$[\]]/g, '_')));
+
+  const adminMatchStats = isAdmin()
+    ? `<div style="margin-top:6px;padding:8px 10px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;font-size:0.75rem">
+        <div style="font-weight:700;color:#475569;margin-bottom:5px">📊 베팅 현황 [관리자]</div>
+        <div style="color:#1e293b;margin-bottom:6px;font-size:0.72rem">
+          ✅ <b>참여 (${totalMatchBets}명)</b><br>
+          <div style="margin-top:2px">
+            <div style="margin-bottom:2px"><b>${bet.player1Name}</b> : ${fmtMatchBettors(p1Bets)}</div>
+            <div><b>${bet.player2Name}</b> : ${fmtMatchBettors(p2Bets)}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="color:#ef4444;flex:1;font-size:0.72rem">
+            ❌ <b>미참여 (${notParticipated.length}명)</b>: ${notParticipated.join(', ') || '없음'}
+          </div>
+          ${notParticipated.length > 0 && isOpen
+            ? `<button onclick="notifyBetNonParticipants('${betId}')" style="flex-shrink:0;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:4px 10px;font-size:0.72rem;font-weight:700;color:#92400e;cursor:pointer;white-space:nowrap">🔔 독촉 알림</button>`
+            : ''}
+        </div>
+       </div>`
+    : '';
 
   // 결과 확정 후
   if (hasResult) {
@@ -5502,7 +5540,8 @@ function renderMatchBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAl
       </div>
       <div style="text-align:center;font-size:0.82rem;font-weight:700;padding:4px;border-radius:8px;background:${myWon?'#f0fdf4':'#fef2f2'};color:${myWon?'#166534':'#991b1b'}">
         ${myWon ? '🎉 베팅 성공!' : (myBet ? '😔 베팅 실패...' : '미참여')}
-      </div>`;
+      </div>
+      ${adminMatchStats}`;
   }
 
   // 투표 진행 중
@@ -5524,7 +5563,6 @@ function renderMatchBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAl
        </div>`
     : '';
 
-  const totalMatchBets = p1Bets.length + p2Bets.length;
   const p1Pct = totalMatchBets ? Math.round(p1Bets.length / totalMatchBets * 100) : 0;
   const p2Pct = totalMatchBets ? 100 - p1Pct : 0;
   const pctBarHtml = `<div style="margin-top:8px;padding:8px 10px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;font-size:0.72rem;color:#64748b">
@@ -5540,42 +5578,6 @@ function renderMatchBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAl
         <span style="font-weight:700;color:#1e293b;min-width:32px;text-align:right">${p2Pct}%</span>
       </div>
      </div>`;
-  const allMemberNames = (state.members || []).map(m => m.name).filter(Boolean);
-  const participatedKeys = new Set(allBetsArr.map(([k]) => k));
-  const notParticipated = allMemberNames.filter(n => !participatedKeys.has(n.replace(/[.#$[\]]/g, '_')));
-
-  // 경기베팅 순서 계산 (admin용)
-  const mSortedByTime = [...allBetsArr].sort((a,b)=>(a[1].at||a[1].votedAt||'').localeCompare(b[1].at||b[1].votedAt||''));
-  const mOrderMap = {};
-  mSortedByTime.forEach(([k], i) => { mOrderMap[k] = i + 1; });
-  const mLast3Keys = new Set(mSortedByTime.slice(-3).map(([k]) => k));
-  const fmtMatchBettors = (arr) => arr.length
-    ? arr.sort((a,b)=>mOrderMap[a[0]]-mOrderMap[b[0]]).map(([k]) => {
-        const name = k.replace(/_/g,' '), isL3 = mLast3Keys.has(k), ord = mOrderMap[k];
-        return `<span style="color:${isL3?'#2563eb':'#1e293b'};font-weight:${isL3?'700':'400'}">${ord}. ${name}</span>`;
-      }).join(', ')
-    : '없음';
-
-  const adminMatchStats = isAdmin()
-    ? `<div style="margin-top:6px;padding:8px 10px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;font-size:0.75rem">
-        <div style="font-weight:700;color:#475569;margin-bottom:5px">📊 베팅 현황 [관리자]</div>
-        <div style="color:#1e293b;margin-bottom:6px;font-size:0.72rem">
-          ✅ <b>참여 (${totalMatchBets}명)</b><br>
-          <div style="margin-top:2px">
-            <div style="margin-bottom:2px"><b>${bet.player1Name}</b> : ${fmtMatchBettors(p1Bets)}</div>
-            <div><b>${bet.player2Name}</b> : ${fmtMatchBettors(p2Bets)}</div>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-          <div style="color:#ef4444;flex:1;font-size:0.72rem">
-            ❌ <b>미참여 (${notParticipated.length}명)</b>: ${notParticipated.join(', ') || '없음'}
-          </div>
-          ${notParticipated.length > 0 && isOpen
-            ? `<button onclick="notifyBetNonParticipants('${betId}')" style="flex-shrink:0;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:4px 10px;font-size:0.72rem;font-weight:700;color:#92400e;cursor:pointer;white-space:nowrap">🔔 독촉 알림</button>`
-            : ''}
-        </div>
-       </div>`
-    : '';
 
   const statsHtml = showAll
     ? pctBarHtml + adminMatchStats
