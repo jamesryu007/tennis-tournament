@@ -3627,6 +3627,15 @@ function switchPage(id) {
     renderAtpPage();
     if (!atpState.loaded) triggerAtpRefresh();
     if (atpState.preferBetTab) switchAtpTab('bet');
+    // 관심선수 강제 로드 — 새로고침 후 Firebase 리스너 타이밍 보완
+    const _favName = state.identity && state.identity.name;
+    if (_favName && db) {
+      db.ref(`jmt/favPlayers/${_favName}`).once('value', snap => {
+        const players = snap.val() || [];
+        atpState.favPlayers = players;
+        renderAtpFavMatches();
+      });
+    }
   }
   if(id === 'members') { loadRankingTop3().then(renderMemberList); renderMemberList(); }
   if(id === 'history') {
