@@ -5200,11 +5200,11 @@ function renderMatchRow(m) {
     <div class="atp-match-row">
       <div style="flex:1;min-width:0">
         <div class="atp-player ${m.player1Winner ? 'winner' : ''}" style="${fav1 ? 'color:#f59e0b;font-weight:800' : ''}">
-          ${fav1 ? '⭐ ' : ''}${p1Name}${m.player1Country ? ` <span style="font-size:0.65rem;color:#94a3b8">${m.player1Country}</span>` : ''}
+          ${p1Name}${m.player1Country ? ` <span style="font-size:0.65rem;color:#94a3b8">${m.player1Country}</span>` : ''}
           ${m.player1Winner && isDone ? ' <span style="font-size:0.65rem;color:#22c55e">✓</span>' : ''}
         </div>
         <div class="atp-player ${m.player2Winner ? 'winner' : ''}" style="margin-top:3px;${fav2 ? 'color:#f59e0b;font-weight:800' : ''}">
-          ${fav2 ? '⭐ ' : ''}${p2Name}${m.player2Country ? ` <span style="font-size:0.65rem;color:#94a3b8">${m.player2Country}</span>` : ''}
+          ${p2Name}${m.player2Country ? ` <span style="font-size:0.65rem;color:#94a3b8">${m.player2Country}</span>` : ''}
           ${m.player2Winner && isDone ? ' <span style="font-size:0.65rem;color:#22c55e">✓</span>' : ''}
         </div>
       </div>
