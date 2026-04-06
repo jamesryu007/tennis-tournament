@@ -4917,14 +4917,19 @@ const VENUE_MAP = {
 };
 
 function getVenueInfo(t) {
-  // Grand Slam은 대회명으로 매핑
-  const nameLower = (t.name || '').toLowerCase();
+  const toAlnum = s => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const nameLower  = (t.name || '').toLowerCase();
+  const alnumName  = toAlnum(t.name || '');
+  // Grand Slam / ATP1000: 대회명으로 매핑 (alnum 정규화 포함)
   for (const key of Object.keys(VENUE_MAP)) {
-    if (nameLower.includes(key)) return VENUE_MAP[key];
+    if (nameLower.includes(key) || alnumName.includes(toAlnum(key))) return VENUE_MAP[key];
   }
-  // ATP1000은 도시명으로 매핑
-  const cityLower = (t.venueCity || '').toLowerCase();
-  return VENUE_MAP[cityLower] || null;
+  // 도시명으로 매핑 (alnum 정규화 포함 — "Monte-Carlo" → "montecarlo" === "monte carlo" → "montecarlo")
+  const alnumCity = toAlnum(t.venueCity || '');
+  for (const key of Object.keys(VENUE_MAP)) {
+    if (alnumCity === toAlnum(key)) return VENUE_MAP[key];
+  }
+  return null;
 }
 
 function renderTourneyInfoHtml(t, ended) {
