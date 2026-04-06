@@ -98,6 +98,50 @@ exports.notifyCheckinReminder = onSchedule(
   }
 );
 
+// ══ 2b. 수요일 정오 — 미출첵자 중간 리마인드 ══════════════════════
+exports.notifyCheckinReminderWed = onSchedule(
+  { schedule: '0 12 * * 3', timeZone: 'Asia/Seoul' },
+  async () => {
+    const pollStateSnap = await db.ref('jmt/pollState').once('value');
+    const pollState = pollStateSnap.val();
+    if (!pollState || pollState.status !== 'open') return;
+
+    const weekId = pollState.weekId;
+    const pollSnap = await db.ref(`jmt/poll/${weekId}/votes`).once('value');
+    const votes = pollSnap.val() || {};
+    const voted = new Set(Object.values(votes).map(v => v.name));
+
+    const membersSnap = await db.ref('jmt/members').once('value');
+    const members = Object.values(membersSnap.val() || {});
+    const unvotedNames = members.map(m => m.name).filter(n => !voted.has(n));
+
+    const tokens = await getTokensByNames(unvotedNames);
+    await sendPush(tokens, '🎾 이번 주 출첵 하셨나요?', '아직 출첵을 안 하셨어요. 지금 바로 참석 여부를 알려주세요!');
+  }
+);
+
+// ══ 2c. 목요일 정오 — 미출첵자 리마인드 ══════════════════════════
+exports.notifyCheckinReminderThu = onSchedule(
+  { schedule: '0 12 * * 4', timeZone: 'Asia/Seoul' },
+  async () => {
+    const pollStateSnap = await db.ref('jmt/pollState').once('value');
+    const pollState = pollStateSnap.val();
+    if (!pollState || pollState.status !== 'open') return;
+
+    const weekId = pollState.weekId;
+    const pollSnap = await db.ref(`jmt/poll/${weekId}/votes`).once('value');
+    const votes = pollSnap.val() || {};
+    const voted = new Set(Object.values(votes).map(v => v.name));
+
+    const membersSnap = await db.ref('jmt/members').once('value');
+    const members = Object.values(membersSnap.val() || {});
+    const unvotedNames = members.map(m => m.name).filter(n => !voted.has(n));
+
+    const tokens = await getTokensByNames(unvotedNames);
+    await sendPush(tokens, '🎾 내일이 출첵 마감이에요!', '아직 출첵을 안 하셨어요. 지금 바로 참석 여부를 알려주세요!');
+  }
+);
+
 // ══ 3. 금요일 정오 — 출첵 자동 마감 + 전체 알림 ════════════════
 exports.notifyCheckinClose = onSchedule(
   { schedule: '0 12 * * 5', timeZone: 'Asia/Seoul' },
