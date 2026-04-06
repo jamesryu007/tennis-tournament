@@ -2941,45 +2941,30 @@ async function renderAttendanceRanking() {
     rate: Math.round((attended[name] || 0) / total * 100)
   })).sort((a, b) => b.rate - a.rate || b.count - a.count);
 
-  const medals = ['🥇','🥈','🥉'];
   const myName = state.identity && state.identity.name;
 
-  // 포디움 (TOP 3)
-  const top3 = stats.slice(0, 3);
-  const podOrder = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : top3.length === 2 ? [top3[0], top3[1]] : top3;
-  const heightMap = [80, 110, 60]; // 2위, 1위, 3위 높이
+  const podItems = stats.slice(0, Math.min(3, stats.length));
+  const podCls = ['p1','p2','p3'], medals = ['🥇','🥈','🥉'];
 
-  let html = `
-    <div class="rank-banner" style="margin-bottom:10px">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div class="rank-banner-title">🏃 출석 랭킹</div>
-          <div class="rank-banner-sub">전체 ${total}회 기준</div>
-        </div>
-        <button onclick="const p=document.getElementById('att-info-popup');p.style.display=p.style.display==='none'?'block':'none'" style="background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);border-radius:50%;width:26px;height:26px;font-size:0.8rem;font-weight:800;color:#fff;cursor:pointer;flex-shrink:0">ⓘ</button>
-      </div>
-      <div id="att-info-popup" style="display:none;margin-top:8px;background:rgba(255,255,255,0.15);border-radius:10px;padding:8px 10px;font-size:0.72rem;color:rgba(255,255,255,0.9);line-height:1.6;text-align:left">
-        · 참석률 = (출석 + 늦참) ÷ 전체 모임 횟수 × 100%<br>
-        · 동률 시 출석 횟수가 많은 멤버 우선<br>
-        · 게스트는 집계에서 제외됩니다
-      </div>
-    </div>
-    <div style="display:flex;align-items:flex-end;justify-content:center;gap:4px;padding:4px 8px 0">
-      ${podOrder.map((p, i) => {
-        const origIdx = top3.indexOf(p);
-        const h = heightMap[i] || 70;
-        const isMe = p.name === myName;
-        const bgColor = origIdx===0?'#fde68a':origIdx===1?'#e2e8f0':'#fed7aa';
-        return `<div style="flex:1;text-align:center">
-          <div style="font-size:0.72rem;font-weight:700;margin-bottom:2px;color:${isMe?'#2563eb':'#1e293b'}">${p.name}</div>
-          <div style="background:${bgColor};border-radius:8px 8px 0 0;height:${h}px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:6px;gap:2px">
-            <div style="font-size:1.2rem">${medals[origIdx]||''}</div>
-            <div style="font-size:0.72rem;font-weight:700;color:#1e293b">${p.rate}%</div>
-            <div style="font-size:0.62rem;color:#475569">${p.count}회</div>
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`;
+  let html = `<div class="rank-banner" style="position:relative">
+    <div class="rank-banner-title">🏃 출석 랭킹</div>
+    <div class="rank-banner-sub">전체 ${total}회 기준</div>
+    <button onclick="document.getElementById('att-info-modal').classList.add('open')" style="position:absolute;top:50%;right:14px;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center">i</button>
+  </div>
+  <div class="rank-podium">
+    ${podItems.map((p, i) => {
+      const isMe = p.name === myName;
+      const g = getGender(p.name), nc = g==='male'?'#1e40af':g==='female'?'#9d174d':'#1e293b';
+      return `<div class="rank-pod ${podCls[i]}">
+        <div class="rank-pod-medal">${medals[i]}</div>
+        <div class="rank-pod-nick" style="color:${isMe?'#2563eb':nc}">${p.name}</div>
+        <div class="rank-pod-members">${p.count}회 참석</div>
+        <div class="rank-pod-wr ${p.rate>=50?'hot':'cold'}">${p.rate}%</div>
+        <div class="rank-pod-wl">전체 ${total}회 중</div>
+        <div class="rank-pod-bar"><div class="rank-pod-bar-fill" style="width:${p.rate}%"></div></div>
+      </div>`;
+    }).join('')}
+  </div>`;
 
   if (stats.length > 3) {
     html += `<div class="rank-list-label" style="margin-top:8px">─ 4위 이하 ─</div>`;
@@ -5513,20 +5498,21 @@ function renderMatchBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAl
         <div style="flex:1">${bet.player1Name}<br><b style="color:#2563eb">${p1Bets.length}명</b>${p1Bets.length ? `<br>${p1Bets.map(([k])=>k.replace(/_/g,' ')).join(', ')}` : ''}</div>
         <div style="flex:1">${bet.player2Name}<br><b style="color:#2563eb">${p2Bets.length}명</b>${p2Bets.length ? `<br>${p2Bets.map(([k])=>k.replace(/_/g,' ')).join(', ')}` : ''}</div>
        </div>`
-    : (isOpen && myBet && totalMatchBets > 0
-        ? `<div style="margin-top:8px;font-size:0.72rem;color:#64748b">
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-              <span style="flex:0 0 70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${bet.player1Name}</span>
+    : (isOpen
+        ? `<div style="margin-top:8px;padding:8px 10px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;font-size:0.72rem;color:#64748b">
+            <div style="font-weight:700;color:#475569;margin-bottom:6px">📊 베팅 현황${totalMatchBets > 0 ? ` (${totalMatchBets}명 참여)` : ''}</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+              <span style="flex:0 0 70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:#1e293b">${bet.player1Name}</span>
               <div style="flex:1;background:#e2e8f0;border-radius:4px;height:7px"><div style="background:#3b82f6;border-radius:4px;height:7px;width:${p1Pct}%"></div></div>
               <span style="font-weight:700;color:#1e293b;min-width:32px;text-align:right">${p1Pct}%</span>
             </div>
             <div style="display:flex;align-items:center;gap:6px">
-              <span style="flex:0 0 70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${bet.player2Name}</span>
+              <span style="flex:0 0 70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:#1e293b">${bet.player2Name}</span>
               <div style="flex:1;background:#e2e8f0;border-radius:4px;height:7px"><div style="background:#ec4899;border-radius:4px;height:7px;width:${p2Pct}%"></div></div>
               <span style="font-weight:700;color:#1e293b;min-width:32px;text-align:right">${p2Pct}%</span>
             </div>
            </div>`
-        : (!myBet && isOpen ? '' : `<div style="font-size:0.75rem;color:#94a3b8;text-align:center;margin-top:6px">베팅 결과는 Close 후 공개됩니다</div>`));
+        : `<div style="font-size:0.75rem;color:#94a3b8;text-align:center;margin-top:6px">베팅 결과는 Close 후 공개됩니다</div>`);
 
   const waitMsg = !isOpen && !hasResult
     ? `<div style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:8px 0">결과 집계 대기 중...</div>` : '';
@@ -6375,6 +6361,34 @@ async function triggerAtpRefresh() {
       <div style="font-size:0.75rem;color:#475569;line-height:1.7">
         <span style="color:#16a34a;font-weight:700">자격자:</span> 유효승률 → 총 승수<br>
         <span style="color:#94a3b8;font-weight:700">비자격자:</span> 총 경기수 → 유효승률 → 총 승수
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="att-info-modal" onclick="if(event.target===this)this.classList.remove('open')"
+  class="modal-overlay" style="align-items:center">
+  <div style="background:#fff;border-radius:20px;padding:24px 20px 20px;max-width:360px;width:92%;max-height:80vh;overflow-y:auto;position:relative">
+    <button onclick="document.getElementById('att-info-modal').classList.remove('open')"
+      style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:1.3rem;color:#94a3b8;cursor:pointer">✕</button>
+    <div style="font-size:1rem;font-weight:900;color:#4c1d95;margin-bottom:14px">🏃 출석 랭킹 기준</div>
+    <div style="background:#f8fafc;border-radius:12px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">📐 참석률 공식</div>
+      <div style="font-size:0.82rem;color:#2563eb;font-weight:700;font-family:monospace">(출석 + 늦참) ÷ 전체 모임 횟수 × 100</div>
+      <div style="font-size:0.72rem;color:#64748b;margin-top:4px">출석(attend)과 늦참(late) 모두 참석으로 계산</div>
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">🏆 순위 결정</div>
+      <div style="font-size:0.75rem;color:#475569;line-height:1.7">
+        1순위 — 참석률(%)<br>
+        2순위 — 동률 시 출석 횟수가 많은 멤버 우선
+      </div>
+    </div>
+    <div>
+      <div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">📌 참고</div>
+      <div style="font-size:0.75rem;color:#475569;line-height:1.7">
+        게스트는 집계에서 제외됩니다<br>
+        모임 횟수 = 출첵 투표가 생성된 주차 기준
       </div>
     </div>
   </div>
