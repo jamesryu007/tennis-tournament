@@ -5338,23 +5338,72 @@ function renderWinnerBetCard(betId, bet, myName, myBet, isOpen, hasResult, showA
   const allBetsArr = bet.bets ? Object.entries(bet.bets) : [];
   const totalCount = allBetsArr.length;
 
+  // 참여자/미참여자 계산 (admin용) — hasResult 전에 미리 계산
+  const allMemberNames = (state.members || []).map(m => m.name).filter(Boolean);
+  const participatedKeys = new Set(allBetsArr.map(([k]) => k));
+  const notParticipated = allMemberNames.filter(n => !participatedKeys.has(n.replace(/[.#$[\]]/g, '_')));
+
+  // 베팅 순서 계산 (admin용)
+  const sortedByTime = [...allBetsArr].sort((a,b)=>(a[1].at||a[1].votedAt||'').localeCompare(b[1].at||b[1].votedAt||''));
+  const orderMap = {};
+  sortedByTime.forEach(([k], i) => { orderMap[k] = i + 1; });
+  const last3Keys = new Set(sortedByTime.slice(-3).map(([k]) => k));
+
+  // 선수별 멤버 그룹핑 (관리자용 — 순서+색상)
+  const adminGroups = {};
+  allBetsArr.forEach(([k, b]) => {
+    const pName = b.playerName || '?';
+    if (!adminGroups[pName]) adminGroups[pName] = [];
+    adminGroups[pName].push({ name: k.replace(/_/g,' '), order: orderMap[k], isLast3: last3Keys.has(k) });
+  });
+  Object.values(adminGroups).forEach(arr => arr.sort((a,b) => a.order - b.order));
+  const adminGroupedHtml = Object.entries(adminGroups)
+    .map(([player, members]) => `<div style="margin-bottom:3px"><b>${player}</b> : ${
+      members.map(m => `<span style="color:${m.isLast3?'#2563eb':'#1e293b'};font-weight:${m.isLast3?'700':'400'}">${m.order}. ${m.name}</span>`).join(', ')
+    }</div>`)
+    .join('') || '없음';
+
+  const adminStatsHtml = isAdmin()
+    ? `<div style="margin-top:6px;padding:8px 10px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;font-size:0.75rem">
+        <div style="font-weight:700;color:#475569;margin-bottom:5px">📊 베팅 현황 [관리자]</div>
+        <div style="color:#1e293b;margin-bottom:6px">✅ <b>참여 (${totalCount}명)</b><br>${adminGroupedHtml}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="color:#ef4444;flex:1;font-size:0.72rem">
+            ❌ <b>미참여 (${notParticipated.length}명)</b>: ${notParticipated.join(', ') || '없음'}
+          </div>
+          ${notParticipated.length > 0 && isOpen
+            ? `<button onclick="notifyBetNonParticipants('${betId}')" style="flex-shrink:0;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:4px 10px;font-size:0.72rem;font-weight:700;color:#92400e;cursor:pointer;white-space:nowrap">🔔 독촉 알림</button>`
+            : ''}
+        </div>
+       </div>`
+    : '';
+
   // 결과 확정 후
   if (hasResult) {
     const winnerName = bet.result.winnerName;
     const winnerBets = allBetsArr.filter(([, b]) => b.playerName === winnerName);
     const loserBets  = allBetsArr.filter(([, b]) => b.playerName !== winnerName);
     const myWon = myBet && myBet.playerName === winnerName;
+    const loserGroups = loserBets.reduce((acc,[k,b])=>{(acc[b.playerName]=acc[b.playerName]||[]).push(k.replace(/_/g,' '));return acc;},{});
     return `
-      <div style="padding:8px;border-radius:10px;background:${myWon?'#f0fdf4':'#fef2f2'};margin-bottom:8px;text-align:center">
-        ${myWon ? '🎉🎉 베팅 성공! 축하해요!' : '😔 베팅 실패...'}
-        <div style="font-size:0.88rem;font-weight:800;margin-top:2px">🏆 우승: ${winnerName}</div>
+      <div style="background:linear-gradient(135deg,#fef9c3,#fde68a);border:1px solid #f59e0b;border-radius:12px;padding:10px 14px;margin-bottom:8px;text-align:center">
+        <div style="font-size:0.72rem;font-weight:700;color:#78350f;margin-bottom:2px">🏆 우승자 확정</div>
+        <div style="font-size:1.1rem;font-weight:900;color:#92400e">${winnerName}</div>
       </div>
-      <div style="font-size:0.78rem;margin-top:4px">
-        <div style="margin-bottom:4px"><b style="color:#22c55e">🎉 WINNERS (${winnerBets.length}명):</b><br>${chunkBetNames(winnerBets.map(([k])=>k.replace(/_/g,' ')))||'없음'}</div>
-        <div><b style="color:#ef4444">😔 LOSERS</b><br>
-          ${Object.entries(loserBets.reduce((acc,[k,b])=>{(acc[b.playerName]=acc[b.playerName]||[]).push(k.replace(/_/g,' '));return acc;},{})).map(([p,ms])=>`<div style="margin-bottom:2px"><b>${p}</b> : ${chunkBetNames(ms)}</div>`).join('')||'없음'}
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <div style="flex:1;padding:8px 10px;border-radius:10px;background:#f0fdf4;border:1.5px solid #86efac">
+          <div style="font-size:0.7rem;font-weight:700;color:#166534;margin-bottom:4px">🎉 WINNERS (${winnerBets.length}명)</div>
+          <div style="font-size:0.72rem;color:#166534;font-weight:600">${chunkBetNames(winnerBets.map(([k])=>k.replace(/_/g,' ')))||'없음'}</div>
         </div>
-      </div>`;
+        <div style="flex:1;padding:8px 10px;border-radius:10px;background:#fef2f2;border:1.5px solid #fca5a5">
+          <div style="font-size:0.7rem;font-weight:700;color:#991b1b;margin-bottom:4px">😔 LOSERS (${loserBets.length}명)</div>
+          <div style="font-size:0.72rem;color:#991b1b">${Object.entries(loserGroups).map(([p,ms])=>`<div><b>${p}</b>: ${chunkBetNames(ms,3)}</div>`).join('')||'없음'}</div>
+        </div>
+      </div>
+      <div style="text-align:center;font-size:0.82rem;font-weight:700;padding:5px;border-radius:8px;background:${myWon?'#f0fdf4':'#fef2f2'};color:${myWon?'#166534':'#991b1b'}">
+        ${myWon ? '🎉🎉 베팅 성공! 축하해요!' : (myBet ? '😔 베팅 실패...' : '미참여')}
+      </div>
+      ${adminStatsHtml}`;
   }
 
   // Close 전/후 공통 — 내 베팅 표시
@@ -5379,17 +5428,6 @@ function renderWinnerBetCard(betId, bet, myName, myBet, isOpen, hasResult, showA
        </div>`
     : '';
 
-  // 참여자/미참여자 계산 (admin용)
-  const allMemberNames = (state.members || []).map(m => m.name).filter(Boolean);
-  const participatedKeys = new Set(allBetsArr.map(([k]) => k));
-  const notParticipated = allMemberNames.filter(n => !participatedKeys.has(n.replace(/[.#$[\]]/g, '_')));
-
-  // 베팅 순서 계산 (admin용)
-  const sortedByTime = [...allBetsArr].sort((a,b)=>(a[1].at||a[1].votedAt||'').localeCompare(b[1].at||b[1].votedAt||''));
-  const orderMap = {};
-  sortedByTime.forEach(([k], i) => { orderMap[k] = i + 1; });
-  const last3Keys = new Set(sortedByTime.slice(-3).map(([k]) => k));
-
   // 선수별 멤버 그룹핑 (일반용 — 이름만)
   const playerGroups = {};
   allBetsArr.forEach(([k, b]) => {
@@ -5397,28 +5435,6 @@ function renderWinnerBetCard(betId, bet, myName, myBet, isOpen, hasResult, showA
     if (!playerGroups[pName]) playerGroups[pName] = [];
     playerGroups[pName].push(k.replace(/_/g,' '));
   });
-
-  // 선수별 멤버 그룹핑 (관리자용 — 순서+색상)
-  const adminGroups = {};
-  allBetsArr.forEach(([k, b]) => {
-    const pName = b.playerName || '?';
-    if (!adminGroups[pName]) adminGroups[pName] = [];
-    adminGroups[pName].push({ name: k.replace(/_/g,' '), order: orderMap[k], isLast3: last3Keys.has(k) });
-  });
-  Object.values(adminGroups).forEach(arr => arr.sort((a,b) => a.order - b.order));
-  const adminGroupedHtml = Object.entries(adminGroups)
-    .map(([player, members]) => `<div style="margin-bottom:3px"><b>${player}</b> : ${
-      members.map(m => `<span style="color:${m.isLast3?'#2563eb':'#1e293b'};font-weight:${m.isLast3?'700':'400'}">${m.order}. ${m.name}</span>`).join(', ')
-    }</div>`)
-    .join('') || '없음';
-
-  // Close 후 현황
-  const closedStats = !isOpen && showAll
-    ? `<div style="font-size:0.75rem;color:#64748b;margin-top:8px;padding-top:8px;border-top:1px solid #f1f5f9">
-        <b>베팅 현황 (${totalCount}명)</b><br>
-        ${Object.entries(playerGroups).map(([p,ms])=>`<div style="margin-bottom:2px"><b style="color:#1e293b">${p}</b> : ${ms.join(', ')}</div>`).join('') || '없음'}
-       </div>`
-    : '';
 
   // 일반 멤버용 % 현황 (open 중, 투표 전/후 모두 표시)
   const memberPctHtml = isOpen && !editing && totalCount > 0
@@ -5437,28 +5453,10 @@ function renderWinnerBetCard(betId, bet, myName, myBet, isOpen, hasResult, showA
        </div>`
     : '';
 
-  // 관리자 실시간 현황 (open 상태)
-  const adminStats = isAdmin()
-    ? `<div style="margin-top:8px;padding:8px 10px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;font-size:0.75rem">
-        <div style="font-weight:700;color:#475569;margin-bottom:5px">📊 베팅 현황 [관리자]</div>
-        <div style="color:#1e293b;margin-bottom:6px">
-          ✅ <b>참여 (${totalCount}명)</b><br>${adminGroupedHtml}
-        </div>
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-          <div style="color:#ef4444;flex:1">
-            ❌ <b>미참여 (${notParticipated.length}명)</b>: ${notParticipated.join(', ') || '없음'}
-          </div>
-          ${notParticipated.length > 0 && isOpen
-            ? `<button onclick="notifyBetNonParticipants('${betId}')" style="flex-shrink:0;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:4px 10px;font-size:0.72rem;font-weight:700;color:#92400e;cursor:pointer;white-space:nowrap">🔔 독촉 알림</button>`
-            : ''}
-        </div>
-       </div>`
-    : '';
-
   const waitMsg = !isOpen && !hasResult
     ? `<div style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:8px 0">결과 집계 대기 중...</div>` : '';
 
-  return `${editGuide}${myBetHtml}${playerListHtml}${memberPctHtml}${adminStats}${closedStats}${waitMsg}`;
+  return `${editGuide}${myBetHtml}${playerListHtml}${memberPctHtml}${adminStatsHtml}${waitMsg}`;
 }
 
 function renderWinnerBetPlayerList(betId) {
@@ -6298,14 +6296,18 @@ function _renderHistoryDetail(el) {
       const loserGroups = {};
       lBets.forEach(([k,b]) => { (loserGroups[b.playerName]=loserGroups[b.playerName]||[]).push(k.replace(/_/g,' ')); });
       resultSection = `
-        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px 12px;margin-bottom:10px;text-align:center">
-          <div style="font-size:0.72rem;font-weight:700;color:#166534">🏆 우승자 확정</div>
-          <div style="font-size:1rem;font-weight:900;color:#15803d;margin-top:2px">${wName}</div>
+        <div style="background:linear-gradient(135deg,#fef9c3,#fde68a);border:1px solid #f59e0b;border-radius:12px;padding:10px 14px;margin-bottom:8px;text-align:center">
+          <div style="font-size:0.72rem;font-weight:700;color:#78350f;margin-bottom:2px">🏆 우승자 확정</div>
+          <div style="font-size:1.1rem;font-weight:900;color:#92400e">${wName}</div>
         </div>
-        <div style="font-size:0.78rem;margin-bottom:10px">
-          <div style="margin-bottom:6px"><b style="color:#22c55e">🎉 WINNERS (${wBets.length}명):</b><br>${chunkBetNames(wBets.map(([k])=>k.replace(/_/g,' ')))}</div>
-          <div><b style="color:#ef4444">😔 LOSERS</b><br>
-            ${Object.entries(loserGroups).map(([p,ms])=>`<div style="margin-bottom:2px"><b>${p}</b>: ${chunkBetNames(ms)}</div>`).join('')||'없음'}
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <div style="flex:1;padding:8px 10px;border-radius:10px;background:#f0fdf4;border:1.5px solid #86efac">
+            <div style="font-size:0.7rem;font-weight:700;color:#166534;margin-bottom:4px">🎉 WINNERS (${wBets.length}명)</div>
+            <div style="font-size:0.72rem;color:#166534;font-weight:600">${chunkBetNames(wBets.map(([k])=>k.replace(/_/g,' ')))||'없음'}</div>
+          </div>
+          <div style="flex:1;padding:8px 10px;border-radius:10px;background:#fef2f2;border:1.5px solid #fca5a5">
+            <div style="font-size:0.7rem;font-weight:700;color:#991b1b;margin-bottom:4px">😔 LOSERS (${lBets.length}명)</div>
+            <div style="font-size:0.72rem;color:#991b1b">${Object.entries(loserGroups).map(([p,ms])=>`<div><b>${p}</b>: ${chunkBetNames(ms,3)}</div>`).join('')||'없음'}</div>
           </div>
         </div>`;
     } else {
