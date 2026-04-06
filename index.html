@@ -4718,13 +4718,6 @@ changeTeamPhotoRandom();
       setTimeout(openIdentityModal, 600);
     }
 
-    // ── 앱 기동 시 로고 스플래시 (1초) ──────────────────────────
-    const logoPopup = document.getElementById('logo-popup');
-    if (logoPopup) {
-      logoPopup.style.display = 'flex';
-      setTimeout(() => { logoPopup.style.display = 'none'; }, 1000);
-    }
-
     // ── 초기 페이지가 랭킹탭이므로 즉시 렌더링 ──────────────────
     renderRankYearRow();
     renderRankingTab();
@@ -6612,5 +6605,15 @@ async function triggerAtpRefresh() {
   <img src="images/logo1.png" alt="자미터 테니스"
     style="max-width:85vw;max-height:85vh;object-fit:contain;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,0.5)">
 </div>
+
+<script>
+  // 앱 로드/리로드 시 로고 스플래시 1초 표시
+  (function() {
+    const el = document.getElementById('logo-popup');
+    if (!el) return;
+    el.style.display = 'flex';
+    setTimeout(() => { el.style.display = 'none'; }, 1000);
+  })();
+</script>
 </body>
 </html>
