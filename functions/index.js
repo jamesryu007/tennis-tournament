@@ -574,3 +574,26 @@ exports.notifyFavPlayerMatch = onValueWritten(
     }
   }
 );
+
+// ══ ATP 세계 랭킹 주 1회 업데이트 (매주 월요일 오전 6시) ══════════
+exports.fetchAtpRankings = onSchedule(
+  { schedule: '0 6 * * 1', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    try {
+      const url = 'https://site.api.espn.com/apis/site/v2/sports/tennis/atp/rankings?limit=100';
+      const res  = await fetch(url);
+      const json = await res.json();
+      const entries = (json.rankings && json.rankings[0] && json.rankings[0].ranks) || [];
+      const players = entries.map(e => ({
+        rank:    e.current,
+        name:    e.athlete ? `${e.athlete.firstName} ${e.athlete.lastName}` : '',
+        country: e.athlete && e.athlete.flag ? e.athlete.flag.alt : '',
+      })).filter(p => p.name);
+      if (!players.length) { console.warn('fetchAtpRankings: empty result'); return; }
+      await db.ref('jmt/atpRankings').set({ players, updatedAt: new Date().toISOString() });
+      console.log(`fetchAtpRankings: saved ${players.length} players`);
+    } catch (e) {
+      console.error('fetchAtpRankings error:', e);
+    }
+  }
+);

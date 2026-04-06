@@ -4744,6 +4744,7 @@ const atpState = {
   favPlayers: [],       // [{id, name, country}]
   favPlayersTmp: [],    // 모달 임시 선택
   top100: [],           // ESPN 랭킹 100위
+  rankingsFromDb: [],   // Firebase 저장 랭킹 (주 1회 갱신)
   bets: {},             // betId → bet 객체
   currentTab: 'draw',
   preferBetTab: false,  // 베팅 있는 동안 bet 서브탭 우선
@@ -4799,6 +4800,12 @@ function initAtpListeners() {
     if (document.getElementById('page-atp').classList.contains('active')) {
       renderAtpBetPanel();
     }
+  });
+
+  // ATP 세계 랭킹 구독 (주 1회 갱신)
+  db.ref('jmt/atpRankings').on('value', snap => {
+    const d = snap.val();
+    atpState.rankingsFromDb = (d && d.players) ? d.players : [];
   });
 
   // 개인 관심선수 구독
@@ -5226,6 +5233,7 @@ function renderMatchRow(m) {
 // ── 베팅 패널 ─────────────────────────────────────────────────────
 // ── 토너먼트 참가 선수 목록 (랭킹순 정렬) ───────────────────────
 function getTournamentPlayersSorted() {
+  const rankSource = atpState.rankingsFromDb.length ? atpState.rankingsFromDb : ATP_TOP_PLAYERS;
   const seen = new Set();
   const players = [];
   for (const m of atpState.matches) {
@@ -5236,7 +5244,7 @@ function getTournamentPlayersSorted() {
     for (const [name, country, id] of pairs) {
       if (name && name !== 'TBD' && !seen.has(name.toLowerCase())) {
         seen.add(name.toLowerCase());
-        const ranked = ATP_TOP_PLAYERS.find(p => p.name.toLowerCase() === name.toLowerCase());
+        const ranked = rankSource.find(p => p.name.toLowerCase() === name.toLowerCase());
         players.push({ name, country, id: id || '', rank: ranked ? ranked.rank : 999 });
       }
     }
