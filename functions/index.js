@@ -172,8 +172,11 @@ function getTournamentTier(ev) {
   const venueStr = (firstComp?.venue?.fullName || '').toLowerCase();
   const evStr    = (ev.name || ev.shortName || '').toLowerCase();
   const combined = venueStr + ' ' + evStr;
-  for (const c of ATP1000_CITIES) { if (combined.includes(c)) return 'atp1000'; }
-  for (const c of ATP500_CITIES)  { if (combined.includes(c)) return 'atp500';  }
+  // 알파벳·숫자만 남겨 비교 — 하이픈/공백/특수문자 제거 후 포함 여부
+  const toAlnum = s => s.replace(/[^a-z0-9]/g, '');
+  const alnumCombined = toAlnum(combined);
+  for (const c of ATP1000_CITIES) { if (alnumCombined.includes(toAlnum(c))) return 'atp1000'; }
+  for (const c of ATP500_CITIES)  { if (alnumCombined.includes(toAlnum(c))) return 'atp500';  }
   return 'atp250';
 }
 
@@ -538,12 +541,17 @@ exports.notifyTournamentChange = onValueWritten(
     const tBefore = event.data.before.val()?.tournamentInfo;
     const tAfter  = event.data.after.val()?.tournamentInfo;
     if (!tAfter || !tAfter.name) return;
-    if (tBefore && tBefore.id === tAfter.id) return; // 대회 변경 없음
+    const idChanged   = !tBefore || tBefore.id   !== tAfter.id;
+    const tierChanged = !tBefore || tBefore.tier  !== tAfter.tier;
+    if (!idChanged && !tierChanged) return; // 대회/티어 변경 없음
     const tier = tAfter.tier || 'atp250';
     const tierLabel = tier === 'grandslam' ? ' [Grand Slam 🏆]' : tier === 'atp1000' ? ' [ATP 1000 ⭐]' : '';
     const name = tAfter.displayName || tAfter.name;
     const tokens = await getAllTokens();
-    await sendPush(tokens, '🎾 새 대회 개막!', `${name}${tierLabel} 대회가 시작되었습니다.`, 'atp');
+    const msg = idChanged
+      ? `${name}${tierLabel} 대회가 시작되었습니다.`
+      : `${name}${tierLabel} 대회 정보가 업데이트되었습니다.`;
+    await sendPush(tokens, '🎾 새 대회 개막!', msg, 'atp');
   }
 );
 

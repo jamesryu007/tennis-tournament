@@ -6396,9 +6396,11 @@ async function triggerAtpRefresh() {
       const city = venueStr.split(',')[0].trim();
       if (ATP1000_C.has(city)) return 'atp1000';
       if (ATP500_C.has(city))  return 'atp500';
-      // venue/event 이름에 도시명 포함 여부로 fallback (예: "Monte-Carlo Country Club")
-      for (const c of ATP1000_C) { if (combined.includes(c)) return 'atp1000'; }
-      for (const c of ATP500_C)  { if (combined.includes(c)) return 'atp500';  }
+      // 알파벳·숫자만 남겨 비교 — 하이픈/공백/특수문자 제거 후 포함 여부 (예: "Monte-Carlo" → "montecarlo" ≡ "monte carlo")
+      const toAlnum = s => s.replace(/[^a-z0-9]/g, '');
+      const alnumCombined = toAlnum(combined);
+      for (const c of ATP1000_C) { if (alnumCombined.includes(toAlnum(c))) return 'atp1000'; }
+      for (const c of ATP500_C)  { if (alnumCombined.includes(toAlnum(c))) return 'atp500';  }
       return 'atp250';
     }
     const ev = events.reduce((best, e) => {
