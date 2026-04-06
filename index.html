@@ -16,7 +16,7 @@
 <link rel="apple-touch-icon" href="images/icon-192.png">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; color: #1e293b; min-height: 100vh; padding-bottom: 70px; font-size: 15px; }
+body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; color: #1e293b; min-height: 100vh; padding-bottom: 70px; font-size: 15px; overflow-x: hidden; }
 
 /* ── HEADER ── */
 .app-header { background: #ffffff; padding: 14px 16px 11px; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 40; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
@@ -343,6 +343,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .carousel-dots { display:flex; justify-content:center; gap:6px; margin-top:10px; }
 .carousel-dot { width:7px; height:7px; border-radius:50%; background:rgba(124,58,237,0.3); transition:all 0.3s; cursor:pointer; }
 .carousel-dot.active { background:#7c3aed; transform:scale(1.3); }
+.carousel-arrow { position:absolute; top:50%; transform:translateY(-50%); background:rgba(0,0,0,0.32); border:none; color:#fff; font-size:1.6rem; width:30px; height:44px; border-radius:6px; cursor:pointer; z-index:5; display:flex; align-items:center; justify-content:center; line-height:1; padding:0; -webkit-tap-highlight-color:transparent; transition:background 0.15s; }
+.carousel-arrow:active { background:rgba(0,0,0,0.55); }
+.carousel-arrow-left { left:6px; }
+.carousel-arrow-right { right:6px; }
 @keyframes bounce-celebrate { 0%,100%{transform:translateY(0) rotate(0deg)} 30%{transform:translateY(-8px) rotate(-6deg)} 60%{transform:translateY(-4px) rotate(4deg)} }
 @keyframes shake-sad { 0%,100%{transform:rotate(0deg) translateY(0)} 20%{transform:rotate(-5deg) translateY(2px)} 40%{transform:rotate(5deg) translateY(0)} 70%{transform:rotate(-2deg) translateY(1px)} }
 .daily-add-btn { width:100%; border:2px dashed rgba(124,58,237,0.4); background:rgba(124,58,237,0.08); border-radius:14px; color:#7c3aed; font-size:1.8rem; font-weight:400; padding:10px; cursor:pointer; margin-top:6px; line-height:1; }
@@ -870,6 +874,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     <div class="carousel-section-title">📅 최근 경기 요약</div>
     <div class="carousel-container" id="recent-carousel">
       <div class="carousel-track" id="carousel-track"></div>
+      <button class="carousel-arrow carousel-arrow-left" onclick="goCarousel((_carouselIdx-1+_carouselData.length)%Math.max(1,_carouselData.length),true)">‹</button>
+      <button class="carousel-arrow carousel-arrow-right" onclick="goCarousel((_carouselIdx+1)%Math.max(1,_carouselData.length),true)">›</button>
     </div>
     <div class="carousel-dots" id="carousel-dots"></div>
   </div>
@@ -2591,26 +2597,7 @@ function goCarousel(idx,animate){
   document.querySelectorAll('.carousel-dot').forEach((d,i)=>d.classList.toggle('active',i===idx));
 }
 
-// 캐러셀 스와이프 지원
-(function(){
-  let _swX=null,_swY=null;
-  function onTouchStart(e){_swX=e.touches[0].clientX;_swY=e.touches[0].clientY;}
-  function onTouchEnd(e){
-    if(_swX===null) return;
-    const dx=e.changedTouches[0].clientX-_swX;
-    const dy=e.changedTouches[0].clientY-_swY;
-    if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>30){
-      if(dx<0) goCarousel((_carouselIdx+1)%Math.max(1,_carouselData.length),true);
-      else goCarousel((_carouselIdx-1+_carouselData.length)%Math.max(1,_carouselData.length),true);
-      if(_carouselTimer){clearInterval(_carouselTimer);_carouselTimer=setInterval(()=>goCarousel((_carouselIdx+1)%_carouselData.length,true),7000);}
-    }
-    _swX=null;_swY=null;
-  }
-  document.addEventListener('DOMContentLoaded',()=>{
-    const c=document.getElementById('recent-carousel');
-    if(c){c.addEventListener('touchstart',onTouchStart,{passive:true});c.addEventListener('touchend',onTouchEnd,{passive:true});}
-  });
-})();
+// 캐러셀 스와이프 → 화살표 버튼으로 대체됨
 
 // ══ 자미터랭킹 탭 ═════════════════════════════════════════════════
 const _rankYear = new Date().getFullYear();   // 경기 기록 저장용 (항상 현재 연도)
@@ -6623,6 +6610,149 @@ async function triggerAtpRefresh() {
     el.style.display = 'flex';
     setTimeout(() => { el.style.display = 'none'; }, 2000);
   })();
+</script>
+
+<script>
+// ── 탭 스와이프 전환 ─────────────────────────────────────────────
+(function() {
+  'use strict';
+
+  const TAB_ORDER   = ['history', 'checkin', 'matches', 'setup', 'atp'];
+  const THRESHOLD   = 0.20;   // 화면 너비의 20% 이상 이동 시 탭 전환
+  const RESISTANCE  = 0.30;   // 양끝 탭에서 더 이상 못 갈 때 감쇠 계수
+  const DURATION    = 300;    // 전환 애니메이션 ms
+
+  let startX = null, startY = null;
+  let isHoriz = null, dragging = false, animating = false;
+  let activePage = null, activeIdx = -1;
+
+  // ── 터치를 무시할 영역 판별 ───────────────────────────────────
+  function shouldIgnore(target) {
+    return !!(
+      document.querySelector('.modal-overlay.open') ||
+      document.getElementById('logo-popup').style.display === 'flex' ||
+      target.closest('.carousel-container') ||
+      target.closest('.bracket-container') ||
+      target.closest('.modal-overlay')
+    );
+  }
+
+  function getActiveIdx() {
+    const el = document.querySelector('.page.active');
+    if (!el) return -1;
+    return TAB_ORDER.indexOf(el.id.replace('page-', ''));
+  }
+
+  // ── 들어오는 페이지를 fixed로 배치해 위에 슬라이드인 ────────────
+  function mountIncoming(el, startTx) {
+    const hdr = document.querySelector('.app-header');
+    const top = hdr ? hdr.offsetHeight : 60;
+    el.style.cssText += [
+      'position:fixed', `top:${top}px`, 'left:0', 'right:0', 'bottom:76px',
+      'overflow-y:auto', 'background:#f0f4fb', 'z-index:25',
+      'max-width:none', 'margin:0', 'padding:12px 12px 20px',
+      `transform:translateX(${startTx}px)`, 'transition:none', 'display:block'
+    ].join(';');
+  }
+
+  function unmount(el) {
+    ['position','top','left','right','bottom','overflow-y','background','z-index',
+     'max-width','margin','padding','transform','transition','display']
+      .forEach(p => el.style[p] = '');
+  }
+
+  // ── 실제 페이지 전환 애니메이션 ──────────────────────────────────
+  function doSwitch(targetIdx) {
+    animating = true;
+    const W   = window.innerWidth;
+    const dir = targetIdx > activeIdx ? 1 : -1; // 1=다음(왼쪽스와이프), -1=이전(오른쪽스와이프)
+    const from = activePage;
+    const to   = document.getElementById('page-' + TAB_ORDER[targetIdx]);
+    const ease = `transform ${DURATION}ms cubic-bezier(0.25,0.46,0.45,0.94)`;
+
+    // incoming 페이지를 화면 밖에 fixed로 배치
+    mountIncoming(to, dir * W);
+
+    // reflow 강제 후 두 페이지 동시 애니메이션
+    to.offsetHeight;
+    from.style.transition = ease;
+    to.style.transition   = ease;
+    from.style.transform  = `translateX(${-dir * W}px)`;
+    to.style.transform    = 'translateX(0)';
+
+    setTimeout(() => {
+      unmount(from);
+      unmount(to);
+      switchPage(TAB_ORDER[targetIdx]);
+      animating = false;
+    }, DURATION);
+  }
+
+  // ── 원위치 스냅백 (resistance 후 튕겨 나가기) ────────────────────
+  function snapBack() {
+    if (!activePage) return;
+    activePage.style.transition = `transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)`;
+    activePage.style.transform  = 'translateX(0)';
+    setTimeout(() => { activePage.style.transition = ''; activePage.style.transform = ''; }, 340);
+  }
+
+  // ── 터치 이벤트 ──────────────────────────────────────────────────
+  document.addEventListener('touchstart', function(e) {
+    if (animating || e.touches.length !== 1) return;
+    if (shouldIgnore(e.target)) return;
+    startX    = e.touches[0].clientX;
+    startY    = e.touches[0].clientY;
+    isHoriz   = null;
+    dragging  = false;
+    activeIdx = getActiveIdx();
+    activePage = document.querySelector('.page.active');
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function(e) {
+    if (animating || startX === null || !activePage) return;
+
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+
+    // 첫 5px 이동 전까지는 방향 판정 보류
+    if (isHoriz === null) {
+      if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+      isHoriz = Math.abs(dx) > Math.abs(dy) * 1.1;
+    }
+    if (!isHoriz) return;
+
+    e.preventDefault(); // 수직 스크롤 방지
+    dragging = true;
+
+    // 양끝 탭에서 바깥 방향 → resistance 적용
+    const atLeft  = (activeIdx === 0 && dx > 0);
+    const atRight = (activeIdx === TAB_ORDER.length - 1 && dx < 0);
+    const tx = (atLeft || atRight) ? dx * RESISTANCE : dx;
+
+    activePage.style.transition = 'none';
+    activePage.style.transform  = `translateX(${tx}px)`;
+  }, { passive: false });
+
+  document.addEventListener('touchend', function(e) {
+    if (animating || !dragging || !activePage) {
+      startX = startY = null; dragging = false; isHoriz = null;
+      return;
+    }
+
+    const dx  = e.changedTouches[0].clientX - startX;
+    const thr = window.innerWidth * THRESHOLD;
+
+    let target = activeIdx;
+    if (dx < -thr && activeIdx < TAB_ORDER.length - 1) target = activeIdx + 1;
+    else if (dx > thr && activeIdx > 0)                target = activeIdx - 1;
+
+    if (target !== activeIdx) doSwitch(target);
+    else snapBack();
+
+    startX = startY = null; dragging = false; isHoriz = null;
+  }, { passive: true });
+
+})();
 </script>
 </body>
 </html>
