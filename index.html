@@ -5530,12 +5530,12 @@ function renderMatchBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAl
         <div style="flex:1;padding:8px;border-radius:10px;text-align:center;background:${p1Win?'#f0fdf4':'#fef2f2'};border:1.5px solid ${p1Win?'#86efac':'#fca5a5'}">
           <div style="font-size:0.7rem;font-weight:700">${p1Win?'🎉 우승':'😔 패배'}</div>
           <div style="font-size:0.82rem;font-weight:800;margin:2px 0">${bet.player1Name}</div>
-          <div style="font-size:0.7rem;color:#64748b">${p1Bets.map(([k])=>k.replace(/_/g,' ')).join(', ')||'베팅 없음'}</div>
+          <div style="font-size:0.7rem;color:#64748b">${chunkBetNames(p1Bets.map(([k])=>k.replace(/_/g,' ')),3)||'베팅 없음'}</div>
         </div>
         <div style="flex:1;padding:8px;border-radius:10px;text-align:center;background:${!p1Win?'#f0fdf4':'#fef2f2'};border:1.5px solid ${!p1Win?'#86efac':'#fca5a5'}">
           <div style="font-size:0.7rem;font-weight:700">${!p1Win?'🎉 우승':'😔 패배'}</div>
           <div style="font-size:0.82rem;font-weight:800;margin:2px 0">${bet.player2Name}</div>
-          <div style="font-size:0.7rem;color:#64748b">${p2Bets.map(([k])=>k.replace(/_/g,' ')).join(', ')||'베팅 없음'}</div>
+          <div style="font-size:0.7rem;color:#64748b">${chunkBetNames(p2Bets.map(([k])=>k.replace(/_/g,' ')),3)||'베팅 없음'}</div>
         </div>
       </div>
       <div style="text-align:center;font-size:0.82rem;font-weight:700;padding:4px;border-radius:8px;background:${myWon?'#f0fdf4':'#fef2f2'};color:${myWon?'#166534':'#991b1b'}">
@@ -6390,9 +6390,15 @@ async function triggerAtpRefresh() {
     function clientGetTier(ev) {
       if (ev.major) return 'grandslam';
       const fc = ((ev.groupings||[])[0]?.competitions||[])[0];
-      const city = (fc?.venue?.fullName||'').split(',')[0].trim().toLowerCase();
+      const venueStr = (fc?.venue?.fullName||'').toLowerCase();
+      const evStr    = (ev.name||ev.shortName||'').toLowerCase();
+      const combined = venueStr + ' ' + evStr;
+      const city = venueStr.split(',')[0].trim();
       if (ATP1000_C.has(city)) return 'atp1000';
       if (ATP500_C.has(city))  return 'atp500';
+      // venue/event 이름에 도시명 포함 여부로 fallback (예: "Monte-Carlo Country Club")
+      for (const c of ATP1000_C) { if (combined.includes(c)) return 'atp1000'; }
+      for (const c of ATP500_C)  { if (combined.includes(c)) return 'atp500';  }
       return 'atp250';
     }
     const ev = events.reduce((best, e) => {

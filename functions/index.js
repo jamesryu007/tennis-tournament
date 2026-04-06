@@ -167,6 +167,13 @@ function getTournamentTier(ev) {
   const city = getVenueCity(ev);
   if (ATP1000_CITIES.has(city)) return 'atp1000';
   if (ATP500_CITIES.has(city)) return 'atp500';
+  // venue/event 이름에 도시명 포함 여부로 fallback (예: "Monte-Carlo Country Club")
+  const firstComp = ((ev.groupings || [])[0]?.competitions || [])[0];
+  const venueStr = (firstComp?.venue?.fullName || '').toLowerCase();
+  const evStr    = (ev.name || ev.shortName || '').toLowerCase();
+  const combined = venueStr + ' ' + evStr;
+  for (const c of ATP1000_CITIES) { if (combined.includes(c)) return 'atp1000'; }
+  for (const c of ATP500_CITIES)  { if (combined.includes(c)) return 'atp500';  }
   return 'atp250';
 }
 
