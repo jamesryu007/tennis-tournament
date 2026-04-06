@@ -6472,7 +6472,9 @@ async function triggerAtpRefresh() {
       const prevId = atpState.tournamentInfo && atpState.tournamentInfo.id;
       if (prevId && tournamentInfo.id && prevId !== tournamentInfo.id) {
         // 토너먼트 변경 전 현재 베팅을 히스토리에 아카이브
-        const currentBets = atpState.bets || {};
+        // atpState.bets 대신 Firebase에서 직접 읽기 (리스너 로드 전 race condition 방지)
+        const betsSnap = await db.ref('jmt/atpBets').once('value');
+        const currentBets = betsSnap.val() || {};
         if (Object.keys(currentBets).length > 0) {
           db.ref(`jmt/atpBetsHistory/${prevId}`).set(currentBets).catch(() => {});
         }
