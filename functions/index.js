@@ -657,6 +657,20 @@ exports.fetchAtpRankings = onSchedule(
   }
 );
 
+const TRANSLATE_URL = 'https://script.google.com/macros/s/AKfycbwfF6W1xll0ooa0g4Gb57dnVnknXbZxKM1au3YlY52oGsrDIqHPty4q6fh6mWW0SXI00w/exec';
+
+async function translateTexts(texts) {
+  try {
+    const encoded = encodeURIComponent(JSON.stringify(texts));
+    const res  = await fetch(`${TRANSLATE_URL}?texts=${encoded}`);
+    const json = await res.json();
+    return json.translated || texts;
+  } catch(e) {
+    console.warn('translateTexts error:', e.message);
+    return texts;
+  }
+}
+
 // ══ ATP 뉴스 자동 수집 (12시간마다) ═══════════════════════════════
 exports.fetchAtpNews = onSchedule(
   { schedule: '0 */12 * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
@@ -674,12 +688,20 @@ exports.fetchAtpNews = onSchedule(
 
       if (!items.length) { console.warn('fetchAtpNews: no articles'); return; }
 
-      // 이전 뉴스와 비교 — 첫 번째 기사 URL이 같으면 변경 없음
+      // 이전 뉴스와 비교 — 첫 번째 기사 URL이 같으면 번역/저장 스킵
       const prev = await db.ref('jmt/atpNews/articles/0/url').once('value');
       if (prev.val() && prev.val() === items[0].url) {
         console.log('fetchAtpNews: no new articles, skip');
         return;
       }
+
+      // 헤드라인 + 설명 번역
+      const toTranslate = items.flatMap(a => [a.headline, a.description]);
+      const translated  = await translateTexts(toTranslate);
+      items.forEach((a, i) => {
+        a.headlineKo    = translated[i * 2]     || a.headline;
+        a.descriptionKo = translated[i * 2 + 1] || a.description;
+      });
 
       await db.ref('jmt/atpNews').set({ articles: items, updatedAt: new Date().toISOString() });
       console.log(`fetchAtpNews: saved ${items.length} articles`);

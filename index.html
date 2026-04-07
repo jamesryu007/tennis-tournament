@@ -4866,11 +4866,13 @@ function renderAtpNewsPanel() {
     return;
   }
   el.innerHTML = articles.map((a, i) => {
-    const date = a.published ? new Date(a.published).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' }) : '';
+    const date     = a.published ? new Date(a.published).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' }) : '';
+    const headline = a.headlineKo    || a.headline;
+    const desc     = a.descriptionKo || a.description;
     return `
       <div style="${i > 0 ? 'border-top:1px solid #f1f5f9;' : ''}padding:12px 0">
-        <div style="font-size:0.82rem;font-weight:700;color:#1e293b;line-height:1.4;margin-bottom:4px">${a.headline}</div>
-        ${a.description ? `<div style="font-size:0.75rem;color:#64748b;line-height:1.5;margin-bottom:6px">${a.description}</div>` : ''}
+        <div style="font-size:0.82rem;font-weight:700;color:#1e293b;line-height:1.4;margin-bottom:4px">${headline}</div>
+        ${desc ? `<div style="font-size:0.75rem;color:#64748b;line-height:1.5;margin-bottom:6px">${desc}</div>` : ''}
         <div style="display:flex;align-items:center;justify-content:space-between">
           <span style="font-size:0.68rem;color:#94a3b8">${date}</span>
           ${a.url ? `<a href="${a.url}" target="_blank" rel="noopener" style="font-size:0.72rem;color:#2563eb;font-weight:600;text-decoration:none">ESPN에서 보기 →</a>` : ''}
@@ -6571,6 +6573,18 @@ async function triggerAtpRefresh() {
       url:         (a.links && a.links.web && a.links.web.href) || '',
     })).filter(a => a.headline);
     if (articles.length) {
+      // 번역 (실패 시 원문 유지)
+      try {
+        const TRANS_URL = 'https://script.google.com/macros/s/AKfycbwfF6W1xll0ooa0g4Gb57dnVnknXbZxKM1au3YlY52oGsrDIqHPty4q6fh6mWW0SXI00w/exec';
+        const toTrans   = articles.flatMap(a => [a.headline, a.description]);
+        const tRes      = await fetch(`${TRANS_URL}?texts=${encodeURIComponent(JSON.stringify(toTrans))}`);
+        const tJson     = await tRes.json();
+        const tr        = tJson.translated || [];
+        articles.forEach((a, i) => {
+          a.headlineKo    = tr[i * 2]     || a.headline;
+          a.descriptionKo = tr[i * 2 + 1] || a.description;
+        });
+      } catch(te) { console.warn('news translate error:', te); }
       atpState.news = articles;
       if (atpState.currentTab === 'news') renderAtpNewsPanel();
       if (db) db.ref('jmt/atpNews').set({ articles, updatedAt: new Date().toISOString() }).catch(() => {});
