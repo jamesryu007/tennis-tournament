@@ -642,12 +642,14 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div style="font-size:0.82rem;font-weight:700;color:#1e293b;margin-bottom:6px">베팅 내용 (스테이크)</div>
       <input type="text" id="bet-winner-stake" placeholder="예: 우승자 맞추면 커피 한 잔" style="margin-bottom:12px">
       <div style="font-size:0.82rem;font-weight:700;color:#1e293b;margin-bottom:6px">베팅 마감 시간</div>
-      <div style="display:flex;gap:6px;margin-bottom:16px" id="bet-winner-dl-group">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px" id="bet-winner-dl-group">
         <button onclick="selectBetDeadline('winner',24)"  class="dl-btn active" id="dl-w-24">1일</button>
         <button onclick="selectBetDeadline('winner',48)"  class="dl-btn" id="dl-w-48">2일</button>
         <button onclick="selectBetDeadline('winner',72)"  class="dl-btn" id="dl-w-72">3일</button>
         <button onclick="selectBetDeadline('winner',96)"  class="dl-btn" id="dl-w-96">4일</button>
         <button onclick="selectBetDeadline('winner',120)" class="dl-btn" id="dl-w-120">5일</button>
+        <button onclick="selectBetDeadline('winner',144)" class="dl-btn" id="dl-w-144">6일</button>
+        <button onclick="selectBetDeadline('winner',168)" class="dl-btn" id="dl-w-168">7일</button>
       </div>
       <div style="display:flex;gap:8px">
         <button onclick="closeBetOpenModal()" class="btn btn-outline btn-full">취소</button>
@@ -661,12 +663,14 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div style="font-size:0.82rem;font-weight:700;color:#1e293b;margin-bottom:6px">베팅 내용 (스테이크)</div>
       <input type="text" id="bet-stake-input" placeholder="예: 진 팀이 밥 산다" style="margin-bottom:12px">
       <div style="font-size:0.82rem;font-weight:700;color:#1e293b;margin-bottom:6px">베팅 마감 시간</div>
-      <div style="display:flex;gap:6px;margin-bottom:16px" id="bet-match-dl-group">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px" id="bet-match-dl-group">
         <button onclick="selectBetDeadline('match',24)"  class="dl-btn active" id="dl-m-24">1일</button>
         <button onclick="selectBetDeadline('match',48)"  class="dl-btn" id="dl-m-48">2일</button>
         <button onclick="selectBetDeadline('match',72)"  class="dl-btn" id="dl-m-72">3일</button>
         <button onclick="selectBetDeadline('match',96)"  class="dl-btn" id="dl-m-96">4일</button>
         <button onclick="selectBetDeadline('match',120)" class="dl-btn" id="dl-m-120">5일</button>
+        <button onclick="selectBetDeadline('match',144)" class="dl-btn" id="dl-m-144">6일</button>
+        <button onclick="selectBetDeadline('match',168)" class="dl-btn" id="dl-m-168">7일</button>
       </div>
       <div style="display:flex;gap:8px">
         <button onclick="closeBetOpenModal()" class="btn btn-outline btn-full">취소</button>
@@ -6050,13 +6054,13 @@ let _betDeadlineMatch  = 24;
 function selectBetDeadline(type, hours) {
   if (type === 'winner') {
     _betDeadlineWinner = hours;
-    [24,48,72,96,120].forEach(h => {
+    [24,48,72,96,120,144,168].forEach(h => {
       const el = document.getElementById(`dl-w-${h}`);
       if (el) el.className = 'dl-btn' + (h === hours ? ' active' : '');
     });
   } else {
     _betDeadlineMatch = hours;
-    [24,48,72,96,120].forEach(h => {
+    [24,48,72,96,120,144,168].forEach(h => {
       const el = document.getElementById(`dl-m-${h}`);
       if (el) el.className = 'dl-btn' + (h === hours ? ' active' : '');
     });
