@@ -5140,11 +5140,19 @@ function renderRoundDrawPanel(el, matches, tier) {
     return;
   }
 
-  // 현재 라운드 자동 선택 — 진행중인 경기가 있는 첫 라운드, 없으면 마지막
+  // 경기가 실질적으로 완료됐는지 판정 — 과거 시간의 STATUS_SCHEDULED는 완료 처리
+  const now = Date.now();
+  function isEffectivelyDone(m) {
+    if (m.status === 'STATUS_FINAL') return true;
+    if (m.date && new Date(m.date).getTime() < now - 3 * 3600 * 1000) return true; // 3시간 이상 지난 예정 경기
+    return false;
+  }
+
+  // 현재 라운드 자동 선택 — 실질적으로 진행중인 경기가 있는 첫 라운드, 없으면 마지막
   if (!atpState.gsRoundTab || !availRounds.includes(atpState.gsRoundTab)) {
     let autoRound = availRounds[availRounds.length - 1];
     for (const r of availRounds) {
-      if ((roundGroups[r] || []).some(m => m.status !== 'STATUS_FINAL')) { autoRound = r; break; }
+      if ((roundGroups[r] || []).some(m => !isEffectivelyDone(m))) { autoRound = r; break; }
     }
     atpState.gsRoundTab = autoRound;
   }
@@ -5158,7 +5166,7 @@ function renderRoundDrawPanel(el, matches, tier) {
   availRounds.forEach((r, i) => {
     const label = ROUND_LABEL[r] || r;
     const isSelected = r === sel;
-    const allDone = (roundGroups[r] || []).every(m => m.status === 'STATUS_FINAL');
+    const allDone = (roundGroups[r] || []).every(m => isEffectivelyDone(m));
     const prefix = (allDone && !isSelected) ? '✓ ' : '';
 
     let bg, color, border;
