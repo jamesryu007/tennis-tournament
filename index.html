@@ -6564,7 +6564,7 @@ async function triggerAtpRefresh() {
     }
   // 뉴스도 함께 갱신 (백그라운드, 실패해도 무시)
   try {
-    const newsRes  = await fetch('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/news', { mode: 'cors' });
+    const newsRes  = await fetch('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/news?limit=10', { mode: 'cors' });
     const newsJson = await newsRes.json();
     const articles = (newsJson.articles || []).slice(0, 10).map(a => ({
       headline:    a.headline || '',
