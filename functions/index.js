@@ -656,3 +656,35 @@ exports.fetchAtpRankings = onSchedule(
     }
   }
 );
+
+// ══ ATP 뉴스 자동 수집 (12시간마다) ═══════════════════════════════
+exports.fetchAtpNews = onSchedule(
+  { schedule: '0 */12 * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    try {
+      const url = 'https://site.api.espn.com/apis/site/v2/sports/tennis/atp/news';
+      const res  = await fetch(url);
+      const json = await res.json();
+      const items = (json.articles || []).slice(0, 10).map(a => ({
+        headline:    a.headline || '',
+        description: a.description || '',
+        published:   a.published || '',
+        url:         (a.links && a.links.web && a.links.web.href) || '',
+      })).filter(a => a.headline);
+
+      if (!items.length) { console.warn('fetchAtpNews: no articles'); return; }
+
+      // 이전 뉴스와 비교 — 첫 번째 기사 URL이 같으면 변경 없음
+      const prev = await db.ref('jmt/atpNews/articles/0/url').once('value');
+      if (prev.val() && prev.val() === items[0].url) {
+        console.log('fetchAtpNews: no new articles, skip');
+        return;
+      }
+
+      await db.ref('jmt/atpNews').set({ articles: items, updatedAt: new Date().toISOString() });
+      console.log(`fetchAtpNews: saved ${items.length} articles`);
+    } catch (e) {
+      console.error('fetchAtpNews error:', e);
+    }
+  }
+);
