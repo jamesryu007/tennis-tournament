@@ -543,12 +543,20 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <div style="display:flex;border-radius:12px;overflow:hidden;border:1.5px solid #e2e8f0;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">
     <button class="atp-tab active" id="atp-tab-draw" onclick="switchAtpTab('draw')">🎾 대진표</button>
     <button class="atp-tab"        id="atp-tab-bet"  onclick="switchAtpTab('bet')">🎯 베팅</button>
+    <button class="atp-tab"        id="atp-tab-news" onclick="switchAtpTab('news')">📰 뉴스</button>
   </div>
 
   <!-- 대진표 탭 -->
   <div id="atp-panel-draw" class="atp-panel">
     <div id="atp-draw-content" class="card">
       <div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:0.85rem">대진표를 불러오는 중...</div>
+    </div>
+  </div>
+
+  <!-- 뉴스 탭 -->
+  <div id="atp-panel-news" class="atp-panel" style="display:none">
+    <div id="atp-news-content" class="card">
+      <div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:0.85rem">뉴스를 불러오는 중...</div>
     </div>
   </div>
 
@@ -4761,6 +4769,7 @@ const atpState = {
   lastGrandSlam: null,  // {tournamentInfo, matches, savedAt} 직전 GS
   gsRoundTab: null,     // Grand Slam 선택된 라운드 탭
   loaded: false,        // Firebase 첫 데이터 수신 여부
+  news: [],             // ATP 뉴스 (최신 10개)
 };
 
 // ── Firebase 구독 초기화 ──────────────────────────────────────────
@@ -4818,6 +4827,15 @@ function initAtpListeners() {
     atpState.rankingsFromDb = (d && d.players) ? d.players : [];
   });
 
+  // ATP 뉴스 구독
+  db.ref('jmt/atpNews').on('value', snap => {
+    const d = snap.val();
+    atpState.news = (d && d.articles) ? d.articles : [];
+    if (atpState.currentTab === 'news' && document.getElementById('page-atp').classList.contains('active')) {
+      renderAtpNewsPanel();
+    }
+  });
+
   // 개인 관심선수 구독
   const myName = state.identity && state.identity.name;
   if (myName) {
@@ -4838,19 +4856,40 @@ function initAtpListeners() {
   }
 }
 
+// ── ATP 뉴스 패널 렌더 ────────────────────────────────────────────
+function renderAtpNewsPanel() {
+  const el = document.getElementById('atp-news-content');
+  if (!el) return;
+  const articles = atpState.news;
+  if (!articles || !articles.length) {
+    el.innerHTML = '<div style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.85rem">뉴스가 없습니다.</div>';
+    return;
+  }
+  el.innerHTML = articles.map((a, i) => {
+    const date = a.published ? new Date(a.published).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' }) : '';
+    return `
+      <div style="${i > 0 ? 'border-top:1px solid #f1f5f9;' : ''}padding:12px 0">
+        <div style="font-size:0.82rem;font-weight:700;color:#1e293b;line-height:1.4;margin-bottom:4px">${a.headline}</div>
+        ${a.description ? `<div style="font-size:0.75rem;color:#64748b;line-height:1.5;margin-bottom:6px">${a.description}</div>` : ''}
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:0.68rem;color:#94a3b8">${date}</span>
+          ${a.url ? `<a href="${a.url}" target="_blank" rel="noopener" style="font-size:0.72rem;color:#2563eb;font-weight:600;text-decoration:none">ESPN에서 보기 →</a>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
 // ── 탭 전환 ──────────────────────────────────────────────────────
 function switchAtpTab(tab) {
   atpState.currentTab = tab;
-  ['draw', 'bet'].forEach(t => {
+  ['draw', 'bet', 'news'].forEach(t => {
     const btn = document.getElementById(`atp-tab-${t}`);
     const panel = document.getElementById(`atp-panel-${t}`);
     const active = t === tab;
-    btn.classList.toggle('active', active);
-    btn.style.background = active ? '#eff6ff' : '#fff';
-    btn.style.color = active ? '#2563eb' : '#64748b';
-    btn.style.fontWeight = active ? '700' : '600';
-    panel.style.display = active ? '' : 'none';
+    if (btn) { btn.classList.toggle('active', active); btn.style.background = active ? '#eff6ff' : '#fff'; btn.style.color = active ? '#2563eb' : '#64748b'; btn.style.fontWeight = active ? '700' : '600'; }
+    if (panel) panel.style.display = active ? '' : 'none';
   });
+  if (tab === 'news') renderAtpNewsPanel();
 }
 
 // ── ATP 페이지 전체 렌더 ──────────────────────────────────────────
