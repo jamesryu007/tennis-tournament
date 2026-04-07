@@ -676,7 +676,7 @@ exports.fetchAtpNews = onSchedule(
   { schedule: '0 */12 * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
   async () => {
     try {
-      const url = 'https://site.api.espn.com/apis/site/v2/sports/tennis/atp/news';
+      const url = 'https://site.api.espn.com/apis/site/v2/sports/tennis/atp/news?limit=10';
       const res  = await fetch(url);
       const json = await res.json();
       const items = (json.articles || []).slice(0, 10).map(a => ({
