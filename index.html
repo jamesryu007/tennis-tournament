@@ -6560,6 +6560,23 @@ async function triggerAtpRefresh() {
         }).catch(() => {});
       }
     }
+  // 뉴스도 함께 갱신 (백그라운드, 실패해도 무시)
+  try {
+    const newsRes  = await fetch('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/news', { mode: 'cors' });
+    const newsJson = await newsRes.json();
+    const articles = (newsJson.articles || []).slice(0, 10).map(a => ({
+      headline:    a.headline || '',
+      description: a.description || '',
+      published:   a.published || '',
+      url:         (a.links && a.links.web && a.links.web.href) || '',
+    })).filter(a => a.headline);
+    if (articles.length) {
+      atpState.news = articles;
+      if (atpState.currentTab === 'news') renderAtpNewsPanel();
+      if (db) db.ref('jmt/atpNews').set({ articles, updatedAt: new Date().toISOString() }).catch(() => {});
+    }
+  } catch(e) { console.warn('news refresh error:', e); }
+
   } catch(e) {
     console.error('ATP refresh error:', e);
     if (el) el.innerHTML = '<div style="text-align:center;padding:16px 0;color:#ef4444;font-size:0.85rem">데이터 로드 실패. 다시 시도해주세요.<br><button onclick="triggerAtpRefresh()" style="margin-top:8px;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:0.8rem;cursor:pointer">🔄 다시 시도</button></div>';
