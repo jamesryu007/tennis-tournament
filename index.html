@@ -5189,7 +5189,7 @@ function renderRoundDrawPanel(el, matches, tier) {
   const now = Date.now();
   function isEffectivelyDone(m) {
     if (m.status === 'STATUS_FINAL') return true;
-    if (m.date && new Date(m.date).getTime() < now - 3 * 3600 * 1000) return true; // 3시간 이상 지난 예정 경기
+    if (m.date && new Date(m.date).getTime() < now - 6 * 3600 * 1000) return true; // 6시간 이상 지난 예정 경기 (GS 5세트 대비)
     return false;
   }
 
