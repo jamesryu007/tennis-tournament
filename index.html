@@ -5035,9 +5035,14 @@ function renderAtpFavMatches() {
     const pills = atpState.favPlayers.map(p => {
       const ranked = ATP_TOP_PLAYERS.find(r => r.name.toLowerCase() === p.name.toLowerCase());
       const rankStr = ranked ? `<span style="font-size:0.62rem;opacity:0.75">${ranked.rank}위</span> ` : '';
-      return `<span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:12px;padding:2px 9px;font-size:0.68rem;font-weight:700;display:inline-flex;align-items:center;gap:3px">${rankStr}${p.name}</span>`;
+      return `<span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:12px;padding:2px 9px;font-size:0.68rem;font-weight:700;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${rankStr}${p.name}</span>`;
     }).join('');
-    titleEl.innerHTML = `⭐ 관심선수 <span style="display:inline-flex;gap:4px;flex-wrap:wrap;margin-left:4px">${pills}</span>`;
+    titleEl.style.display = 'flex';
+    titleEl.style.alignItems = 'center';
+    titleEl.style.flexWrap = 'nowrap';
+    titleEl.style.gap = '6px';
+    titleEl.style.overflow = 'hidden';
+    titleEl.innerHTML = `<span style="font-size:0.82rem;font-weight:700;color:#1e293b;white-space:nowrap;flex-shrink:0">⭐ 관심선수</span><span style="display:inline-flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">${pills}</span>`;
   }
 
   const useGS = atpState.lastGrandSlam && (!atpState.tournamentInfo || !atpState.tournamentInfo.name);
@@ -5123,9 +5128,10 @@ function renderRoundDrawPanel(el, matches, tier) {
     roundGroups[key].push(m);
   });
 
-  // 존재하는 라운드를 순서대로
-  const availRounds = ROUND_ORDER.filter(r => roundGroups[r]);
+  // 존재하는 라운드를 순서대로 (최대 7개 — Final 기준 가까운 라운드 우선)
+  let availRounds = ROUND_ORDER.filter(r => roundGroups[r]);
   Object.keys(roundGroups).forEach(r => { if (!availRounds.includes(r)) availRounds.push(r); });
+  if (availRounds.length > 7) availRounds = availRounds.slice(availRounds.length - 7);
 
   if (!availRounds.length) {
     el.innerHTML = '<div style="text-align:center;padding:12px 0;color:#94a3b8;font-size:0.82rem">경기 데이터 없음</div>';
