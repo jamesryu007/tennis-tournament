@@ -6108,10 +6108,8 @@ function switchBetOpenTab(tab) {
             </label>`).join('')
         : '<div style="color:#94a3b8;font-size:0.82rem;padding:8px 0">준결승/결승 경기가 없습니다. 🔄 새로고침 후 재시도하세요.</div>';
     }
-    document.getElementById('bet-stake-input').value = '';
   } else {
     const ti = atpState.tournamentInfo;
-    document.getElementById('bet-winner-stake').value = '';
   }
 }
 
@@ -6133,7 +6131,7 @@ function submitBetOpenWinner() {
     openedAt: new Date().toISOString(),
   };
   db.ref(`jmt/atpBets/${betId}`).set(bet)
-    .then(() => { closeBetOpenModal(); switchAtpTab('bet'); })
+    .then(() => { document.getElementById('bet-winner-stake').value = ''; closeBetOpenModal(); switchAtpTab('bet'); })
     .catch(e => { fbErr(e); alert('저장 실패: ' + (e.message || e)); });
 }
 
@@ -6160,7 +6158,7 @@ function submitBetOpenMatch() {
     openedAt: new Date().toISOString(),
   };
   db.ref(`jmt/atpBets/${betId}`).set(bet)
-    .then(() => { closeBetOpenModal(); switchAtpTab('bet'); })
+    .then(() => { document.getElementById('bet-stake-input').value = ''; closeBetOpenModal(); switchAtpTab('bet'); })
     .catch(e => { fbErr(e); alert('저장 실패: ' + (e.message || e)); });
 }
 
