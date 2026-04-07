@@ -3642,6 +3642,15 @@ function switchPage(id) {
         renderAtpFavMatches();
       });
     }
+    // 베팅 강제 로드 — iOS WebSocket 재연결 타이밍 보완
+    if (db) {
+      db.ref('jmt/atpBets').once('value', snap => {
+        const bets = snap.val() || {};
+        atpState.bets = bets;
+        if (Object.keys(bets).length > 0) atpState.preferBetTab = true;
+        renderAtpBetPanel();
+      });
+    }
   }
   if(id === 'members') { loadRankingTop3().then(renderMemberList); renderMemberList(); }
   if(id === 'history') {
