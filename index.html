@@ -3630,6 +3630,7 @@ let _lastPhotoIdx = -1;
   const nav = document.querySelector('nav.bottom-nav');
   let _commentEl = null;
   let _settleTimer = null;
+  let _aligned = false; // 포커스당 1회만 정렬
 
   function isCommentInput(el) {
     if (!el) return false;
@@ -3639,14 +3640,15 @@ let _lastPhotoIdx = -1;
   }
 
   function alignAboveKeyboard() {
+    if (_aligned) return; // 이미 정렬됨 — scrollBy 유발 resize 무한루프 방지
     const el = _commentEl;
     if (!el || !window.visualViewport) return;
     const container = el.parentElement;
     if (!container) return;
     const rect = container.getBoundingClientRect();
     const vvBottom = window.visualViewport.offsetTop + window.visualViewport.height;
-    // 컨테이너(버튼 포함) 하단이 키보드 바로 위 12px에 오도록
     const diff = rect.bottom - vvBottom + 12;
+    _aligned = true; // 스크롤 전에 플래그 설정
     if (Math.abs(diff) > 5) {
       window.scrollBy({ top: diff, behavior: 'smooth' });
     }
@@ -3655,7 +3657,7 @@ let _lastPhotoIdx = -1;
   // visualViewport.resize 안정화 후 실행 (키보드 완전히 열린 + iOS 자동스크롤 완료)
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', () => {
-      if (!_commentEl) return;
+      if (!_commentEl || _aligned) return;
       clearTimeout(_settleTimer);
       _settleTimer = setTimeout(alignAboveKeyboard, 200);
     });
@@ -3664,6 +3666,7 @@ let _lastPhotoIdx = -1;
   document.addEventListener('focusin', (e) => {
     if (!isCommentInput(e.target)) return;
     _commentEl = e.target;
+    _aligned = false; // 새 포커스마다 리셋
     if (nav) {
       nav.style.transition = 'none';
       nav.style.transform = 'translateY(200px)';
