@@ -3625,6 +3625,25 @@ const _teamPhotos  = ['images/team1.jpeg', 'images/team2.jpeg', 'images/team3.jp
 let _lastVideoIdx = -1;
 let _lastPhotoIdx = -1;
 
+// ── 키보드 열릴 때 하단 탭바 숨기기 (iOS PWA) ──────────────────────
+(function() {
+  const nav = document.querySelector('nav.bottom-nav');
+  if (!nav || !window.visualViewport) return;
+  let _navHidden = false;
+  window.visualViewport.addEventListener('resize', () => {
+    const keyboardOpen = window.visualViewport.height < window.innerHeight * 0.75;
+    if (keyboardOpen && !_navHidden) {
+      nav.style.transform = 'translateY(200px)';
+      nav.style.pointerEvents = 'none';
+      _navHidden = true;
+    } else if (!keyboardOpen && _navHidden) {
+      nav.style.transform = '';
+      nav.style.pointerEvents = '';
+      _navHidden = false;
+    }
+  });
+})();
+
 function switchPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
