@@ -3628,44 +3628,57 @@ let _lastPhotoIdx = -1;
 // ── 댓글/답글 입력창: 포커스 시 탭바 숨기고 버튼 바로 위에 키보드 위치 ────
 (function() {
   const nav = document.querySelector('nav.bottom-nav');
+  let _commentEl = null;
+  let _settleTimer = null;
 
   function isCommentInput(el) {
     if (!el) return false;
-    const tag = el.tagName;
     const id = el.id || '';
-    return (tag === 'TEXTAREA' || tag === 'INPUT') &&
+    return (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') &&
       (id === 'poll-comment-input' || id.startsWith('bet-cmt-') || id.startsWith('reply-text-'));
   }
 
-  function alignAboveKeyboard(el) {
-    if (!window.visualViewport) return;
+  function alignAboveKeyboard() {
+    const el = _commentEl;
+    if (!el || !window.visualViewport) return;
     const container = el.parentElement;
     if (!container) return;
     const rect = container.getBoundingClientRect();
     const vvBottom = window.visualViewport.offsetTop + window.visualViewport.height;
-    // 컨테이너(버튼 포함) 하단이 키보드(^ v ✓ 툴바) 바로 위 12px에 오도록
+    // 컨테이너(버튼 포함) 하단이 키보드 바로 위 12px에 오도록
     const diff = rect.bottom - vvBottom + 12;
     if (Math.abs(diff) > 5) {
       window.scrollBy({ top: diff, behavior: 'smooth' });
     }
   }
 
-  // 포커스 시 즉시 탭바 숨기고, 400ms 후(키보드 애니메이션 완료) 스크롤
+  // visualViewport.resize 안정화 후 실행 (키보드 완전히 열린 + iOS 자동스크롤 완료)
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+      if (!_commentEl) return;
+      clearTimeout(_settleTimer);
+      _settleTimer = setTimeout(alignAboveKeyboard, 200);
+    });
+  }
+
   document.addEventListener('focusin', (e) => {
     if (!isCommentInput(e.target)) return;
+    _commentEl = e.target;
     if (nav) {
       nav.style.transition = 'none';
       nav.style.transform = 'translateY(200px)';
       nav.style.pointerEvents = 'none';
     }
-    setTimeout(() => alignAboveKeyboard(e.target), 400);
+    // visualViewport.resize가 안 오는 경우 fallback
+    setTimeout(alignAboveKeyboard, 700);
   });
 
-  // 포커스 아웃 시 다른 댓글창으로 이동하지 않으면 탭바 복원
   document.addEventListener('focusout', (e) => {
     if (!isCommentInput(e.target)) return;
     setTimeout(() => {
       if (isCommentInput(document.activeElement)) return;
+      _commentEl = null;
+      clearTimeout(_settleTimer);
       if (nav) {
         nav.style.transition = '';
         nav.style.transform = '';
