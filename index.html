@@ -4776,6 +4776,7 @@ const atpState = {
   gsRoundTab: null,     // Grand Slam 선택된 라운드 탭
   loaded: false,        // Firebase 첫 데이터 수신 여부
   news: [],             // ATP 뉴스 (최신 10개)
+  newsLoaded: false,    // Firebase 뉴스 첫 수신 여부
 };
 
 // ── Firebase 구독 초기화 ──────────────────────────────────────────
@@ -4840,6 +4841,7 @@ function initAtpListeners() {
   db.ref('jmt/atpNews').on('value', snap => {
     const d = snap.val();
     atpState.news = (d && d.articles) ? d.articles : [];
+    atpState.newsLoaded = true;
     if (atpState.currentTab === 'news' && document.getElementById('page-atp').classList.contains('active')) {
       renderAtpNewsPanel();
     }
@@ -4872,7 +4874,9 @@ function renderAtpNewsPanel() {
   // headlineKo 없는 기사(번역 미완료)는 표시하지 않음
   const articles = (atpState.news || []).filter(a => a.headlineKo);
   if (!articles.length) {
-    el.innerHTML = '<div style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.85rem">뉴스가 없습니다.</div>';
+    el.innerHTML = atpState.newsLoaded
+      ? '<div style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.85rem">뉴스가 없습니다.</div>'
+      : '<div style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.85rem">📰 뉴스를 불러오는 중...</div>';
     return;
   }
   el.innerHTML = articles.map((a, i) => {
