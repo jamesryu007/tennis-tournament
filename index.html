@@ -5076,9 +5076,6 @@ function isFavPlayer(playerName) {
 function renderAtpFavMatches() {
   // 관심선수 카드 제거됨 — 대진표 패널 내 렌더로 통합
   renderAtpDrawPanel();
-  if (!atpState.favPlayers.length) { card.style.display = 'none'; return; }
-
-  // 카드 타이틀에 선수 이름 + 랭킹 pills 표시
 }
 
 // ── Grand Slam 라운드 순서 ────────────────────────────────────────
