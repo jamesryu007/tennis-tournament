@@ -436,6 +436,40 @@ exports.loadAtpDataByDate = onCall(
 );
 
 // ══ 11. 베팅 미참여자 독촉 알림 (클라이언트 호출용) ══════════════
+// ══ 베팅 미참여자 자동 푸시 (매일 오후 2시) ══════════════════════
+exports.notifyBetReminderScheduled = onSchedule(
+  { schedule: '0 14 * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    try {
+      const betsSnap = await db.ref('jmt/atpBets').once('value');
+      const bets = betsSnap.val() || {};
+      const openBets = Object.entries(bets).filter(([, b]) =>
+        b.open && (!b.deadlineAt || new Date(b.deadlineAt) > new Date())
+      );
+      if (!openBets.length) { console.log('notifyBetReminderScheduled: 오픈 베팅 없음'); return; }
+
+      const membersSnap = await db.ref('jmt/members').once('value');
+      const members = Object.values(membersSnap.val() || {});
+      const allNames = members.map(m => m.name);
+
+      for (const [, bet] of openBets) {
+        const participated = new Set(Object.keys(bet.bets || {}).map(k => k.replace(/_/g, ' ')));
+        const unparticipated = allNames.filter(n => !participated.has(n));
+        if (!unparticipated.length) continue;
+
+        const tokens = await getTokensByNames(unparticipated);
+        if (tokens.length) {
+          const title = bet.tournamentName || bet.matchName || '베팅';
+          await sendPush(tokens, '🎯 베팅 미참여 알림', `${title} 베팅에 아직 참여하지 않으셨어요! 지금 바로 참여하세요.`, 'atp');
+          console.log(`notifyBetReminderScheduled: ${unparticipated.length}명에게 발송`);
+        }
+      }
+    } catch (e) {
+      console.error('notifyBetReminderScheduled error:', e);
+    }
+  }
+);
+
 exports.notifyBetReminder = onCall(
   { region: 'asia-southeast1' },
   async (request) => {
