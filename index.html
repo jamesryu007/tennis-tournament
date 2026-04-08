@@ -5515,7 +5515,7 @@ function renderWinnerBetCard(betId, bet, myName, myBet, isOpen, hasResult, showA
   const waitMsg = !isOpen && !hasResult
     ? `<div style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:8px 0">결과 집계 대기 중...</div>` : '';
 
-  return `${editGuide}${myBetHtml}${playerListHtml}${memberPctHtml}${adminStatsHtml}${waitMsg}`;
+  return `${editGuide}${myBetHtml}${memberPctHtml}${playerListHtml}${adminStatsHtml}${waitMsg}`;
 }
 
 function renderWinnerBetPlayerList(betId) {
@@ -5523,7 +5523,7 @@ function renderWinnerBetPlayerList(betId) {
   if (!players.length) return '<div style="color:#94a3b8;font-size:0.82rem;padding:6px 0">선수 데이터가 없습니다. 🔄 새로고침 후 시도하세요.</div>';
   return `<div style="max-height:180px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px">
     ${players.map(p => `
-      <div onclick="placeBetWinner('${betId}','${p.name.replace(/'/g,"\\'")}',${p.rank})"
+      <div onclick="confirmBetWinner('${betId}','${p.name.replace(/'/g,"\\'")}',${p.rank})"
         style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid #f1f5f9;cursor:pointer;active:background:#f8fafc">
         <span style="font-size:0.68rem;color:#94a3b8;width:28px;flex-shrink:0">${p.rank < 999 ? p.rank+'위' : '-'}</span>
         <span style="font-size:0.82rem;font-weight:700;color:#1e293b;flex:1">${p.name}</span>
@@ -5615,8 +5615,8 @@ function renderMatchBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAl
   const votingHtml = isOpen && (!myBet || editingMatch)
     ? `<div style="font-size:0.72rem;color:#64748b;margin-bottom:8px">💡 베팅은 1회 수정 가능합니다. 수정 후에는 변경이 불가합니다.</div>
        <div style="display:flex;gap:8px">
-         <button class="bet-player-btn" onclick="placeBetMatch('${betId}','${bet.player1Id}','${bet.player1Name}')">${bet.player1Name}</button>
-         <button class="bet-player-btn" onclick="placeBetMatch('${betId}','${bet.player2Id}','${bet.player2Name}')">${bet.player2Name}</button>
+         <button class="bet-player-btn" onclick="confirmBetMatch('${betId}','${bet.player1Id}','${bet.player1Name}')">${bet.player1Name}</button>
+         <button class="bet-player-btn" onclick="confirmBetMatch('${betId}','${bet.player2Id}','${bet.player2Name}')">${bet.player2Name}</button>
        </div>`
     : '';
 
@@ -5643,7 +5643,40 @@ function renderMatchBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAl
   const waitMsg = !isOpen && !hasResult
     ? `<div style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:8px 0">결과 집계 대기 중...</div>` : '';
 
-  return `${myBetHtml}${votingHtml}${statsHtml}${waitMsg}`;
+  const matchStatsFirst = isOpen && !editingMatch ? pctBarHtml : '';
+  const matchStatsAfter = !isOpen ? (showAll ? pctBarHtml + adminMatchStats : `<div style="font-size:0.75rem;color:#94a3b8;text-align:center;margin-top:6px">베팅 결과는 Close 후 공개됩니다</div>`) : (editingMatch ? pctBarHtml + adminMatchStats : adminMatchStats);
+  return `${myBetHtml}${matchStatsFirst}${votingHtml}${matchStatsAfter}${waitMsg}`;
+}
+
+// ── 베팅 확인 팝업 ───────────────────────────────────────────────
+function showBetConfirmPopup(message, onConfirm) {
+  const existing = document.getElementById('bet-confirm-popup');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = 'bet-confirm-popup';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px';
+  el.innerHTML = `
+    <div style="background:#fff;border-radius:18px;padding:24px 20px;max-width:320px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,0.2);text-align:center">
+      <div style="font-size:1.5rem;margin-bottom:10px">🎯</div>
+      <div style="font-size:0.92rem;font-weight:700;color:#1e293b;margin-bottom:18px;line-height:1.5">${message}</div>
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('bet-confirm-popup').remove()"
+          style="flex:1;padding:10px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:0.85rem;font-weight:600;color:#64748b;cursor:pointer">취소</button>
+        <button id="bet-confirm-ok"
+          style="flex:1;padding:10px;border-radius:10px;border:none;background:#2563eb;font-size:0.85rem;font-weight:700;color:#fff;cursor:pointer">베팅하기</button>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  document.getElementById('bet-confirm-ok').onclick = () => { el.remove(); onConfirm(); };
+  el.addEventListener('click', e => { if (e.target === el) el.remove(); });
+}
+
+function confirmBetWinner(betId, playerName, playerRank) {
+  showBetConfirmPopup(`<b>${playerName}</b>에 베팅하시겠습니까?`, () => placeBetWinner(betId, playerName, playerRank));
+}
+
+function confirmBetMatch(betId, playerId, playerName) {
+  showBetConfirmPopup(`<b>${playerName}</b>에 베팅하시겠습니까?`, () => placeBetMatch(betId, playerId, playerName));
 }
 
 // ── 베팅 투표 ─────────────────────────────────────────────────────
