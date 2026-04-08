@@ -32,13 +32,14 @@ async function getTokensByNames(names) {
 }
 
 // ── 유틸: FCM 멀티캐스트 발송 ─────────────────────────────────────
-async function sendPush(tokens, title, body, tab = 'checkin', commentId = '') {
+async function sendPush(tokens, title, body, tab = 'checkin', commentId = '', betId = '') {
   if (!tokens || tokens.length === 0) return;
   const chunks = [];
   for (let i = 0; i < tokens.length; i += 500) chunks.push(tokens.slice(i, i + 500));
   for (const chunk of chunks) {
     const data = { title, body, tab };
     if (commentId) data.commentId = commentId;
+    if (betId) data.betId = betId;
     await fcm.sendEachForMulticast({
       tokens: chunk,
       data,
@@ -357,6 +358,35 @@ exports.notifyAtpBetOpen = onValueCreated(
     const stake = bet.stake || '';
     await sendPush(tokens, '🎯 ATP 베팅 오픈!',
       `${matchName} 베팅이 시작됐습니다${stake ? ` · ${stake}` : ''}`, 'atp');
+  }
+);
+
+// ══ 9b. 베팅 결과 확정 시 전체 알림 (DB 트리거) ═══════════════════
+exports.notifyBetResult = onValueCreated(
+  { ref: 'jmt/atpBets/{betId}/result', region: 'asia-southeast1' },
+  async (event) => {
+    const result = event.data.val();
+    if (!result || !result.winnerName) return;
+    const betId = event.params.betId;
+
+    // 베팅 전체 데이터로 맞춘 멤버 계산
+    const betSnap = await db.ref(`jmt/atpBets/${betId}`).once('value');
+    const bet = betSnap.val();
+    if (!bet) return;
+
+    const winnerName = result.winnerName;
+    const winnerId = result.winnerId || '';
+    const bets = bet.bets || {};
+    const winnerMembers = Object.entries(bets)
+      .filter(([, b]) => b.playerName === winnerName || (winnerId && b.playerId === winnerId))
+      .map(([k]) => k.replace(/_/g, ' '));
+
+    const tokens = await getAllTokens();
+    const body = winnerMembers.length > 0
+      ? `🏆 ${winnerName} 우승! 축하합니다 ${winnerMembers.join(', ')}님!`
+      : `🏆 ${winnerName} 우승! 베팅 결과를 확인하세요`;
+
+    await sendPush(tokens, '🎯 베팅 결과 발표!', body, 'atp', '', betId);
   }
 );
 

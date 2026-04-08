@@ -2470,6 +2470,47 @@ function showWinnerCelebration(teamLabel) {
   setTimeout(() => overlay.remove(), 2400);
 }
 
+// 베팅 결과 축하 애니메이션 — betId로 Firebase 조회 후 위너 멤버 표시
+function showBetResultCelebration(betId) {
+  if (!db || !betId) return;
+  db.ref(`jmt/atpBets/${betId}`).once('value').then(snap => {
+    const bet = snap.val();
+    if (!bet || !bet.result) return;
+    const winnerName = bet.result.winnerName || '';
+    const winnerId = bet.result.winnerId || '';
+    const betsArr = bet.bets ? Object.entries(bet.bets) : [];
+    const winnerMembers = betsArr
+      .filter(([, b]) => b.playerName === winnerName || (winnerId && b.playerId === winnerId))
+      .map(([k]) => k.replace(/_/g, ' '));
+    _showBetCelebrationOverlay(winnerName, winnerMembers);
+  });
+}
+
+function _showBetCelebrationOverlay(playerName, winnerMembers) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;animation:winnerBg 3.5s ease forwards;background:rgba(37,99,235,0.5)';
+  const emojis = ['🎾','🏆','🎉','✨','🥇','🎊'];
+  for (let i = 0; i < 24; i++) {
+    const c = document.createElement('div');
+    c.textContent = emojis[i % emojis.length];
+    c.style.cssText = `position:absolute;font-size:${1.2+Math.random()}rem;left:${Math.random()*100}%;top:${Math.random()*50}%;animation:confettiFall ${1.5+Math.random()*1}s ${Math.random()*0.8}s ease forwards`;
+    overlay.appendChild(c);
+  }
+  const card = document.createElement('div');
+  card.style.cssText = 'background:#fff;border-radius:24px;padding:28px 36px;text-align:center;box-shadow:0 12px 60px rgba(0,0,0,0.35);animation:winnerPop 3.5s ease forwards;max-width:85vw';
+  const winnersHtml = winnerMembers.length
+    ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:0.85rem;color:#2563eb;font-weight:700;line-height:1.6">🎊 ${winnerMembers.join('  ')} 님!</div>`
+    : '';
+  card.innerHTML = `
+    <div style="font-size:2.4rem;margin-bottom:6px">🏆</div>
+    <div style="font-size:0.75rem;font-weight:700;color:#64748b;letter-spacing:0.08em;margin-bottom:6px">베팅 우승자</div>
+    <div style="font-size:1.35rem;font-weight:900;color:#2563eb;line-height:1.3">${playerName}</div>
+    ${winnersHtml}`;
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.remove(), 3500);
+}
+
 function closeDailyScore(){
   _dailyScoreCtx=null;
   document.getElementById('daily-score-modal').classList.remove('open');
@@ -4596,7 +4637,7 @@ function selectIdentity(name) {
   localStorage.setItem(LS_IDENTITY, JSON.stringify(state.identity));
   document.getElementById('identity-modal').classList.remove('open');
   // 푸시 알림으로 진입한 경우 해당 탭으로 이동
-  if (window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId; window._pendingTab=null; window._pendingCommentId=null; setTimeout(() => { switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); }, 100); }
+  if (window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; setTimeout(() => { switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid); },500); }, 100); }
   // FCM: 처음 로그인이면 초기화(권한 요청 포함), 이미 초기화됐으면 토큰 재매핑
   if (!_fcmMessaging) {
     initFCM(true); // 사용자 클릭 제스처 시점이므로 권한 요청 가능
@@ -4803,7 +4844,7 @@ initBirthdaySelects();
 // FCM 초기화 (접속자 선택 후 실행 — identity 모달 닫힐 때 호출)
 setTimeout(() => {
   if(state.identity) initFCM();
-  if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId; window._pendingTab=null; window._pendingCommentId=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); }
+  if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid); },500); }
 }, 1500);
 document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
 // 랜덤 사진 변경 함수 (탭 클릭 또는 초기 로드 시 사용)
@@ -6779,15 +6820,22 @@ async function triggerAtpRefresh() {
     // SW postMessage로 탭 이동
     navigator.serviceWorker.addEventListener('message', e => {
       if (e.data && e.data.type === 'NAVIGATE_TAB') {
-        const { tab, commentId } = e.data;
-        if (state.identity) { switchPage(tab); if (commentId) setTimeout(() => scrollToComment(commentId), 400); }
-        else { window._pendingTab = tab; window._pendingCommentId = commentId; }
+        const { tab, commentId, betId } = e.data;
+        if (state.identity) {
+          switchPage(tab);
+          if (commentId) setTimeout(() => scrollToComment(commentId), 400);
+          if (betId) setTimeout(() => { switchAtpTab('bet'); showBetResultCelebration(betId); }, 500);
+        } else {
+          window._pendingTab = tab;
+          window._pendingCommentId = commentId;
+          window._pendingBetId = betId || null;
+        }
       }
     });
   }
   // URL 파라미터로 탭 이동 (?tab=checkin 등)
   const _urlParams = new URLSearchParams(location.search);
-  if (_urlParams.get('tab')) { window._pendingTab = _urlParams.get('tab'); window._pendingCommentId = _urlParams.get('commentId') || null; }
+  if (_urlParams.get('tab')) { window._pendingTab = _urlParams.get('tab'); window._pendingCommentId = _urlParams.get('commentId') || null; window._pendingBetId = _urlParams.get('betId') || null; }
   // iOS PWA는 start_url로 열려 URL 파라미터가 없으므로 SW가 Cache에 저장한 탭 정보를 읽음
   if ('caches' in window && !window._pendingTab) {
     caches.open('jamite-nav').then(c => c.match('/pending-nav')).then(res => {
@@ -6797,6 +6845,7 @@ async function triggerAtpRefresh() {
         if (nav && nav.tab && (Date.now() - (nav.ts || 0)) < 30000) {
           window._pendingTab = nav.tab;
           window._pendingCommentId = nav.commentId || null;
+          window._pendingBetId = nav.betId || null;
         }
       });
     }).catch(() => {});
