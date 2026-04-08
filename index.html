@@ -354,6 +354,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .live-badge-lg { font-size:1rem; padding:3px 10px 3px 8px; border-radius:7px; gap:5px; letter-spacing:1px; }
 .live-badge-lg::before { width:8px; height:8px; }
 @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.35;transform:scale(0.65)} }
+@keyframes winnerPop { 0%{opacity:0;transform:scale(0.6)} 18%{opacity:1;transform:scale(1.08)} 32%{transform:scale(0.97)} 45%{transform:scale(1.03)} 58%{transform:scale(1)} 80%{opacity:1} 100%{opacity:0;transform:scale(1.1)} }
+@keyframes winnerBg { 0%{opacity:0} 15%{opacity:1} 80%{opacity:1} 100%{opacity:0} }
+@keyframes confettiFall { 0%{transform:translateY(-20px) rotate(0deg);opacity:1} 100%{transform:translateY(120px) rotate(720deg);opacity:0} }
 @keyframes bounce-celebrate { 0%,100%{transform:translateY(0) rotate(0deg)} 30%{transform:translateY(-8px) rotate(-6deg)} 60%{transform:translateY(-4px) rotate(4deg)} }
 @keyframes shake-sad { 0%,100%{transform:rotate(0deg) translateY(0)} 20%{transform:rotate(-5deg) translateY(2px)} 40%{transform:rotate(5deg) translateY(0)} 70%{transform:rotate(-2deg) translateY(1px)} }
 .daily-add-btn { width:100%; border:2px dashed rgba(124,58,237,0.4); background:rgba(124,58,237,0.08); border-radius:14px; color:#7c3aed; font-size:1.8rem; font-weight:400; padding:10px; cursor:pointer; margin-top:6px; line-height:1; }
@@ -2432,6 +2435,29 @@ function addDailyScoreSet(){
     :'';
 }
 
+function showWinnerCelebration(teamLabel) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;animation:winnerBg 2.4s ease forwards;background:rgba(5,100,60,0.55)';
+  // 콘페티
+  const emojis = ['🎾','🏆','🎉','✨','🥇'];
+  for (let i = 0; i < 18; i++) {
+    const c = document.createElement('div');
+    c.textContent = emojis[i % emojis.length];
+    c.style.cssText = `position:absolute;font-size:${1.2 + Math.random()}rem;left:${Math.random()*100}%;top:${Math.random()*40}%;animation:confettiFall ${1.2+Math.random()*0.8}s ${Math.random()*0.5}s ease forwards`;
+    overlay.appendChild(c);
+  }
+  // 메인 카드
+  const card = document.createElement('div');
+  card.style.cssText = 'background:#fff;border-radius:24px;padding:28px 36px;text-align:center;box-shadow:0 12px 60px rgba(0,0,0,0.35);animation:winnerPop 2.4s ease forwards;max-width:80vw';
+  card.innerHTML = `
+    <div style="font-size:2.2rem;margin-bottom:8px">🏆</div>
+    <div style="font-size:0.8rem;font-weight:700;color:#64748b;letter-spacing:0.08em;margin-bottom:6px">승리</div>
+    <div style="font-size:1.25rem;font-weight:900;color:#065f46;line-height:1.3">${teamLabel}</div>`;
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.remove(), 2400);
+}
+
 function closeDailyScore(){
   _dailyScoreCtx=null;
   document.getElementById('daily-score-modal').classList.remove('open');
@@ -2484,6 +2510,11 @@ async function saveDailyScore(){
     document.getElementById('daily-score-modal').classList.remove('open');
     _dailyScoreCtx=null;
     _saveCardToFirebase(id);
+    if (winner === 0 || winner === 1) {
+      const wTeam = winner === 0 ? d.team0 : d.team1;
+      const wNick  = winner === 0 ? nick0   : nick1;
+      showWinnerCelebration(wNick || wTeam.join(' / '));
+    }
   }catch(e){alert('저장 실패: '+e.message);}
 }
 
@@ -3540,6 +3571,8 @@ function submitScore() {
   if(match.team0&&match.team0.length===2&&match.team1&&match.team1.length===2) {
     updateMatchStats(match.team0,match.team1,match.winner,'','');
   }
+  const wTeam = match.winner === 0 ? match.team0 : match.team1;
+  if (wTeam && wTeam.length) showWinnerCelebration(wTeam.join(' / '));
 }
 
 // ══ MATCH / BRACKET SUB-TABS ══
