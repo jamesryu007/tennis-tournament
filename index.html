@@ -3647,7 +3647,7 @@ let _lastPhotoIdx = -1;
       }
     }
 
-    // 댓글 입력창: 버튼이 툴바 바로 위에 오도록 스크롤
+    // 댓글/답글 입력창: 버튼이 툴바 바로 위에 오도록 스크롤
     if (keyboardOpen) {
       const el = document.activeElement;
       if (!el) return;
@@ -3656,15 +3656,17 @@ let _lastPhotoIdx = -1;
         (el.id === 'poll-comment-input' || el.id.startsWith('bet-cmt-') || el.id.startsWith('reply-text-'));
       if (!isComment) return;
 
-      // 버튼까지 포함한 부모 컨테이너의 bottom이 visualViewport 하단에 맞도록 스크롤
-      const container = el.closest('div') && el.closest('div').parentElement
-        ? el.closest('div').parentElement
-        : el.parentElement;
+      // textarea/input의 직접 부모 div = 버튼까지 포함한 컨테이너
+      // (poll/bet: <div>댓글쓰기+textarea+버튼행</div>, 답글: reply-input-row)
+      const container = el.parentElement;
       if (!container) return;
-      const rect = container.getBoundingClientRect();
-      const vvBottom = window.visualViewport.offsetTop + window.visualViewport.height;
-      const gap = rect.bottom - vvBottom + 8; // 8px 여유
-      if (gap > 0) window.scrollBy({ top: gap, behavior: 'smooth' });
+
+      requestAnimationFrame(() => {
+        const rect = container.getBoundingClientRect();
+        const vvBottom = window.visualViewport.offsetTop + window.visualViewport.height;
+        const gap = rect.bottom - vvBottom + 12; // 12px 여유
+        if (gap > 0) window.scrollBy({ top: gap, behavior: 'smooth' });
+      });
     }
   });
 })();
