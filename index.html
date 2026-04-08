@@ -502,7 +502,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="firebase-config.js"></script>
-<!-- 가상 한글 키보드 (hangul-js: 자모 조합) -->
+<!-- 가상 한글 키보드 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/simple-keyboard@3/build/css/index.css">
+<script src="https://cdn.jsdelivr.net/npm/simple-keyboard@3/build/index.modern.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/simple-keyboard-layouts@1/build/index.modern.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.js"></script>
 </head>
 <body>
@@ -6990,190 +6993,198 @@ async function triggerAtpRefresh() {
 </script>
 
 <!-- ── 가상 한글/영문 키보드 ──────────────────────────────────────── -->
-<div id="vkb-wrap" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:8001;background:#d1d5db;padding:8px 6px 20px;box-shadow:0 -2px 16px rgba(0,0,0,0.22);user-select:none;-webkit-user-select:none">
-  <!-- 미리보기 + 완료 -->
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-    <div id="vkb-preview" style="flex:1;min-height:38px;background:#fff;border-radius:10px;padding:9px 12px;font-size:0.92rem;color:#1e293b;line-height:1.4;word-break:break-all"></div>
-    <button id="vkb-done-btn" style="flex-shrink:0;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:9px 16px;font-size:0.85rem;font-weight:700">완료</button>
+<div id="vkb-overlay" style="display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,0.0);pointer-events:none"></div>
+<div id="vkb-wrap" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:8001;background:#d1d5db;padding:8px 4px 4px;box-shadow:0 -2px 12px rgba(0,0,0,0.18)">
+  <!-- 입력 미리보기 + 완료 -->
+  <div style="display:flex;align-items:center;gap:8px;padding:0 6px 8px">
+    <div id="vkb-preview" style="flex:1;min-height:36px;background:#fff;border-radius:10px;padding:8px 12px;font-size:0.9rem;color:#1e293b;line-height:1.4;word-break:break-word"></div>
+    <button id="vkb-done-btn" style="flex-shrink:0;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:0.85rem;font-weight:700;cursor:pointer">완료</button>
   </div>
-  <!-- 자판 -->
-  <div id="vkb-keys"></div>
+  <!-- 언어 전환 -->
+  <div style="display:flex;justify-content:flex-end;padding:0 6px 4px">
+    <button id="vkb-lang-btn" style="background:#6b7280;color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:0.75rem;font-weight:700;cursor:pointer">한/A</button>
+  </div>
+  <div id="vkb-simple-keyboard" class="simple-keyboard"></div>
 </div>
 
 <style>
-.vkb-row { display:flex; gap:5px; margin-bottom:5px; justify-content:center; }
-.vkb-key {
-  flex:1; max-width:42px; height:44px; border:none; border-radius:8px;
-  background:#fff; color:#1e293b; font-size:1rem; font-weight:500;
-  box-shadow:0 1px 0 rgba(0,0,0,0.35); cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
-  -webkit-tap-highlight-color:transparent; touch-action:manipulation;
-}
-.vkb-key.fn { background:#adb5bd; font-size:0.78rem; max-width:52px; }
-.vkb-key.space { max-width:none; flex:4; }
-.vkb-key.lang-btn { max-width:52px; background:#6b7280; color:#fff; font-size:0.72rem; }
-.vkb-key:active { background:#b0b8c1; }
+/* simple-keyboard 기본 스타일 오버라이드 */
+#vkb-wrap .hg-theme-default { background: transparent; border-radius: 0; box-shadow: none; }
+#vkb-wrap .hg-theme-default .hg-button { height: 42px; font-size: 1rem; border-radius: 8px; background: #fff; border-bottom: 1px solid #aaa; box-shadow: 0 1px 0 rgba(0,0,0,0.35); color: #1e293b; }
+#vkb-wrap .hg-theme-default .hg-button:active { background: #bbb; }
+#vkb-wrap .hg-theme-default .hg-button.hg-functionBtn { background: #adb5bd; color: #1e293b; font-size: 0.75rem; }
+#vkb-wrap .hg-theme-default .hg-button.hg-activeButton { background: #dbeafe; }
+#vkb-wrap .hg-theme-default .hg-row { gap: 5px; margin-bottom: 5px; }
+#vkb-wrap .hg-theme-default { padding: 4px 4px 8px; }
 </style>
 
 <script>
 (function() {
+  // ── 가상 키보드 초기화 ────────────────────────────────────────────
   const wrap    = document.getElementById('vkb-wrap');
+  const overlay = document.getElementById('vkb-overlay');
   const preview = document.getElementById('vkb-preview');
-  const keysEl  = document.getElementById('vkb-keys');
   const doneBtn = document.getElementById('vkb-done-btn');
+  const langBtn = document.getElementById('vkb-lang-btn');
 
-  let _target = null;
-  let _text   = '';
-  let _jamo   = [];
-  let _lang   = 'ko';
-  let _shift  = false;
+  let _vkbTarget  = null;   // 현재 연결된 textarea
+  let _vkbText    = '';     // 전체 텍스트
+  let _vkbLang    = 'ko';   // 'ko' | 'en'
+  let _jamoBuffer = [];     // 조합 중인 자모 배열 (hangul-js용)
 
-  const KO = [
-    ['ㅂ','ㅈ','ㄷ','ㄱ','ㅅ','ㅛ','ㅕ','ㅑ','ㅐ','ㅔ'],
-    ['ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅗ','ㅓ','ㅏ','ㅣ'],
-    ['⇧','ㅋ','ㅌ','ㅊ','ㅍ','ㅠ','ㅜ','ㅡ','⌫'],
-    ['한/A',' '],
-  ];
-  const KO_SHIFT = [
-    ['ㅃ','ㅉ','ㄸ','ㄲ','ㅆ','ㅛ','ㅕ','ㅑ','ㅒ','ㅖ'],
-    ['ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅗ','ㅓ','ㅏ','ㅣ'],
-    ['⇧','ㅋ','ㅌ','ㅊ','ㅍ','ㅠ','ㅜ','ㅡ','⌫'],
-    ['한/A',' '],
-  ];
-  const EN = [
-    ['q','w','e','r','t','y','u','i','o','p'],
-    ['a','s','d','f','g','h','j','k','l'],
-    ['⇧','z','x','c','v','b','n','m','⌫'],
-    ['한/A',' '],
-  ];
-  const EN_SHIFT = [
-    ['Q','W','E','R','T','Y','U','I','O','P'],
-    ['A','S','D','F','G','H','J','K','L'],
-    ['⇧','Z','X','C','V','B','N','M','⌫'],
-    ['한/A',' '],
-  ];
+  const koLayout = {
+    default: [
+      'ㅂ ㅈ ㄷ ㄱ ㅅ ㅛ ㅕ ㅑ ㅐ ㅔ',
+      'ㅁ ㄴ ㅇ ㄹ ㅎ ㅗ ㅓ ㅏ ㅣ',
+      '{shift} ㅋ ㅌ ㅊ ㅍ ㅠ ㅜ ㅡ {bksp}',
+      '{space}'
+    ],
+    shift: [
+      'ㅃ ㅉ ㄸ ㄲ ㅆ ㅛ ㅕ ㅑ ㅒ ㅖ',
+      'ㅁ ㄴ ㅇ ㄹ ㅎ ㅗ ㅓ ㅏ ㅣ',
+      '{shift} ㅋ ㅌ ㅊ ㅍ ㅠ ㅜ ㅡ {bksp}',
+      '{space}'
+    ]
+  };
+  const enLayout = {
+    default: [
+      'q w e r t y u i o p',
+      'a s d f g h j k l',
+      '{shift} z x c v b n m {bksp}',
+      '{space}'
+    ],
+    shift: [
+      'Q W E R T Y U I O P',
+      'A S D F G H J K L',
+      '{shift} Z X C V B N M {bksp}',
+      '{space}'
+    ]
+  };
 
-  function getLayout() {
-    if (_lang === 'ko') return _shift ? KO_SHIFT : KO;
-    return _shift ? EN_SHIFT : EN;
-  }
-
-  function renderKeys() {
-    const layout = getLayout();
-    keysEl.innerHTML = layout.map(row => {
-      const btns = row.map(k => {
-        let cls = 'vkb-key';
-        if (k === '⇧' || k === '⌫') cls += ' fn';
-        else if (k === ' ') cls += ' space';
-        else if (k === '한/A') cls += ' fn lang-btn';
-        const label = k === ' ' ? '　　　' : k;
-        return `<button class="${cls}" data-key="${k}">${label}</button>`;
-      }).join('');
-      return `<div class="vkb-row">${btns}</div>`;
-    }).join('');
-
-    keysEl.querySelectorAll('.vkb-key').forEach(btn => {
-      btn.addEventListener('touchstart', e => {
-        e.preventDefault();
-        onKey(btn.dataset.key);
-      }, { passive: false });
-      btn.addEventListener('mousedown', e => {
-        e.preventDefault();
-        onKey(btn.dataset.key);
-      });
-    });
-  }
+  const keyboard = new window.SimpleKeyboard.default('#vkb-simple-keyboard', {
+    onKeyPress: onKey,
+    layout: koLayout,
+    display: { '{bksp}': '⌫', '{shift}': '⇧', '{space}': '　　　　　　' },
+    theme: 'hg-theme-default',
+    mergeDisplay: true,
+    useButtonTag: true,
+  });
 
   function flushJamo() {
-    if (!_jamo.length) return '';
-    const r = Hangul.assemble(_jamo);
-    _jamo = [];
-    return r;
+    // 조합 중인 자모를 확정 문자열로 변환
+    if (!_jamoBuffer.length) return '';
+    const result = Hangul.assemble(_jamoBuffer);
+    _jamoBuffer = [];
+    return result;
   }
 
-  function onKey(k) {
-    if (k === '⇧') {
-      _shift = !_shift;
-      renderKeys();
+  function onKey(key) {
+    if (key === '{shift}') {
+      const next = keyboard.options.layoutName === 'shift' ? 'default' : 'shift';
+      keyboard.setOptions({ layoutName: next });
       return;
     }
-    if (k === '한/A') {
-      _text += flushJamo();
-      _lang = _lang === 'ko' ? 'en' : 'ko';
-      _shift = false;
-      renderKeys();
-      updatePreview();
-      return;
-    }
-    if (k === '⌫') {
-      if (_jamo.length) {
-        _jamo.pop();
-      } else if (_text.length) {
-        const last = _text.slice(-1);
-        const dis = Hangul.disassemble(last);
-        if (dis.length > 1) { _jamo = dis.slice(0, -1); _text = _text.slice(0, -1); }
-        else { _text = _text.slice(0, -1); }
+    if (key === '{bksp}') {
+      if (_jamoBuffer.length) {
+        _jamoBuffer.pop();
+      } else if (_vkbText.length) {
+        // 마지막 글자 분해 후 끝 자모 제거
+        const last = _vkbText.slice(-1);
+        const disassembled = Hangul.disassemble(last);
+        if (disassembled.length > 1) {
+          _jamoBuffer = disassembled.slice(0, -1);
+          _vkbText = _vkbText.slice(0, -1);
+        } else {
+          _vkbText = _vkbText.slice(0, -1);
+        }
       }
       updatePreview();
       return;
     }
-    if (k === ' ') {
-      _text += flushJamo() + ' ';
+    if (key === '{space}') {
+      _vkbText += flushJamo() + ' ';
       updatePreview();
       return;
     }
-    if (_lang === 'ko') {
-      _jamo.push(k);
-      const assembled = Hangul.assemble(_jamo);
+
+    if (_vkbLang === 'ko') {
+      _jamoBuffer.push(key);
+      const assembled = Hangul.assemble(_jamoBuffer);
+      // 음절이 완성된 경우(길이 줄어들면 확정)
       if (assembled.length > 1) {
-        _text += assembled.slice(0, -1);
-        _jamo = Hangul.disassemble(assembled.slice(-1));
+        _vkbText += assembled.slice(0, -1);
+        _jamoBuffer = Hangul.disassemble(assembled.slice(-1));
       }
     } else {
-      _text += k;
+      _vkbText += key;
     }
-    if (_shift) { _shift = false; renderKeys(); }
     updatePreview();
+    // shift 자동 해제
+    if (keyboard.options.layoutName === 'shift') {
+      keyboard.setOptions({ layoutName: 'default' });
+    }
   }
 
   function updatePreview() {
-    const cur = _lang === 'ko' ? Hangul.assemble(_jamo) : '';
-    preview.textContent = _text + cur || '';
+    const composed = _vkbLang === 'ko' ? Hangul.assemble(_jamoBuffer) : '';
+    const full = _vkbText + composed;
+    preview.textContent = full || '';
+    preview.dataset.value = full;
   }
 
-  function openVkb(el) {
-    _target = el; _text = el.value || ''; _jamo = []; _lang = 'ko'; _shift = false;
-    renderKeys();
+  function openVkb(textarea) {
+    _vkbTarget  = textarea;
+    _vkbText    = textarea.value || '';
+    _jamoBuffer = [];
+    _vkbLang    = 'ko';
+    keyboard.setOptions({ layout: koLayout, layoutName: 'default' });
+    langBtn.textContent = '한/A → A';
     updatePreview();
     wrap.style.display = 'block';
+    overlay.style.display = 'block';
+    overlay.style.pointerEvents = 'auto';
+    // 하단 탭바 숨기기
     const nav = document.querySelector('nav.bottom-nav');
     if (nav) { nav.style.transform = 'translateY(200px)'; nav.style.pointerEvents = 'none'; }
   }
 
   function closeVkb(apply) {
-    if (apply && _target) {
-      _target.value = _text + (_lang === 'ko' ? Hangul.assemble(_jamo) : '');
+    if (apply && _vkbTarget) {
+      const composed = _vkbLang === 'ko' ? Hangul.assemble(_jamoBuffer) : '';
+      _vkbTarget.value = _vkbText + composed;
     }
     wrap.style.display = 'none';
-    _target = null; _jamo = [];
+    overlay.style.display = 'none';
+    overlay.style.pointerEvents = 'none';
+    _vkbTarget  = null;
+    _jamoBuffer = [];
+    // 탭바 복원
     const nav = document.querySelector('nav.bottom-nav');
     if (nav) { nav.style.transform = ''; nav.style.pointerEvents = ''; }
   }
 
-  doneBtn.addEventListener('touchstart', e => { e.preventDefault(); closeVkb(true); }, { passive: false });
-  doneBtn.addEventListener('mousedown',  e => { e.preventDefault(); closeVkb(true); });
+  doneBtn.addEventListener('click', () => closeVkb(true));
+  overlay.addEventListener('click', () => closeVkb(false));
 
-  // touchstart로 vkb-input 감지 (iOS 신뢰성)
-  document.addEventListener('touchstart', e => {
+  langBtn.addEventListener('click', () => {
+    _vkbText += flushJamo();
+    _vkbLang = _vkbLang === 'ko' ? 'en' : 'ko';
+    keyboard.setOptions({ layout: _vkbLang === 'ko' ? koLayout : enLayout, layoutName: 'default' });
+    langBtn.textContent = _vkbLang === 'ko' ? '한/A → A' : '한/A → 한';
+    updatePreview();
+  });
+
+  // textarea 포커스 감지 — 댓글 입력창만 적용
+  document.addEventListener('focus', e => {
     const el = e.target;
-    if (el.classList && el.classList.contains('vkb-input')) {
+    if (el.classList.contains('vkb-input')) {
       e.preventDefault();
+      el.blur();
       openVkb(el);
-    } else if (wrap.style.display !== 'none' && !wrap.contains(el)) {
-      closeVkb(false);
     }
-  }, { passive: false });
+  }, true);
 
+  // 전역 노출
   window._vkbOpen  = openVkb;
   window._vkbClose = closeVkb;
 })();
