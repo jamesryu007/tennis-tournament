@@ -32,12 +32,12 @@ async function getTokensByNames(names) {
 }
 
 // ── 유틸: FCM 멀티캐스트 발송 ─────────────────────────────────────
-async function sendPush(tokens, title, body, tab = 'checkin', commentId = '', betId = '') {
+async function sendPush(tokens, title, body, tab = 'checkin', commentId = '', betId = '', extraData = {}) {
   if (!tokens || tokens.length === 0) return;
   const chunks = [];
   for (let i = 0; i < tokens.length; i += 500) chunks.push(tokens.slice(i, i + 500));
   for (const chunk of chunks) {
-    const data = { title, body, tab };
+    const data = { title, body, tab, ...extraData };
     if (commentId) data.commentId = commentId;
     if (betId) data.betId = betId;
     await fcm.sendEachForMulticast({
@@ -369,7 +369,6 @@ exports.notifyBetResult = onValueCreated(
     if (!result || !result.winnerName) return;
     const betId = event.params.betId;
 
-    // 베팅 전체 데이터로 맞춘 멤버 계산
     const betSnap = await db.ref(`jmt/atpBets/${betId}`).once('value');
     const bet = betSnap.val();
     if (!bet) return;
@@ -377,16 +376,32 @@ exports.notifyBetResult = onValueCreated(
     const winnerName = result.winnerName;
     const winnerId = result.winnerId || '';
     const bets = bet.bets || {};
-    const winnerMembers = Object.entries(bets)
+
+    // 맞춘 멤버 / 틀린 멤버 분리
+    const winnerMemberNames = Object.entries(bets)
       .filter(([, b]) => b.playerName === winnerName || (winnerId && b.playerId === winnerId))
       .map(([k]) => k.replace(/_/g, ' '));
+    const loserMemberNames = Object.entries(bets)
+      .filter(([, b]) => b.playerName !== winnerName && !(winnerId && b.playerId === winnerId))
+      .map(([k]) => k.replace(/_/g, ' '));
 
-    const tokens = await getAllTokens();
-    const body = winnerMembers.length > 0
-      ? `🏆 ${winnerName} 우승! 축하합니다 ${winnerMembers.join(', ')}님!`
+    // 위너 푸시
+    if (winnerMemberNames.length > 0) {
+      const winnerTokens = await getTokensByNames(winnerMemberNames);
+      const winnerBody = `🏆 ${winnerName} 우승! 🎊 ${winnerMemberNames.join(', ')}님 정답입니다!`;
+      await sendPush(winnerTokens, '🎯 베팅 결과 발표!', winnerBody, 'atp', '', betId, { isWinner: 'true' });
+    }
+
+    // 루저 + 미참여자 푸시 (나머지 전체 토큰에서 위너 제외)
+    const allTokensSnap = await db.ref('jmt/fcmTokens').once('value');
+    const allTokensData = allTokensSnap.val() || {};
+    const nonWinnerTokens = Object.values(allTokensData)
+      .filter(v => v.token && !winnerMemberNames.includes(v.name))
+      .map(v => v.token);
+    const loserBody = loserMemberNames.length > 0
+      ? `🏆 ${winnerName} 우승! 아쉽게도 이번엔 틀렸네요 😅`
       : `🏆 ${winnerName} 우승! 베팅 결과를 확인하세요`;
-
-    await sendPush(tokens, '🎯 베팅 결과 발표!', body, 'atp', '', betId);
+    await sendPush(nonWinnerTokens, '🎯 베팅 결과 발표!', loserBody, 'atp', '', betId, { isWinner: 'false' });
   }
 );
 

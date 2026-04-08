@@ -3,7 +3,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-com
 importScripts('./firebase-config.js');
 
 // ── 캐싱 (sw.js 통합) ──────────────────────────────────────────────
-const CACHE = 'jamite-v41';
+const CACHE = 'jamite-v42';
 const BASE = self.location.pathname.startsWith('/tennis-tournament') ? '/tennis-tournament' : '';
 
 // 아이콘만 캐시 — 팀 사진/영상/HTML은 교체 즉시 반영되도록 제외
@@ -60,14 +60,15 @@ messaging.onBackgroundMessage(payload => {
   const d = payload.data || {};
   const title = n.title || d.title || '자미터 테니스';
   const body  = n.body  || d.body  || '';
-  const tab   = d.tab   || 'checkin';
+  const tab      = d.tab      || 'checkin';
   const commentId = d.commentId || '';
-  const betId = d.betId || '';
+  const betId    = d.betId    || '';
+  const isWinner = d.isWinner || '';
   self.registration.showNotification(title, {
     body,
     icon: BASE + '/images/icon-192.png',
     badge: BASE + '/images/icon-192.png',
-    data: { tab, commentId, betId }
+    data: { tab, commentId, betId, isWinner }
   });
 });
 
@@ -76,12 +77,14 @@ self.addEventListener('notificationclick', e => {
   const tab       = (e.notification.data && e.notification.data.tab)       || 'checkin';
   const commentId = (e.notification.data && e.notification.data.commentId) || '';
   const betId     = (e.notification.data && e.notification.data.betId)     || '';
+  const isWinner  = (e.notification.data && e.notification.data.isWinner)  || '';
   let url = self.location.origin + BASE + '/?tab=' + tab;
   if (commentId) url += '&commentId=' + commentId;
   if (betId) url += '&betId=' + betId;
+  if (isWinner) url += '&isWinner=' + isWinner;
 
   // iOS PWA는 openWindow URL 대신 start_url로 열리므로 Cache에 탭 정보 저장
-  const navPayload = new Response(JSON.stringify({ tab, commentId, betId, ts: Date.now() }));
+  const navPayload = new Response(JSON.stringify({ tab, commentId, betId, isWinner, ts: Date.now() }));
 
   e.waitUntil(
     caches.open('jamite-nav')
@@ -90,7 +93,7 @@ self.addEventListener('notificationclick', e => {
       .then(list => {
         for (const client of list) {
           if (client.url.startsWith(self.location.origin + BASE) && 'focus' in client) {
-            client.postMessage({ type: 'NAVIGATE_TAB', tab, commentId, betId });
+            client.postMessage({ type: 'NAVIGATE_TAB', tab, commentId, betId, isWinner });
             return client.focus();
           }
         }
