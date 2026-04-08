@@ -3625,49 +3625,53 @@ const _teamPhotos  = ['images/team1.jpeg', 'images/team2.jpeg', 'images/team3.jp
 let _lastVideoIdx = -1;
 let _lastPhotoIdx = -1;
 
-// ── 키보드 열릴 때 하단 탭바 숨기기 + 댓글 입력창 스크롤 조정 ────
+// ── 댓글/답글 입력창: 포커스 시 탭바 숨기고 버튼 바로 위에 키보드 위치 ────
 (function() {
   const nav = document.querySelector('nav.bottom-nav');
-  if (!window.visualViewport) return;
-  let _navHidden = false;
 
-  window.visualViewport.addEventListener('resize', () => {
-    const keyboardOpen = window.visualViewport.height < window.innerHeight * 0.75;
+  function isCommentInput(el) {
+    if (!el) return false;
+    const tag = el.tagName;
+    const id = el.id || '';
+    return (tag === 'TEXTAREA' || tag === 'INPUT') &&
+      (id === 'poll-comment-input' || id.startsWith('bet-cmt-') || id.startsWith('reply-text-'));
+  }
 
-    // 탭바 숨기기
+  function alignAboveKeyboard(el) {
+    if (!window.visualViewport) return;
+    const container = el.parentElement;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const vvBottom = window.visualViewport.offsetTop + window.visualViewport.height;
+    // 컨테이너(버튼 포함) 하단이 키보드(^ v ✓ 툴바) 바로 위 12px에 오도록
+    const diff = rect.bottom - vvBottom + 12;
+    if (Math.abs(diff) > 5) {
+      window.scrollBy({ top: diff, behavior: 'smooth' });
+    }
+  }
+
+  // 포커스 시 즉시 탭바 숨기고, 400ms 후(키보드 애니메이션 완료) 스크롤
+  document.addEventListener('focusin', (e) => {
+    if (!isCommentInput(e.target)) return;
     if (nav) {
-      if (keyboardOpen && !_navHidden) {
-        nav.style.transform = 'translateY(200px)';
-        nav.style.pointerEvents = 'none';
-        _navHidden = true;
-      } else if (!keyboardOpen && _navHidden) {
+      nav.style.transition = 'none';
+      nav.style.transform = 'translateY(200px)';
+      nav.style.pointerEvents = 'none';
+    }
+    setTimeout(() => alignAboveKeyboard(e.target), 400);
+  });
+
+  // 포커스 아웃 시 다른 댓글창으로 이동하지 않으면 탭바 복원
+  document.addEventListener('focusout', (e) => {
+    if (!isCommentInput(e.target)) return;
+    setTimeout(() => {
+      if (isCommentInput(document.activeElement)) return;
+      if (nav) {
+        nav.style.transition = '';
         nav.style.transform = '';
         nav.style.pointerEvents = '';
-        _navHidden = false;
       }
-    }
-
-    // 댓글/답글 입력창: 버튼이 툴바 바로 위에 오도록 스크롤
-    if (keyboardOpen) {
-      const el = document.activeElement;
-      if (!el) return;
-      const tag = el.tagName;
-      const isComment = (tag === 'TEXTAREA' || tag === 'INPUT') &&
-        (el.id === 'poll-comment-input' || el.id.startsWith('bet-cmt-') || el.id.startsWith('reply-text-'));
-      if (!isComment) return;
-
-      // textarea/input의 직접 부모 div = 버튼까지 포함한 컨테이너
-      // (poll/bet: <div>댓글쓰기+textarea+버튼행</div>, 답글: reply-input-row)
-      const container = el.parentElement;
-      if (!container) return;
-
-      requestAnimationFrame(() => {
-        const rect = container.getBoundingClientRect();
-        const vvBottom = window.visualViewport.offsetTop + window.visualViewport.height;
-        const gap = rect.bottom - vvBottom + 12; // 12px 여유
-        if (gap > 0) window.scrollBy({ top: gap, behavior: 'smooth' });
-      });
-    }
+    }, 150);
   });
 })();
 
