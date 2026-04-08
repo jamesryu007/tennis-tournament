@@ -4103,9 +4103,17 @@ function renderCheckinPage() {
         </div>
       </div>`;
     }).join(''):'<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:8px 0">첫 댓글을 남겨보세요!</p>'}
-    <div class="comment-input-row">
-      <input type="text" id="poll-comment-input" placeholder="댓글 입력..." style="flex:1" onkeydown="if(event.key==='Enter')addPollComment()">
-      <button class="btn btn-primary btn-sm" onclick="addPollComment()">전송</button>
+    <div style="margin-top:6px">
+      <div style="font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:6px">댓글쓰기</div>
+      <textarea id="poll-comment-input" placeholder="댓글 입력" rows="2"
+        style="width:100%;box-sizing:border-box;font-size:0.82rem;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;outline:none;resize:none;background:#f8fafc;line-height:1.5;font-family:inherit"
+        oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+        <button onclick="document.getElementById('poll-comment-input').value='';document.getElementById('poll-comment-input').style.height='auto'"
+          style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:7px 18px;font-size:0.8rem;font-weight:700;color:#64748b;cursor:pointer">취소</button>
+        <button onclick="addPollComment()"
+          style="background:#2563eb;border:none;border-radius:10px;padding:7px 18px;font-size:0.8rem;font-weight:700;color:#fff;cursor:pointer">등록</button>
+      </div>
     </div>
   </div>`;
 
@@ -4196,7 +4204,7 @@ function addPollComment() {
   const weekId = state.pollState.weekId;
   if(db) {
     db.ref(`jmt/poll/${weekId}/comments`).push({ author, text, at: new Date().toISOString() }).catch(fbErr);
-    if(input) input.value = '';
+    if(input) { input.value = ''; input.style.height = 'auto'; }
   }
 }
 
@@ -6326,10 +6334,17 @@ function renderBetComments(betId, bet, myName) {
     <div style="margin-top:10px;padding-top:8px;border-top:1px solid #f1f5f9">
       ${comments.length ? `<div style="margin-bottom:6px">${cmtHtml}</div>` : ''}
       ${myIdentity ? `
-        <div style="display:flex;gap:6px">
-          <input id="bet-cmt-${betId}" type="text" placeholder="댓글 입력..." style="flex:1;font-size:0.8rem;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:8px;outline:none"
-            onkeydown="if(event.key==='Enter')postBetComment('${betId}')">
-          <button onclick="postBetComment('${betId}')" style="flex-shrink:0;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6px 11px;font-size:0.78rem;font-weight:700;cursor:pointer">전송</button>
+        <div style="margin-top:6px">
+          <div style="font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:6px">댓글쓰기</div>
+          <textarea id="bet-cmt-${betId}" placeholder="댓글 입력" rows="2"
+            style="width:100%;box-sizing:border-box;font-size:0.82rem;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;outline:none;resize:none;background:#f8fafc;line-height:1.5;font-family:inherit"
+            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+            <button onclick="document.getElementById('bet-cmt-${betId}').value='';document.getElementById('bet-cmt-${betId}').style.height='auto'"
+              style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:7px 18px;font-size:0.8rem;font-weight:700;color:#64748b;cursor:pointer">취소</button>
+            <button onclick="postBetComment('${betId}')"
+              style="background:#2563eb;border:none;border-radius:10px;padding:7px 18px;font-size:0.8rem;font-weight:700;color:#fff;cursor:pointer">등록</button>
+          </div>
         </div>` : ''}
     </div>`;
 }
@@ -6346,6 +6361,7 @@ function postBetComment(betId) {
   const author = (state.identity && state.identity.name) || '';
   if (!author || !db) return;
   input.value = '';
+  input.style.height = 'auto';
   db.ref(`jmt/atpBets/${betId}/comments`).push({ author, text, at: new Date().toISOString() }).catch(fbErr);
 }
 
