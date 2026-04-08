@@ -502,8 +502,6 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="firebase-config.js"></script>
-<!-- 가상 한글 키보드 (hangul-js: 자모 조합) -->
-<script src="https://cdn.jsdelivr.net/npm/hangul-js@0.2.6/hangul.js"></script>
 </head>
 <body>
 
@@ -4126,14 +4124,13 @@ function renderCheckinPage() {
     }).join(''):'<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:8px 0">첫 댓글을 남겨보세요!</p>'}
     <div style="margin-top:6px">
       <div style="font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:6px">댓글쓰기</div>
-      <textarea id="poll-comment-input" placeholder="댓글 입력" rows="2" inputmode="none"
-        class="vkb-input"
-        style="width:100%;box-sizing:border-box;font-size:0.82rem;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;outline:none;resize:none;background:#f8fafc;line-height:1.5;font-family:inherit;cursor:pointer"
-        readonly onclick="window._vkbOpen && window._vkbOpen(this)"></textarea>
+      <textarea id="poll-comment-input" placeholder="댓글 입력" rows="2"
+        style="width:100%;box-sizing:border-box;font-size:0.82rem;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;outline:none;resize:none;background:#f8fafc;line-height:1.5;font-family:inherit"
+        oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
         <button onclick="document.getElementById('poll-comment-input').value='';document.getElementById('poll-comment-input').style.height='auto'"
           style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:7px 18px;font-size:0.8rem;font-weight:700;color:#64748b;cursor:pointer">취소</button>
-        <button onclick="if(window._vkbClose)window._vkbClose(true);addPollComment()"
+        <button onclick="addPollComment()"
           style="background:#2563eb;border:none;border-radius:10px;padding:7px 18px;font-size:0.8rem;font-weight:700;color:#fff;cursor:pointer">등록</button>
       </div>
     </div>
@@ -6358,14 +6355,13 @@ function renderBetComments(betId, bet, myName) {
       ${myIdentity ? `
         <div style="margin-top:6px">
           <div style="font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:6px">댓글쓰기</div>
-          <textarea id="bet-cmt-${betId}" placeholder="댓글 입력" rows="2" inputmode="none"
-            class="vkb-input"
-            style="width:100%;box-sizing:border-box;font-size:0.82rem;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;outline:none;resize:none;background:#f8fafc;line-height:1.5;font-family:inherit;cursor:pointer"
-            readonly onclick="window._vkbOpen && window._vkbOpen(this)"></textarea>
+          <textarea id="bet-cmt-${betId}" placeholder="댓글 입력" rows="2"
+            style="width:100%;box-sizing:border-box;font-size:0.82rem;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;outline:none;resize:none;background:#f8fafc;line-height:1.5;font-family:inherit"
+            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
           <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
             <button onclick="document.getElementById('bet-cmt-${betId}').value='';document.getElementById('bet-cmt-${betId}').style.height='auto'"
               style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:7px 18px;font-size:0.8rem;font-weight:700;color:#64748b;cursor:pointer">취소</button>
-            <button onclick="if(window._vkbClose)window._vkbClose(true);postBetComment('${betId}')"
+            <button onclick="postBetComment('${betId}')"
               style="background:#2563eb;border:none;border-radius:10px;padding:7px 18px;font-size:0.8rem;font-weight:700;color:#fff;cursor:pointer">등록</button>
           </div>
         </div>` : ''}
@@ -6986,196 +6982,6 @@ async function triggerAtpRefresh() {
     startX = startY = null; dragging = false; isHoriz = null;
   }, { passive: true });
 
-})();
-</script>
-
-<!-- ── 가상 한글/영문 키보드 ──────────────────────────────────────── -->
-<div id="vkb-wrap" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:8001;background:#d1d5db;padding:8px 6px 20px;box-shadow:0 -2px 16px rgba(0,0,0,0.22);user-select:none;-webkit-user-select:none">
-  <!-- 미리보기 + 완료 -->
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-    <div id="vkb-preview" style="flex:1;min-height:38px;background:#fff;border-radius:10px;padding:9px 12px;font-size:0.92rem;color:#1e293b;line-height:1.4;word-break:break-all"></div>
-    <button id="vkb-done-btn" style="flex-shrink:0;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:9px 16px;font-size:0.85rem;font-weight:700">완료</button>
-  </div>
-  <!-- 자판 -->
-  <div id="vkb-keys"></div>
-</div>
-
-<style>
-.vkb-row { display:flex; gap:5px; margin-bottom:5px; justify-content:center; }
-.vkb-key {
-  flex:1; max-width:42px; height:44px; border:none; border-radius:8px;
-  background:#fff; color:#1e293b; font-size:1rem; font-weight:500;
-  box-shadow:0 1px 0 rgba(0,0,0,0.35); cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
-  -webkit-tap-highlight-color:transparent; touch-action:manipulation;
-}
-.vkb-key.fn { background:#adb5bd; font-size:0.78rem; max-width:52px; }
-.vkb-key.space { max-width:none; flex:4; }
-.vkb-key.lang-btn { max-width:52px; background:#6b7280; color:#fff; font-size:0.72rem; }
-.vkb-key:active { background:#b0b8c1; }
-</style>
-
-<script>
-(function() {
-  const wrap    = document.getElementById('vkb-wrap');
-  const preview = document.getElementById('vkb-preview');
-  const keysEl  = document.getElementById('vkb-keys');
-  const doneBtn = document.getElementById('vkb-done-btn');
-
-  let _target = null;
-  let _text   = '';
-  let _jamo   = [];
-  let _lang   = 'ko';
-  let _shift  = false;
-
-  const KO = [
-    ['ㅂ','ㅈ','ㄷ','ㄱ','ㅅ','ㅛ','ㅕ','ㅑ','ㅐ','ㅔ'],
-    ['ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅗ','ㅓ','ㅏ','ㅣ'],
-    ['⇧','ㅋ','ㅌ','ㅊ','ㅍ','ㅠ','ㅜ','ㅡ','⌫'],
-    ['한/A',' '],
-  ];
-  const KO_SHIFT = [
-    ['ㅃ','ㅉ','ㄸ','ㄲ','ㅆ','ㅛ','ㅕ','ㅑ','ㅒ','ㅖ'],
-    ['ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅗ','ㅓ','ㅏ','ㅣ'],
-    ['⇧','ㅋ','ㅌ','ㅊ','ㅍ','ㅠ','ㅜ','ㅡ','⌫'],
-    ['한/A',' '],
-  ];
-  const EN = [
-    ['q','w','e','r','t','y','u','i','o','p'],
-    ['a','s','d','f','g','h','j','k','l'],
-    ['⇧','z','x','c','v','b','n','m','⌫'],
-    ['한/A',' '],
-  ];
-  const EN_SHIFT = [
-    ['Q','W','E','R','T','Y','U','I','O','P'],
-    ['A','S','D','F','G','H','J','K','L'],
-    ['⇧','Z','X','C','V','B','N','M','⌫'],
-    ['한/A',' '],
-  ];
-
-  function getLayout() {
-    if (_lang === 'ko') return _shift ? KO_SHIFT : KO;
-    return _shift ? EN_SHIFT : EN;
-  }
-
-  function renderKeys() {
-    const layout = getLayout();
-    keysEl.innerHTML = layout.map(row => {
-      const btns = row.map(k => {
-        let cls = 'vkb-key';
-        if (k === '⇧' || k === '⌫') cls += ' fn';
-        else if (k === ' ') cls += ' space';
-        else if (k === '한/A') cls += ' fn lang-btn';
-        const label = k === ' ' ? '　　　' : k;
-        return `<button class="${cls}" data-key="${k}">${label}</button>`;
-      }).join('');
-      return `<div class="vkb-row">${btns}</div>`;
-    }).join('');
-
-    keysEl.querySelectorAll('.vkb-key').forEach(btn => {
-      btn.addEventListener('touchstart', e => {
-        e.preventDefault();
-        onKey(btn.dataset.key);
-      }, { passive: false });
-      btn.addEventListener('mousedown', e => {
-        e.preventDefault();
-        onKey(btn.dataset.key);
-      });
-    });
-  }
-
-  function flushJamo() {
-    if (!_jamo.length) return '';
-    const r = Hangul.assemble(_jamo);
-    _jamo = [];
-    return r;
-  }
-
-  function onKey(k) {
-    if (k === '⇧') {
-      _shift = !_shift;
-      renderKeys();
-      return;
-    }
-    if (k === '한/A') {
-      _text += flushJamo();
-      _lang = _lang === 'ko' ? 'en' : 'ko';
-      _shift = false;
-      renderKeys();
-      updatePreview();
-      return;
-    }
-    if (k === '⌫') {
-      if (_jamo.length) {
-        _jamo.pop();
-      } else if (_text.length) {
-        const last = _text.slice(-1);
-        const dis = Hangul.disassemble(last);
-        if (dis.length > 1) { _jamo = dis.slice(0, -1); _text = _text.slice(0, -1); }
-        else { _text = _text.slice(0, -1); }
-      }
-      updatePreview();
-      return;
-    }
-    if (k === ' ') {
-      _text += flushJamo() + ' ';
-      updatePreview();
-      return;
-    }
-    if (_lang === 'ko') {
-      _jamo.push(k);
-      const assembled = Hangul.assemble(_jamo);
-      if (assembled.length > 1) {
-        _text += assembled.slice(0, -1);
-        _jamo = Hangul.disassemble(assembled.slice(-1));
-      }
-    } else {
-      _text += k;
-    }
-    if (_shift) { _shift = false; renderKeys(); }
-    updatePreview();
-  }
-
-  function updatePreview() {
-    const cur = _lang === 'ko' ? Hangul.assemble(_jamo) : '';
-    preview.textContent = _text + cur || '';
-  }
-
-  function openVkb(el) {
-    _target = el; _text = el.value || ''; _jamo = []; _lang = 'ko'; _shift = false;
-    renderKeys();
-    updatePreview();
-    wrap.style.display = 'block';
-    const nav = document.querySelector('nav.bottom-nav');
-    if (nav) { nav.style.transform = 'translateY(200px)'; nav.style.pointerEvents = 'none'; }
-  }
-
-  function closeVkb(apply) {
-    if (apply && _target) {
-      _target.value = _text + (_lang === 'ko' ? Hangul.assemble(_jamo) : '');
-    }
-    wrap.style.display = 'none';
-    _target = null; _jamo = [];
-    const nav = document.querySelector('nav.bottom-nav');
-    if (nav) { nav.style.transform = ''; nav.style.pointerEvents = ''; }
-  }
-
-  doneBtn.addEventListener('touchstart', e => { e.preventDefault(); closeVkb(true); }, { passive: false });
-  doneBtn.addEventListener('mousedown',  e => { e.preventDefault(); closeVkb(true); });
-
-  // touchstart로 vkb-input 감지 (iOS 신뢰성)
-  document.addEventListener('touchstart', e => {
-    const el = e.target;
-    if (el.classList && el.classList.contains('vkb-input')) {
-      e.preventDefault();
-      openVkb(el);
-    } else if (wrap.style.display !== 'none' && !wrap.contains(el)) {
-      closeVkb(false);
-    }
-  }, { passive: false });
-
-  window._vkbOpen  = openVkb;
-  window._vkbClose = closeVkb;
 })();
 </script>
 </body>
