@@ -6603,21 +6603,26 @@ async function triggerAtpRefresh() {
       url:         (a.links && a.links.web && a.links.web.href) || '',
     })).filter(a => a.headline);
     if (articles.length) {
-      // 번역 (실패 시 원문 유지)
+      // 번역 성공 시에만 DB 저장 (번역 실패 시 영문으로 DB 덮어쓰기 방지)
+      let translated = false;
       try {
         const TRANS_URL = 'https://script.google.com/macros/s/AKfycbwfF6W1xll0ooa0g4Gb57dnVnknXbZxKM1au3YlY52oGsrDIqHPty4q6fh6mWW0SXI00w/exec';
         const toTrans   = articles.flatMap(a => [a.headline, a.description]);
         const tRes      = await fetch(`${TRANS_URL}?texts=${encodeURIComponent(JSON.stringify(toTrans))}`);
         const tJson     = await tRes.json();
         const tr        = tJson.translated || [];
-        articles.forEach((a, i) => {
-          a.headlineKo    = tr[i * 2]     || a.headline;
-          a.descriptionKo = tr[i * 2 + 1] || a.description;
-        });
+        if (tr.length > 0) {
+          articles.forEach((a, i) => {
+            a.headlineKo    = tr[i * 2]     || a.headline;
+            a.descriptionKo = tr[i * 2 + 1] || a.description;
+          });
+          translated = true;
+        }
       } catch(te) { console.warn('news translate error:', te); }
       atpState.news = articles;
       if (atpState.currentTab === 'news') renderAtpNewsPanel();
-      if (db) db.ref('jmt/atpNews').set({ articles, updatedAt: new Date().toISOString() }).catch(() => {});
+      // 번역 성공한 경우에만 DB 저장 — Cloud Function이 저장한 한글 번역본 보호
+      if (translated && db) db.ref('jmt/atpNews').set({ articles, updatedAt: new Date().toISOString() }).catch(() => {});
     }
   } catch(e) { console.warn('news refresh error:', e); }
 
