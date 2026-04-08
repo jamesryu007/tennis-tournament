@@ -533,12 +533,6 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     </div>
   </div>
 
-  <!-- 내 관심선수 경기 -->
-  <div id="atp-fav-matches-card" class="card" style="margin-bottom:10px;display:none">
-    <div class="card-title">⭐ 관심선수</div>
-    <div id="atp-fav-matches-list"></div>
-  </div>
-
   <!-- 내부 탭: 대진표 / 베팅 -->
   <div style="display:flex;border-radius:12px;overflow:hidden;border:1.5px solid #e2e8f0;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">
     <button class="atp-tab active" id="atp-tab-draw" onclick="switchAtpTab('draw')">🎾 대진표</button>
@@ -5080,53 +5074,11 @@ function isFavPlayer(playerName) {
 
 // ── 관심선수 경기 렌더 ────────────────────────────────────────────
 function renderAtpFavMatches() {
-  const card = document.getElementById('atp-fav-matches-card');
-  const list = document.getElementById('atp-fav-matches-list');
-  if (!card || !list) return;
+  // 관심선수 카드 제거됨 — 대진표 패널 내 렌더로 통합
+  renderAtpDrawPanel();
   if (!atpState.favPlayers.length) { card.style.display = 'none'; return; }
 
   // 카드 타이틀에 선수 이름 + 랭킹 pills 표시
-  const titleEl = card.querySelector('.card-title');
-  if (titleEl) {
-    const pills = atpState.favPlayers.map(p => {
-      const ranked = ATP_TOP_PLAYERS.find(r => r.name.toLowerCase() === p.name.toLowerCase());
-      const rankStr = ranked ? `<span style="font-size:0.62rem;opacity:0.75">${ranked.rank}위</span> ` : '';
-      return `<span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:12px;padding:2px 9px;font-size:0.68rem;font-weight:700;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${rankStr}${p.name}</span>`;
-    }).join('');
-    titleEl.style.display = 'flex';
-    titleEl.style.alignItems = 'center';
-    titleEl.style.flexWrap = 'nowrap';
-    titleEl.style.gap = '6px';
-    titleEl.style.overflow = 'hidden';
-    titleEl.innerHTML = `<span style="font-size:0.82rem;font-weight:700;color:#1e293b;white-space:nowrap;flex-shrink:0">⭐ 관심선수</span><span style="display:inline-flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">${pills}</span>`;
-  }
-
-  const useGS = atpState.lastGrandSlam && (!atpState.tournamentInfo || !atpState.tournamentInfo.name);
-  const allMatches = useGS ? (atpState.lastGrandSlam.matches || []) : atpState.matches;
-  const favMatches = allMatches.filter(m =>
-    isFavPlayer(m.player1Name) || isFavPlayer(m.player2Name)
-  );
-
-  if (!favMatches.length) {
-    card.style.display = '';
-    list.innerHTML = '<div style="text-align:center;padding:12px 0;color:#94a3b8;font-size:0.82rem">등록된 관심선수의 경기가 없습니다</div>';
-    return;
-  }
-  card.style.display = '';
-
-  // 라운드별 그룹핑
-  const rounds = {};
-  favMatches.forEach(m => {
-    const r = m.roundName || '기타';
-    if (!rounds[r]) rounds[r] = [];
-    rounds[r].push(m);
-  });
-  let html = '';
-  for (const [round, ms] of Object.entries(rounds)) {
-    html += `<div style="font-size:0.72rem;font-weight:700;color:#94a3b8;padding:6px 0 3px;letter-spacing:0.3px">${round}</div>`;
-    html += ms.map(m => renderMatchRow(m)).join('');
-  }
-  list.innerHTML = html;
 }
 
 // ── Grand Slam 라운드 순서 ────────────────────────────────────────
@@ -5238,14 +5190,47 @@ function renderRoundDrawPanel(el, matches, tier) {
   const selRoundMatches = roundGroups[sel] || [];
   const selLabel = ROUND_LABEL[sel] === '🏆' ? '🏆 Final' : (ROUND_LABEL[sel] || sel);
 
+  // 관심선수 pills
+  let favPillsHtml = '';
+  if (atpState.favPlayers && atpState.favPlayers.length) {
+    const pills = atpState.favPlayers.map(p => {
+      const ranked = (atpState.rankingsFromDb.length ? atpState.rankingsFromDb : ATP_TOP_PLAYERS)
+        .find(r => r.name.toLowerCase() === p.name.toLowerCase());
+      const rankStr = ranked ? `<span style="font-size:0.6rem;opacity:0.7">${ranked.rank}위</span> ` : '';
+      return `<span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:12px;padding:2px 9px;font-size:0.68rem;font-weight:700;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${rankStr}${p.name}</span>`;
+    }).join('');
+    favPillsHtml = `<div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:10px">
+      <span style="font-size:0.72rem;font-weight:700;color:#1e293b;white-space:nowrap;flex-shrink:0">⭐ 관심선수</span>
+      <div style="display:inline-flex;gap:4px;flex-wrap:nowrap">${pills}</div>
+    </div>`;
+  }
+
+  // 관심선수 경기 / 나머지 경기 분리
+  const favMatches   = selRoundMatches.filter(m => isFavPlayer(m.player1Name) || isFavPlayer(m.player2Name));
+  const otherMatches = selRoundMatches.filter(m => !isFavPlayer(m.player1Name) && !isFavPlayer(m.player2Name));
+
+  let matchesHtml = '';
+  if (!selRoundMatches.length) {
+    matchesHtml = '<div style="text-align:center;padding:12px 0;color:#94a3b8;font-size:0.82rem">경기 데이터 없음</div>';
+  } else {
+    if (favMatches.length) {
+      matchesHtml += `<div style="font-size:0.7rem;font-weight:700;color:#2563eb;margin-bottom:6px;padding:4px 8px;background:#eff6ff;border-radius:8px;display:inline-block">⭐ 관심선수 경기</div>`;
+      matchesHtml += favMatches.map(m => renderMatchRow(m)).join('');
+      if (otherMatches.length) {
+        matchesHtml += `<div style="border-top:1px solid #f1f5f9;margin:8px 0 6px"></div>`;
+      }
+    }
+    matchesHtml += otherMatches.map(m => renderMatchRow(m)).join('');
+  }
+
   let html = `
     <div style="display:flex;align-items:center;gap:4px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none">
       ${parts.join('')}
     </div>
+    ${favPillsHtml}
     <div style="font-size:0.72rem;font-weight:700;color:#94a3b8;margin-bottom:8px;letter-spacing:0.3px">${selLabel}</div>
   `;
-  html += selRoundMatches.map(m => renderMatchRow(m)).join('')
-    || '<div style="text-align:center;padding:12px 0;color:#94a3b8;font-size:0.82rem">경기 데이터 없음</div>';
+  html += matchesHtml;
   el.innerHTML = html;
 }
 
