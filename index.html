@@ -5521,7 +5521,7 @@ function renderWinnerBetCard(betId, bet, myName, myBet, isOpen, hasResult, showA
   const waitMsg = !isOpen && !hasResult
     ? `<div style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:8px 0">결과 집계 대기 중...</div>` : '';
 
-  return `${editGuide}${myBetHtml}${memberPctHtml}${adminStatsHtml}${playerListHtml}${waitMsg}`;
+  return `${editGuide}${myBetHtml}${memberPctHtml}${playerListHtml}${adminStatsHtml}${waitMsg}`;
 }
 
 function renderWinnerBetPlayerList(betId) {
@@ -5649,8 +5649,8 @@ function renderMatchBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAl
   const waitMsg = !isOpen && !hasResult
     ? `<div style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:8px 0">결과 집계 대기 중...</div>` : '';
 
-  const matchStatsFirst = isOpen ? pctBarHtml + adminMatchStats : '';
-  const matchStatsAfter = !isOpen ? (showAll ? pctBarHtml + adminMatchStats : `<div style="font-size:0.75rem;color:#94a3b8;text-align:center;margin-top:6px">베팅 결과는 Close 후 공개됩니다</div>`) : '';
+  const matchStatsFirst = isOpen ? pctBarHtml : '';
+  const matchStatsAfter = !isOpen ? (showAll ? pctBarHtml + adminMatchStats : `<div style="font-size:0.75rem;color:#94a3b8;text-align:center;margin-top:6px">베팅 결과는 Close 후 공개됩니다</div>`) : adminMatchStats;
   return `${myBetHtml}${matchStatsFirst}${votingHtml}${matchStatsAfter}${waitMsg}`;
 }
 
