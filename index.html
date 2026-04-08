@@ -3625,21 +3625,46 @@ const _teamPhotos  = ['images/team1.jpeg', 'images/team2.jpeg', 'images/team3.jp
 let _lastVideoIdx = -1;
 let _lastPhotoIdx = -1;
 
-// ── 키보드 열릴 때 하단 탭바 숨기기 (iOS PWA) ──────────────────────
+// ── 키보드 열릴 때 하단 탭바 숨기기 + 댓글 입력창 스크롤 조정 ────
 (function() {
   const nav = document.querySelector('nav.bottom-nav');
-  if (!nav || !window.visualViewport) return;
+  if (!window.visualViewport) return;
   let _navHidden = false;
+
   window.visualViewport.addEventListener('resize', () => {
     const keyboardOpen = window.visualViewport.height < window.innerHeight * 0.75;
-    if (keyboardOpen && !_navHidden) {
-      nav.style.transform = 'translateY(200px)';
-      nav.style.pointerEvents = 'none';
-      _navHidden = true;
-    } else if (!keyboardOpen && _navHidden) {
-      nav.style.transform = '';
-      nav.style.pointerEvents = '';
-      _navHidden = false;
+
+    // 탭바 숨기기
+    if (nav) {
+      if (keyboardOpen && !_navHidden) {
+        nav.style.transform = 'translateY(200px)';
+        nav.style.pointerEvents = 'none';
+        _navHidden = true;
+      } else if (!keyboardOpen && _navHidden) {
+        nav.style.transform = '';
+        nav.style.pointerEvents = '';
+        _navHidden = false;
+      }
+    }
+
+    // 댓글 입력창: 버튼이 툴바 바로 위에 오도록 스크롤
+    if (keyboardOpen) {
+      const el = document.activeElement;
+      if (!el) return;
+      const tag = el.tagName;
+      const isComment = (tag === 'TEXTAREA' || tag === 'INPUT') &&
+        (el.id === 'poll-comment-input' || el.id.startsWith('bet-cmt-') || el.id.startsWith('reply-text-'));
+      if (!isComment) return;
+
+      // 버튼까지 포함한 부모 컨테이너의 bottom이 visualViewport 하단에 맞도록 스크롤
+      const container = el.closest('div') && el.closest('div').parentElement
+        ? el.closest('div').parentElement
+        : el.parentElement;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const vvBottom = window.visualViewport.offsetTop + window.visualViewport.height;
+      const gap = rect.bottom - vvBottom + 8; // 8px 여유
+      if (gap > 0) window.scrollBy({ top: gap, behavior: 'smooth' });
     }
   });
 })();
