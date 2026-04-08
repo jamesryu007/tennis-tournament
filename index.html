@@ -3628,9 +3628,8 @@ let _lastPhotoIdx = -1;
 // ── 댓글/답글 입력창: 포커스 시 탭바 숨기고 버튼 바로 위에 키보드 위치 ────
 (function() {
   const nav = document.querySelector('nav.bottom-nav');
-  let _commentEl = null;
-  let _settleTimer = null;
-  let _aligned = false; // 포커스당 1회만 정렬
+  let _commentId = null; // 저장된 참조 대신 ID로 — Firebase 리렌더 후에도 fresh 조회
+  let _aligned = false;
 
   function isCommentInput(el) {
     if (!el) return false;
@@ -3640,39 +3639,33 @@ let _lastPhotoIdx = -1;
   }
 
   function alignAboveKeyboard() {
-    if (_aligned) return; // 이미 정렬됨 — scrollBy 유발 resize 무한루프 방지
-    const el = _commentEl;
-    if (!el || !window.visualViewport) return;
+    if (_aligned || !_commentId || !window.visualViewport) return;
+    const el = document.getElementById(_commentId); // 항상 DOM에서 새로 조회
+    if (!el) return;
     const container = el.parentElement;
     if (!container) return;
     const rect = container.getBoundingClientRect();
     const vvBottom = window.visualViewport.offsetTop + window.visualViewport.height;
+    // 키보드가 아직 안 열렸거나 rect가 0이면 skip
+    if (vvBottom >= window.innerHeight - 50) return;
     const diff = rect.bottom - vvBottom + 12;
-    _aligned = true; // 스크롤 전에 플래그 설정
+    _aligned = true;
     if (Math.abs(diff) > 5) {
       window.scrollBy({ top: diff, behavior: 'smooth' });
     }
   }
 
-  // visualViewport.resize 안정화 후 실행 (키보드 완전히 열린 + iOS 자동스크롤 완료)
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', () => {
-      if (!_commentEl || _aligned) return;
-      clearTimeout(_settleTimer);
-      _settleTimer = setTimeout(alignAboveKeyboard, 200);
-    });
-  }
-
+  // resize 리스너 없음 — scrollBy가 resize를 재발생시켜 루프 유발하므로 제거
+  // 700ms: iOS 키보드 애니메이션(~300ms) + 자동스크롤 완료 후 안정된 시점
   document.addEventListener('focusin', (e) => {
     if (!isCommentInput(e.target)) return;
-    _commentEl = e.target;
-    _aligned = false; // 새 포커스마다 리셋
+    _commentId = e.target.id;
+    _aligned = false;
     if (nav) {
       nav.style.transition = 'none';
       nav.style.transform = 'translateY(200px)';
       nav.style.pointerEvents = 'none';
     }
-    // visualViewport.resize가 안 오는 경우 fallback
     setTimeout(alignAboveKeyboard, 700);
   });
 
@@ -3680,8 +3673,8 @@ let _lastPhotoIdx = -1;
     if (!isCommentInput(e.target)) return;
     setTimeout(() => {
       if (isCommentInput(document.activeElement)) return;
-      _commentEl = null;
-      clearTimeout(_settleTimer);
+      _commentId = null;
+      _aligned = false;
       if (nav) {
         nav.style.transition = '';
         nav.style.transform = '';
