@@ -1591,6 +1591,18 @@ function setupFirebaseListeners() {
   // 연결 상태 감지
   db.ref('.info/connected').on('value', snap => setConnStatus(snap.val() === true));
 
+  // 승리팀 실시간 알림 — 오늘의 경기 탭 활성 중인 모든 클라이언트에 애니메이션
+  let _lastWinnerAlertTs = null;
+  db.ref('jmt/winnerAlert').on('value', snap => {
+    const d = snap.val();
+    if (!d || !d.ts || !d.team) return;
+    if (_lastWinnerAlertTs === d.ts) return; // 중복 방지
+    _lastWinnerAlertTs = d.ts;
+    if (document.getElementById('page-matches').classList.contains('active')) {
+      showWinnerCelebration(d.team);
+    }
+  });
+
   // 팀 닉네임 테이블 동기화
   db.ref('jmt/pairNicknames').on('value', snap => {
     state.pairNicknames = snap.val() || {};
@@ -2513,7 +2525,12 @@ async function saveDailyScore(){
     if (winner === 0 || winner === 1) {
       const wTeam = winner === 0 ? d.team0 : d.team1;
       const wNick  = winner === 0 ? nick0   : nick1;
-      showWinnerCelebration(wNick || wTeam.join(' / '));
+      const teamLabel = wNick || wTeam.join(' / ');
+      showWinnerCelebration(teamLabel);
+      // 다른 클라이언트에도 실시간 전파
+      const ts = Date.now();
+      if (db) db.ref('jmt/winnerAlert').set({ team: teamLabel, ts })
+        .then(() => setTimeout(() => db.ref('jmt/winnerAlert').remove(), 5000));
     }
   }catch(e){alert('저장 실패: '+e.message);}
 }
