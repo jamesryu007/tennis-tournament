@@ -2368,9 +2368,27 @@ function startDailyMatch(id){
   }
 }
 
+function canEditDailyScore(d){
+  const myName=state.identity&&state.identity.name;
+  if(!myName) return false;
+  if(myName===ADMIN_NAME) return true;
+  const participants=[...(d.team0||[]),...(d.team1||[])];
+  if(!participants.includes(myName)) return false;
+  if(d.scoredAt&&(Date.now()-d.scoredAt)>2*60*60*1000) return false;
+  return true;
+}
+
 function openDailyScore(id){
   const d=_dailyCards[id];
   if(!d||(d.phase!=='playing'&&d.phase!=='done')) return;
+  if(!canEditDailyScore(d)){
+    const myName=state.identity&&state.identity.name;
+    if(!myName){alert('로그인 후 이용하세요.');return;}
+    const participants=[...(d.team0||[]),...(d.team1||[])];
+    if(!participants.includes(myName)){alert('경기에 참석한 선수만 점수를 등록할 수 있어요.');return;}
+    alert('점수 등록 후 2시간이 지나 수정이 불가능합니다.\n관리자에게 문의하세요.');
+    return;
+  }
   _dailyScoreCtx=id;
   _dailyScoreSets=Math.max(1,d.sets.length);
   const t0=_getTeamDisplay(d.team0),t1=_getTeamDisplay(d.team1);
@@ -2577,6 +2595,7 @@ async function saveDailyScore(){
     if(nick0){nickUpdates[`jmt/pairNicknames/${k0}`]=nick0;nickUpdates[`jmt/pairStats/${_rankYear}/${k0}/nickname`]=nick0;}
     if(nick1){nickUpdates[`jmt/pairNicknames/${k1}`]=nick1;nickUpdates[`jmt/pairStats/${_rankYear}/${k1}/nickname`]=nick1;}
     if(Object.keys(nickUpdates).length) await db.ref().update(nickUpdates);
+    if(!d.scoredAt) d.scoredAt=Date.now(); // 최초 점수 등록 시각 기록
     if(d.matchKey){
       const oldWinner=d.winner; // 이전 결과 (undefined이면 아직 통계 미적용)
       await db.ref('jmt/matches/'+d.matchKey).update({sets,winner,date:today});
