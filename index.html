@@ -5689,7 +5689,7 @@ function renderWinnerBetCard(betId, bet, myName, myBet, isOpen, hasResult, showA
     ? `<div style="background:#eff6ff;border-radius:8px;padding:7px 10px;font-size:0.82rem;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
         <span>✅ <b>${myBet.playerName}</b>에 베팅 완료</span>
         ${isOpen && (myBet.editCount || 0) < 1
-          ? `<button onclick="editBetWinner('${betId}')" style="background:#fff;border:1px solid #2563eb;border-radius:8px;padding:3px 9px;font-size:0.72rem;font-weight:700;color:#2563eb;cursor:pointer">✏️ 수정</button>`
+          ? `<button onclick="editBetWinner('${betId}')" style="background:#fff;border:1px solid #2563eb;border-radius:8px;padding:3px 9px;font-size:0.72rem;font-weight:700;color:#2563eb;cursor:pointer">${editing ? '✕ 닫기' : '✏️ 수정'}</button>`
           : (isOpen ? '<span style="font-size:0.68rem;color:#94a3b8">수정 불가</span>' : '')}
        </div>`
     : '';
@@ -5933,11 +5933,11 @@ function placeBetMatch(betId, playerId, playerName) {
 const _betEditing = new Set();
 
 function editBetWinner(betId) {
-  _betEditing.add(betId);
+  _betEditing.has(betId) ? _betEditing.delete(betId) : _betEditing.add(betId);
   renderAtpBetPanel();
 }
 function editBetMatch(betId) {
-  _betEditing.add(betId);
+  _betEditing.has(betId) ? _betEditing.delete(betId) : _betEditing.add(betId);
   renderAtpBetPanel();
 }
 
