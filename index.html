@@ -5685,6 +5685,8 @@ function renderWinnerBetCard(betId, bet, myName, myBet, isOpen, hasResult, showA
   }
 
   // Close 전/후 공통 — 내 베팅 표시
+  const editing = _betEditing.has(betId);
+
   const myBetHtml = myBet
     ? `<div style="background:#eff6ff;border-radius:8px;padding:7px 10px;font-size:0.82rem;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">
         <span>✅ <b>${myBet.playerName}</b>에 베팅 완료</span>
@@ -5698,8 +5700,6 @@ function renderWinnerBetCard(betId, bet, myName, myBet, isOpen, hasResult, showA
   const editGuide = !myBet && isOpen
     ? `<div style="font-size:0.72rem;color:#64748b;margin-bottom:8px">💡 베팅은 1회 수정 가능합니다. 수정 후에는 변경이 불가합니다.</div>`
     : '';
-
-  const editing = _betEditing.has(betId);
   const playerListHtml = isOpen && (!myBet || editing)
     ? `<div id="bet-player-list-${betId}">
         ${renderWinnerBetPlayerList(betId)}
