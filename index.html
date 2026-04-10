@@ -495,6 +495,18 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .identity-item:active, .identity-item.selected { border-color:#2563eb; background:#eff6ff; }
 #identity-modal { align-items:center; }
 #identity-modal .modal { border-radius:20px; margin:16px; }
+/* ── 모임 정하기 ── */
+.mp-cal-wrap{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.mp-cal-day{text-align:center;padding:8px 2px;font-size:0.78rem;border-radius:7px;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none}
+.mp-cal-day.today{font-weight:800;color:#2563eb}
+.mp-cal-day.sel{background:#2563eb;color:#fff!important;font-weight:700}
+.mp-cal-day.past,.mp-cal-day.blank{color:#e2e8f0;pointer-events:none}
+.mp-cal-day:not(.past):not(.blank):not(.sel):hover{background:#eff6ff}
+.mp-option{padding:10px 12px;border-radius:10px;background:#f8fafc;border:1.5px solid #e2e8f0;margin-bottom:7px;transition:border-color .15s,background .15s}
+.mp-option.voted{border-color:#2563eb;background:#eff6ff}
+.mp-option.winner{border-color:#f59e0b;background:#fef9c3}
+.mp-chip{display:inline-flex;align-items:center;font-size:0.68rem;padding:2px 7px;border-radius:10px;background:#dbeafe;color:#1d4ed8;margin:2px 2px 0 0;font-weight:600}
+.mp-absent-chip{display:inline-flex;align-items:center;font-size:0.68rem;padding:2px 7px;border-radius:10px;background:#f1f5f9;color:#94a3b8;margin:2px 2px 0 0}
 </style>
 <!-- Firebase SDK (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -716,6 +728,13 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
 <!-- ══ PAGE: 대회만들기 ══ -->
 <div class="page" id="page-setup">
+  <div class="sub-tabs" style="margin-bottom:10px">
+    <div class="sub-tab active" id="stab-create" onclick="switchSetupTab('create')">🏆 모임만들기</div>
+    <div class="sub-tab" id="stab-meeting" onclick="switchSetupTab('meeting')">📅 모임 정하기</div>
+  </div>
+
+  <!-- 모임만들기 패널 -->
+  <div id="setup-panel-create">
 
   <!-- 대회 진행중 배너 (대진 생성 후 표시) -->
   <div id="active-tournament-banner" style="display:none">
@@ -864,6 +883,14 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       </div>
       <div class="divider"></div>
       <button class="btn btn-success btn-full" id="btn-init-tournaments" onclick="initAllTournaments()">🎾 대진 생성 (혼합 · 남자 · 여자)</button>
+    </div>
+  </div>
+  </div><!-- /setup-panel-create -->
+
+  <!-- 모임 정하기 패널 -->
+  <div id="setup-panel-meeting" style="display:none">
+    <div id="meeting-poll-content">
+      <div class="card"><p style="text-align:center;color:#94a3b8;padding:20px 0">로딩 중...</p></div>
     </div>
   </div>
 </div>
@@ -1208,6 +1235,27 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <button class="dc-numpad-btn" style="background:#f1f5f9;border-color:#f1f5f9"></button>
       </div>
       <button class="btn btn-primary btn-full" onclick="saveDailyScore()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 모임 정하기 달력 ══ -->
+<div class="modal-overlay" id="mp-cal-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-round">날짜 선택 (최대 10개)</span>
+      <button class="modal-close" onclick="closeMpCal()">✕</button>
+    </div>
+    <div style="padding:12px 16px 20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <button onclick="mpCalPrev()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#475569;padding:4px 10px">‹</button>
+        <div id="mp-cal-header" style="font-weight:700;font-size:0.92rem;color:#1e293b"></div>
+        <button onclick="mpCalNext()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#475569;padding:4px 10px">›</button>
+      </div>
+      <div id="mp-cal-grid"></div>
+      <div id="mp-cal-sel-list" style="margin-top:10px;min-height:24px"></div>
+      <button onclick="confirmMpCalDates()" class="btn btn-primary btn-full" style="margin-top:12px">확인</button>
     </div>
   </div>
 </div>
@@ -1639,6 +1687,13 @@ function setupFirebaseListeners() {
     }
     if(document.getElementById('page-checkin').classList.contains('active')) renderCheckinPage();
   }, fbErr);
+
+  // 모임 정하기 실시간 동기화
+  db.ref('jmt/meetingPoll').on('value', snap => {
+    _mpData = snap.val();
+    const panel = document.getElementById('setup-panel-meeting');
+    if (panel && panel.style.display !== 'none') renderMeetingPoll();
+  });
 }
 
 // ══ BRACKET CONSTANTS ══
@@ -3726,7 +3781,8 @@ let _lastPhotoIdx = -1;
     if (!el) return false;
     const id = el.id || '';
     return (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') &&
-      (id === 'poll-comment-input' || id.startsWith('bet-cmt-') || id.startsWith('reply-text-'));
+      (id === 'poll-comment-input' || id.startsWith('bet-cmt-') || id.startsWith('reply-text-') ||
+       id === 'mp-comment-input' || id.startsWith('mp-reply-text-'));
   }
 
   function alignAboveKeyboard() {
@@ -4874,7 +4930,7 @@ function updateSetupPageUI() {
 }
 
 // ══ MODAL OVERLAY CLOSE ══
-['score-modal','participant-modal','add-member-modal','edit-modal','hist-detail-modal','slot-edit-modal','pw-modal'].forEach(id => {
+['score-modal','participant-modal','add-member-modal','edit-modal','hist-detail-modal','slot-edit-modal','pw-modal','mp-cal-modal'].forEach(id => {
   document.getElementById(id).addEventListener('click', function(e) {
     if (e.target === this) {
       if (id==='score-modal') closeModal();
@@ -6981,6 +7037,525 @@ async function triggerAtpRefresh() {
     el.style.display = 'flex';
     setTimeout(() => { el.style.display = 'none'; }, 2000);
   })();
+</script>
+
+<script>
+// ══ 모임 정하기 ══════════════════════════════════════════════════
+
+let _mpData = null;
+let _mpCal = { year: 0, month: 0, selected: [] };
+let _mpCreateDates = [];
+let _mpCreateContents = [];
+
+function switchSetupTab(tab) {
+  ['create','meeting'].forEach(t => {
+    const panel = document.getElementById(`setup-panel-${t}`);
+    const stab  = document.getElementById(`stab-${t}`);
+    if (panel) panel.style.display = t === tab ? 'block' : 'none';
+    if (stab)  stab.className = 'sub-tab' + (t === tab ? ' active' : '');
+  });
+  if (tab === 'meeting') renderMeetingPoll();
+}
+
+function renderMeetingPoll() {
+  const el = document.getElementById('meeting-poll-content');
+  if (!el) return;
+  const me    = state.identity && state.identity.name;
+  const isMgr = isManager();
+
+  if (!_mpData || !_mpData.status) {
+    el.innerHTML = isMgr ? _mpCreateFormHtml() :
+      `<div class="card"><p style="text-align:center;color:#94a3b8;padding:20px 0">진행 중인 투표가 없습니다.</p></div>`;
+    if (isMgr) _bindMpTypeRadios();
+    return;
+  }
+
+  const poll = _mpData;
+  let html = '';
+
+  if (poll.status === 'open') {
+    html += _mpVoteSection(poll, me);
+  } else {
+    html += _mpResultCard(poll);
+  }
+
+  if (isMgr) html += _mpAdminControls(poll);
+  html += _mpCommentsHtml(poll);
+
+  el.innerHTML = html;
+}
+
+// ── 생성 폼 ──
+function _mpCreateFormHtml() {
+  return `<div class="card">
+    <div class="card-title">📅 모임 정하기 투표 만들기</div>
+    <div class="divider"></div>
+    <div class="field-label">투표 제목</div>
+    <input type="text" id="mp-title" placeholder="예) 5월 정기 모임">
+    <div class="field-label" style="margin-top:10px">투표 유형</div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:5px;font-size:0.85rem"><input type="radio" name="mp-type" value="date" checked> 날짜 정하기</label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:0.85rem"><input type="radio" name="mp-type" value="content"> 내용 정하기</label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:0.85rem"><input type="radio" name="mp-type" value="both"> 둘 다</label>
+    </div>
+    <div id="mp-date-section">
+      <div class="field-label">후보 날짜 <span style="font-size:0.72rem;color:#94a3b8">(최대 10개)</span></div>
+      <button class="btn btn-outline btn-full" style="margin-bottom:8px" onclick="openMpCal()">📅 날짜 선택</button>
+      <div id="mp-create-dates" style="display:flex;flex-wrap:wrap;gap:4px;min-height:20px"></div>
+    </div>
+    <div id="mp-content-section" style="display:none">
+      <div class="field-label" style="margin-top:10px">후보 내용</div>
+      <div id="mp-contents-list"></div>
+      <button class="btn btn-outline btn-sm" onclick="mpAddContent()" style="margin-top:6px">+ 항목 추가</button>
+    </div>
+    <div style="margin-top:12px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600;cursor:pointer">
+        <input type="checkbox" id="mp-is-public" checked>
+        공개 투표
+        <span style="font-size:0.72rem;color:#94a3b8;font-weight:400">(누가 어떤 항목을 선택했는지 모두에게 표시)</span>
+      </label>
+    </div>
+    <button class="btn btn-success btn-full" style="margin-top:14px" onclick="createMeetingPoll()">투표 생성</button>
+  </div>`;
+}
+
+function _bindMpTypeRadios() {
+  document.querySelectorAll('input[name="mp-type"]').forEach(r => {
+    r.addEventListener('change', () => {
+      const v = r.value;
+      const ds = document.getElementById('mp-date-section');
+      const cs = document.getElementById('mp-content-section');
+      if (ds) ds.style.display = (v === 'date' || v === 'both') ? 'block' : 'none';
+      if (cs) cs.style.display = (v === 'content' || v === 'both') ? 'block' : 'none';
+    });
+  });
+}
+
+// ── 투표 섹션 ──
+function _mpVoteSection(poll, me) {
+  const votes    = poll.votes || {};
+  const myKey    = me ? me.replace(/[.#$[\]]/g, '_') : null;
+  const myVotes  = (myKey && votes[myKey]) ? votes[myKey] : {};
+  const members  = state.members.map(m => m.name);
+  const isPublic = poll.isPublic !== false;
+  const voterNames = Object.values(votes).map(v => v.name).filter(Boolean);
+  const nonVoters  = members.filter(n => !voterNames.includes(n));
+  const weekDays   = ['일','월','화','수','목','금','토'];
+
+  let html = `<div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <div class="card-title" style="margin-bottom:0">📅 ${poll.title||'모임 정하기'}</div>
+      <span class="status-badge badge-active">투표 중</span>
+    </div>
+    <div style="font-size:0.73rem;color:#64748b;margin-bottom:10px">${isPublic?'🔓 공개':'🔒 비공개'} · 중복 선택 가능</div>`;
+
+  // 날짜
+  if ((poll.type==='date'||poll.type==='both') && poll.dates&&poll.dates.length) {
+    const dateCounts = {}; const dateVoters = {};
+    poll.dates.forEach(d => { dateCounts[d]=0; dateVoters[d]=[]; });
+    Object.entries(votes).forEach(([k,v]) => {
+      if (!v.dates) return;
+      const vn = v.name||k;
+      Object.keys(v.dates).forEach(dk => {
+        if (v.dates[dk] && dateCounts.hasOwnProperty(dk)) { dateCounts[dk]++; dateVoters[dk].push(vn); }
+      });
+    });
+    const mx = Math.max(...Object.values(dateCounts), 0);
+
+    html += `<div style="font-size:0.85rem;font-weight:700;color:#1e293b;margin-bottom:8px">📅 날짜 선택</div>`;
+    poll.dates.forEach(d => {
+      const cnt    = dateCounts[d]||0;
+      const voted  = (myVotes.dates||{})[d]===true;
+      const barPct = mx>0 ? Math.round(cnt/mx*100) : 0;
+      const dObj   = new Date(d+'T00:00:00');
+      const lbl    = `${dObj.getMonth()+1}월 ${dObj.getDate()}일(${weekDays[dObj.getDay()]})`;
+      const votersRow = isPublic && dateVoters[d].length
+        ? `<div style="margin-top:4px">${dateVoters[d].map(n=>`<span class="mp-chip">${n}</span>`).join('')}</div>` : '';
+      const btn = me
+        ? `<button onclick="mpToggleDateVote('${d}')" style="flex-shrink:0;font-size:0.75rem;padding:4px 10px;border-radius:8px;border:1.5px solid ${voted?'#2563eb':'#e2e8f0'};background:${voted?'#2563eb':'#fff'};color:${voted?'#fff':'#64748b'};cursor:pointer;font-weight:600">${voted?'✓ 선택됨':'선택'}</button>` : '';
+      html += `<div class="mp-option${voted?' voted':''}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:0.85rem;font-weight:700;color:#1e293b">${lbl}</div>
+            <div style="height:6px;background:#e2e8f0;border-radius:3px;margin:5px 0">
+              <div style="height:100%;width:${barPct}%;background:${voted?'#2563eb':'#94a3b8'};border-radius:3px;transition:width .3s"></div>
+            </div>
+            <div style="font-size:0.72rem;color:#64748b">${cnt}명 선택</div>${votersRow}
+          </div>${btn}
+        </div>
+      </div>`;
+    });
+    html += `<div style="margin-bottom:10px"></div>`;
+  }
+
+  // 내용
+  if ((poll.type==='content'||poll.type==='both') && poll.contents&&poll.contents.length) {
+    const contentCounts = {}; const contentVoters = {};
+    poll.contents.forEach((_,i) => { contentCounts[i]=0; contentVoters[i]=[]; });
+    Object.entries(votes).forEach(([k,v]) => {
+      if (!v.contents) return;
+      const vn = v.name||k;
+      Object.keys(v.contents).forEach(i => {
+        const n = Number(i);
+        if (v.contents[i] && contentCounts.hasOwnProperty(n)) { contentCounts[n]++; contentVoters[n].push(vn); }
+      });
+    });
+    const mx = Math.max(...Object.values(contentCounts), 0);
+
+    html += `<div style="font-size:0.85rem;font-weight:700;color:#1e293b;margin-bottom:8px">🎯 내용 선택</div>`;
+    poll.contents.forEach((c,i) => {
+      const cnt    = contentCounts[i]||0;
+      const voted  = (myVotes.contents||{})[String(i)]===true;
+      const barPct = mx>0 ? Math.round(cnt/mx*100) : 0;
+      const votersRow = isPublic && contentVoters[i].length
+        ? `<div style="margin-top:4px">${contentVoters[i].map(n=>`<span class="mp-chip">${n}</span>`).join('')}</div>` : '';
+      const btn = me
+        ? `<button onclick="mpToggleContentVote(${i})" style="flex-shrink:0;font-size:0.75rem;padding:4px 10px;border-radius:8px;border:1.5px solid ${voted?'#2563eb':'#e2e8f0'};background:${voted?'#2563eb':'#fff'};color:${voted?'#fff':'#64748b'};cursor:pointer;font-weight:600">${voted?'✓ 선택됨':'선택'}</button>` : '';
+      html += `<div class="mp-option${voted?' voted':''}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:0.85rem;font-weight:700;color:#1e293b">${c.replace(/</g,'&lt;')}</div>
+            <div style="height:6px;background:#e2e8f0;border-radius:3px;margin:5px 0">
+              <div style="height:100%;width:${barPct}%;background:${voted?'#2563eb':'#94a3b8'};border-radius:3px;transition:width .3s"></div>
+            </div>
+            <div style="font-size:0.72rem;color:#64748b">${cnt}명 선택</div>${votersRow}
+          </div>${btn}
+        </div>
+      </div>`;
+    });
+    html += `<div style="margin-bottom:10px"></div>`;
+  }
+
+  // 미참여
+  html += `<div style="margin-top:4px">
+    <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;margin-bottom:4px">미참여 (${nonVoters.length}명)</div>
+    <div>${nonVoters.length ? nonVoters.map(n=>`<span class="mp-absent-chip">${n}</span>`).join('') : '<span style="font-size:0.72rem;color:#94a3b8">모두 참여!</span>'}</div>
+  </div></div>`;
+  return html;
+}
+
+// ── 결과 카드 ──
+function _mpResultCard(poll) {
+  const votes    = poll.votes||{};
+  const isPublic = poll.isPublic!==false;
+  const members  = state.members.map(m=>m.name);
+  const voterNames = Object.values(votes).map(v=>v.name).filter(Boolean);
+  const nonVoters  = members.filter(n=>!voterNames.includes(n));
+  const weekDays   = ['일','월','화','수','목','금','토'];
+
+  let html = `<div class="card" style="border-color:#f59e0b;background:#fefce8">
+    <div style="font-size:0.95rem;font-weight:800;color:#92400e;margin-bottom:4px">🏆 투표 결과</div>
+    <div style="font-size:0.85rem;font-weight:700;color:#1e293b;margin-bottom:10px">${poll.title||'모임 정하기'}</div>`;
+
+  if (poll.type==='date'||poll.type==='both') {
+    const dateCounts = {};
+    (poll.dates||[]).forEach(d => { dateCounts[d]=0; });
+    Object.values(votes).forEach(v => {
+      if (!v.dates) return;
+      Object.keys(v.dates).forEach(dk => { if (v.dates[dk]&&dateCounts.hasOwnProperty(dk)) dateCounts[dk]++; });
+    });
+    const mx = Math.max(...Object.values(dateCounts), 0);
+    const winners = Object.entries(dateCounts).filter(([,c])=>c===mx&&mx>0).map(([d])=>d).sort();
+    if (winners.length) {
+      const labels = winners.map(d => {
+        const o=new Date(d+'T00:00:00');
+        return `${o.getMonth()+1}월 ${o.getDate()}일(${weekDays[o.getDay()]})`;
+      }).join(', ');
+      html += `<div style="font-size:0.88rem;font-weight:800;color:#166534;background:#f0fdf4;border-radius:10px;padding:8px 12px;margin-bottom:8px">
+        📅 ${poll.title||'모임'}이 <strong>${labels}</strong>로 결정되었습니다 🎉
+        ${winners.length>1?'<span style="font-size:0.72rem;background:#fef9c3;color:#92400e;border-radius:6px;padding:2px 6px;margin-left:4px">공동 1위</span>':''}
+        <span style="font-size:0.72rem;font-weight:400;color:#64748b;margin-left:4px">(${mx}명)</span>
+      </div>`;
+    }
+  }
+
+  if (poll.type==='content'||poll.type==='both') {
+    const contentCounts = {};
+    (poll.contents||[]).forEach((_,i) => { contentCounts[i]=0; });
+    Object.values(votes).forEach(v => {
+      if (!v.contents) return;
+      Object.keys(v.contents).forEach(i => { const n=Number(i); if(v.contents[i]&&contentCounts.hasOwnProperty(n)) contentCounts[n]++; });
+    });
+    const mx = Math.max(...Object.values(contentCounts), 0);
+    const winners = Object.entries(contentCounts).filter(([,c])=>c===mx&&mx>0).map(([i])=>(poll.contents||[])[Number(i)]).filter(Boolean);
+    if (winners.length) {
+      html += `<div style="font-size:0.88rem;font-weight:800;color:#166534;background:#f0fdf4;border-radius:10px;padding:8px 12px;margin-bottom:8px">
+        🎯 최다 선택 내용: <strong>${winners.join(', ')}</strong>
+        ${winners.length>1?'<span style="font-size:0.72rem;background:#fef9c3;color:#92400e;border-radius:6px;padding:2px 6px;margin-left:4px">공동 1위</span>':''}
+        <span style="font-size:0.72rem;font-weight:400;color:#64748b;margin-left:4px">(${mx}명)</span>
+      </div>`;
+    }
+  }
+
+  html += `<div style="font-size:0.73rem;color:#94a3b8">미참여: ${nonVoters.length?nonVoters.join(', '):'없음'}</div>`;
+  html += `</div>`;
+  return html;
+}
+
+// ── 관리자 컨트롤 ──
+function _mpAdminControls(poll) {
+  let html = `<div class="card" style="padding:11px">`;
+  if (poll.status==='open') {
+    html += `<button class="btn btn-warning btn-full" onclick="closeMeetingPoll()">🏁 투표 마감</button>`;
+    if (isAdmin()) {
+      html += `<button class="btn btn-outline btn-full" style="margin-top:8px" onclick="mpNudge()">🔔 미참여자 독촉 푸시</button>`;
+    }
+  } else {
+    html += `<button class="btn btn-success btn-full" onclick="mpStartNew()">📅 새 투표 만들기</button>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+// ── 댓글 ──
+function _mpCommentsHtml(poll) {
+  const comments = poll.comments||{};
+  const commArr  = Object.entries(comments).map(([k,c])=>({...c,_key:k})).sort((a,b)=>(a.at||'').localeCompare(b.at||''));
+  const fmt = at => at ? new Date(at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+
+  const items = commArr.map(c => {
+    const replies = c.replies ? Object.values(c.replies).sort((a,b)=>(a.at||'').localeCompare(b.at||'')) : [];
+    return `<div class="comment-item" id="mp-comment-${c._key}">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span class="comment-author">${c.author}</span><span class="comment-at">${fmt(c.at)}</span>
+      </div>
+      <div class="comment-text">${c.text.replace(/</g,'&lt;')}</div>
+      ${replies.map(r=>`<div class="reply-item">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="comment-author" style="font-size:0.68rem">↩ ${r.author}</span><span class="comment-at">${fmt(r.at)}</span>
+        </div>
+        <div class="comment-text" style="font-size:0.8rem">${r.text.replace(/</g,'&lt;')}</div>
+      </div>`).join('')}
+      <div style="margin-top:4px">
+        <button class="btn btn-outline btn-sm" style="font-size:0.7rem;padding:3px 8px;box-shadow:none;color:#1e293b;border-color:#94a3b8" onclick="mpToggleReplyInput('${c._key}')">↩ 답글</button>
+      </div>
+      <div id="mp-reply-input-${c._key}" class="reply-input-row" style="display:none">
+        <input type="text" id="mp-reply-text-${c._key}" placeholder="답글 입력..." style="flex:1;font-size:0.83rem" onkeydown="if(event.key==='Enter')mpAddReply('${c._key}')">
+        <button class="btn btn-primary btn-sm" onclick="mpAddReply('${c._key}')">전송</button>
+      </div>
+    </div>`;
+  }).join('') || '<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:8px 0">첫 댓글을 남겨보세요!</p>';
+
+  return `<div class="card">
+    <div class="card-title" style="margin-bottom:6px">💬 댓글</div>
+    <div class="divider"></div>
+    ${items}
+    <div style="margin-top:6px">
+      <div style="font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:6px">댓글쓰기</div>
+      <textarea id="mp-comment-input" placeholder="댓글 입력" rows="2"
+        style="width:100%;box-sizing:border-box;font-size:0.82rem;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;outline:none;resize:none;background:#f8fafc;line-height:1.5;font-family:inherit"
+        oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+        <button onclick="document.getElementById('mp-comment-input').value='';document.getElementById('mp-comment-input').style.height='auto'"
+          style="background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:7px 18px;font-size:0.8rem;font-weight:700;color:#64748b;cursor:pointer">취소</button>
+        <button onclick="mpAddComment()"
+          style="background:#2563eb;border:none;border-radius:10px;padding:7px 18px;font-size:0.8rem;font-weight:700;color:#fff;cursor:pointer">등록</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── 달력 ──
+function openMpCal() {
+  const now = new Date();
+  _mpCal.year  = now.getFullYear();
+  _mpCal.month = now.getMonth();
+  _mpCal.selected = [..._mpCreateDates];
+  _renderMpCal();
+  document.getElementById('mp-cal-modal').classList.add('open');
+}
+function closeMpCal() { document.getElementById('mp-cal-modal').classList.remove('open'); }
+function mpCalPrev()   { if(--_mpCal.month < 0){ _mpCal.month=11; _mpCal.year--; } _renderMpCal(); }
+function mpCalNext()   { if(++_mpCal.month >11){ _mpCal.month=0;  _mpCal.year++; } _renderMpCal(); }
+
+function _renderMpCal() {
+  const {year, month, selected} = _mpCal;
+  const header = document.getElementById('mp-cal-header');
+  if (header) header.textContent = `${year}년 ${month+1}월`;
+
+  const grid = document.getElementById('mp-cal-grid');
+  if (!grid) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const firstDay = new Date(year,month,1).getDay();
+  const daysInMonth = new Date(year,month+1,0).getDate();
+  const dayLabels = ['일','월','화','수','목','금','토'];
+
+  let html = `<div class="mp-cal-wrap">`;
+  dayLabels.forEach(d => { html += `<div style="text-align:center;font-size:0.7rem;font-weight:700;color:#94a3b8;padding:4px 0">${d}</div>`; });
+  for (let i=0; i<firstDay; i++) html += `<div class="mp-cal-day blank"></div>`;
+  for (let d=1; d<=daysInMonth; d++) {
+    const ds  = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dObj= new Date(year,month,d);
+    const isPast = dObj < today;
+    const isSel  = selected.includes(ds);
+    const isToday= dObj.getTime()===today.getTime();
+    let cls = 'mp-cal-day';
+    if (isPast) cls+=' past'; else if (isSel) cls+=' sel'; else if (isToday) cls+=' today';
+    const disabled = isPast || (!isSel && selected.length>=10);
+    html += `<div class="${cls}"${!disabled?` onclick="mpCalToggleDate('${ds}')"`:''}>${d}</div>`;
+  }
+  html += `</div>`;
+  grid.innerHTML = html;
+
+  const selList = document.getElementById('mp-cal-sel-list');
+  if (selList) {
+    const wk = ['일','월','화','수','목','금','토'];
+    selList.innerHTML = selected.slice().sort().map(ds => {
+      const o=new Date(ds+'T00:00:00');
+      return `<span class="mp-chip" style="cursor:pointer" onclick="mpCalToggleDate('${ds}')">${o.getMonth()+1}/${o.getDate()}(${wk[o.getDay()]}) ✕</span>`;
+    }).join('');
+  }
+}
+
+function mpCalToggleDate(ds) {
+  const idx = _mpCal.selected.indexOf(ds);
+  if (idx>=0) { _mpCal.selected.splice(idx,1); }
+  else { if(_mpCal.selected.length>=10){ alert('최대 10개까지 선택할 수 있습니다.'); return; } _mpCal.selected.push(ds); }
+  _renderMpCal();
+}
+
+function confirmMpCalDates() {
+  _mpCreateDates = [..._mpCal.selected];
+  closeMpCal();
+  const el = document.getElementById('mp-create-dates');
+  if (el) {
+    const wk = ['일','월','화','수','목','금','토'];
+    el.innerHTML = _mpCreateDates.slice().sort().map(ds => {
+      const o=new Date(ds+'T00:00:00');
+      return `<span class="mp-chip">${o.getMonth()+1}/${o.getDate()}(${wk[o.getDay()]})</span>`;
+    }).join('');
+  }
+}
+
+// ── 내용 항목 ──
+function mpAddContent() {
+  const list = document.getElementById('mp-contents-list');
+  if (!list) return;
+  const idx = _mpCreateContents.length;
+  _mpCreateContents.push('');
+  const div = document.createElement('div');
+  div.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center';
+  div.innerHTML = `<input type="text" placeholder="내용 입력" style="flex:1;font-size:0.83rem" oninput="_mpCreateContents[${idx}]=this.value">
+    <button class="btn btn-outline btn-sm" style="padding:6px 8px;box-shadow:none;flex-shrink:0" onclick="this.closest('div').remove();_mpCreateContents[${idx}]=null">✕</button>`;
+  list.appendChild(div);
+}
+
+// ── 투표 생성 ──
+function createMeetingPoll() {
+  if (!isManager()) { alert('관리자만 투표를 생성할 수 있습니다.'); return; }
+  const title = (document.getElementById('mp-title')||{}).value?.trim()||'';
+  if (!title) { alert('투표 제목을 입력하세요.'); return; }
+  const typeEl = document.querySelector('input[name="mp-type"]:checked');
+  const type   = typeEl ? typeEl.value : 'date';
+  const isPublic = !!(document.getElementById('mp-is-public')||{}).checked;
+  const dates  = _mpCreateDates.slice().sort();
+  const contents = _mpCreateContents.filter(c=>c&&c.trim()).map(c=>c.trim());
+
+  if ((type==='date'||type==='both') && !dates.length) { alert('날짜를 하나 이상 선택하세요.'); return; }
+  if ((type==='content'||type==='both') && !contents.length) { alert('내용을 하나 이상 입력하세요.'); return; }
+
+  const me = state.identity && state.identity.name;
+  const poll = { title, type, isPublic, status:'open', createdBy:me||'', createdAt:new Date().toISOString() };
+  if (dates.length)    poll.dates    = dates;
+  if (contents.length) poll.contents = contents;
+
+  if (!db) return;
+  db.ref('jmt/meetingPoll').set(poll).then(() => {
+    _mpCreateDates = []; _mpCreateContents = [];
+  }).catch(fbErr);
+}
+
+// ── 투표 토글 ──
+function mpToggleDateVote(dateStr) {
+  const me = state.identity&&state.identity.name;
+  if (!me) { alert('먼저 접속자를 선택하세요.'); return; }
+  if (!_mpData||_mpData.status!=='open') { alert('투표가 마감되었습니다.'); return; }
+  const key = me.replace(/[.#$[\]]/g,'_');
+  const ref = db.ref(`jmt/meetingPoll/votes/${key}`);
+  ref.once('value').then(snap => {
+    const cur = snap.val()||{};
+    const cur_date = (cur.dates||{})[dateStr];
+    if (cur_date) ref.child('dates/'+dateStr).remove().catch(fbErr);
+    else          ref.child('dates/'+dateStr).set(true).catch(fbErr);
+    ref.child('name').set(me).catch(fbErr);
+  });
+}
+
+function mpToggleContentVote(idx) {
+  const me = state.identity&&state.identity.name;
+  if (!me) { alert('먼저 접속자를 선택하세요.'); return; }
+  if (!_mpData||_mpData.status!=='open') { alert('투표가 마감되었습니다.'); return; }
+  const key = me.replace(/[.#$[\]]/g,'_');
+  const ref = db.ref(`jmt/meetingPoll/votes/${key}`);
+  ref.once('value').then(snap => {
+    const cur = snap.val()||{};
+    const cur_c = (cur.contents||{})[String(idx)];
+    if (cur_c) ref.child('contents/'+idx).remove().catch(fbErr);
+    else       ref.child('contents/'+idx).set(true).catch(fbErr);
+    ref.child('name').set(me).catch(fbErr);
+  });
+}
+
+// ── 마감 / 새 투표 ──
+function closeMeetingPoll() {
+  if (!isManager()) { alert('관리자만 마감할 수 있습니다.'); return; }
+  if (!confirm('투표를 마감하시겠습니까?')) return;
+  if (!db||!_mpData) return;
+  const closedAt = new Date().toISOString();
+  const pollId   = (_mpData.createdAt||Date.now()).toString().replace(/[:.]/g,'_');
+  db.ref('jmt/meetingPoll/status').set('closed').catch(fbErr);
+  db.ref('jmt/meetingPoll/closedAt').set(closedAt).catch(fbErr);
+  db.ref(`jmt/meetingPollsHistory/${pollId}`).set({..._mpData, status:'closed', closedAt}).catch(fbErr);
+}
+
+function mpStartNew() {
+  if (!isManager()) { alert('관리자만 사용할 수 있습니다.'); return; }
+  if (!confirm('새 투표를 만드시겠습니까? 현재 데이터는 히스토리로 보관됩니다.')) return;
+  if (!db) return;
+  if (_mpData) {
+    const pollId = (_mpData.createdAt||Date.now()).toString().replace(/[:.]/g,'_');
+    db.ref(`jmt/meetingPollsHistory/${pollId}`).set({..._mpData}).catch(fbErr);
+  }
+  db.ref('jmt/meetingPoll').remove().catch(fbErr);
+}
+
+// ── 독촉 푸시 (관리자만) ──
+function mpNudge() {
+  if (!isAdmin()) { alert('최고관리자만 사용할 수 있습니다.'); return; }
+  if (!_mpData) return;
+  const fn = firebase.app().functions('asia-southeast1').httpsCallable('notifyMeetingPollNudge');
+  fn({ pollTitle: _mpData.title||'모임 정하기' })
+    .then(r => alert((r.data&&r.data.message)||'독촉 알림을 보냈습니다.'))
+    .catch(e => alert('오류: '+e.message));
+}
+
+// ── 댓글/답글 함수 ──
+function mpToggleReplyInput(cid) {
+  const el = document.getElementById(`mp-reply-input-${cid}`);
+  if (!el) return;
+  const vis = el.style.display!=='none';
+  el.style.display = vis?'none':'flex';
+  if (!vis) document.getElementById(`mp-reply-text-${cid}`)?.focus();
+}
+
+function mpAddComment() {
+  const input = document.getElementById('mp-comment-input');
+  const text  = input?input.value.trim():'';
+  if (!text||!db||!_mpData) return;
+  const author = (state.identity&&state.identity.name)||'익명';
+  db.ref('jmt/meetingPoll/comments').push({author,text,at:new Date().toISOString()}).catch(fbErr);
+  if (input) { input.value=''; input.style.height='auto'; }
+}
+
+function mpAddReply(cid) {
+  const input = document.getElementById(`mp-reply-text-${cid}`);
+  const text  = input?input.value.trim():'';
+  if (!text||!db||!_mpData) return;
+  const author = (state.identity&&state.identity.name)||'익명';
+  db.ref(`jmt/meetingPoll/comments/${cid}/replies`).push({author,text,at:new Date().toISOString()}).catch(fbErr);
+  if (input) input.value='';
+  mpToggleReplyInput(cid);
+}
 </script>
 
 <script>
