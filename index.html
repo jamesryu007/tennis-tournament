@@ -6461,8 +6461,7 @@ async function notifyBetNonParticipants(betId) {
   try {
     const fn = firebase.app().functions('asia-southeast1').httpsCallable('notifyBetReminder');
     const res = await fn({ names: notParticipated, betTitle: bet.tournamentName || bet.matchName || '베팅' });
-    const sent = res.data && res.data.sent != null ? res.data.sent : notParticipated.length;
-    alert(`✅ ${notParticipated.length}명 중 ${sent}명에게 알림을 보냈습니다.`);
+    alert(`✅ ${notParticipated.length}명에게 알림을 보냈습니다.`);
   } catch(e) {
     console.error('notifyBetReminder error:', e);
     alert('알림 전송 실패: ' + e.message);
