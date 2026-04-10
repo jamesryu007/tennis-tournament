@@ -750,6 +750,114 @@ async function translateTexts(texts) {
   }
 }
 
+// ══ 모임 정하기 푸시 ══════════════════════════════════════════════
+
+// 투표 생성 시 전체 알림
+exports.notifyMeetingPollOpen = onValueCreated(
+  { ref: 'jmt/meetingPoll/status', region: 'asia-southeast1' },
+  async snap => {
+    if (snap.val() !== 'open') return;
+    const pollSnap = await db.ref('jmt/meetingPoll').once('value');
+    const poll = pollSnap.val();
+    if (!poll) return;
+    const tokens = await getAllTokens();
+    await sendPush(tokens, '📅 모임 정하기 투표 오픈!', `"${poll.title||'모임 정하기'}" 투표에 참여해 주세요!`, 'setup');
+  }
+);
+
+// 투표 마감 시 전체 알림
+exports.notifyMeetingPollClosed = onValueWritten(
+  { ref: 'jmt/meetingPoll/status', region: 'asia-southeast1' },
+  async snap => {
+    if (snap.data.after.val() !== 'closed') return;
+    const pollSnap = await db.ref('jmt/meetingPoll').once('value');
+    const poll = pollSnap.val();
+    if (!poll) return;
+
+    // 날짜 투표 결과 계산
+    let resultMsg = '';
+    const votes = poll.votes || {};
+    if (poll.type === 'date' || poll.type === 'both') {
+      const dateCounts = {};
+      (poll.dates || []).forEach(d => { dateCounts[d] = 0; });
+      Object.values(votes).forEach(v => {
+        if (!v.dates) return;
+        Object.keys(v.dates).forEach(dk => { if (v.dates[dk] && dateCounts.hasOwnProperty(dk)) dateCounts[dk]++; });
+      });
+      const mx = Math.max(...Object.values(dateCounts), 0);
+      const winners = Object.entries(dateCounts).filter(([,c]) => c === mx && mx > 0).map(([d]) => d).sort();
+      if (winners.length) {
+        const weekDays = ['일','월','화','수','목','금','토'];
+        const labels = winners.map(d => {
+          const o = new Date(d + 'T00:00:00');
+          return `${o.getMonth()+1}월 ${o.getDate()}일(${weekDays[o.getDay()]})`;
+        }).join(', ');
+        resultMsg = `${poll.title||'모임'}이 ${labels}로 결정되었습니다! 🎉`;
+      }
+    } else if (poll.type === 'content') {
+      const contentCounts = {};
+      (poll.contents || []).forEach((_, i) => { contentCounts[i] = 0; });
+      Object.values(votes).forEach(v => {
+        if (!v.contents) return;
+        Object.keys(v.contents).forEach(i => { const n=Number(i); if(v.contents[i]&&contentCounts.hasOwnProperty(n)) contentCounts[n]++; });
+      });
+      const mx = Math.max(...Object.values(contentCounts), 0);
+      const winners = Object.entries(contentCounts).filter(([,c]) => c === mx && mx > 0).map(([i]) => (poll.contents||[])[Number(i)]).filter(Boolean);
+      if (winners.length) resultMsg = `최다 선택: ${winners.join(', ')} 🎉`;
+    }
+
+    const tokens = await getAllTokens();
+    await sendPush(tokens, '🏆 모임 정하기 투표 결과!', resultMsg || `"${poll.title||'모임 정하기'}" 투표가 마감되었습니다.`, 'setup');
+  }
+);
+
+// 관리자 수동 독촉 푸시
+exports.notifyMeetingPollNudge = onCall(
+  { region: 'asia-southeast1' },
+  async (request) => {
+    const pollSnap = await db.ref('jmt/meetingPoll').once('value');
+    const poll = pollSnap.val();
+    if (!poll || poll.status !== 'open') throw new Error('진행 중인 투표가 없습니다.');
+
+    const votes = poll.votes || {};
+    const voterNames = Object.values(votes).map(v => v.name).filter(Boolean);
+
+    // 멤버 목록 조회
+    const membersSnap = await db.ref('jmt/members').once('value');
+    const members = membersSnap.val() ? Object.values(membersSnap.val()).map(m => m.name) : [];
+    const nonVoters = members.filter(n => !voterNames.includes(n));
+
+    if (!nonVoters.length) return { message: '모든 멤버가 투표에 참여했습니다!' };
+
+    const tokens = await getTokensByNames(nonVoters);
+    if (!tokens.length) return { message: '독촉 알림을 보낼 대상이 없습니다.' };
+
+    await sendPush(tokens, '🔔 모임 정하기 투표 미참여 알림', `"${poll.title||'모임 정하기'}" 투표에 아직 참여하지 않으셨습니다. 지금 참여해 주세요!`, 'setup');
+    return { message: `${nonVoters.length}명에게 독촉 알림을 보냈습니다.` };
+  }
+);
+
+// 자동 독촉 (하루 1회, 미참여자에게)
+exports.notifyMeetingPollAutoNudge = onSchedule(
+  { schedule: '0 12 * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    const pollSnap = await db.ref('jmt/meetingPoll').once('value');
+    const poll = pollSnap.val();
+    if (!poll || poll.status !== 'open') return;
+
+    const votes = poll.votes || {};
+    const voterNames = Object.values(votes).map(v => v.name).filter(Boolean);
+    const membersSnap = await db.ref('jmt/members').once('value');
+    const members = membersSnap.val() ? Object.values(membersSnap.val()).map(m => m.name) : [];
+    const nonVoters = members.filter(n => !voterNames.includes(n));
+    if (!nonVoters.length) return;
+
+    const tokens = await getTokensByNames(nonVoters);
+    if (!tokens.length) return;
+    await sendPush(tokens, '📅 모임 정하기 투표 미참여 알림', `"${poll.title||'모임 정하기'}" 투표에 참여해 주세요!`, 'setup');
+  }
+);
+
 // ══ ATP 뉴스 자동 수집 (12시간마다) ═══════════════════════════════
 exports.fetchAtpNews = onSchedule(
   { schedule: '0 */12 * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
