@@ -5734,7 +5734,7 @@ function renderWinnerBetCard(betId, bet, myName, myBet, isOpen, hasResult, showA
   const waitMsg = !isOpen && !hasResult
     ? `<div style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:8px 0">결과 집계 대기 중...</div>` : '';
 
-  return `${editGuide}${myBetHtml}${memberPctHtml}${playerListHtml}${adminStatsHtml}${waitMsg}`;
+  return `${editGuide}${memberPctHtml}${myBetHtml}${playerListHtml}${adminStatsHtml}${waitMsg}`;
 }
 
 function renderWinnerBetPlayerList(betId) {
