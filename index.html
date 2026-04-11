@@ -6928,8 +6928,44 @@ async function triggerAtpRefresh() {
       }
     }
 
-    // ESPN 데이터 즉시 로컬 반영 (Firebase 응답 기다리지 않음)
-    const prevId = atpState.tournamentInfo && atpState.tournamentInfo.id; // 덮어쓰기 전 캡처
+    // 대회 변경 여부 확인 → 오픈/최근 close 베팅 있으면 기존 데이터 유지
+    const prevId = atpState.tournamentInfo && atpState.tournamentInfo.id;
+    const tournamentChanged = !!(prevId && tournamentInfo.id && prevId !== tournamentInfo.id);
+
+    if (tournamentChanged && db) {
+      const betsSnap = await db.ref('jmt/atpBets').once('value');
+      const currentBets = betsSnap.val() || {};
+      const betsArr = Object.values(currentBets);
+      const now = Date.now();
+      const HOURS_24 = 24 * 60 * 60 * 1000;
+      const hasOpenBet = betsArr.some(b => b.open === true);
+      const hasRecentClosed = betsArr.some(b => b.closedAt && now - new Date(b.closedAt).getTime() < HOURS_24);
+
+      if (hasOpenBet || hasRecentClosed) {
+        // 베팅 보호: 기존 대회 데이터 유지, 로컬·Firebase 업데이트 모두 차단
+        console.log('triggerAtpRefresh: tournament changed but bet active/recent — keeping existing data');
+        if (!atpState.loaded) {
+          // 아직 로컬 데이터가 없으면 Firebase에서 기존 데이터 불러오기
+          const prevSnap = await db.ref('jmt/atpData').once('value');
+          const prevData = prevSnap.val();
+          if (prevData) {
+            atpState.tournamentInfo = prevData.tournamentInfo;
+            atpState.matches = prevData.matches || [];
+            atpState.loaded = true;
+            renderAtpPage();
+          }
+        }
+        return; // 새 대회 데이터 적용 안 함
+      }
+
+      // 베팅 없거나 만료 → 정상 대회 전환: 기존 베팅 아카이브 후 초기화
+      if (Object.keys(currentBets).length > 0) {
+        db.ref(`jmt/atpBetsHistory/${prevId}`).set(currentBets).catch(() => {});
+      }
+      db.ref('jmt/atpBets').remove().catch(() => {});
+    }
+
+    // ESPN 데이터 로컬 반영
     atpState.tournamentInfo = tournamentInfo;
     atpState.matches = matches;
     atpState.loaded = true;
@@ -6937,18 +6973,8 @@ async function triggerAtpRefresh() {
     atpState.gsRoundTab = null;
     renderAtpPage();
 
-    // Firebase 저장은 백그라운드 (실패해도 화면에 영향 없음)
+    // Firebase 저장은 백그라운드
     if (db) {
-      if (prevId && tournamentInfo.id && prevId !== tournamentInfo.id) {
-        // 토너먼트 변경 전 현재 베팅을 히스토리에 아카이브
-        // atpState.bets 대신 Firebase에서 직접 읽기 (리스너 로드 전 race condition 방지)
-        const betsSnap = await db.ref('jmt/atpBets').once('value');
-        const currentBets = betsSnap.val() || {};
-        if (Object.keys(currentBets).length > 0) {
-          db.ref(`jmt/atpBetsHistory/${prevId}`).set(currentBets).catch(() => {});
-        }
-        db.ref('jmt/atpBets').remove().catch(() => {});
-      }
       db.ref('jmt/atpData').set({ tournamentInfo, matches, updatedAt: new Date().toISOString() }).catch(() => {});
       if (tier === 'grandslam' && tournamentInfo.id) {
         db.ref(`jmt/lastGrandSlam/${tournamentInfo.id}`).set({

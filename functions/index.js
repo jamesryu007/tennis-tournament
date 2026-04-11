@@ -317,15 +317,35 @@ async function saveGrandSlamIfNeeded(tournamentInfo, matches, isGrandSlam) {
   });
 }
 
-// ── ATP 데이터 저장 공통 (토너먼트 변경 시 베팅 초기화) ──────────
+// ── ATP 데이터 저장 공통 (토너먼트 변경 시 베팅 보호 후 초기화) ──
 async function saveAtpData(tournamentInfo, matches, isGrandSlam) {
   const updatedAt = new Date().toISOString();
 
-  // 토너먼트 변경 여부 확인 → 바뀌면 베팅 전체 초기화
   const currentSnap = await db.ref('jmt/atpData/tournamentInfo').once('value');
   const current = currentSnap.val();
-  if (current && current.id && tournamentInfo && tournamentInfo.id &&
-      current.id !== tournamentInfo.id) {
+  const tournamentChanged = !!(current && current.id && tournamentInfo && tournamentInfo.id
+    && current.id !== tournamentInfo.id);
+
+  if (tournamentChanged) {
+    // 대회가 바뀌었을 때: 오픈 베팅 또는 close 후 24시간 미만이면 업데이트 차단
+    const betsSnap = await db.ref('jmt/atpBets').once('value');
+    const bets = Object.values(betsSnap.val() || {});
+    const now = Date.now();
+    const HOURS_24 = 24 * 60 * 60 * 1000;
+
+    const hasOpenBet = bets.some(b => b.open === true);
+    if (hasOpenBet) {
+      console.log(`saveAtpData: tournament changed (${current.id} → ${tournamentInfo.id}) but open bet exists — skipping update`);
+      return;
+    }
+
+    const hasRecentClosedBet = bets.some(b => b.closedAt
+      && now - new Date(b.closedAt).getTime() < HOURS_24);
+    if (hasRecentClosedBet) {
+      console.log(`saveAtpData: tournament changed but bet closed within 24h — skipping update`);
+      return;
+    }
+
     console.log(`Tournament changed: ${current.id} → ${tournamentInfo.id}. Clearing bets.`);
     await db.ref('jmt/atpBets').remove();
   }
