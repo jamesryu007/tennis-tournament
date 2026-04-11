@@ -2303,49 +2303,43 @@ function _renderDailyCard(id){
 
   } else {
     const isDraw=d.winner===-1;
-    // 이긴팀 왼쪽, 진팀 오른쪽 배치
-    const wIdx = (isDraw||d.winner===0) ? 0 : 1;
-    const lIdx = 1 - wIdx;
-    const wTeam=_getTeamDisplay(d[`team${wIdx}`]), lTeam=_getTeamDisplay(d[`team${lIdx}`]);
+    const t0win=d.winner===0, t1win=d.winner===1;
+    const t0=_getTeamDisplay(d.team0), t1=_getTeamDisplay(d.team1);
+    // 점수는 입력 순서 그대로 (team0:team1)
     const scoreItems=d.sets.map((s,i)=>{
-      // winner 팀 점수가 항상 왼쪽(초록), loser 점수 오른쪽(빨강)
-      const ws = wIdx===0 ? s.s0 : s.s1;
-      const ls = wIdx===0 ? s.s1 : s.s0;
-      const hasTB = s.tb0!=null&&s.tb1!=null;
-      const wTB = hasTB ? (wIdx===0 ? s.tb0 : s.tb1) : null;
-      const lTB = hasTB ? (wIdx===0 ? s.tb1 : s.tb0) : null;
-      const tbHtml = hasTB
-        ? `<span style="font-size:0.62rem;color:#d97706;font-weight:600;margin-left:2px">(${wTB}:${lTB})</span>`
-        : '';
+      const hasTB=s.tb0!=null&&s.tb1!=null;
+      const tbHtml=hasTB?`<span style="font-size:0.62rem;color:#d97706;font-weight:600;margin-left:2px">(${s.tb0}:${s.tb1})</span>`:'';
+      const s0cls=isDraw?'':t0win?' dc-sc-w':' dc-sc-l';
+      const s1cls=isDraw?'':t1win?' dc-sc-w':' dc-sc-l';
       return `<div class="dc-set-item">
         <span class="dc-set-lbl">${i+1}세트</span>
         <div style="display:flex;align-items:center;gap:2px;flex-wrap:wrap;justify-content:center">
-          <span class="dc-set-sc${isDraw?'':' dc-sc-w'}">${ws}</span>
+          <span class="dc-set-sc${s0cls}">${s.s0}</span>
           <span class="dc-sc-sep">:</span>
-          <span class="dc-set-sc${isDraw?'':' dc-sc-l'}">${ls}</span>
+          <span class="dc-set-sc${s1cls}">${s.s1}</span>
           ${tbHtml}
         </div>
       </div>`;
     }).join('<div class="dc-set-divider"></div>');
     const mid=`<div onclick="openDailyScore('${id}')" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer">${scoreItems}</div>`;
-    const leftEmoji=isDraw?'':`<div class="dc-win-icon">🎉</div>`;
-    const rightEmoji=isDraw?'':`<div class="dc-lose-icon">😢</div>`;
-    const leftBadge=isDraw?'<span class="dc-draw-badge">무승부</span>':'<span class="dc-win-badge">WIN 🏆</span>';
-    const rightBadge=isDraw?'<span class="dc-draw-badge">무승부</span>':'<span class="dc-lose-badge">LOSE</span>';
-    const left=`<div class="dc-team-left win" onclick="openDailyScore('${id}')" style="cursor:pointer">
-      ${leftEmoji}
-      <div class="dc-tnick">${wTeam.nick}</div>
-      <div class="dc-tmembers">${wTeam.memberStr}</div>
-      ${leftBadge}
+    const l0Emoji=isDraw?'':t0win?`<div class="dc-win-icon">🎉</div>`:`<div class="dc-lose-icon">😢</div>`;
+    const r1Emoji=isDraw?'':t1win?`<div class="dc-win-icon">🎉</div>`:`<div class="dc-lose-icon">😢</div>`;
+    const l0Badge=isDraw?'<span class="dc-draw-badge">무승부</span>':t0win?'<span class="dc-win-badge">WIN 🏆</span>':'<span class="dc-lose-badge">LOSE</span>';
+    const r1Badge=isDraw?'<span class="dc-draw-badge">무승부</span>':t1win?'<span class="dc-win-badge">WIN 🏆</span>':'<span class="dc-lose-badge">LOSE</span>';
+    const left=`<div class="dc-team-left${t0win?' win':''}" onclick="openDailyScore('${id}')" style="cursor:pointer">
+      ${l0Emoji}
+      <div class="dc-tnick">${t0.nick}</div>
+      <div class="dc-tmembers">${t0.memberStr}</div>
+      ${l0Badge}
     </div>`;
     const right=`<div class="dc-team-right" onclick="openDailyScore('${id}')" style="cursor:pointer">
-      ${rightEmoji}
-      <div class="dc-tnick">${lTeam.nick}</div>
-      <div class="dc-tmembers">${lTeam.memberStr}</div>
-      ${rightBadge}
+      ${r1Emoji}
+      <div class="dc-tnick">${t1.nick}</div>
+      <div class="dc-tmembers">${t1.memberStr}</div>
+      ${r1Badge}
     </div>`;
     const _cardDominant=!isDraw&&(d.sets||[]).every(s=>{
-      const ws=wIdx===0?parseInt(s.s0):parseInt(s.s1), ls=wIdx===0?parseInt(s.s1):parseInt(s.s0);
+      const ws=t0win?parseInt(s.s0):parseInt(s.s1), ls=t0win?parseInt(s.s1):parseInt(s.s0);
       return ws===6&&ls<=2;
     });
     const _doneCardBg=_cardDominant?'images/ca.png':'images/ca1.png';
