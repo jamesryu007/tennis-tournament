@@ -1543,6 +1543,14 @@ function setupFirebaseListeners() {
     if(document.getElementById('participant-modal').classList.contains('open')) renderChecks();
     if(document.getElementById('identity-modal').classList.contains('open')) renderIdentityList();
     updateSummary();
+    // 랭킹 탭이 열려있으면 멤버 로드 후 캐시 무효화 + 재렌더 (게스트 필터 적용)
+    if(document.getElementById('page-history') && document.getElementById('page-history').classList.contains('active')
+       && typeof _rankStatsCache !== 'undefined') {
+      Object.keys(_rankStatsCache).forEach(k => delete _rankStatsCache[k]);
+      if(typeof _rankingMode !== 'undefined' && _rankingMode === 'attendance') {
+        if(typeof renderAttendanceRanking === 'function') renderAttendanceRanking();
+      } else if(typeof renderRankingTab === 'function') renderRankingTab();
+    }
   }, fbErr);
 
   // 대회 이력 동기화
