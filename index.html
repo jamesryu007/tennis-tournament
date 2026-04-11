@@ -2103,8 +2103,11 @@ function selectScoreField(id){
     if(prev) prev.classList.remove('active');
   }
   _dscoreActive=id;
+  // 커서 이동 시 기존 값 초기화
+  const inp=document.getElementById(id);
+  if(inp){ inp.value=''; }
   const btn=document.getElementById(id.replace('dscore-','dscore-btn-'));
-  if(btn) btn.classList.add('active');
+  if(btn){ btn.textContent='-'; btn.classList.remove('filled'); btn.classList.add('active'); }
 }
 
 function _dscoreAdvance(){
