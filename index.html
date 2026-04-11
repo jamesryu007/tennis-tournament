@@ -5494,6 +5494,7 @@ function renderRoundDrawPanel(el, matches, tier) {
     el.innerHTML = '<div style="text-align:center;padding:12px 0;color:#94a3b8;font-size:0.82rem">경기 데이터 없음</div>';
     return;
   }
+  atpState.gsAvailRounds = availRounds; // 스와이프 네비게이션용
 
   // 경기가 실질적으로 완료됐는지 판정 — 과거 시간의 STATUS_SCHEDULED는 완료 처리
   const now = Date.now();
@@ -5583,14 +5584,14 @@ function renderRoundDrawPanel(el, matches, tier) {
   el.innerHTML = html;
 
   // 현재 선택된 라운드 탭을 가운데로 스크롤
-  requestAnimationFrame(() => {
+  setTimeout(() => {
     const row = document.getElementById('atp-round-tabs-row');
     if (!row) return;
     const activeBtn = row.querySelector('button[data-active="true"]');
     if (!activeBtn) return;
-    const scrollLeft = activeBtn.offsetLeft - row.offsetWidth / 2 + activeBtn.offsetWidth / 2;
-    row.scrollLeft = Math.max(0, scrollLeft);
-  });
+    const scrollTarget = activeBtn.offsetLeft - (row.clientWidth / 2) + (activeBtn.offsetWidth / 2);
+    row.scrollLeft = Math.max(0, scrollTarget);
+  }, 80);
 }
 
 function switchRoundTab(roundKey) {
@@ -7692,7 +7693,9 @@ function mpAddReply(cid) {
       document.getElementById('logo-popup').style.display === 'flex' ||
       target.closest('.carousel-container') ||
       target.closest('.bracket-container') ||
-      target.closest('.modal-overlay')
+      target.closest('.modal-overlay') ||
+      target.closest('#atp-round-tabs-row') ||
+      target.closest('#atp-draw-content')
     );
   }
 
@@ -7884,6 +7887,59 @@ function mpAddReply(cid) {
     } else {
       ind.style.opacity = '0';
     }
+  }, { passive: true });
+})();
+</script>
+
+<script>
+// ── ATP 라운드 스와이프 네비게이션 ───────────────────────────────
+(function() {
+  'use strict';
+  const THRESHOLD = 45;
+  let startX = null, startY = null, isHoriz = null;
+
+  function isDrawActive() {
+    const p = document.getElementById('page-atp');
+    if (!p || !p.classList.contains('active')) return false;
+    return !!(document.getElementById('atp-draw-content'));
+  }
+
+  document.addEventListener('touchstart', function(e) {
+    if (!isDrawActive() || e.touches.length !== 1) return;
+    const target = e.target;
+    if (!target.closest('#atp-draw-content')) return;
+    if (target.closest('#atp-round-tabs-row')) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    isHoriz = null;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', function(e) {
+    if (startX === null) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+    if (isHoriz === null) {
+      if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+      isHoriz = Math.abs(dx) > Math.abs(dy) * 1.1;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', function(e) {
+    if (startX === null || isHoriz !== true) { startX = null; isHoriz = null; return; }
+    const dx = e.changedTouches[0].clientX - startX;
+    startX = null; isHoriz = null;
+    if (Math.abs(dx) < THRESHOLD) return;
+
+    const rounds = (typeof atpState !== 'undefined') && atpState.gsAvailRounds;
+    const cur = (typeof atpState !== 'undefined') && atpState.gsRoundTab;
+    if (!rounds || !rounds.length || !cur) return;
+    const idx = rounds.indexOf(cur);
+    if (idx === -1) return;
+
+    // 왼쪽 스와이프 = 다음 라운드(Final 방향), 오른쪽 스와이프 = 이전 라운드
+    const nextIdx = dx < 0 ? idx + 1 : idx - 1;
+    if (nextIdx < 0 || nextIdx >= rounds.length) return;
+    if (typeof switchRoundTab === 'function') switchRoundTab(rounds[nextIdx]);
   }, { passive: true });
 })();
 </script>
