@@ -355,39 +355,55 @@ async function saveAtpData(tournamentInfo, matches, isGrandSlam) {
   await autoProcessWinnerBet(matches);
 }
 
-// ── Final 경기 승자 감지 → winner 베팅 자동 결과 처리 ──────────────
+// ── 베팅 자동 결과 처리 (winner + match 타입 모두) ──────────────────
 async function autoProcessWinnerBet(matches) {
-  // Final 경기가 STATUS_FINAL이고 승자가 확정된 경우만 처리
-  const finalMatch = (matches || []).find(m => {
+  const matchList = matches || [];
+
+  // Final 경기 (우승자 맞추기용)
+  const finalMatch = matchList.find(m => {
     const rn = (m.roundName || '').toLowerCase();
     return (rn === 'final' || rn === 'the final')
+      && !rn.includes('semi') && !rn.includes('qualify')
       && m.status === 'STATUS_FINAL'
       && (m.player1Winner === true || m.player2Winner === true);
   });
-  if (!finalMatch) return;
-
-  const winnerName = finalMatch.player1Winner ? finalMatch.player1Name : finalMatch.player2Name;
-  const winnerId = finalMatch.player1Winner ? finalMatch.player1Id : finalMatch.player2Id;
-  if (!winnerName) return;
 
   const betsSnap = await db.ref('jmt/atpBets').once('value');
   const bets = betsSnap.val() || {};
   const now = new Date().toISOString();
 
   for (const [betId, bet] of Object.entries(bets)) {
-    if (bet.type !== 'winner') continue;
     if (bet.result) continue; // 이미 처리됨
+    if (!bet.open) continue;  // 이미 close된 베팅은 skip
 
-    console.log(`autoProcessWinnerBet: betId=${betId}, winner=${winnerName}`);
+    let winnerName = null;
+    let winnerId = null;
+
+    if (bet.type === 'winner') {
+      // 우승자 맞추기: Final 경기 승자
+      if (!finalMatch) continue;
+      winnerName = finalMatch.player1Winner ? finalMatch.player1Name : finalMatch.player2Name;
+      winnerId   = finalMatch.player1Winner ? finalMatch.player1Id   : finalMatch.player2Id;
+    } else {
+      // 경기 베팅: bet.matchId로 해당 경기 찾기
+      if (!bet.matchId) continue;
+      const m = matchList.find(m => m.id === bet.matchId && m.status === 'STATUS_FINAL'
+        && (m.player1Winner === true || m.player2Winner === true));
+      if (!m) continue;
+      winnerName = m.player1Winner ? m.player1Name : m.player2Name;
+      winnerId   = m.player1Winner ? m.player1Id   : m.player2Id;
+    }
+
+    if (!winnerName) continue;
+
+    console.log(`autoProcessBet: betId=${betId}, type=${bet.type||'match'}, winner=${winnerName}`);
     await db.ref(`jmt/atpBets/${betId}/result`).set({
       winnerName,
       winnerId: winnerId || '',
       setAt: now,
       auto: true,
     });
-    if (bet.open) {
-      await db.ref(`jmt/atpBets/${betId}`).update({ open: false, closedAt: now });
-    }
+    await db.ref(`jmt/atpBets/${betId}`).update({ open: false, closedAt: now });
   }
 }
 
