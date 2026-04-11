@@ -7896,7 +7896,9 @@ function mpAddReply(cid) {
       if (typeof _rankStatsCache !== 'undefined') {
         Object.keys(_rankStatsCache).forEach(k => delete _rankStatsCache[k]);
       }
-      if (typeof renderRankingTab === 'function') renderRankingTab();
+      if (typeof _rankingMode !== 'undefined' && _rankingMode === 'attendance') {
+        if (typeof renderAttendanceRanking === 'function') renderAttendanceRanking();
+      } else if (typeof renderRankingTab === 'function') renderRankingTab();
       setTimeout(() => {
         ind.style.opacity = '0';
         refreshing = false;
