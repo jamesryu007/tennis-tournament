@@ -1918,6 +1918,15 @@ function renderGuestList() {
 
 // ══ PARTICIPANT MODAL ══
 function openParticipantModal() {
+  // 출첵 pollData 게스트를 모임만들기 state.guests에 동기화
+  if (state.pollData && state.pollData.guests) {
+    Object.values(state.pollData.guests).forEach(pg => {
+      if (!pg.name) return;
+      if (!state.guests.some(g => g.name === pg.name) && !state.members.some(m => m.name === pg.name)) {
+        state.guests.push({ id: Date.now() + Math.random(), name: pg.name, gender: pg.gender || 'male', ntrp: pg.ntrp || '' });
+      }
+    });
+  }
   renderChecks();
   renderGuestList();
   document.getElementById('participant-modal').classList.add('open');
@@ -4320,10 +4329,10 @@ function renderCheckinPage() {
   }
   html += `</div>`;
 
-  // Guest addition (open only)
-  if(isOpen) {
+  // Guest addition — 오픈/마감 모두 허용
+  if(state.pollState && state.pollState.weekId) {
     html += `<div class="card">
-      <div class="card-title">👤 게스트 추가</div>
+      <div class="card-title">👤 게스트 추가${!isOpen?'<span style="font-size:0.68rem;font-weight:500;color:#64748b;margin-left:6px">(마감 후 추가)</span>':''}</div>
       <div class="form-row" style="margin-bottom:8px;flex-wrap:wrap">
         <input type="text" id="poll-guest-name" placeholder="게스트 이름" style="min-width:80px">
         <select id="poll-guest-gender" style="max-width:70px;flex:0 0 auto">
@@ -4420,7 +4429,7 @@ function addPollGuest() {
   const ntrp = (document.getElementById('poll-guest-ntrp') || {}).value || '';
   if(!name) { alert('게스트 이름을 입력하세요.'); return; }
   if(!ntrp) { alert('NTRP를 선택하세요.'); return; }
-  if(!state.pollState || !state.pollState.weekId || state.pollState.status !== 'open') return;
+  if(!state.pollState || !state.pollState.weekId) return;
   const weekId = state.pollState.weekId;
   if(db) db.ref(`jmt/poll/${weekId}/guests`).push({ name, gender, ntrp, addedAt: new Date().toISOString() }).catch(fbErr);
   if(nameEl) nameEl.value = '';
