@@ -2071,6 +2071,29 @@ function _updateScoreBtn(id, val){
   btn.classList.toggle('filled', !!val);
 }
 
+function _isTBScore(s0, s1) {
+  if(isNaN(s0)||isNaN(s1)) return false;
+  const hi=Math.max(s0,s1), lo=Math.min(s0,s1);
+  return (hi===6&&lo===5)||(hi===7&&lo===6);
+}
+
+function _checkAndUpdateTB(setIdx) {
+  const na=parseInt(document.getElementById(`dscore-a-${setIdx}`)?.value);
+  const nb=parseInt(document.getElementById(`dscore-b-${setIdx}`)?.value);
+  const tbRow=document.getElementById(`dscore-tb-row-${setIdx}`);
+  if(!tbRow) return;
+  const needs=_isTBScore(na,nb);
+  tbRow.style.display=needs?'flex':'none';
+  if(!needs){
+    ['tba','tbb'].forEach(s=>{
+      const inp=document.getElementById(`dscore-${s}-${setIdx}`);
+      const btn=document.getElementById(`dscore-btn-${s}-${setIdx}`);
+      if(inp) inp.value='';
+      if(btn){ btn.textContent='-'; btn.classList.remove('filled'); }
+    });
+  }
+}
+
 function selectScoreField(id){
   if(_dscoreAdvTimer){ clearTimeout(_dscoreAdvTimer); _dscoreAdvTimer=null; }
   if(_dscoreActive){
@@ -2087,8 +2110,21 @@ function _dscoreAdvance(){
   if(!_dscoreActive) return;
   const parts=_dscoreActive.split('-');
   const side=parts[1], idx=parseInt(parts[2]);
-  const nextId=side==='a'?`dscore-b-${idx}`:`dscore-a-${idx+1}`;
-  if(document.getElementById(nextId.replace('dscore-','dscore-btn-'))) selectScoreField(nextId);
+  if(side==='a'){
+    selectScoreField(`dscore-b-${idx}`);
+  } else if(side==='b'){
+    _checkAndUpdateTB(idx);
+    const tbRow=document.getElementById(`dscore-tb-row-${idx}`);
+    if(tbRow&&tbRow.style.display!=='none'){
+      selectScoreField(`dscore-tba-${idx}`);
+    } else if(document.getElementById(`dscore-btn-a-${idx+1}`)){
+      selectScoreField(`dscore-a-${idx+1}`);
+    }
+  } else if(side==='tba'){
+    selectScoreField(`dscore-tbb-${idx}`);
+  } else if(side==='tbb'){
+    if(document.getElementById(`dscore-btn-a-${idx+1}`)) selectScoreField(`dscore-a-${idx+1}`);
+  }
 }
 
 function numpadInput(val){
@@ -2103,6 +2139,9 @@ function numpadInput(val){
     else inp.value+=val;
   }
   _updateScoreBtn(_dscoreActive, inp.value);
+  // b 필드 값 바뀔 때 TB row 표시 업데이트
+  const _ap=_dscoreActive.split('-');
+  if(_ap[1]==='b') _checkAndUpdateTB(parseInt(_ap[2]));
   if(val!=='⌫' && inp.value.length>0){
     if(inp.value.length>=2) _dscoreAdvance();       // 2자리: 즉시 이동
     else _dscoreAdvTimer=setTimeout(_dscoreAdvance, 800); // 1자리: 0.8초 후 이동
@@ -2272,12 +2311,19 @@ function _renderDailyCard(id){
       // winner 팀 점수가 항상 왼쪽(초록), loser 점수 오른쪽(빨강)
       const ws = wIdx===0 ? s.s0 : s.s1;
       const ls = wIdx===0 ? s.s1 : s.s0;
+      const hasTB = s.tb0!=null&&s.tb1!=null;
+      const wTB = hasTB ? (wIdx===0 ? s.tb0 : s.tb1) : null;
+      const lTB = hasTB ? (wIdx===0 ? s.tb1 : s.tb0) : null;
+      const tbHtml = hasTB
+        ? `<span style="font-size:0.62rem;color:#d97706;font-weight:600;margin-left:2px">(${wTB}:${lTB})</span>`
+        : '';
       return `<div class="dc-set-item">
         <span class="dc-set-lbl">${i+1}세트</span>
-        <div style="display:flex;align-items:center;gap:2px">
+        <div style="display:flex;align-items:center;gap:2px;flex-wrap:wrap;justify-content:center">
           <span class="dc-set-sc${isDraw?'':' dc-sc-w'}">${ws}</span>
           <span class="dc-sc-sep">:</span>
           <span class="dc-set-sc${isDraw?'':' dc-sc-l'}">${ls}</span>
+          ${tbHtml}
         </div>
       </div>`;
     }).join('<div class="dc-set-divider"></div>');
@@ -2459,44 +2505,19 @@ function openDailyScore(id){
     const b=document.getElementById(`dscore-b-${i}`);
     if(a){ a.value=s.s0; _updateScoreBtn(`dscore-a-${i}`,String(s.s0)); }
     if(b){ b.value=s.s1; _updateScoreBtn(`dscore-b-${i}`,String(s.s1)); }
+    // TB 복원
+    if(s.tb0!=null&&s.tb1!=null){
+      _checkAndUpdateTB(i);
+      const ta=document.getElementById(`dscore-tba-${i}`);
+      const tb=document.getElementById(`dscore-tbb-${i}`);
+      if(ta){ ta.value=s.tb0; _updateScoreBtn(`dscore-tba-${i}`,String(s.tb0)); }
+      if(tb){ tb.value=s.tb1; _updateScoreBtn(`dscore-tbb-${i}`,String(s.tb1)); }
+    }
   });
   document.getElementById('daily-score-modal').classList.add('open');
 }
 
-function _renderDailyScoreSets(){
-  const sets=document.getElementById('daily-score-sets');
-  sets.innerHTML='';
-  for(let i=0;i<_dailyScoreSets;i++){
-    const row=document.createElement('div');
-    row.className='dc-score-set';
-    row.innerHTML=`
-      <div style="flex:1;display:flex;justify-content:center">
-        <div class="dc-score-btn" id="dscore-btn-a-${i}" onclick="selectScoreField('dscore-a-${i}')">-</div>
-        <input type="hidden" id="dscore-a-${i}" value="">
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:28px">
-        <span style="font-size:0.65rem;color:#94a3b8;font-weight:600">${i+1}세트</span>
-        <span style="font-weight:800;color:#cbd5e1;font-size:1.1rem">:</span>
-      </div>
-      <div style="flex:1;display:flex;justify-content:center">
-        <div class="dc-score-btn" id="dscore-btn-b-${i}" onclick="selectScoreField('dscore-b-${i}')">-</div>
-        <input type="hidden" id="dscore-b-${i}" value="">
-      </div>`;
-    sets.appendChild(row);
-  }
-  // 첫 번째 필드 자동 선택
-  setTimeout(()=>selectScoreField('dscore-a-0'),50);
-  const addDiv=document.getElementById('daily-score-addset');
-  addDiv.innerHTML=_dailyScoreSets<3
-    ?`<button onclick="addDailyScoreSet()" style="font-size:0.75rem;background:none;border:1px dashed #bfdbfe;color:#3b82f6;border-radius:8px;padding:4px 12px;cursor:pointer">+ ${_dailyScoreSets+1}세트 추가</button>`
-    :'';
-}
-
-function addDailyScoreSet(){
-  if(_dailyScoreSets>=3) return;
-  const i=_dailyScoreSets;
-  _dailyScoreSets++;
-  const sets=document.getElementById('daily-score-sets');
+function _makeDailySetRow(i) {
   const row=document.createElement('div');
   row.className='dc-score-set';
   row.innerHTML=`
@@ -2512,8 +2533,52 @@ function addDailyScoreSet(){
       <div class="dc-score-btn" id="dscore-btn-b-${i}" onclick="selectScoreField('dscore-b-${i}')">-</div>
       <input type="hidden" id="dscore-b-${i}" value="">
     </div>`;
+  return row;
+}
+
+function _makeTBRow(i) {
+  const tbRow=document.createElement('div');
+  tbRow.id=`dscore-tb-row-${i}`;
+  tbRow.className='dc-score-set';
+  tbRow.style.cssText='display:none;margin-top:-6px';
+  tbRow.innerHTML=`
+    <div style="flex:1;display:flex;justify-content:center">
+      <div class="dc-score-btn" id="dscore-btn-tba-${i}" onclick="selectScoreField('dscore-tba-${i}')" style="background:#fef9c3;border-color:#fcd34d;font-size:0.82rem;min-width:42px;height:42px">-</div>
+      <input type="hidden" id="dscore-tba-${i}" value="">
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:28px">
+      <span style="font-size:0.6rem;color:#d97706;font-weight:700">TB</span>
+      <span style="font-weight:800;color:#fcd34d;font-size:0.95rem">:</span>
+    </div>
+    <div style="flex:1;display:flex;justify-content:center">
+      <div class="dc-score-btn" id="dscore-btn-tbb-${i}" onclick="selectScoreField('dscore-tbb-${i}')" style="background:#fef9c3;border-color:#fcd34d;font-size:0.82rem;min-width:42px;height:42px">-</div>
+      <input type="hidden" id="dscore-tbb-${i}" value="">
+    </div>`;
+  return tbRow;
+}
+
+function _renderDailyScoreSets(){
+  const sets=document.getElementById('daily-score-sets');
+  sets.innerHTML='';
+  for(let i=0;i<_dailyScoreSets;i++){
+    sets.appendChild(_makeDailySetRow(i));
+    sets.appendChild(_makeTBRow(i));
+  }
+  setTimeout(()=>selectScoreField('dscore-a-0'),50);
+  const addDiv=document.getElementById('daily-score-addset');
+  addDiv.innerHTML=_dailyScoreSets<3
+    ?`<button onclick="addDailyScoreSet()" style="font-size:0.75rem;background:none;border:1px dashed #bfdbfe;color:#3b82f6;border-radius:8px;padding:4px 12px;cursor:pointer">+ ${_dailyScoreSets+1}세트 추가</button>`
+    :'';
+}
+
+function addDailyScoreSet(){
+  if(_dailyScoreSets>=3) return;
+  const i=_dailyScoreSets;
+  _dailyScoreSets++;
+  const sets=document.getElementById('daily-score-sets');
+  sets.appendChild(_makeDailySetRow(i));
+  sets.appendChild(_makeTBRow(i));
   setTimeout(()=>selectScoreField(`dscore-a-${i}`),50);
-  sets.appendChild(row);
   const addDiv=document.getElementById('daily-score-addset');
   addDiv.innerHTML=_dailyScoreSets<3
     ?`<button onclick="addDailyScoreSet()" style="font-size:0.75rem;background:none;border:1px dashed #bfdbfe;color:#3b82f6;border-radius:8px;padding:4px 12px;cursor:pointer">+ ${_dailyScoreSets+1}세트 추가</button>`
@@ -2632,8 +2697,15 @@ async function saveDailyScore(){
     if(!av||!bv){alert(`${i+1}세트 점수를 입력해주세요.`);return;}
     const na=parseInt(av),nb=parseInt(bv);
     if(isNaN(na)||isNaN(nb)){alert('숫자를 입력해주세요.');return;}
-    if(na===nb){alert(`${i+1}세트 동점입니다.`);return;}
-    sets.push({s0:na,s1:nb});
+    const setObj={s0:na,s1:nb};
+    // TB 점수 저장 (6:5 또는 7:6인 경우만)
+    const tbRow=document.getElementById(`dscore-tb-row-${i}`);
+    if(tbRow&&tbRow.style.display!=='none'){
+      const ta=parseInt(document.getElementById(`dscore-tba-${i}`)?.value);
+      const tb=parseInt(document.getElementById(`dscore-tbb-${i}`)?.value);
+      if(!isNaN(ta)&&!isNaN(tb)){ setObj.tb0=ta; setObj.tb1=tb; }
+    }
+    sets.push(setObj);
   }
   if(!sets.length){alert('세트 점수를 입력해주세요.');return;}
   const sw0=sets.filter(s=>s.s0>s.s1).length,sw1=sets.filter(s=>s.s1>s.s0).length;
