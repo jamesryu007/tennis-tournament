@@ -2308,16 +2308,17 @@ function _renderDailyCard(id){
     // 점수는 입력 순서 그대로 (team0:team1)
     const scoreItems=d.sets.map((s,i)=>{
       const hasTB=s.tb0!=null&&s.tb1!=null;
-      const tbHtml=hasTB?`<span style="font-size:0.62rem;color:#d97706;font-weight:600;margin-left:2px">(${s.tb0}:${s.tb1})</span>`:'';
       const s0cls=isDraw?'':t0win?' dc-sc-w':' dc-sc-l';
       const s1cls=isDraw?'':t1win?' dc-sc-w':' dc-sc-l';
       return `<div class="dc-set-item">
         <span class="dc-set-lbl">${i+1}세트</span>
-        <div style="display:flex;align-items:center;gap:2px;flex-wrap:wrap;justify-content:center">
-          <span class="dc-set-sc${s0cls}">${s.s0}</span>
-          <span class="dc-sc-sep">:</span>
-          <span class="dc-set-sc${s1cls}">${s.s1}</span>
-          ${tbHtml}
+        <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+          <div style="display:flex;align-items:center;gap:2px">
+            <span class="dc-set-sc${s0cls}">${s.s0}</span>
+            <span class="dc-sc-sep">:</span>
+            <span class="dc-set-sc${s1cls}">${s.s1}</span>
+          </div>
+          ${hasTB?`<div style="font-size:inherit;color:#d97706;font-weight:700;line-height:1.2">(${s.tb0}:${s.tb1})</div>`:''}
         </div>
       </div>`;
     }).join('<div class="dc-set-divider"></div>');
