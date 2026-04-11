@@ -3024,9 +3024,10 @@ async function renderRankingTab(){
         _rankVsCache[vsCacheKey]=vsData;
       }
     }
+    const memberNames=(state.members||[]).map(m=>m.name);
     const pairsRaw=Object.entries(stats)
       .map(([k,v])=>({key:k,players:v.players||k.split('_'),nickname:v.nickname,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
-      .filter(p=>p.wins+p.draws+p.losses>=1);
+      .filter(p=>p.wins+p.draws+p.losses>=1 && p.players.every(n=>memberNames.includes(n)));
     if(!pairsRaw.length){el.innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>경기 기록이 없습니다</p></div>';return;}
     const pairAvgG=pairsRaw.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/pairsRaw.length;
     const pairThresh=pairAvgG*0.5;
@@ -3115,9 +3116,10 @@ async function renderRankingTab(){
         _rankVsCache[vsCacheKey]=vsData;
       }
     }
+    const memberNames=(state.members||[]).map(m=>m.name);
     const playersRaw=Object.entries(stats)
       .map(([k,v])=>({name:k,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
-      .filter(p=>p.wins+p.draws+p.losses>=1);
+      .filter(p=>p.wins+p.draws+p.losses>=1 && memberNames.includes(p.name));
     if(!playersRaw.length){el.innerHTML='<div class="empty-state"><div class="icon">👤</div><p>경기 기록이 없습니다</p></div>';return;}
     const playerAvgG=playersRaw.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/playersRaw.length;
     const playerThresh=playerAvgG*0.5;
