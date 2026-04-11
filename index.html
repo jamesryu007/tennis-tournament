@@ -2986,7 +2986,7 @@ async function renderRankingTab(){
     return `<div class="rank-item ${rc}${isSel?' selected':''}" onclick="toggleRankDetail('${key}')">
       <div class="rank-item-bar"></div>
       <div class="rank-item-body">
-        <span class="rank-num">${rankNum+1}위</span>
+        <span class="rank-num">${rankNum}위</span>
         <span class="rank-name">${name}</span>
         <span class="rank-stat">${wdl}</span>
         <div class="rank-wr-col">
@@ -3037,6 +3037,14 @@ async function renderRankingTab(){
     const pairs=[...pairsQ,...pairsU];
     if(!pairs.length){el.innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>경기 기록이 없습니다</p></div>';return;}
 
+    // 동순위 계산
+    pairs.forEach((p,i)=>{
+      if(i===0){p.rank=1;return;}
+      const prev=pairs[i-1];
+      const wr=Math.round(effWr(p.wins,p.draws,p.losses)),pwr=Math.round(effWr(prev.wins,prev.draws,prev.losses));
+      p.rank=(wr===pwr&&p.wins===prev.wins&&p.qualified===prev.qualified)?prev.rank:i+1;
+    });
+
     let html=`<div class="rank-banner" style="position:relative"><div class="rank-banner-title">🏆 자미터 팀페어 랭킹</div><div class="rank-banner-sub">총 ${pairs.length}팀 등록 · 클릭하면 상대 전적을 볼 수 있어요</div><button onclick="document.getElementById('rank-info-modal').classList.add('open')" style="position:absolute;top:50%;right:14px;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center">i</button></div>`;
 
     // ── 시상대 (1~3위) ──
@@ -3054,7 +3062,7 @@ async function renderRankingTab(){
       const nick=p.nickname||autoNick;
       const wdl=p.draws?`${p.wins}승 ${p.draws}무 ${p.losses}패`:`${p.wins}승 ${p.losses}패`;
       html+=`<div class="rank-pod ${podCls[i]}${isSel?' selected':''}" onclick="toggleRankDetail('${p.key}')">
-        <div class="rank-pod-medal">${medals[i]}</div>
+        <div class="rank-pod-medal">${medals[(p.rank||1)-1]||medals[i]}</div>
         <div class="rank-pod-nick">${nick}</div>
         <div class="rank-pod-members">${a}-${b}</div>
         <div class="rank-pod-wr ${wr>=50?'hot':'cold'}">${wr}%</div>
@@ -3072,10 +3080,10 @@ async function renderRankingTab(){
     if(pairs.length>3){
       html+=`<div class="rank-list-label">─ 4위 이하 ─</div>`;
       html+=pairs.slice(3).map((p,idx)=>{
-        const i=idx+3,isSel=p.key===_selectedRankKey;
+        const isSel=p.key===_selectedRankKey;
         const det=isSel?mkDetail(vsData,stats,'pair',true):'';
         const disp=`<span>${getPairDisplayName(p.players,p.nickname)}</span>`;
-        return mkListItem(p.key,i,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified);
+        return mkListItem(p.key,p.rank,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified);
       }).join('');
     }
     el.innerHTML=html;
@@ -3120,6 +3128,14 @@ async function renderRankingTab(){
     const players=[...playersQ,...playersU];
     if(!players.length){el.innerHTML='<div class="empty-state"><div class="icon">👤</div><p>경기 기록이 없습니다</p></div>';return;}
 
+    // 동순위 계산
+    players.forEach((p,i)=>{
+      if(i===0){p.rank=1;return;}
+      const prev=players[i-1];
+      const wr=Math.round(effWr(p.wins,p.draws,p.losses)),pwr=Math.round(effWr(prev.wins,prev.draws,prev.losses));
+      p.rank=(wr===pwr&&p.wins===prev.wins&&p.qualified===prev.qualified)?prev.rank:i+1;
+    });
+
     const curMonth = String(new Date().getMonth()+1).padStart(2,'0');
     function getMemberBirthday(name) {
       const m = state.members.find(x => x.name === name);
@@ -3147,7 +3163,7 @@ async function renderRankingTab(){
       const [,mm,dd]= bd ? bd.split('-') : [];
       const isBM = mm === curMonth;
       html+=`<div class="rank-pod ${podCls[i]}${isSel?' selected':''}" onclick="toggleRankDetail('${p.name}')">
-        <div class="rank-pod-medal">${medals[i]}</div>
+        <div class="rank-pod-medal">${medals[(p.rank||1)-1]||medals[i]}</div>
         <div class="rank-pod-nick" style="color:${nc}">${p.name}${isBM?'<span class="birthday-pill" style="margin-left:5px;font-size:0.6rem">🎂 생일</span>':''}</div>
         ${bd?`<div style="font-size:0.65rem;color:#94a3b8">${mm}/${dd}</div>`:''}
         <div class="rank-pod-wr ${wr>=50?'hot':'cold'}">${wr}%</div>
@@ -3163,11 +3179,11 @@ async function renderRankingTab(){
     if(players.length>3){
       html+=`<div class="rank-list-label">─ 4위 이하 ─</div>`;
       html+=players.slice(3).map((p,idx)=>{
-        const i=idx+3,isSel=p.name===_selectedRankKey;
+        const isSel=p.name===_selectedRankKey;
         const g=getGender(p.name),nc=g==='male'?'#2563eb':g==='female'?'#db2777':'#1e293b';
         const det=isSel?mkDetail(vsData,stats,'player',true):'';
         const disp=`<span style="color:${nc}">${p.name}</span>${bdayBadge(p.name)}`;
-        return mkListItem(p.name,i,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified);
+        return mkListItem(p.name,p.rank,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified);
       }).join('');
     }
     el.innerHTML=html;
