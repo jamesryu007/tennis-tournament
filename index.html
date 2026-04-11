@@ -199,6 +199,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .dc-set-sc { font-size:1.0rem; font-weight:900; white-space:nowrap; }
 .dc-sc-w { color:#34d399; }
 .dc-sc-l { color:#f87171; }
+.dc-sc-d { color:#fff; }
 .dc-sc-sep { color:rgba(255,255,255,0.4); font-size:0.65rem; }
 .dc-set-divider { width:24px; height:1px; background:rgba(255,255,255,0.2); margin:1px 0; }
 /* WIN/LOSE 배지 - 캐러셀 cc-badge 동일 */
@@ -2308,8 +2309,8 @@ function _renderDailyCard(id){
     // 점수는 입력 순서 그대로 (team0:team1)
     const scoreItems=d.sets.map((s,i)=>{
       const hasTB=s.tb0!=null&&s.tb1!=null;
-      const s0cls=isDraw?'':t0win?' dc-sc-w':' dc-sc-l';
-      const s1cls=isDraw?'':t1win?' dc-sc-w':' dc-sc-l';
+      const s0cls=isDraw?' dc-sc-d':t0win?' dc-sc-w':' dc-sc-l';
+      const s1cls=isDraw?' dc-sc-d':t1win?' dc-sc-w':' dc-sc-l';
       return `<div class="dc-set-item">
         <span class="dc-set-lbl">${i+1}세트</span>
         <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
