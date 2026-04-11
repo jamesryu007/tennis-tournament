@@ -352,6 +352,43 @@ async function saveAtpData(tournamentInfo, matches, isGrandSlam) {
 
   await db.ref('jmt/atpData').set({ tournamentInfo, matches, updatedAt });
   await saveGrandSlamIfNeeded(tournamentInfo, matches, isGrandSlam);
+  await autoProcessWinnerBet(matches);
+}
+
+// ── Final 경기 승자 감지 → winner 베팅 자동 결과 처리 ──────────────
+async function autoProcessWinnerBet(matches) {
+  // Final 경기가 STATUS_FINAL이고 승자가 확정된 경우만 처리
+  const finalMatch = (matches || []).find(m => {
+    const rn = (m.roundName || '').toLowerCase();
+    return (rn === 'final' || rn === 'the final')
+      && m.status === 'STATUS_FINAL'
+      && (m.player1Winner === true || m.player2Winner === true);
+  });
+  if (!finalMatch) return;
+
+  const winnerName = finalMatch.player1Winner ? finalMatch.player1Name : finalMatch.player2Name;
+  const winnerId = finalMatch.player1Winner ? finalMatch.player1Id : finalMatch.player2Id;
+  if (!winnerName) return;
+
+  const betsSnap = await db.ref('jmt/atpBets').once('value');
+  const bets = betsSnap.val() || {};
+  const now = new Date().toISOString();
+
+  for (const [betId, bet] of Object.entries(bets)) {
+    if (bet.type !== 'winner') continue;
+    if (bet.result) continue; // 이미 처리됨
+
+    console.log(`autoProcessWinnerBet: betId=${betId}, winner=${winnerName}`);
+    await db.ref(`jmt/atpBets/${betId}/result`).set({
+      winnerName,
+      winnerId: winnerId || '',
+      setAt: now,
+      auto: true,
+    });
+    if (bet.open) {
+      await db.ref(`jmt/atpBets/${betId}`).update({ open: false, closedAt: now });
+    }
+  }
 }
 
 // ══ 8. 2시간마다 — ESPN ATP 데이터 fetch ══════════════════════════
