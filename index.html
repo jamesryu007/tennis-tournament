@@ -5627,16 +5627,16 @@ function renderRoundDrawPanel(el, matches, tier) {
   el.innerHTML = html;
 
   // 현재 선택된 라운드 탭을 가운데로 스크롤
-  setTimeout(() => {
+  function _scrollActiveRoundTab() {
     const row = document.getElementById('atp-round-tabs-row');
     if (!row) return;
     const activeBtn = row.querySelector('button[data-active="true"]');
     if (!activeBtn) return;
-    const rowRect = row.getBoundingClientRect();
-    const btnRect = activeBtn.getBoundingClientRect();
-    const scrollTarget = row.scrollLeft + (btnRect.left - rowRect.left) - (rowRect.width / 2) + (btnRect.width / 2);
-    row.scrollLeft = Math.max(0, scrollTarget);
-  }, 80);
+    // scrollIntoView: 패널 visibility 무관하게 안정적으로 가운데 정렬
+    activeBtn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'instant' });
+  }
+  setTimeout(_scrollActiveRoundTab, 50);
+  setTimeout(_scrollActiveRoundTab, 300);
 }
 
 function switchRoundTab(roundKey) {
