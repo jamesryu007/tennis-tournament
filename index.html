@@ -5529,7 +5529,7 @@ function renderRoundDrawPanel(el, matches, tier) {
     else if (allDone)  { bg = '#f1f5f9'; color = '#94a3b8'; border = '#e2e8f0'; }
     else               { bg = '#fff';    color = '#475569'; border = '#e2e8f0'; }
 
-    parts.push(`<button onclick="switchRoundTab('${r.replace(/'/g,"\\'")}')"
+    parts.push(`<button onclick="switchRoundTab('${r.replace(/'/g,"\\'")}')"${isSelected?' data-active="true"':''}
       style="flex:0 0 auto;padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;border:1.5px solid ${border};background:${bg};color:${color}">${prefix}${label}</button>`);
     if (i < availRounds.length - 1) {
       parts.push(`<span style="flex-shrink:0;color:#cbd5e1;font-size:0.8rem;line-height:1">›</span>`);
@@ -5573,7 +5573,7 @@ function renderRoundDrawPanel(el, matches, tier) {
   }
 
   let html = `
-    <div style="display:flex;align-items:center;gap:4px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+    <div id="atp-round-tabs-row" style="display:flex;align-items:center;gap:4px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none">
       ${parts.join('')}
     </div>
     ${favPillsHtml}
@@ -5581,6 +5581,16 @@ function renderRoundDrawPanel(el, matches, tier) {
   `;
   html += matchesHtml;
   el.innerHTML = html;
+
+  // 현재 선택된 라운드 탭을 가운데로 스크롤
+  requestAnimationFrame(() => {
+    const row = document.getElementById('atp-round-tabs-row');
+    if (!row) return;
+    const activeBtn = row.querySelector('button[data-active="true"]');
+    if (!activeBtn) return;
+    const scrollLeft = activeBtn.offsetLeft - row.offsetWidth / 2 + activeBtn.offsetWidth / 2;
+    row.scrollLeft = Math.max(0, scrollLeft);
+  });
 }
 
 function switchRoundTab(roundKey) {
