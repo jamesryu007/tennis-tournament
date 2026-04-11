@@ -3215,8 +3215,16 @@ async function renderAttendanceRanking() {
     rate: Math.round((attended[name] || 0) / total * 100)
   })).sort((a, b) => b.rate - a.rate || b.count - a.count);
 
+  // 동점자 동순위 계산
+  stats.forEach((p, i) => {
+    if (i === 0) { p.rank = 1; return; }
+    const prev = stats[i - 1];
+    p.rank = (p.rate === prev.rate && p.count === prev.count) ? prev.rank : i + 1;
+  });
+
   const myName = state.identity && state.identity.name;
 
+  // 포디움: 동점 고려해 rank 1/2/3인 항목 찾기
   const podItems = stats.slice(0, Math.min(3, stats.length));
   const podCls = ['p1','p2','p3'], medals = ['🥇','🥈','🥉'];
 
@@ -3230,7 +3238,7 @@ async function renderAttendanceRanking() {
       const isMe = p.name === myName;
       const g = getGender(p.name), nc = g==='male'?'#1e40af':g==='female'?'#9d174d':'#1e293b';
       return `<div class="rank-pod ${podCls[i]}">
-        <div class="rank-pod-medal">${medals[i]}</div>
+        <div class="rank-pod-medal">${medals[p.rank-1]||medals[i]}</div>
         <div class="rank-pod-nick" style="color:${isMe?'#2563eb':nc}">${p.name}</div>
         <div class="rank-pod-members">${p.count}회 참석</div>
         <div class="rank-pod-wr ${p.rate>=50?'hot':'cold'}">${p.rate}%</div>
@@ -3249,7 +3257,7 @@ async function renderAttendanceRanking() {
       return `<div class="rank-item other">
         <div class="rank-item-bar"></div>
         <div class="rank-item-body">
-          <span class="rank-num">${idx+4}위</span>
+          <span class="rank-num">${p.rank}위</span>
           <span class="rank-name" style="color:${isMe?'#2563eb':nc}">${p.name}</span>
           <span class="rank-stat">${p.count}회 참석</span>
           <div class="rank-wr-col">
