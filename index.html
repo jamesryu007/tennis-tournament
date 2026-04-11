@@ -338,6 +338,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .cc-sc { font-size:1.0rem; font-weight:900; }
 .cc-sc.w { color:#34d399; }
 .cc-sc.l { color:#f87171; }
+.cc-sc.d { color:#fff; }
 .cc-sc-sep { color:rgba(255,255,255,0.35); font-size:0.65rem; }
 .cc-divider { width:24px; height:1px; background:rgba(255,255,255,0.15); margin:1px 0; }
 /* 도트 */
@@ -2796,7 +2797,8 @@ async function renderRecentMatchesCarousel(){
     const scoreHtml=m.sets.map((s,i)=>{
       const ws=isW0?s.s0:s.s1, ls=isW0?s.s1:s.s0;
       const ws0=isDraw?s.s0:ws, ls0=isDraw?s.s1:ls;
-      return `<div class="cc-set"><span class="cc-set-num">${i+1}세트</span><div class="cc-set-score"><span class="cc-sc w">${ws0}</span><span class="cc-sc-sep">:</span><span class="cc-sc l">${ls0}</span></div></div>`;
+      const s0cls=isDraw?'d':'w', s1cls=isDraw?'d':'l';
+      return `<div class="cc-set"><span class="cc-set-num">${i+1}세트</span><div class="cc-set-score"><span class="cc-sc ${s0cls}">${ws0}</span><span class="cc-sc-sep">:</span><span class="cc-sc ${s1cls}">${ls0}</span></div></div>`;
     }).join('<div class="cc-divider"></div>');
     const [,mo,d]=(m.date||'').split('-');
     const dateStr=m.date?`${parseInt(mo)}월 ${parseInt(d)}일`:'';
