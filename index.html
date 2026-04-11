@@ -5624,7 +5624,9 @@ function renderRoundDrawPanel(el, matches, tier) {
     if (!row) return;
     const activeBtn = row.querySelector('button[data-active="true"]');
     if (!activeBtn) return;
-    const scrollTarget = activeBtn.offsetLeft - (row.clientWidth / 2) + (activeBtn.offsetWidth / 2);
+    const rowRect = row.getBoundingClientRect();
+    const btnRect = activeBtn.getBoundingClientRect();
+    const scrollTarget = row.scrollLeft + (btnRect.left - rowRect.left) - (rowRect.width / 2) + (btnRect.width / 2);
     row.scrollLeft = Math.max(0, scrollTarget);
   }, 80);
 }
