@@ -2761,6 +2761,9 @@ async function saveDailyScore(){
     } else if(winner===0){
       const picks=['ca.png','ca0.png','ca1.png'];
       d.bgImage='images/'+picks[Math.floor(Math.random()*picks.length)];
+    } else {
+      const picks=['ca7.png','ca8.png','ca9.png','ca11.png'];
+      d.bgImage='images/'+picks[Math.floor(Math.random()*picks.length)];
     }
     document.getElementById('daily-score-modal').classList.remove('open');
     _dailyScoreCtx=null;
