@@ -353,6 +353,38 @@ async function saveAtpData(tournamentInfo, matches, isGrandSlam) {
   await db.ref('jmt/atpData').set({ tournamentInfo, matches, updatedAt });
   await saveGrandSlamIfNeeded(tournamentInfo, matches, isGrandSlam);
   await autoProcessWinnerBet(matches);
+  await fetchAndSaveNews();
+}
+
+// ── ATP 뉴스 fetch + 번역 + Firebase 저장 ─────────────────────────
+async function fetchAndSaveNews() {
+  try {
+    const res = await fetch('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/news?limit=10');
+    const json = await res.json();
+    const articles = (json.articles || []).slice(0, 10).map(a => ({
+      headline:    a.headline || '',
+      description: a.description || '',
+      published:   a.published || '',
+      url:         (a.links && a.links.web && a.links.web.href) || '',
+    })).filter(a => a.headline);
+    if (!articles.length) return;
+
+    const TRANS_URL = 'https://script.google.com/macros/s/AKfycbwfF6W1xll0ooa0g4Gb57dnVnknXbZxKM1au3YlY52oGsrDIqHPty4q6fh6mWW0SXI00w/exec';
+    const toTrans = articles.flatMap(a => [a.headline, a.description]);
+    const tRes = await fetch(`${TRANS_URL}?texts=${encodeURIComponent(JSON.stringify(toTrans))}`);
+    const tJson = await tRes.json();
+    const tr = tJson.translated || [];
+    if (tr.length === 0) { console.warn('fetchAndSaveNews: translation empty'); return; }
+
+    articles.forEach((a, i) => {
+      a.headlineKo    = tr[i * 2]     || a.headline;
+      a.descriptionKo = tr[i * 2 + 1] || a.description;
+    });
+    await db.ref('jmt/atpNews').set({ articles, updatedAt: new Date().toISOString() });
+    console.log(`fetchAndSaveNews: saved ${articles.length} articles`);
+  } catch (e) {
+    console.warn('fetchAndSaveNews error:', e.message);
+  }
 }
 
 // ── 베팅 자동 처리 (경기 시작 시 close, 종료 시 결과 처리) ──────────
