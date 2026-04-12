@@ -2754,6 +2754,14 @@ async function saveDailyScore(){
     }
     d.nick0=nick0;d.nick1=nick1;
     d.sets=sets;d.winner=winner;d.phase='done';
+    // 승리 팀에 따라 배경 이미지 결정
+    if(winner===1){
+      const picks=['right_1.png','right_2.png'];
+      d.bgImage='images/'+picks[Math.floor(Math.random()*picks.length)];
+    } else if(winner===0){
+      const picks=['ca.png','ca0.png','ca1.png'];
+      d.bgImage='images/'+picks[Math.floor(Math.random()*picks.length)];
+    }
     document.getElementById('daily-score-modal').classList.remove('open');
     _dailyScoreCtx=null;
     _saveCardToFirebase(id);
