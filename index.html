@@ -2007,6 +2007,14 @@ function getGender(name){
 // ══ DAILY MATCH & RANKING UTILITIES ══════════════════════════════
 function getPairKey(p1,p2){ return [p1,p2].sort().join('_'); }
 
+// winner 기반 배경 이미지 (seed로 동일 카드는 항상 같은 이미지 유지)
+function _winnerBg(winner, seed){
+  const h=String(seed).split('').reduce((a,c)=>a+c.charCodeAt(0),0);
+  if(winner===1){ const p=['right_1.png','right_2.png']; return 'images/'+p[h%p.length]; }
+  if(winner===0){ const p=['ca.png','ca0.png','ca1.png']; return 'images/'+p[h%p.length]; }
+  const p=['ca7.png','ca8.png','ca9.png','ca11.png']; return 'images/'+p[h%p.length];
+}
+
 function _getTeamDisplay(players){
   if(!players||players.length<2) return {html:'?',nick:'',memberStr:''};
   const key=getPairKey(players[0],players[1]);
@@ -2361,12 +2369,7 @@ function _renderDailyCard(id){
       <div class="dc-tmembers">${t1.memberStr}</div>
       ${r1Badge}
     </div>`;
-    const _cardDominant=!isDraw&&(d.sets||[]).every(s=>{
-      const ws=t0win?parseInt(s.s0):parseInt(s.s1), ls=t0win?parseInt(s.s1):parseInt(s.s0);
-      return ws===6&&ls<=2;
-    });
-    const _doneCardBg=_cardDominant?'images/ca.png':'images/ca1.png';
-    el.innerHTML=mkCard(`✅ 경기${d.num}`, left, mid, right, _doneCardBg);
+    el.innerHTML=mkCard(`✅ 경기${d.num}`, left, mid, right, _winnerBg(d.winner, id));
   }
 }
 
@@ -2833,11 +2836,7 @@ async function renderRecentMatchesCarousel(){
     }).join('<div class="cc-divider"></div>');
     const [,mo,d]=(m.date||'').split('-');
     const dateStr=m.date?`${parseInt(mo)}월 ${parseInt(d)}일`:'';
-    const _dominant=!isDraw&&(m.sets||[]).every(s=>{
-      const ws=isW0?parseInt(s.s0):parseInt(s.s1), ls=isW0?parseInt(s.s1):parseInt(s.s0);
-      return ws===6&&ls<=2;
-    });
-    const _doneBg=_dominant?'images/ca.png':'images/ca1.png';
+    const _doneBg=_winnerBg(m.winner, (m.date||'')+(m.team0||[]).join('')+(m.team1||[]).join(''));
     if(isDraw){
       return `<div class="carousel-card">
         <div class="cc-bg" style="background-image:url('${_doneBg}');background-size:cover;background-position:center;background-repeat:no-repeat"></div>
