@@ -5225,7 +5225,11 @@ function initAtpListeners() {
   // ATP 뉴스 구독
   db.ref('jmt/atpNews').on('value', snap => {
     const d = snap.val();
-    atpState.news = (d && d.articles) ? d.articles : [];
+    const incoming = (d && d.articles) ? d.articles : [];
+    // headlineKo 있는 기사가 있거나 현재 뉴스가 없을 때만 갱신
+    if (incoming.some(a => a.headlineKo) || !atpState.news.length) {
+      atpState.news = incoming;
+    }
     atpState.newsLoaded = true;
     updateNewsBadge();
     if (atpState.currentTab === 'news' && document.getElementById('page-atp').classList.contains('active')) {
@@ -7081,11 +7085,14 @@ async function triggerAtpRefresh() {
           translated = true;
         }
       } catch(te) { console.warn('news translate error:', te); }
-      atpState.news = articles;
-      updateNewsBadge();
-      if (atpState.currentTab === 'news') renderAtpNewsPanel();
-      // 번역 성공한 경우에만 DB 저장 — Cloud Function이 저장한 한글 번역본 보호
-      if (translated && db) db.ref('jmt/atpNews').set({ articles, updatedAt: new Date().toISOString() }).catch(() => {});
+      // 번역 성공한 경우에만 atpState.news 갱신 + DB 저장
+      // 번역 실패 시 headlineKo 없는 기사로 덮으면 뉴스가 사라지므로 기존 데이터 유지
+      if (translated) {
+        atpState.news = articles;
+        updateNewsBadge();
+        if (atpState.currentTab === 'news') renderAtpNewsPanel();
+        if (db) db.ref('jmt/atpNews').set({ articles, updatedAt: new Date().toISOString() }).catch(() => {});
+      }
     }
   } catch(e) { console.warn('news refresh error:', e); }
 
