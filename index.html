@@ -2836,7 +2836,9 @@ async function renderRecentMatchesCarousel(){
     }).join('<div class="cc-divider"></div>');
     const [,mo,d]=(m.date||'').split('-');
     const dateStr=m.date?`${parseInt(mo)}월 ${parseInt(d)}일`:'';
-    const _doneBg=_winnerBg(m.winner, (m.date||'')+(m.team0||[]).join('')+(m.team1||[]).join(''));
+    // 카루셀은 이긴팀을 항상 왼쪽에 배치 → right_1/2.png 불필요, 승리시 항상 ca계열 사용
+    const _carouselWinner = (m.winner===0||m.winner===1) ? 0 : m.winner;
+    const _doneBg=_winnerBg(_carouselWinner, (m.date||'')+(m.team0||[]).join('')+(m.team1||[]).join(''));
     if(isDraw){
       return `<div class="carousel-card">
         <div class="cc-bg" style="background-image:url('${_doneBg}');background-size:cover;background-position:center;background-repeat:no-repeat"></div>
