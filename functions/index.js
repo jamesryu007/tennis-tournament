@@ -355,43 +355,60 @@ async function saveAtpData(tournamentInfo, matches, isGrandSlam) {
   await autoProcessWinnerBet(matches);
 }
 
-// ── 베팅 자동 결과 처리 (winner + match 타입 모두) ──────────────────
+// ── 베팅 자동 처리 (경기 시작 시 close, 종료 시 결과 처리) ──────────
 async function autoProcessWinnerBet(matches) {
   const matchList = matches || [];
+  const now = new Date().toISOString();
 
-  // Final 경기 (우승자 맞추기용)
-  const finalMatch = matchList.find(m => {
+  // Final 경기: 시작됐거나 완료된 것 (winner 베팅 close용)
+  const finalStarted = matchList.find(m => {
     const rn = (m.roundName || '').toLowerCase();
     return (rn === 'final' || rn === 'the final')
       && !rn.includes('semi') && !rn.includes('qualify')
-      && m.status === 'STATUS_FINAL'
-      && (m.player1Winner === true || m.player2Winner === true);
+      && (m.status === 'STATUS_IN_PROGRESS' || m.status === 'STATUS_FINAL');
   });
+  // Final 경기: 완료된 것 (winner 베팅 결과 처리용)
+  const finalDone = finalStarted && finalStarted.status === 'STATUS_FINAL'
+    && (finalStarted.player1Winner === true || finalStarted.player2Winner === true)
+    ? finalStarted : null;
 
   const betsSnap = await db.ref('jmt/atpBets').once('value');
   const bets = betsSnap.val() || {};
-  const now = new Date().toISOString();
 
   for (const [betId, bet] of Object.entries(bets)) {
-    if (bet.result) continue; // 이미 처리됨
-    if (!bet.open) continue;  // 이미 close된 베팅은 skip
+    if (bet.result) continue; // 이미 결과 처리됨
 
+    let targetMatch = null;
+    if (bet.type !== 'winner') {
+      if (!bet.matchId) continue;
+      targetMatch = matchList.find(m => m.id === bet.matchId);
+      if (!targetMatch) continue;
+    }
+
+    // 1. 경기 시작(IN_PROGRESS) 또는 종료(FINAL) 시 open 베팅 자동 close
+    if (bet.open) {
+      const shouldClose = bet.type === 'winner'
+        ? !!finalStarted
+        : !!(targetMatch.status === 'STATUS_IN_PROGRESS' || targetMatch.status === 'STATUS_FINAL');
+      if (shouldClose) {
+        console.log(`autoCloseBet: betId=${betId}, type=${bet.type||'match'}`);
+        await db.ref(`jmt/atpBets/${betId}`).update({ open: false, closedAt: now });
+      }
+    }
+
+    // 2. 경기 종료(FINAL) 시 결과 처리 — open/close 무관 (관리자 수동 close도 포함)
     let winnerName = null;
     let winnerId = null;
 
     if (bet.type === 'winner') {
-      // 우승자 맞추기: Final 경기 승자
-      if (!finalMatch) continue;
-      winnerName = finalMatch.player1Winner ? finalMatch.player1Name : finalMatch.player2Name;
-      winnerId   = finalMatch.player1Winner ? finalMatch.player1Id   : finalMatch.player2Id;
+      if (!finalDone) continue;
+      winnerName = finalDone.player1Winner ? finalDone.player1Name : finalDone.player2Name;
+      winnerId   = finalDone.player1Winner ? finalDone.player1Id   : finalDone.player2Id;
     } else {
-      // 경기 베팅: bet.matchId로 해당 경기 찾기
-      if (!bet.matchId) continue;
-      const m = matchList.find(m => m.id === bet.matchId && m.status === 'STATUS_FINAL'
-        && (m.player1Winner === true || m.player2Winner === true));
-      if (!m) continue;
-      winnerName = m.player1Winner ? m.player1Name : m.player2Name;
-      winnerId   = m.player1Winner ? m.player1Id   : m.player2Id;
+      if (targetMatch.status !== 'STATUS_FINAL'
+        || (!targetMatch.player1Winner && !targetMatch.player2Winner)) continue;
+      winnerName = targetMatch.player1Winner ? targetMatch.player1Name : targetMatch.player2Name;
+      winnerId   = targetMatch.player1Winner ? targetMatch.player1Id   : targetMatch.player2Id;
     }
 
     if (!winnerName) continue;
@@ -403,7 +420,10 @@ async function autoProcessWinnerBet(matches) {
       setAt: now,
       auto: true,
     });
-    await db.ref(`jmt/atpBets/${betId}`).update({ open: false, closedAt: now });
+    // 결과 처리 시점에도 아직 open이면 close (혹시 STATUS_IN_PROGRESS fetch를 건너뛴 경우)
+    if (bet.open) {
+      await db.ref(`jmt/atpBets/${betId}`).update({ open: false, closedAt: now });
+    }
   }
 }
 
@@ -475,6 +495,23 @@ exports.notifyBetResult = onValueCreated(
       ? `🏆 ${winnerName} 우승! 아쉽게도 이번엔 틀렸네요 😅`
       : `🏆 ${winnerName} 우승! 베팅 결과를 확인하세요`;
     await sendPush(nonWinnerTokens, '🎯 베팅 결과 발표!', loserBody, 'atp', '', betId, { isWinner: 'false' });
+  }
+);
+
+// ══ 9b. 베팅 자동 처리만 실행 (클라이언트 새로고침 후 호출용) ═════
+exports.processBets = onCall(
+  { region: 'asia-southeast1' },
+  async () => {
+    try {
+      const snap = await db.ref('jmt/atpData').once('value');
+      const data = snap.val();
+      if (!data || !data.matches) return { success: false, error: 'no data' };
+      await autoProcessWinnerBet(data.matches);
+      return { success: true };
+    } catch (e) {
+      console.error('processBets error:', e);
+      return { success: false, error: e.message };
+    }
   }
 );
 

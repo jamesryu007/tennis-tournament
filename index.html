@@ -2836,7 +2836,9 @@ async function renderRecentMatchesCarousel(){
     }).join('<div class="cc-divider"></div>');
     const [,mo,d]=(m.date||'').split('-');
     const dateStr=m.date?`${parseInt(mo)}월 ${parseInt(d)}일`:'';
-    const _doneBg=_winnerBg(m.winner, (m.date||'')+(m.team0||[]).join('')+(m.team1||[]).join(''));
+    // 카루셀은 이긴팀을 항상 왼쪽에 배치 → right_1/2.png 불필요, 승리시 항상 ca계열 사용
+    const _carouselWinner = (m.winner===0||m.winner===1) ? 0 : m.winner;
+    const _doneBg=_winnerBg(_carouselWinner, (m.date||'')+(m.team0||[]).join('')+(m.team1||[]).join(''));
     if(isDraw){
       return `<div class="carousel-card">
         <div class="cc-bg" style="background-image:url('${_doneBg}');background-size:cover;background-position:center;background-repeat:no-repeat"></div>
@@ -7066,6 +7068,10 @@ async function triggerAtpRefresh() {
         db.ref(`jmt/lastGrandSlam/${tournamentInfo.id}`).set({
           tournamentInfo, matches, savedAt: new Date().toISOString()
         }).catch(() => {});
+      }
+      // 경기 상태 업데이트 후 베팅 자동 처리 (close/결과) — 백그라운드
+      if (typeof firebase !== 'undefined') {
+        firebase.app().functions('asia-southeast1').httpsCallable('processBets')().catch(() => {});
       }
     }
   // 뉴스도 함께 갱신 (백그라운드, 실패해도 무시)
