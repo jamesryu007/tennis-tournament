@@ -554,7 +554,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <div style="display:flex;border-radius:12px;overflow:hidden;border:1.5px solid #e2e8f0;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">
     <button class="atp-tab active" id="atp-tab-draw" onclick="switchAtpTab('draw')">🎾 대진표</button>
     <button class="atp-tab"        id="atp-tab-bet"  onclick="switchAtpTab('bet')">🎯 베팅</button>
-    <button class="atp-tab"        id="atp-tab-news" onclick="switchAtpTab('news')">🔥 <span style="color:#ef4444">Hot</span> News</button>
+    <button class="atp-tab"        id="atp-tab-news" onclick="switchAtpTab('news')">🔥 <span style="color:#ef4444">Hot</span> News<span id="news-new-badge" style="display:none;margin-left:4px;background:#ef4444;color:#fff;font-size:0.6rem;font-weight:800;padding:1px 5px;border-radius:8px;vertical-align:middle;line-height:1.5">NEW</span></button>
   </div>
 
   <!-- 대진표 탭 -->
@@ -731,12 +731,12 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <!-- ══ PAGE: 대회만들기 ══ -->
 <div class="page" id="page-setup">
   <div class="sub-tabs" style="margin-bottom:10px">
-    <div class="sub-tab active" id="stab-create" onclick="switchSetupTab('create')">🏆 모임만들기</div>
-    <div class="sub-tab" id="stab-meeting" onclick="switchSetupTab('meeting')">📅 모임 정하기</div>
+    <div class="sub-tab active" id="stab-meeting" onclick="switchSetupTab('meeting')">📅 모임 정하기</div>
+    <div class="sub-tab" id="stab-create" onclick="switchSetupTab('create')">🏆 모임만들기</div>
   </div>
 
   <!-- 모임만들기 패널 -->
-  <div id="setup-panel-create">
+  <div id="setup-panel-create" style="display:none">
 
   <!-- 대회 진행중 배너 (대진 생성 후 표시) -->
   <div id="active-tournament-banner" style="display:none">
@@ -890,7 +890,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   </div><!-- /setup-panel-create -->
 
   <!-- 모임 정하기 패널 -->
-  <div id="setup-panel-meeting" style="display:none">
+  <div id="setup-panel-meeting">
     <div id="meeting-poll-content">
       <div class="card"><p style="text-align:center;color:#94a3b8;padding:20px 0">로딩 중...</p></div>
     </div>
@@ -4025,6 +4025,7 @@ function switchPage(id) {
       });
     }
   }
+  if(id === 'setup') { switchSetupTab('meeting'); }
   if(id === 'members') { loadRankingTop3().then(renderMemberList); renderMemberList(); }
   if(id === 'history') {
     renderRankYearRow();
@@ -5226,6 +5227,7 @@ function initAtpListeners() {
     const d = snap.val();
     atpState.news = (d && d.articles) ? d.articles : [];
     atpState.newsLoaded = true;
+    updateNewsBadge();
     if (atpState.currentTab === 'news' && document.getElementById('page-atp').classList.contains('active')) {
       renderAtpNewsPanel();
     }
@@ -5251,12 +5253,30 @@ function initAtpListeners() {
   }
 }
 
+// ── ATP 뉴스 NEW 배지 ────────────────────────────────────────────
+const _LS_NEWS_READ = 'jamite_news_read_at';
+function updateNewsBadge() {
+  const badge = document.getElementById('news-new-badge');
+  if (!badge) return;
+  const articles = (atpState.news || []).filter(a => a.headlineKo);
+  if (!articles.length) { badge.style.display = 'none'; return; }
+  const latest = articles.reduce((max, a) => a.published > max ? a.published : max, '');
+  const lastRead = localStorage.getItem(_LS_NEWS_READ) || '';
+  badge.style.display = (latest && latest > lastRead) ? '' : 'none';
+}
+
 // ── ATP 뉴스 패널 렌더 ────────────────────────────────────────────
 function renderAtpNewsPanel() {
   const el = document.getElementById('atp-news-content');
   if (!el) return;
-  // headlineKo 없는 기사(번역 미완료)는 표시하지 않음
+  // 뉴스 탭 열면 읽음 처리 → NEW 배지 제거
   const articles = (atpState.news || []).filter(a => a.headlineKo);
+  if (articles.length) {
+    const latest = articles.reduce((max, a) => a.published > max ? a.published : max, '');
+    if (latest) localStorage.setItem(_LS_NEWS_READ, latest);
+  }
+  updateNewsBadge();
+  // headlineKo 없는 기사(번역 미완료)는 표시하지 않음
   if (!articles.length) {
     el.innerHTML = atpState.newsLoaded
       ? '<div style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.85rem">뉴스가 없습니다.</div>'
@@ -5290,6 +5310,12 @@ function switchAtpTab(tab) {
     if (panel) panel.style.display = active ? '' : 'none';
   });
   if (tab === 'news') renderAtpNewsPanel();
+  if (tab === 'draw') {
+    setTimeout(() => {
+      const activeBtn = document.querySelector('#atp-round-tabs-row button[data-active="true"]');
+      if (activeBtn) activeBtn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'instant' });
+    }, 50);
+  }
 }
 
 // ── ATP 페이지 전체 렌더 ──────────────────────────────────────────
@@ -7056,6 +7082,7 @@ async function triggerAtpRefresh() {
         }
       } catch(te) { console.warn('news translate error:', te); }
       atpState.news = articles;
+      updateNewsBadge();
       if (atpState.currentTab === 'news') renderAtpNewsPanel();
       // 번역 성공한 경우에만 DB 저장 — Cloud Function이 저장한 한글 번역본 보호
       if (translated && db) db.ref('jmt/atpNews').set({ articles, updatedAt: new Date().toISOString() }).catch(() => {});
