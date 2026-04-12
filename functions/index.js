@@ -498,6 +498,23 @@ exports.notifyBetResult = onValueCreated(
   }
 );
 
+// ══ 9b. 베팅 자동 처리만 실행 (클라이언트 새로고침 후 호출용) ═════
+exports.processBets = onCall(
+  { region: 'asia-southeast1' },
+  async () => {
+    try {
+      const snap = await db.ref('jmt/atpData').once('value');
+      const data = snap.val();
+      if (!data || !data.matches) return { success: false, error: 'no data' };
+      await autoProcessWinnerBet(data.matches);
+      return { success: true };
+    } catch (e) {
+      console.error('processBets error:', e);
+      return { success: false, error: e.message };
+    }
+  }
+);
+
 // ══ 10. ATP 데이터 수동 갱신 (클라이언트 호출용) ══════════════════
 exports.refreshAtpData = onCall(
   { region: 'asia-southeast1' },

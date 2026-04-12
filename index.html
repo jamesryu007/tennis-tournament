@@ -7069,6 +7069,10 @@ async function triggerAtpRefresh() {
           tournamentInfo, matches, savedAt: new Date().toISOString()
         }).catch(() => {});
       }
+      // 경기 상태 업데이트 후 베팅 자동 처리 (close/결과) — 백그라운드
+      if (typeof firebase !== 'undefined') {
+        firebase.functions().httpsCallable('processBets')().catch(() => {});
+      }
     }
   // 뉴스도 함께 갱신 (백그라운드, 실패해도 무시)
   try {
