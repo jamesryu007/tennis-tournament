@@ -7522,9 +7522,9 @@ function _mpVoteSection(poll, me) {
       </div>`;
     });
     if (me) {
-      html += `<div style="margin-top:8px">
-        <input type="date" id="mp-suggest-date-input" style="position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0" onchange="mpSubmitMemberDate(this.value);this.value=''">
-        <button onclick="var el=document.getElementById('mp-suggest-date-input');el.style.pointerEvents='auto';el.focus();el.click();setTimeout(function(){el.style.pointerEvents='none'},500)" style="width:100%;font-size:0.78rem;font-weight:600;padding:7px;border-radius:8px;border:1.5px dashed #93c5fd;background:transparent;color:#3b82f6;cursor:pointer">+ 날짜 제안</button>
+      html += `<div style="margin-top:8px;position:relative">
+        <input type="date" id="mp-suggest-date-input" style="position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer" onchange="mpSubmitMemberDate(this.value);this.value=''">
+        <label for="mp-suggest-date-input" style="display:block;width:100%;font-size:0.78rem;font-weight:600;padding:7px;border-radius:8px;border:1.5px dashed #93c5fd;background:transparent;color:#3b82f6;cursor:pointer;text-align:center;box-sizing:border-box">+ 날짜 제안</label>
       </div>`;
     }
     html += `</div>`;
@@ -8133,7 +8133,8 @@ function mpToggleDateVote(dateStr) {
     if (already) {
       ref.child('dates/'+dateStr).remove().catch(fbErr);
     } else if (!multiSelect) {
-      ref.child('dates').set({ [dateStr]: true }).catch(fbErr);
+      // 단일 선택: 관리자 후보 + 멤버 제안 후보 모두 초기화 후 선택
+      ref.update({ dates: { [dateStr]: true }, memberDates: null }).catch(fbErr);
     } else {
       ref.child('dates/'+dateStr).set(true).catch(fbErr);
     }
@@ -8155,7 +8156,8 @@ function mpToggleContentVote(idx) {
     if (already) {
       ref.child('contents/'+idx).remove().catch(fbErr);
     } else if (!multiSelect) {
-      ref.child('contents').set({ [String(idx)]: true }).catch(fbErr);
+      // 단일 선택: 관리자 후보 + 멤버 제안 후보 모두 초기화 후 선택
+      ref.update({ contents: { [String(idx)]: true }, memberContents: null }).catch(fbErr);
     } else {
       ref.child('contents/'+idx).set(true).catch(fbErr);
     }
@@ -8259,7 +8261,8 @@ function mpToggleMemberDateVote(key) {
     if (already) {
       ref.child('memberDates/' + key).remove().catch(fbErr);
     } else if (!multiSelect) {
-      ref.child('memberDates').set({ [key]: true }).catch(fbErr);
+      // 단일 선택: 관리자 후보 + 멤버 제안 후보 모두 초기화 후 선택
+      ref.update({ dates: null, memberDates: { [key]: true } }).catch(fbErr);
     } else {
       ref.child('memberDates/' + key).set(true).catch(fbErr);
     }
@@ -8281,7 +8284,8 @@ function mpToggleMemberContentVote(key) {
     if (already) {
       ref.child('memberContents/' + key).remove().catch(fbErr);
     } else if (!multiSelect) {
-      ref.child('memberContents').set({ [key]: true }).catch(fbErr);
+      // 단일 선택: 관리자 후보 + 멤버 제안 후보 모두 초기화 후 선택
+      ref.update({ contents: null, memberContents: { [key]: true } }).catch(fbErr);
     } else {
       ref.child('memberContents/' + key).set(true).catch(fbErr);
     }
