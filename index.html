@@ -7523,8 +7523,17 @@ function _mpVoteSection(poll, me) {
     });
     if (me) {
       html += `<div style="margin-top:10px">
-        <div style="font-size:0.72rem;color:#64748b;margin-bottom:4px;font-weight:600">+ 날짜 제안</div>
-        <input type="date" id="mp-suggest-date-input" style="width:100%;font-size:0.85rem;padding:8px 10px;border-radius:8px;border:1.5px solid #93c5fd;background:#eff6ff;color:#1e40af;cursor:pointer;box-sizing:border-box;-webkit-appearance:none" onchange="mpSubmitMemberDate(this.value);this.value=''">
+        <div id="mp-suggest-date-btn-wrap">
+          <button onclick="mpShowDatePicker()" style="font-size:0.82rem;font-weight:600;padding:8px 16px;border-radius:10px;border:1.5px dashed #93c5fd;background:#eff6ff;color:#1e40af;cursor:pointer;width:100%;text-align:center">＋ 날짜 제안</button>
+        </div>
+        <div id="mp-suggest-date-panel" style="display:none;margin-top:6px;padding:12px;border-radius:10px;border:1.5px solid #93c5fd;background:#eff6ff">
+          <div style="font-size:0.72rem;color:#1e40af;font-weight:600;margin-bottom:8px">제안할 날짜 선택</div>
+          <input type="date" id="mp-suggest-date-input" style="width:100%;font-size:1rem;padding:10px;border-radius:8px;border:1.5px solid #93c5fd;background:#fff;color:#1e293b;box-sizing:border-box;margin-bottom:10px">
+          <div style="display:flex;gap:8px">
+            <button onclick="mpCancelDatePicker()" style="flex:1;font-size:0.82rem;font-weight:600;padding:9px;border-radius:8px;border:1.5px solid #cbd5e1;background:#fff;color:#64748b;cursor:pointer">취소</button>
+            <button onclick="mpConfirmMemberDate()" style="flex:2;font-size:0.82rem;font-weight:700;padding:9px;border-radius:8px;border:none;background:#2563eb;color:#fff;cursor:pointer">확인</button>
+          </div>
+        </div>
       </div>`;
     }
     html += `</div>`;
@@ -8265,6 +8274,23 @@ function mpDeletePoll() {
 }
 
 // ── 멤버 제안 날짜/내용 ──
+function mpShowDatePicker() {
+  const panel = document.getElementById('mp-suggest-date-panel');
+  if (panel) { panel.style.display = 'block'; }
+}
+function mpCancelDatePicker() {
+  const panel = document.getElementById('mp-suggest-date-panel');
+  const input = document.getElementById('mp-suggest-date-input');
+  if (panel) panel.style.display = 'none';
+  if (input) input.value = '';
+}
+function mpConfirmMemberDate() {
+  const input = document.getElementById('mp-suggest-date-input');
+  const date = input && input.value;
+  if (!date) { alert('날짜를 선택해주세요.'); return; }
+  mpSubmitMemberDate(date);
+  mpCancelDatePicker();
+}
 function mpSubmitMemberDate(date) {
   const me = state.identity && state.identity.name;
   if (!me) { alert('먼저 접속자를 선택하세요.'); return; }
