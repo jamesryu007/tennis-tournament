@@ -7577,7 +7577,7 @@ function _mpResultCard(poll, allowAdminDecision=false) {
 
     if (fd.date) {
       // 관리자 결정 완료
-      const badge = `<div style="display:inline-block;font-size:0.62rem;font-weight:800;color:#1e293b;background:#fde68a;border-radius:20px;padding:3px 11px;letter-spacing:0.08em;margin-bottom:10px">👑 관리자 결정</div>`;
+      const badge = `<div style="display:inline-block;font-size:0.62rem;font-weight:800;color:#1e293b;background:#fde68a;border-radius:20px;padding:3px 11px;letter-spacing:0.08em;margin-bottom:10px">👑 확정</div>`;
       html += winnerBox({labels:[dateFmt(fd.date)], mx:dateCounts[fd.date]||mx, badge,
         grad:'linear-gradient(145deg,#1e40af 0%,#2563eb 55%,#3b82f6 100%)',
         glowAnim:'mpGlowBlue', deco1:'📅', deco2:'🎉',
@@ -7639,7 +7639,7 @@ function _mpResultCard(poll, allowAdminDecision=false) {
     if (fd.contentIdx !== undefined && fd.contentIdx !== null) {
       // 관리자 결정 완료
       const decided = (poll.contents||[])[fd.contentIdx];
-      const badge = `<div style="display:inline-block;font-size:0.62rem;font-weight:800;color:#1e293b;background:#fde68a;border-radius:20px;padding:3px 11px;letter-spacing:0.08em;margin-bottom:10px">👑 관리자 결정</div>`;
+      const badge = `<div style="display:inline-block;font-size:0.62rem;font-weight:800;color:#1e293b;background:#fde68a;border-radius:20px;padding:3px 11px;letter-spacing:0.08em;margin-bottom:10px">👑 확정</div>`;
       html += winnerBox({labels:[decided ? decided.replace(/</g,'&lt;') : '?'], mx:contentCounts[fd.contentIdx]||mx, badge,
         grad:'linear-gradient(145deg,#064e3b 0%,#059669 55%,#10b981 100%)',
         glowAnim:'mpGlowGreen', deco1:'🎯', deco2:'✨',
