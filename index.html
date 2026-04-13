@@ -7354,11 +7354,16 @@ function _mpCreateFormHtml() {
       <label style="${checkRow}"><input type="checkbox" id="mp-content-is-public" checked> 공개 투표 <span style="${checkHint}">(누가 선택했는지 표시)</span></label>
     </div>
     <div style="margin-top:12px">
-      <div class="field-label" style="margin-bottom:5px">⏰ 마감 시간 <span style="font-size:0.72rem;color:#94a3b8;font-weight:400">(선택 안 하면 수동 마감)</span></div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <input type="datetime-local" id="mp-closes-at" style="flex:1;font-size:0.83rem;border-radius:8px;border:1.5px solid #e2e8f0;padding:6px 10px;color:#1e293b">
-        <button onclick="document.getElementById('mp-closes-at').value=''" style="font-size:0.75rem;padding:6px 10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#94a3b8;cursor:pointer;white-space:nowrap">지우기</button>
+      <div class="field-label" style="margin-bottom:8px">⏰ 마감 시간</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button id="mp-dl-0" onclick="mpSetDeadline(0)" style="font-size:0.8rem;padding:5px 13px;border-radius:8px;border:1.5px solid #4f46e5;background:#4f46e5;color:#fff;cursor:pointer;font-weight:700">수동</button>
+        <button id="mp-dl-1" onclick="mpSetDeadline(1)" style="font-size:0.8rem;padding:5px 13px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer;font-weight:600">1일</button>
+        <button id="mp-dl-3" onclick="mpSetDeadline(3)" style="font-size:0.8rem;padding:5px 13px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer;font-weight:600">3일</button>
+        <button id="mp-dl-5" onclick="mpSetDeadline(5)" style="font-size:0.8rem;padding:5px 13px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer;font-weight:600">5일</button>
+        <button id="mp-dl-7" onclick="mpSetDeadline(7)" style="font-size:0.8rem;padding:5px 13px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer;font-weight:600">7일</button>
       </div>
+      <div id="mp-deadline-preview" style="margin-top:8px;font-size:0.78rem;color:#94a3b8">수동 마감 (마감 시간 미설정)</div>
+      <input type="hidden" id="mp-closes-at">
     </div>
     <button class="btn btn-success btn-full" style="margin-top:14px" onclick="createMeetingPoll()">투표 생성</button>
   </div>`;
@@ -7437,6 +7442,21 @@ function _mpVoteSection(poll, me) {
     <!-- 투표 본문 -->
     <div style="padding:14px 16px 0">`;
 
+  // 관리자 마감시간 관리 패널
+  if (_isAdm) {
+    const dlLabel = poll.closesAt ? (() => {
+      const d = new Date(poll.closesAt);
+      return `${d.getMonth()+1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')} 마감`;
+    })() : '수동 마감';
+    const dlBtns = [['수동',0],['1일',1],['3일',3],['5일',5],['7일',7]].map(([lbl,d]) =>
+      `<button onclick="mpUpdateDeadline(${d})" style="font-size:0.75rem;padding:4px 11px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer;font-weight:600">${lbl}</button>`
+    ).join('');
+    html += `<div style="padding:8px 0 12px;border-bottom:1px solid #e2e8f0;margin-bottom:14px">
+      <div style="font-size:0.7rem;font-weight:700;color:#64748b;margin-bottom:6px">⏰ 마감 시간 (관리자)</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">${dlBtns}<span style="font-size:0.72rem;color:#4f46e5;font-weight:700;margin-left:6px">${dlLabel}</span></div>
+    </div>`;
+  }
+
   // 날짜
   if ((poll.type==='date'||poll.type==='both') && poll.dates&&poll.dates.length) {
     const dateCounts = {}; const dateVoters = {};
@@ -7450,7 +7470,8 @@ function _mpVoteSection(poll, me) {
     });
     const mx = Math.max(...Object.values(dateCounts), 0);
 
-    html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap"><span style="font-size:0.85rem;font-weight:700;color:#1e293b">📅 날짜 선택</span>${toggleBtn('dateMultiSelect',dateMultiSelect,'복수선택','단일선택')}${lockBtn('dateIsPublic',dateIsPublic)}</div>`;
+    html += `<div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:14px;padding:12px 14px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap"><span style="font-size:0.85rem;font-weight:700;color:#1e40af">📅 날짜 선택</span>${toggleBtn('dateMultiSelect',dateMultiSelect,'복수선택','단일선택')}${lockBtn('dateIsPublic',dateIsPublic)}</div>`;
     poll.dates.forEach(d => {
       const cnt    = dateCounts[d]||0;
       const voted  = (myVotes.dates||{})[d]===true;
@@ -7473,7 +7494,7 @@ function _mpVoteSection(poll, me) {
         </div>
       </div>`;
     });
-    html += `<div style="margin-bottom:10px"></div>`;
+    html += `</div>`;
   }
 
   // 내용
@@ -7490,7 +7511,8 @@ function _mpVoteSection(poll, me) {
     });
     const mx = Math.max(...Object.values(contentCounts), 0);
 
-    html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap"><span style="font-size:0.85rem;font-weight:700;color:#1e293b">🎯 내용 선택</span>${toggleBtn('contentMultiSelect',contentMultiSelect,'복수선택','단일선택')}${lockBtn('contentIsPublic',contentIsPublic)}</div>`;
+    html += `<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:14px;padding:12px 14px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap"><span style="font-size:0.85rem;font-weight:700;color:#065f46">🎯 내용 선택</span>${toggleBtn('contentMultiSelect',contentMultiSelect,'복수선택','단일선택')}${lockBtn('contentIsPublic',contentIsPublic)}</div>`;
     poll.contents.forEach((c,i) => {
       const cnt    = contentCounts[i]||0;
       const voted  = (myVotes.contents||{})[String(i)]===true;
@@ -7511,7 +7533,7 @@ function _mpVoteSection(poll, me) {
         </div>
       </div>`;
     });
-    html += `<div style="margin-bottom:10px"></div>`;
+    html += `</div>`;
   }
 
   // 미참여
@@ -7901,6 +7923,31 @@ function mpAddContent() {
   list.appendChild(div);
 }
 
+// ── 마감 시간 버튼 선택 ──
+function mpSetDeadline(days) {
+  [0,1,3,5,7].forEach(d => {
+    const btn = document.getElementById('mp-dl-'+d);
+    if (!btn) return;
+    const active = d === days;
+    btn.style.background   = active ? '#4f46e5' : '#f8fafc';
+    btn.style.color        = active ? '#fff'    : '#64748b';
+    btn.style.borderColor  = active ? '#4f46e5' : '#e2e8f0';
+  });
+  const preview = document.getElementById('mp-deadline-preview');
+  const input   = document.getElementById('mp-closes-at');
+  if (days === 0) {
+    if (input)   input.value = '';
+    if (preview) { preview.textContent = '수동 마감 (마감 시간 미설정)'; preview.style.color = '#94a3b8'; preview.style.fontWeight = '400'; }
+  } else {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    d.setHours(18, 0, 0, 0);
+    if (input) input.value = d.toISOString();
+    const label = `${d.getMonth()+1}월 ${d.getDate()}일 18:00 마감`;
+    if (preview) { preview.textContent = label; preview.style.color = '#4f46e5'; preview.style.fontWeight = '700'; }
+  }
+}
+
 // ── 투표 생성 ──
 function createMeetingPoll() {
   if (!isManager()) { alert('관리자만 투표를 생성할 수 있습니다.'); return; }
@@ -7919,7 +7966,7 @@ function createMeetingPoll() {
   if ((type==='content'||type==='both') && !contents.length) { alert('내용을 하나 이상 입력하세요.'); return; }
 
   const closesAtEl = document.getElementById('mp-closes-at');
-  const closesAt = closesAtEl && closesAtEl.value ? new Date(closesAtEl.value).toISOString() : null;
+  const closesAt = closesAtEl && closesAtEl.value ? closesAtEl.value : null;
   const me = state.identity && state.identity.name;
   const poll = { title, type, dateMultiSelect, dateIsPublic, contentMultiSelect, contentIsPublic, status:'open', createdBy:me||'', createdAt:new Date().toISOString() };
   if (closesAt) poll.closesAt = closesAt;
@@ -8015,7 +8062,9 @@ function _mpStartCountdown(closesAt) {
       clearInterval(_mpCountdownTimer); _mpCountdownTimer = null;
       return;
     }
-    el.textContent = '⏱ ' + _mpFormatRemaining(remaining);
+    const dd = new Date(closesAt);
+    const dlStr = `${dd.getMonth()+1}월 ${dd.getDate()}일 ${String(dd.getHours()).padStart(2,'0')}:${String(dd.getMinutes()).padStart(2,'0')} 마감`;
+    el.textContent = '⏱ ' + _mpFormatRemaining(remaining) + '  · ' + dlStr;
   }
   update();
   _mpCountdownTimer = setInterval(update, 1000);
@@ -8044,6 +8093,20 @@ function mpToggleSetting(field, value) {
   if (typeof isManager==='function' && !isManager()) return;
   if (!db) return;
   db.ref('jmt/meetingPoll/' + field).set(value).catch(fbErr);
+}
+
+// ── 마감 시간 변경 (관리자만) ──
+function mpUpdateDeadline(days) {
+  if (typeof isManager==='function' && !isManager()) return;
+  if (!db) return;
+  if (days === 0) {
+    db.ref('jmt/meetingPoll/closesAt').remove().catch(fbErr);
+  } else {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    d.setHours(18, 0, 0, 0);
+    db.ref('jmt/meetingPoll/closesAt').set(d.toISOString()).catch(fbErr);
+  }
 }
 
 // ── 독촉 푸시 (관리자만) ──
