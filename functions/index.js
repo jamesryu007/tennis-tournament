@@ -1017,6 +1017,39 @@ exports.checkMeetingPollDeadline = onSchedule(
   }
 );
 
+// ══ 모임 투표 댓글 알림 — DB 트리거 (전체) ══════════════════════
+exports.notifyMeetingPollComment = onValueCreated(
+  { ref: 'jmt/meetingPoll/comments/{commentId}', region: 'asia-southeast1' },
+  async (event) => {
+    const comment = event.data.val();
+    if (!comment) return;
+    const { author, text } = comment;
+    if (!author) return;
+    const snap = await db.ref('jmt/fcmTokens').once('value');
+    const data = snap.val() || {};
+    const otherTokens = Object.values(data)
+      .filter(v => v.name !== author && v.token)
+      .map(v => v.token);
+    await sendPush(otherTokens, `💬 ${author}님이 댓글을 달았습니다`, text, 'setup', event.params.commentId);
+  }
+);
+
+// ══ 모임 투표 답글 알림 — DB 트리거 (댓글 작성자에게만) ══════════
+exports.notifyMeetingPollReply = onValueCreated(
+  { ref: 'jmt/meetingPoll/comments/{commentId}/replies/{replyId}', region: 'asia-southeast1' },
+  async (event) => {
+    const reply = event.data.val();
+    if (!reply) return;
+    const { author, text } = reply;
+    if (!author) return;
+    const commentSnap = await db.ref(`jmt/meetingPoll/comments/${event.params.commentId}`).once('value');
+    const comment = commentSnap.val();
+    if (!comment || !comment.author || comment.author === author) return;
+    const tokens = await getTokensByNames([comment.author]);
+    await sendPush(tokens, `💬 ${author}님이 답글을 달았습니다`, text, 'setup', event.params.commentId);
+  }
+);
+
 // ══ ATP 뉴스 자동 수집 (12시간마다) ═══════════════════════════════
 exports.fetchAtpNews = onSchedule(
   { schedule: '0 */12 * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
