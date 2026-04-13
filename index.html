@@ -515,6 +515,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 @keyframes mpGlowBlue{0%,100%{box-shadow:0 8px 28px rgba(37,99,235,.38)}50%{box-shadow:0 10px 44px rgba(37,99,235,.65),0 0 26px rgba(96,165,250,.4)}}
 @keyframes mpGlowGreen{0%,100%{box-shadow:0 8px 28px rgba(5,150,105,.38)}50%{box-shadow:0 10px 44px rgba(5,150,105,.65),0 0 26px rgba(52,211,153,.4)}}
 @keyframes mpGlowAmber{0%,100%{box-shadow:0 8px 28px rgba(217,119,6,.38)}50%{box-shadow:0 10px 44px rgba(217,119,6,.65),0 0 26px rgba(251,191,36,.4)}}
+@keyframes mpLivePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
+@keyframes mpTitleShimmer{0%{transform:translateX(-100%) skewX(-18deg)}100%{transform:translateX(320%) skewX(-18deg)}}
 </style>
 <!-- Firebase SDK (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -7396,14 +7398,31 @@ function _mpVoteSection(poll, me) {
     ? `<button onclick="mpToggleSetting('${field}',${!isPublic})" style="font-size:0.78rem;padding:1px 5px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;line-height:1.5">${isPublic?'🔓':'🔒'}</button>`
     : `<span style="font-size:0.7rem;color:#94a3b8">${isPublic?'🔓':'🔒'}</span>`;
 
-  let html = `<div class="card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <div class="card-title" style="margin-bottom:0">📅 ${poll.title||'모임 정하기'}</div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span class="status-badge badge-active">투표 중</span>
-        ${_isAdm ? `<button onclick="mpDeletePoll()" style="font-size:0.78rem;padding:3px 8px;border-radius:8px;border:1px solid #fca5a5;background:#fff5f5;color:#ef4444;cursor:pointer;font-weight:700" title="투표 삭제">🗑️</button>` : ''}
+  let html = `<div class="card" style="padding:0;overflow:hidden;border:1.5px solid #e2e8f0;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
+    <!-- 투표 헤더 배너 -->
+    <div style="position:relative;background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 55%,#6d28d9 100%);padding:22px 16px 20px;overflow:hidden;text-align:center">
+      <!-- shimmer -->
+      <div style="position:absolute;inset:0;overflow:hidden;pointer-events:none">
+        <div style="position:absolute;top:0;left:0;width:40%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.12),transparent);animation:mpTitleShimmer 3.5s 1s ease-in-out infinite"></div>
       </div>
-    </div>`;
+      <!-- 배경 장식 -->
+      <div style="position:absolute;top:-16px;right:50px;font-size:5.5rem;opacity:0.06;line-height:1;transform:rotate(12deg);pointer-events:none">📅</div>
+      <div style="position:absolute;bottom:-18px;left:20px;font-size:4.5rem;opacity:0.05;line-height:1;transform:rotate(-8deg);pointer-events:none">🗓️</div>
+      <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(255,255,255,0.10) 0%,transparent 65%);pointer-events:none"></div>
+      <!-- 삭제 버튼 (관리자) -->
+      ${_isAdm ? `<div style="position:absolute;top:10px;right:12px"><button onclick="mpDeletePoll()" style="font-size:0.72rem;padding:3px 9px;border-radius:8px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);cursor:pointer;font-weight:700;backdrop-filter:blur(4px)" title="투표 삭제">🗑️ 삭제</button></div>` : ''}
+      <!-- 메인 콘텐츠 -->
+      <div style="position:relative">
+        <div style="font-size:2.2rem;line-height:1;margin-bottom:10px">📅</div>
+        <div style="font-size:1.25rem;font-weight:900;color:#fff;line-height:1.35;letter-spacing:-0.01em;text-shadow:0 2px 10px rgba(0,0,0,0.2);margin-bottom:14px;padding:0 40px">${(poll.title||'모임 정하기').replace(/</g,'&lt;')}</div>
+        <div style="display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.28);border-radius:20px;padding:5px 16px;backdrop-filter:blur(4px)">
+          <span style="width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;animation:mpLivePulse 1.5s ease-in-out infinite"></span>
+          <span style="font-size:0.75rem;font-weight:800;color:#fff;letter-spacing:0.04em">투표 진행 중</span>
+        </div>
+      </div>
+    </div>
+    <!-- 투표 본문 -->
+    <div style="padding:14px 16px 0">`;
 
   // 날짜
   if ((poll.type==='date'||poll.type==='both') && poll.dates&&poll.dates.length) {
@@ -7483,10 +7502,10 @@ function _mpVoteSection(poll, me) {
   }
 
   // 미참여
-  html += `<div style="margin-top:4px">
+  html += `<div style="margin-top:4px;padding-bottom:14px">
     <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;margin-bottom:4px">미참여 (${nonVoters.length}명)</div>
     <div>${nonVoters.length ? nonVoters.map(n=>`<span class="mp-absent-chip">${n}</span>`).join('') : '<span style="font-size:0.72rem;color:#94a3b8">모두 참여!</span>'}</div>
-  </div></div>`;
+  </div></div></div>`;
   return html;
 }
 
