@@ -7386,10 +7386,23 @@ function _mpVoteSection(poll, me) {
     ? '<span style="font-size:0.7rem;color:#94a3b8;font-weight:400">복수 선택 가능</span>'
     : '<span style="font-size:0.7rem;color:#f59e0b;font-weight:700;background:#fef9c3;padding:1px 7px;border-radius:6px">단일 선택</span>';
 
+  const _isMgr = typeof isManager==='function' && isManager();
+  const _isAdm = typeof isAdmin==='function' && isAdmin();
+  // 관리자용 토글 버튼 생성
+  const toggleBtn = (field, active, labelOn, labelOff) => _isMgr
+    ? `<button onclick="mpToggleSetting('${field}',${!active})" style="font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:10px;border:1.5px solid ${active?'#2563eb':'#e2e8f0'};background:${active?'#eff6ff':'#f8fafc'};color:${active?'#2563eb':'#94a3b8'};cursor:pointer;line-height:1.4">${active?labelOn:labelOff}</button>`
+    : `<span style="font-size:0.7rem;${active?'color:#94a3b8;font-weight:400':'color:#f59e0b;font-weight:700;background:#fef9c3;padding:1px 7px;border-radius:6px'}">${active?labelOn:labelOff}</span>`;
+  const lockBtn = (field, isPublic) => _isMgr
+    ? `<button onclick="mpToggleSetting('${field}',${!isPublic})" style="font-size:0.78rem;padding:1px 5px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;line-height:1.5">${isPublic?'🔓':'🔒'}</button>`
+    : `<span style="font-size:0.7rem;color:#94a3b8">${isPublic?'🔓':'🔒'}</span>`;
+
   let html = `<div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div class="card-title" style="margin-bottom:0">📅 ${poll.title||'모임 정하기'}</div>
-      <span class="status-badge badge-active">투표 중</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="status-badge badge-active">투표 중</span>
+        ${_isAdm ? `<button onclick="mpDeletePoll()" style="font-size:0.78rem;padding:3px 8px;border-radius:8px;border:1px solid #fca5a5;background:#fff5f5;color:#ef4444;cursor:pointer;font-weight:700" title="투표 삭제">🗑️</button>` : ''}
+      </div>
     </div>`;
 
   // 날짜
@@ -7405,7 +7418,7 @@ function _mpVoteSection(poll, me) {
     });
     const mx = Math.max(...Object.values(dateCounts), 0);
 
-    html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:0.85rem;font-weight:700;color:#1e293b">📅 날짜 선택</span>${dateHint}<span style="font-size:0.7rem;color:#94a3b8">${dateIsPublic?'🔓':'🔒'}</span></div>`;
+    html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap"><span style="font-size:0.85rem;font-weight:700;color:#1e293b">📅 날짜 선택</span>${toggleBtn('dateMultiSelect',dateMultiSelect,'복수선택','단일선택')}${lockBtn('dateIsPublic',dateIsPublic)}</div>`;
     poll.dates.forEach(d => {
       const cnt    = dateCounts[d]||0;
       const voted  = (myVotes.dates||{})[d]===true;
@@ -7445,7 +7458,7 @@ function _mpVoteSection(poll, me) {
     });
     const mx = Math.max(...Object.values(contentCounts), 0);
 
-    html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:0.85rem;font-weight:700;color:#1e293b">🎯 내용 선택</span>${contentHint}<span style="font-size:0.7rem;color:#94a3b8">${contentIsPublic?'🔓':'🔒'}</span></div>`;
+    html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap"><span style="font-size:0.85rem;font-weight:700;color:#1e293b">🎯 내용 선택</span>${toggleBtn('contentMultiSelect',contentMultiSelect,'복수선택','단일선택')}${lockBtn('contentIsPublic',contentIsPublic)}</div>`;
     poll.contents.forEach((c,i) => {
       const cnt    = contentCounts[i]||0;
       const voted  = (myVotes.contents||{})[String(i)]===true;
@@ -7948,6 +7961,21 @@ function mpStartNew() {
     db.ref(`jmt/meetingPollsHistory/${pollId}`).set({..._mpData}).catch(fbErr);
   }
   db.ref('jmt/meetingPoll').remove().catch(fbErr);
+}
+
+// ── 투표 삭제 (관리자만, 히스토리 미저장) ──
+function mpDeletePoll() {
+  if (!isAdmin()) return;
+  if (!confirm('진행 중인 투표를 삭제하시겠습니까?\n히스토리에 저장되지 않고 완전히 삭제됩니다.')) return;
+  if (!db) return;
+  db.ref('jmt/meetingPoll').remove().catch(fbErr);
+}
+
+// ── 투표 설정 실시간 변경 (관리자만) ──
+function mpToggleSetting(field, value) {
+  if (typeof isManager==='function' && !isManager()) return;
+  if (!db) return;
+  db.ref('jmt/meetingPoll/' + field).set(value).catch(fbErr);
 }
 
 // ── 독촉 푸시 (관리자만) ──
