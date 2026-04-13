@@ -7337,11 +7337,16 @@ function _mpCreateFormHtml() {
       <div id="mp-contents-list"></div>
       <button class="btn btn-outline btn-sm" onclick="mpAddContent()" style="margin-top:6px">+ 항목 추가</button>
     </div>
-    <div style="margin-top:12px">
+    <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
       <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600;cursor:pointer">
         <input type="checkbox" id="mp-is-public" checked>
         공개 투표
         <span style="font-size:0.72rem;color:#94a3b8;font-weight:400">(누가 어떤 항목을 선택했는지 모두에게 표시)</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600;cursor:pointer">
+        <input type="checkbox" id="mp-multi-select" checked>
+        복수 선택 허용
+        <span style="font-size:0.72rem;color:#94a3b8;font-weight:400">(체크 해제 시 항목 하나만 선택 가능)</span>
       </label>
     </div>
     <button class="btn btn-success btn-full" style="margin-top:14px" onclick="createMeetingPoll()">투표 생성</button>
@@ -7362,14 +7367,18 @@ function _bindMpTypeRadios() {
 
 // ── 투표 섹션 ──
 function _mpVoteSection(poll, me) {
-  const votes    = poll.votes || {};
-  const myKey    = me ? me.replace(/[.#$[\]]/g, '_') : null;
-  const myVotes  = (myKey && votes[myKey]) ? votes[myKey] : {};
-  const members  = state.members.map(m => m.name);
-  const isPublic = poll.isPublic !== false;
-  const voterNames = Object.values(votes).map(v => v.name).filter(Boolean);
-  const nonVoters  = members.filter(n => !voterNames.includes(n));
-  const weekDays   = ['일','월','화','수','목','금','토'];
+  const votes       = poll.votes || {};
+  const myKey       = me ? me.replace(/[.#$[\]]/g, '_') : null;
+  const myVotes     = (myKey && votes[myKey]) ? votes[myKey] : {};
+  const members     = state.members.map(m => m.name);
+  const isPublic    = poll.isPublic !== false;
+  const multiSelect = poll.multiSelect !== false; // 기본값 true (복수선택)
+  const voterNames  = Object.values(votes).map(v => v.name).filter(Boolean);
+  const nonVoters   = members.filter(n => !voterNames.includes(n));
+  const weekDays    = ['일','월','화','수','목','금','토'];
+  const selectHint  = multiSelect
+    ? '<span style="font-size:0.7rem;color:#94a3b8;font-weight:400">복수 선택 가능</span>'
+    : '<span style="font-size:0.7rem;color:#f59e0b;font-weight:700;background:#fef9c3;padding:1px 7px;border-radius:6px">단일 선택</span>';
 
   let html = `<div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -7391,7 +7400,7 @@ function _mpVoteSection(poll, me) {
     });
     const mx = Math.max(...Object.values(dateCounts), 0);
 
-    html += `<div style="font-size:0.85rem;font-weight:700;color:#1e293b;margin-bottom:8px">📅 날짜 선택</div>`;
+    html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:0.85rem;font-weight:700;color:#1e293b">📅 날짜 선택</span>${selectHint}</div>`;
     poll.dates.forEach(d => {
       const cnt    = dateCounts[d]||0;
       const voted  = (myVotes.dates||{})[d]===true;
@@ -7431,7 +7440,7 @@ function _mpVoteSection(poll, me) {
     });
     const mx = Math.max(...Object.values(contentCounts), 0);
 
-    html += `<div style="font-size:0.85rem;font-weight:700;color:#1e293b;margin-bottom:8px">🎯 내용 선택</div>`;
+    html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:0.85rem;font-weight:700;color:#1e293b">🎯 내용 선택</span>${selectHint}</div>`;
     poll.contents.forEach((c,i) => {
       const cnt    = contentCounts[i]||0;
       const voted  = (myVotes.contents||{})[String(i)]===true;
@@ -7676,7 +7685,8 @@ function createMeetingPoll() {
   if (!title) { alert('투표 제목을 입력하세요.'); return; }
   const typeEl = document.querySelector('input[name="mp-type"]:checked');
   const type   = typeEl ? typeEl.value : 'date';
-  const isPublic = !!(document.getElementById('mp-is-public')||{}).checked;
+  const isPublic    = !!(document.getElementById('mp-is-public')||{}).checked;
+  const multiSelect = !!(document.getElementById('mp-multi-select')||{}).checked;
   const dates  = _mpCreateDates.slice().sort();
   const contents = _mpCreateContents.filter(c=>c&&c.trim()).map(c=>c.trim());
 
@@ -7684,7 +7694,7 @@ function createMeetingPoll() {
   if ((type==='content'||type==='both') && !contents.length) { alert('내용을 하나 이상 입력하세요.'); return; }
 
   const me = state.identity && state.identity.name;
-  const poll = { title, type, isPublic, status:'open', createdBy:me||'', createdAt:new Date().toISOString() };
+  const poll = { title, type, isPublic, multiSelect, status:'open', createdBy:me||'', createdAt:new Date().toISOString() };
   if (dates.length)    poll.dates    = dates;
   if (contents.length) poll.contents = contents;
 
@@ -7699,13 +7709,21 @@ function mpToggleDateVote(dateStr) {
   const me = state.identity&&state.identity.name;
   if (!me) { alert('먼저 접속자를 선택하세요.'); return; }
   if (!_mpData||_mpData.status!=='open') { alert('투표가 마감되었습니다.'); return; }
+  const multiSelect = _mpData.multiSelect !== false;
   const key = me.replace(/[.#$[\]]/g,'_');
   const ref = db.ref(`jmt/meetingPoll/votes/${key}`);
   ref.once('value').then(snap => {
     const cur = snap.val()||{};
-    const cur_date = (cur.dates||{})[dateStr];
-    if (cur_date) ref.child('dates/'+dateStr).remove().catch(fbErr);
-    else          ref.child('dates/'+dateStr).set(true).catch(fbErr);
+    const already = (cur.dates||{})[dateStr];
+    if (already) {
+      // 이미 선택된 항목 → 해제
+      ref.child('dates/'+dateStr).remove().catch(fbErr);
+    } else if (!multiSelect) {
+      // 단일선택: 기존 날짜 전부 지우고 새 항목만 선택
+      ref.child('dates').set({ [dateStr]: true }).catch(fbErr);
+    } else {
+      ref.child('dates/'+dateStr).set(true).catch(fbErr);
+    }
     ref.child('name').set(me).catch(fbErr);
   });
 }
@@ -7714,13 +7732,21 @@ function mpToggleContentVote(idx) {
   const me = state.identity&&state.identity.name;
   if (!me) { alert('먼저 접속자를 선택하세요.'); return; }
   if (!_mpData||_mpData.status!=='open') { alert('투표가 마감되었습니다.'); return; }
+  const multiSelect = _mpData.multiSelect !== false;
   const key = me.replace(/[.#$[\]]/g,'_');
   const ref = db.ref(`jmt/meetingPoll/votes/${key}`);
   ref.once('value').then(snap => {
     const cur = snap.val()||{};
-    const cur_c = (cur.contents||{})[String(idx)];
-    if (cur_c) ref.child('contents/'+idx).remove().catch(fbErr);
-    else       ref.child('contents/'+idx).set(true).catch(fbErr);
+    const already = (cur.contents||{})[String(idx)];
+    if (already) {
+      // 이미 선택된 항목 → 해제
+      ref.child('contents/'+idx).remove().catch(fbErr);
+    } else if (!multiSelect) {
+      // 단일선택: 기존 내용 전부 지우고 새 항목만 선택
+      ref.child('contents').set({ [String(idx)]: true }).catch(fbErr);
+    } else {
+      ref.child('contents/'+idx).set(true).catch(fbErr);
+    }
     ref.child('name').set(me).catch(fbErr);
   });
 }
