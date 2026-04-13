@@ -7316,38 +7316,33 @@ function _mpHistoryBtnHtml() {
 
 // ── 생성 폼 ──
 function _mpCreateFormHtml() {
+  const sectionStyle = 'border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 14px 10px;margin-bottom:10px';
+  const checkRow = 'display:flex;align-items:center;gap:8px;font-size:0.82rem;font-weight:600;cursor:pointer;margin-top:10px';
+  const checkHint = 'font-size:0.7rem;color:#94a3b8;font-weight:400';
   return `<div class="card">
     <div class="card-title">📅 모임 정하기 투표 만들기</div>
     <div class="divider"></div>
     <div class="field-label">투표 제목</div>
     <input type="text" id="mp-title" placeholder="예) 5월 정기 모임">
     <div class="field-label" style="margin-top:10px">투표 유형</div>
-    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px">
       <label style="display:flex;align-items:center;gap:5px;font-size:0.85rem"><input type="radio" name="mp-type" value="date" checked> 날짜 정하기</label>
       <label style="display:flex;align-items:center;gap:5px;font-size:0.85rem"><input type="radio" name="mp-type" value="content"> 내용 정하기</label>
       <label style="display:flex;align-items:center;gap:5px;font-size:0.85rem"><input type="radio" name="mp-type" value="both"> 둘 다</label>
     </div>
-    <div id="mp-date-section">
-      <div class="field-label">후보 날짜 <span style="font-size:0.72rem;color:#94a3b8">(최대 10개)</span></div>
+    <div id="mp-date-section" style="${sectionStyle}">
+      <div style="font-size:0.8rem;font-weight:700;color:#475569;margin-bottom:8px">📅 후보 날짜 <span style="font-size:0.72rem;color:#94a3b8;font-weight:400">(최대 10개)</span></div>
       <button class="btn btn-outline btn-full" style="margin-bottom:8px" onclick="openMpCal()">📅 날짜 선택</button>
       <div id="mp-create-dates" style="display:flex;flex-wrap:wrap;gap:4px;min-height:20px"></div>
+      <label style="${checkRow}"><input type="checkbox" id="mp-date-multi-select" checked> 복수 선택 허용 <span style="${checkHint}">(해제 시 1개만 선택)</span></label>
+      <label style="${checkRow}"><input type="checkbox" id="mp-date-is-public" checked> 공개 투표 <span style="${checkHint}">(누가 선택했는지 표시)</span></label>
     </div>
-    <div id="mp-content-section" style="display:none">
-      <div class="field-label" style="margin-top:10px">후보 내용</div>
+    <div id="mp-content-section" style="${sectionStyle};display:none">
+      <div style="font-size:0.8rem;font-weight:700;color:#475569;margin-bottom:8px">🎯 후보 내용</div>
       <div id="mp-contents-list"></div>
       <button class="btn btn-outline btn-sm" onclick="mpAddContent()" style="margin-top:6px">+ 항목 추가</button>
-    </div>
-    <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
-      <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600;cursor:pointer">
-        <input type="checkbox" id="mp-is-public" checked>
-        공개 투표
-        <span style="font-size:0.72rem;color:#94a3b8;font-weight:400">(누가 어떤 항목을 선택했는지 모두에게 표시)</span>
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;font-weight:600;cursor:pointer">
-        <input type="checkbox" id="mp-multi-select" checked>
-        복수 선택 허용
-        <span style="font-size:0.72rem;color:#94a3b8;font-weight:400">(체크 해제 시 항목 하나만 선택 가능)</span>
-      </label>
+      <label style="${checkRow}"><input type="checkbox" id="mp-content-multi-select" checked> 복수 선택 허용 <span style="${checkHint}">(해제 시 1개만 선택)</span></label>
+      <label style="${checkRow}"><input type="checkbox" id="mp-content-is-public" checked> 공개 투표 <span style="${checkHint}">(누가 선택했는지 표시)</span></label>
     </div>
     <button class="btn btn-success btn-full" style="margin-top:14px" onclick="createMeetingPoll()">투표 생성</button>
   </div>`;
@@ -7371,12 +7366,17 @@ function _mpVoteSection(poll, me) {
   const myKey       = me ? me.replace(/[.#$[\]]/g, '_') : null;
   const myVotes     = (myKey && votes[myKey]) ? votes[myKey] : {};
   const members     = state.members.map(m => m.name);
-  const isPublic    = poll.isPublic !== false;
-  const multiSelect = poll.multiSelect !== false; // 기본값 true (복수선택)
+  const dateIsPublic       = poll.dateIsPublic !== undefined ? poll.dateIsPublic : (poll.isPublic !== false);
+  const dateMultiSelect    = poll.dateMultiSelect !== undefined ? poll.dateMultiSelect : (poll.multiSelect !== false);
+  const contentIsPublic    = poll.contentIsPublic !== undefined ? poll.contentIsPublic : (poll.isPublic !== false);
+  const contentMultiSelect = poll.contentMultiSelect !== undefined ? poll.contentMultiSelect : (poll.multiSelect !== false);
   const voterNames  = Object.values(votes).map(v => v.name).filter(Boolean);
   const nonVoters   = members.filter(n => !voterNames.includes(n));
   const weekDays    = ['일','월','화','수','목','금','토'];
-  const selectHint  = multiSelect
+  const dateHint    = dateMultiSelect
+    ? '<span style="font-size:0.7rem;color:#94a3b8;font-weight:400">복수 선택 가능</span>'
+    : '<span style="font-size:0.7rem;color:#f59e0b;font-weight:700;background:#fef9c3;padding:1px 7px;border-radius:6px">단일 선택</span>';
+  const contentHint = contentMultiSelect
     ? '<span style="font-size:0.7rem;color:#94a3b8;font-weight:400">복수 선택 가능</span>'
     : '<span style="font-size:0.7rem;color:#f59e0b;font-weight:700;background:#fef9c3;padding:1px 7px;border-radius:6px">단일 선택</span>';
 
@@ -7384,8 +7384,7 @@ function _mpVoteSection(poll, me) {
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div class="card-title" style="margin-bottom:0">📅 ${poll.title||'모임 정하기'}</div>
       <span class="status-badge badge-active">투표 중</span>
-    </div>
-    <div style="font-size:0.73rem;color:#64748b;margin-bottom:10px">${isPublic?'🔓 공개':'🔒 비공개'} · 중복 선택 가능</div>`;
+    </div>`;
 
   // 날짜
   if ((poll.type==='date'||poll.type==='both') && poll.dates&&poll.dates.length) {
@@ -7400,14 +7399,14 @@ function _mpVoteSection(poll, me) {
     });
     const mx = Math.max(...Object.values(dateCounts), 0);
 
-    html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:0.85rem;font-weight:700;color:#1e293b">📅 날짜 선택</span>${selectHint}</div>`;
+    html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:0.85rem;font-weight:700;color:#1e293b">📅 날짜 선택</span>${dateHint}<span style="font-size:0.7rem;color:#94a3b8">${dateIsPublic?'🔓':'🔒'}</span></div>`;
     poll.dates.forEach(d => {
       const cnt    = dateCounts[d]||0;
       const voted  = (myVotes.dates||{})[d]===true;
       const barPct = mx>0 ? Math.round(cnt/mx*100) : 0;
       const dObj   = new Date(d+'T00:00:00');
       const lbl    = `${dObj.getMonth()+1}월 ${dObj.getDate()}일(${weekDays[dObj.getDay()]})`;
-      const votersRow = isPublic && dateVoters[d].length
+      const votersRow = dateIsPublic && dateVoters[d].length
         ? `<div style="margin-top:4px">${dateVoters[d].map(n=>`<span class="mp-chip">${n}</span>`).join('')}</div>` : '';
       const btn = me
         ? `<button onclick="mpToggleDateVote('${d}')" style="flex-shrink:0;font-size:0.75rem;padding:4px 10px;border-radius:8px;border:1.5px solid ${voted?'#2563eb':'#e2e8f0'};background:${voted?'#2563eb':'#fff'};color:${voted?'#fff':'#64748b'};cursor:pointer;font-weight:600">${voted?'✓ 선택됨':'선택'}</button>` : '';
@@ -7440,12 +7439,12 @@ function _mpVoteSection(poll, me) {
     });
     const mx = Math.max(...Object.values(contentCounts), 0);
 
-    html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:0.85rem;font-weight:700;color:#1e293b">🎯 내용 선택</span>${selectHint}</div>`;
+    html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:0.85rem;font-weight:700;color:#1e293b">🎯 내용 선택</span>${contentHint}<span style="font-size:0.7rem;color:#94a3b8">${contentIsPublic?'🔓':'🔒'}</span></div>`;
     poll.contents.forEach((c,i) => {
       const cnt    = contentCounts[i]||0;
       const voted  = (myVotes.contents||{})[String(i)]===true;
       const barPct = mx>0 ? Math.round(cnt/mx*100) : 0;
-      const votersRow = isPublic && contentVoters[i].length
+      const votersRow = contentIsPublic && contentVoters[i].length
         ? `<div style="margin-top:4px">${contentVoters[i].map(n=>`<span class="mp-chip">${n}</span>`).join('')}</div>` : '';
       const btn = me
         ? `<button onclick="mpToggleContentVote(${i})" style="flex-shrink:0;font-size:0.75rem;padding:4px 10px;border-radius:8px;border:1.5px solid ${voted?'#2563eb':'#e2e8f0'};background:${voted?'#2563eb':'#fff'};color:${voted?'#fff':'#64748b'};cursor:pointer;font-weight:600">${voted?'✓ 선택됨':'선택'}</button>` : '';
@@ -7475,57 +7474,89 @@ function _mpVoteSection(poll, me) {
 // ── 결과 카드 ──
 function _mpResultCard(poll) {
   const votes    = poll.votes||{};
-  const isPublic = poll.isPublic!==false;
   const members  = state.members.map(m=>m.name);
   const voterNames = Object.values(votes).map(v=>v.name).filter(Boolean);
   const nonVoters  = members.filter(n=>!voterNames.includes(n));
   const weekDays   = ['일','월','화','수','목','금','토'];
 
-  let html = `<div class="card" style="border-color:#f59e0b;background:#fefce8">
-    <div style="font-size:0.95rem;font-weight:800;color:#92400e;margin-bottom:4px">🏆 투표 결과</div>
-    <div style="font-size:0.85rem;font-weight:700;color:#1e293b;margin-bottom:10px">${poll.title||'모임 정하기'}</div>`;
+  let html = `<div class="card" style="padding:20px 18px 18px">
+    <div style="font-size:0.72rem;font-weight:700;color:#f59e0b;letter-spacing:0.08em;margin-bottom:6px">🏆 투표 결과</div>
+    <div style="font-size:1.25rem;font-weight:900;color:#1e293b;line-height:1.3;margin-bottom:18px">${(poll.title||'모임 정하기').replace(/</g,'&lt;')}</div>`;
 
   if (poll.type==='date'||poll.type==='both') {
-    const dateCounts = {};
-    (poll.dates||[]).forEach(d => { dateCounts[d]=0; });
+    const dateCounts = {}; const dateVoters = {};
+    (poll.dates||[]).forEach(d => { dateCounts[d]=0; dateVoters[d]=[]; });
     Object.values(votes).forEach(v => {
       if (!v.dates) return;
-      Object.keys(v.dates).forEach(dk => { if (v.dates[dk]&&dateCounts.hasOwnProperty(dk)) dateCounts[dk]++; });
+      const vn = v.name||'?';
+      Object.keys(v.dates).forEach(dk => {
+        if (v.dates[dk] && dateCounts.hasOwnProperty(dk)) { dateCounts[dk]++; dateVoters[dk].push(vn); }
+      });
     });
     const mx = Math.max(...Object.values(dateCounts), 0);
     const winners = Object.entries(dateCounts).filter(([,c])=>c===mx&&mx>0).map(([d])=>d).sort();
-    if (winners.length) {
-      const labels = winners.map(d => {
-        const o=new Date(d+'T00:00:00');
-        return `${o.getMonth()+1}월 ${o.getDate()}일(${weekDays[o.getDay()]})`;
-      }).join(', ');
-      html += `<div style="font-size:0.88rem;font-weight:800;color:#166534;background:#f0fdf4;border-radius:10px;padding:8px 12px;margin-bottom:8px">
-        📅 ${poll.title||'모임'}이 <strong>${labels}</strong>로 결정되었습니다 🎉
-        ${winners.length>1?'<span style="font-size:0.72rem;background:#fef9c3;color:#92400e;border-radius:6px;padding:2px 6px;margin-left:4px">공동 1위</span>':''}
-        <span style="font-size:0.72rem;font-weight:400;color:#64748b;margin-left:4px">(${mx}명)</span>
+    const labels = winners.map(d => {
+      const o=new Date(d+'T00:00:00');
+      return `${o.getMonth()+1}월 ${o.getDate()}일(${weekDays[o.getDay()]})`;
+    });
+    html += `<div style="margin-bottom:18px">
+      <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:8px">📅 날짜</div>`;
+    if (winners.length && mx > 0) {
+      const allWinnerVoters = [...new Set(winners.flatMap(d=>dateVoters[d]))];
+      html += `<div style="background:linear-gradient(135deg,#1d4ed8,#2563eb);border-radius:14px;padding:16px 18px;margin-bottom:10px;text-align:center">
+        ${winners.length>1?`<div style="font-size:0.65rem;font-weight:700;color:#bfdbfe;letter-spacing:0.06em;margin-bottom:4px">공동 1위</div>`:''}
+        <div style="font-size:1.4rem;font-weight:900;color:#fff;line-height:1.2">${labels.join('<br>')}</div>
+        <div style="font-size:0.72rem;color:#bfdbfe;margin-top:6px">${mx}명 선택</div>
       </div>`;
+      if (allWinnerVoters.length) {
+        html += `<div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:5px">투표자 (${allWinnerVoters.length}명)</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:4px">${allWinnerVoters.map(n=>`<span class="mp-chip" style="background:#dbeafe;color:#1d4ed8">${n}</span>`).join('')}</div>`;
+      }
+    } else {
+      html += `<div style="font-size:0.82rem;color:#94a3b8;padding:10px 0">투표 결과 없음</div>`;
     }
+    html += `</div>`;
   }
 
   if (poll.type==='content'||poll.type==='both') {
-    const contentCounts = {};
-    (poll.contents||[]).forEach((_,i) => { contentCounts[i]=0; });
+    const contentCounts = {}; const contentVoters = {};
+    (poll.contents||[]).forEach((_,i) => { contentCounts[i]=0; contentVoters[i]=[]; });
     Object.values(votes).forEach(v => {
       if (!v.contents) return;
-      Object.keys(v.contents).forEach(i => { const n=Number(i); if(v.contents[i]&&contentCounts.hasOwnProperty(n)) contentCounts[n]++; });
+      const vn = v.name||'?';
+      Object.keys(v.contents).forEach(i => {
+        const n=Number(i);
+        if (v.contents[i] && contentCounts.hasOwnProperty(n)) { contentCounts[n]++; contentVoters[n].push(vn); }
+      });
     });
     const mx = Math.max(...Object.values(contentCounts), 0);
-    const winners = Object.entries(contentCounts).filter(([,c])=>c===mx&&mx>0).map(([i])=>(poll.contents||[])[Number(i)]).filter(Boolean);
-    if (winners.length) {
-      html += `<div style="font-size:0.88rem;font-weight:800;color:#166534;background:#f0fdf4;border-radius:10px;padding:8px 12px;margin-bottom:8px">
-        🎯 최다 선택 내용: <strong>${winners.join(', ')}</strong>
-        ${winners.length>1?'<span style="font-size:0.72rem;background:#fef9c3;color:#92400e;border-radius:6px;padding:2px 6px;margin-left:4px">공동 1위</span>':''}
-        <span style="font-size:0.72rem;font-weight:400;color:#64748b;margin-left:4px">(${mx}명)</span>
+    const winnerEntries = Object.entries(contentCounts).filter(([,c])=>c===mx&&mx>0);
+    const winnerLabels = winnerEntries.map(([i])=>(poll.contents||[])[Number(i)]).filter(Boolean);
+    const allWinnerVoters = [...new Set(winnerEntries.flatMap(([i])=>contentVoters[Number(i)]))];
+    html += `<div style="margin-bottom:18px">
+      <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:8px">🎯 내용</div>`;
+    if (winnerLabels.length && mx > 0) {
+      html += `<div style="background:linear-gradient(135deg,#047857,#059669);border-radius:14px;padding:16px 18px;margin-bottom:10px;text-align:center">
+        ${winnerLabels.length>1?`<div style="font-size:0.65rem;font-weight:700;color:#a7f3d0;letter-spacing:0.06em;margin-bottom:4px">공동 1위</div>`:''}
+        <div style="font-size:1.25rem;font-weight:900;color:#fff;line-height:1.3">${winnerLabels.map(l=>l.replace(/</g,'&lt;')).join('<br>')}</div>
+        <div style="font-size:0.72rem;color:#a7f3d0;margin-top:6px">${mx}명 선택</div>
       </div>`;
+      if (allWinnerVoters.length) {
+        html += `<div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:5px">투표자 (${allWinnerVoters.length}명)</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:4px">${allWinnerVoters.map(n=>`<span class="mp-chip" style="background:#d1fae5;color:#065f46">${n}</span>`).join('')}</div>`;
+      }
+    } else {
+      html += `<div style="font-size:0.82rem;color:#94a3b8;padding:10px 0">투표 결과 없음</div>`;
     }
+    html += `</div>`;
   }
 
-  html += `<div style="font-size:0.73rem;color:#94a3b8">미참여: ${nonVoters.length?nonVoters.join(', '):'없음'}</div>`;
+  if (nonVoters.length) {
+    html += `<div style="border-top:1px solid #f1f5f9;padding-top:12px;margin-top:4px">
+      <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;margin-bottom:5px">미참여 (${nonVoters.length}명)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">${nonVoters.map(n=>`<span class="mp-absent-chip">${n}</span>`).join('')}</div>
+    </div>`;
+  }
   html += `</div>`;
   return html;
 }
@@ -7685,8 +7716,10 @@ function createMeetingPoll() {
   if (!title) { alert('투표 제목을 입력하세요.'); return; }
   const typeEl = document.querySelector('input[name="mp-type"]:checked');
   const type   = typeEl ? typeEl.value : 'date';
-  const isPublic    = !!(document.getElementById('mp-is-public')||{}).checked;
-  const multiSelect = !!(document.getElementById('mp-multi-select')||{}).checked;
+  const dateMultiSelect    = !!(document.getElementById('mp-date-multi-select')||{}).checked;
+  const dateIsPublic       = !!(document.getElementById('mp-date-is-public')||{}).checked;
+  const contentMultiSelect = !!(document.getElementById('mp-content-multi-select')||{}).checked;
+  const contentIsPublic    = !!(document.getElementById('mp-content-is-public')||{}).checked;
   const dates  = _mpCreateDates.slice().sort();
   const contents = _mpCreateContents.filter(c=>c&&c.trim()).map(c=>c.trim());
 
@@ -7694,7 +7727,7 @@ function createMeetingPoll() {
   if ((type==='content'||type==='both') && !contents.length) { alert('내용을 하나 이상 입력하세요.'); return; }
 
   const me = state.identity && state.identity.name;
-  const poll = { title, type, isPublic, multiSelect, status:'open', createdBy:me||'', createdAt:new Date().toISOString() };
+  const poll = { title, type, dateMultiSelect, dateIsPublic, contentMultiSelect, contentIsPublic, status:'open', createdBy:me||'', createdAt:new Date().toISOString() };
   if (dates.length)    poll.dates    = dates;
   if (contents.length) poll.contents = contents;
 
@@ -7709,17 +7742,15 @@ function mpToggleDateVote(dateStr) {
   const me = state.identity&&state.identity.name;
   if (!me) { alert('먼저 접속자를 선택하세요.'); return; }
   if (!_mpData||_mpData.status!=='open') { alert('투표가 마감되었습니다.'); return; }
-  const multiSelect = _mpData.multiSelect !== false;
+  const multiSelect = _mpData.dateMultiSelect !== undefined ? _mpData.dateMultiSelect : (_mpData.multiSelect !== false);
   const key = me.replace(/[.#$[\]]/g,'_');
   const ref = db.ref(`jmt/meetingPoll/votes/${key}`);
   ref.once('value').then(snap => {
     const cur = snap.val()||{};
     const already = (cur.dates||{})[dateStr];
     if (already) {
-      // 이미 선택된 항목 → 해제
       ref.child('dates/'+dateStr).remove().catch(fbErr);
     } else if (!multiSelect) {
-      // 단일선택: 기존 날짜 전부 지우고 새 항목만 선택
       ref.child('dates').set({ [dateStr]: true }).catch(fbErr);
     } else {
       ref.child('dates/'+dateStr).set(true).catch(fbErr);
@@ -7732,17 +7763,15 @@ function mpToggleContentVote(idx) {
   const me = state.identity&&state.identity.name;
   if (!me) { alert('먼저 접속자를 선택하세요.'); return; }
   if (!_mpData||_mpData.status!=='open') { alert('투표가 마감되었습니다.'); return; }
-  const multiSelect = _mpData.multiSelect !== false;
+  const multiSelect = _mpData.contentMultiSelect !== undefined ? _mpData.contentMultiSelect : (_mpData.multiSelect !== false);
   const key = me.replace(/[.#$[\]]/g,'_');
   const ref = db.ref(`jmt/meetingPoll/votes/${key}`);
   ref.once('value').then(snap => {
     const cur = snap.val()||{};
     const already = (cur.contents||{})[String(idx)];
     if (already) {
-      // 이미 선택된 항목 → 해제
       ref.child('contents/'+idx).remove().catch(fbErr);
     } else if (!multiSelect) {
-      // 단일선택: 기존 내용 전부 지우고 새 항목만 선택
       ref.child('contents').set({ [String(idx)]: true }).catch(fbErr);
     } else {
       ref.child('contents/'+idx).set(true).catch(fbErr);
