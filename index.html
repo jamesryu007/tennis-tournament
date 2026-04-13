@@ -7314,6 +7314,7 @@ function renderMeetingPoll() {
   html += _mpHistoryBtnHtml();
 
   el.innerHTML = html;
+  if (poll && poll.status === 'open' && poll.closesAt) _mpStartCountdown(poll.closesAt);
 }
 
 function _mpHistoryBtnHtml() {
@@ -7352,6 +7353,13 @@ function _mpCreateFormHtml() {
       <label style="${checkRow}"><input type="checkbox" id="mp-content-multi-select" checked> 복수 선택 허용 <span style="${checkHint}">(해제 시 1개만 선택)</span></label>
       <label style="${checkRow}"><input type="checkbox" id="mp-content-is-public" checked> 공개 투표 <span style="${checkHint}">(누가 선택했는지 표시)</span></label>
     </div>
+    <div style="margin-top:12px">
+      <div class="field-label" style="margin-bottom:5px">⏰ 마감 시간 <span style="font-size:0.72rem;color:#94a3b8;font-weight:400">(선택 안 하면 수동 마감)</span></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="datetime-local" id="mp-closes-at" style="flex:1;font-size:0.83rem;border-radius:8px;border:1.5px solid #e2e8f0;padding:6px 10px;color:#1e293b">
+        <button onclick="document.getElementById('mp-closes-at').value=''" style="font-size:0.75rem;padding:6px 10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#94a3b8;cursor:pointer;white-space:nowrap">지우기</button>
+      </div>
+    </div>
     <button class="btn btn-success btn-full" style="margin-top:14px" onclick="createMeetingPoll()">투표 생성</button>
   </div>`;
 }
@@ -7363,7 +7371,11 @@ function _bindMpTypeRadios() {
       const ds = document.getElementById('mp-date-section');
       const cs = document.getElementById('mp-content-section');
       if (ds) ds.style.display = (v === 'date' || v === 'both') ? 'block' : 'none';
-      if (cs) cs.style.display = (v === 'content' || v === 'both') ? 'block' : 'none';
+      if (cs) {
+        const show = (v === 'content' || v === 'both');
+        cs.style.display = show ? 'block' : 'none';
+        if (show && _mpCreateContents.length === 0) mpAddContent();
+      }
     });
   });
 }
@@ -7419,6 +7431,7 @@ function _mpVoteSection(poll, me) {
           <span style="width:7px;height:7px;border-radius:50%;background:#4ade80;flex-shrink:0;animation:mpLivePulse 1.5s ease-in-out infinite"></span>
           <span style="font-size:0.75rem;font-weight:800;color:#fff;letter-spacing:0.04em">투표 진행 중</span>
         </div>
+        ${poll.closesAt ? `<div id="mp-countdown" style="font-size:0.72rem;color:rgba(255,255,255,0.85);margin-top:8px;font-weight:600;letter-spacing:0.02em">⏱ ...</div>` : ''}
       </div>
     </div>
     <!-- 투표 본문 -->
@@ -7905,8 +7918,11 @@ function createMeetingPoll() {
   if ((type==='date'||type==='both') && !dates.length) { alert('날짜를 하나 이상 선택하세요.'); return; }
   if ((type==='content'||type==='both') && !contents.length) { alert('내용을 하나 이상 입력하세요.'); return; }
 
+  const closesAtEl = document.getElementById('mp-closes-at');
+  const closesAt = closesAtEl && closesAtEl.value ? new Date(closesAtEl.value).toISOString() : null;
   const me = state.identity && state.identity.name;
   const poll = { title, type, dateMultiSelect, dateIsPublic, contentMultiSelect, contentIsPublic, status:'open', createdBy:me||'', createdAt:new Date().toISOString() };
+  if (closesAt) poll.closesAt = closesAt;
   if (dates.length)    poll.dates    = dates;
   if (contents.length) poll.contents = contents;
 
@@ -7921,6 +7937,7 @@ function mpToggleDateVote(dateStr) {
   const me = state.identity&&state.identity.name;
   if (!me) { alert('먼저 접속자를 선택하세요.'); return; }
   if (!_mpData||_mpData.status!=='open') { alert('투표가 마감되었습니다.'); return; }
+  if (_mpData.closesAt && new Date(_mpData.closesAt) <= new Date()) { alert('마감 시간이 지났습니다.'); return; }
   const multiSelect = _mpData.dateMultiSelect !== undefined ? _mpData.dateMultiSelect : (_mpData.multiSelect !== false);
   const key = me.replace(/[.#$[\]]/g,'_');
   const ref = db.ref(`jmt/meetingPoll/votes/${key}`);
@@ -7942,6 +7959,7 @@ function mpToggleContentVote(idx) {
   const me = state.identity&&state.identity.name;
   if (!me) { alert('먼저 접속자를 선택하세요.'); return; }
   if (!_mpData||_mpData.status!=='open') { alert('투표가 마감되었습니다.'); return; }
+  if (_mpData.closesAt && new Date(_mpData.closesAt) <= new Date()) { alert('마감 시간이 지났습니다.'); return; }
   const multiSelect = _mpData.contentMultiSelect !== undefined ? _mpData.contentMultiSelect : (_mpData.multiSelect !== false);
   const key = me.replace(/[.#$[\]]/g,'_');
   const ref = db.ref(`jmt/meetingPoll/votes/${key}`);
@@ -7980,6 +7998,37 @@ function mpStartNew() {
     db.ref(`jmt/meetingPollsHistory/${pollId}`).set({..._mpData}).catch(fbErr);
   }
   db.ref('jmt/meetingPoll').remove().catch(fbErr);
+}
+
+// ── 마감 카운트다운 ──
+let _mpCountdownTimer = null;
+function _mpStartCountdown(closesAt) {
+  if (_mpCountdownTimer) clearInterval(_mpCountdownTimer);
+  const endTime = new Date(closesAt).getTime();
+  function update() {
+    const el = document.getElementById('mp-countdown');
+    if (!el) { clearInterval(_mpCountdownTimer); _mpCountdownTimer = null; return; }
+    const remaining = endTime - Date.now();
+    if (remaining <= 0) {
+      el.textContent = '⏱ 마감 시간 도달';
+      el.style.color = '#fca5a5';
+      clearInterval(_mpCountdownTimer); _mpCountdownTimer = null;
+      return;
+    }
+    el.textContent = '⏱ ' + _mpFormatRemaining(remaining);
+  }
+  update();
+  _mpCountdownTimer = setInterval(update, 1000);
+}
+function _mpFormatRemaining(ms) {
+  const s = Math.floor(ms/1000);
+  const m = Math.floor(s/60);
+  const h = Math.floor(m/60);
+  const d = Math.floor(h/24);
+  if (d > 0) return `${d}일 ${h%24}시간 ${m%60}분 후 마감`;
+  if (h > 0) return `${h}시간 ${m%60}분 후 마감`;
+  if (m > 0) return `${m}분 ${s%60}초 후 마감`;
+  return `${s}초 후 마감`;
 }
 
 // ── 투표 삭제 (관리자만, 히스토리 미저장) ──

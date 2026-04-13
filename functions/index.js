@@ -1000,6 +1000,23 @@ exports.notifyMeetingPollAutoNudge = onSchedule(
   }
 );
 
+// ══ 모임 투표 마감 시간 자동 처리 (30분마다) ════════════════════
+exports.checkMeetingPollDeadline = onSchedule(
+  { schedule: '*/30 * * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    const pollSnap = await db.ref('jmt/meetingPoll').once('value');
+    const poll = pollSnap.val();
+    if (!poll || poll.status !== 'open' || !poll.closesAt) return;
+    if (new Date(poll.closesAt) > new Date()) return;
+    const closedAt = new Date().toISOString();
+    const pollId = (poll.createdAt||Date.now()).toString().replace(/[:.]/g,'_');
+    await db.ref('jmt/meetingPoll/status').set('closed');
+    await db.ref('jmt/meetingPoll/closedAt').set(closedAt);
+    await db.ref(`jmt/meetingPollsHistory/${pollId}`).set({...poll, status:'closed', closedAt});
+    // notifyMeetingPollClosed DB trigger fires automatically on status change
+  }
+);
+
 // ══ ATP 뉴스 자동 수집 (12시간마다) ═══════════════════════════════
 exports.fetchAtpNews = onSchedule(
   { schedule: '0 */12 * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
