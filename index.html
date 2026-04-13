@@ -7458,30 +7458,33 @@ function _mpVoteSection(poll, me) {
   }
 
   // 날짜
-  if ((poll.type==='date'||poll.type==='both') && poll.dates&&poll.dates.length) {
+  if (poll.type==='date'||poll.type==='both') {
     const dateCounts = {}; const dateVoters = {};
-    poll.dates.forEach(d => { dateCounts[d]=0; dateVoters[d]=[]; });
+    (poll.dates||[]).forEach(d => { dateCounts[d]=0; dateVoters[d]=[]; });
+    const memberDates = poll.memberDates ? Object.entries(poll.memberDates) : [];
+    const mdCounts = {}; const mdVoters = {};
+    memberDates.forEach(([k]) => { mdCounts[k]=0; mdVoters[k]=[]; });
     Object.entries(votes).forEach(([k,v]) => {
-      if (!v.dates) return;
       const vn = v.name||k;
-      Object.keys(v.dates).forEach(dk => {
+      if (v.dates) Object.keys(v.dates).forEach(dk => {
         if (v.dates[dk] && dateCounts.hasOwnProperty(dk)) { dateCounts[dk]++; dateVoters[dk].push(vn); }
       });
+      if (v.memberDates) Object.keys(v.memberDates).forEach(dk => {
+        if (v.memberDates[dk] && mdCounts.hasOwnProperty(dk)) { mdCounts[dk]++; mdVoters[dk].push(vn); }
+      });
     });
-    const mx = Math.max(...Object.values(dateCounts), 0);
-
+    const allDateMax = Math.max(...Object.values(dateCounts), ...Object.values(mdCounts), 0);
     html += `<div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:14px;padding:12px 14px;margin-bottom:14px">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap"><span style="font-size:0.85rem;font-weight:700;color:#1e40af">📅 날짜 선택</span>${toggleBtn('dateMultiSelect',dateMultiSelect,'복수선택','단일선택')}${lockBtn('dateIsPublic',dateIsPublic)}</div>`;
-    poll.dates.forEach(d => {
-      const cnt    = dateCounts[d]||0;
-      const voted  = (myVotes.dates||{})[d]===true;
-      const barPct = mx>0 ? Math.round(cnt/mx*100) : 0;
-      const dObj   = new Date(d+'T00:00:00');
-      const lbl    = `${dObj.getMonth()+1}월 ${dObj.getDate()}일(${weekDays[dObj.getDay()]})`;
+    (poll.dates||[]).forEach(d => {
+      const cnt = dateCounts[d]||0;
+      const voted = (myVotes.dates||{})[d]===true;
+      const barPct = allDateMax>0 ? Math.round(cnt/allDateMax*100) : 0;
+      const dObj = new Date(d+'T00:00:00');
+      const lbl = `${dObj.getMonth()+1}월 ${dObj.getDate()}일(${weekDays[dObj.getDay()]})`;
       const votersRow = dateIsPublic && dateVoters[d].length
         ? `<div style="margin-top:4px">${dateVoters[d].map(n=>`<span class="mp-chip">${n}</span>`).join('')}</div>` : '';
-      const btn = me
-        ? `<button onclick="mpToggleDateVote('${d}')" style="flex-shrink:0;font-size:0.75rem;padding:4px 10px;border-radius:8px;border:1.5px solid ${voted?'#2563eb':'#e2e8f0'};background:${voted?'#2563eb':'#fff'};color:${voted?'#fff':'#64748b'};cursor:pointer;font-weight:600">${voted?'✓ 선택됨':'선택'}</button>` : '';
+      const btn = me ? `<button onclick="mpToggleDateVote('${d}')" style="flex-shrink:0;font-size:0.75rem;padding:4px 10px;border-radius:8px;border:1.5px solid ${voted?'#2563eb':'#e2e8f0'};background:${voted?'#2563eb':'#fff'};color:${voted?'#fff':'#64748b'};cursor:pointer;font-weight:600">${voted?'✓ 선택됨':'선택'}</button>` : '';
       html += `<div class="mp-option${voted?' voted':''}">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
           <div style="flex:1;min-width:0">
@@ -7494,88 +7497,66 @@ function _mpVoteSection(poll, me) {
         </div>
       </div>`;
     });
-    html += `</div>`;
-  }
-
-  // 멤버 제안 날짜
-  if (poll.type==='date'||poll.type==='both') {
-    const memberDates = poll.memberDates ? Object.entries(poll.memberDates) : [];
-    const mdCounts = {}; const mdVoters = {};
-    memberDates.forEach(([k]) => { mdCounts[k]=0; mdVoters[k]=[]; });
-    Object.entries(votes).forEach(([,v]) => {
-      if (!v.memberDates) return;
-      const vn = v.name||'?';
-      Object.keys(v.memberDates).forEach(dk => {
-        if (v.memberDates[dk] && mdCounts.hasOwnProperty(dk)) { mdCounts[dk]++; mdVoters[dk].push(vn); }
-      });
-    });
-    const mdMx = Math.max(...Object.values(mdCounts), 0);
-    html += `<div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:14px;padding:12px 14px;margin-bottom:14px">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-        <span style="font-size:0.8rem;font-weight:700;color:#92400e">💡 멤버 제안 날짜</span>
-        <span style="font-size:0.68rem;color:#b45309;font-weight:400">누구나 날짜를 제안할 수 있어요</span>
+    memberDates.forEach(([key, md]) => {
+      const cnt = mdCounts[key]||0;
+      const voted = (myVotes.memberDates||{})[key]===true;
+      const barPct = allDateMax>0 ? Math.round(cnt/allDateMax*100) : 0;
+      const dObj = new Date(md.date+'T00:00:00');
+      const lbl = `${dObj.getMonth()+1}월 ${dObj.getDate()}일(${weekDays[dObj.getDay()]})`;
+      const votersRow = dateIsPublic && mdVoters[key].length
+        ? `<div style="margin-top:4px">${mdVoters[key].map(n=>`<span class="mp-chip">${n}</span>`).join('')}</div>` : '';
+      const btn = me ? `<button onclick="mpToggleMemberDateVote('${key}')" style="flex-shrink:0;font-size:0.75rem;padding:4px 10px;border-radius:8px;border:1.5px solid ${voted?'#d97706':'#e2e8f0'};background:${voted?'#d97706':'#fff'};color:${voted?'#fff':'#64748b'};cursor:pointer;font-weight:600">${voted?'✓ 선택됨':'선택'}</button>` : '';
+      html += `<div class="mp-option${voted?' voted':''}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:5px">
+              <span style="font-size:0.85rem;font-weight:700;color:#1e293b">${lbl}</span>
+              <span style="font-size:0.63rem;color:#b45309;background:#fef3c7;border-radius:6px;padding:1px 5px;font-weight:600">${md.addedBy||'?'} 제안</span>
+            </div>
+            <div style="height:6px;background:#e2e8f0;border-radius:3px;margin:5px 0">
+              <div style="height:100%;width:${barPct}%;background:${voted?'#d97706':'#fbbf24'};border-radius:3px;transition:width .3s"></div>
+            </div>
+            <div style="font-size:0.72rem;color:#64748b">${cnt}명 선택</div>${votersRow}
+          </div>${btn}
+        </div>
       </div>`;
-    if (memberDates.length) {
-      memberDates.forEach(([key, md]) => {
-        const cnt = mdCounts[key]||0;
-        const voted = (myVotes.memberDates||{})[key]===true;
-        const barPct = mdMx>0 ? Math.round(cnt/mdMx*100) : 0;
-        const dObj = new Date(md.date+'T00:00:00');
-        const lbl = `${dObj.getMonth()+1}월 ${dObj.getDate()}일(${weekDays[dObj.getDay()]})`;
-        const votersRow = dateIsPublic && mdVoters[key].length
-          ? `<div style="margin-top:4px">${mdVoters[key].map(n=>`<span class="mp-chip">${n}</span>`).join('')}</div>` : '';
-        const btn = me ? `<button onclick="mpToggleMemberDateVote('${key}')" style="flex-shrink:0;font-size:0.75rem;padding:4px 10px;border-radius:8px;border:1.5px solid ${voted?'#d97706':'#fde68a'};background:${voted?'#d97706':'#fff'};color:${voted?'#fff':'#92400e'};cursor:pointer;font-weight:600">${voted?'✓ 선택됨':'선택'}</button>` : '';
-        html += `<div style="border:1px solid #fde68a;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fefce8">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-            <div style="flex:1;min-width:0">
-              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-                <span style="font-size:0.85rem;font-weight:700;color:#1e293b">${lbl}</span>
-                <span style="font-size:0.65rem;color:#b45309;background:#fef3c7;border-radius:8px;padding:1px 6px">${(md.addedBy||'?')} 제안</span>
-              </div>
-              <div style="height:5px;background:#fde68a;border-radius:3px;margin-bottom:4px">
-                <div style="height:100%;width:${barPct}%;background:${voted?'#d97706':'#f59e0b'};border-radius:3px;transition:width .3s"></div>
-              </div>
-              <div style="font-size:0.72rem;color:#64748b">${cnt}명 선택</div>${votersRow}
-            </div>${btn}
-          </div>
-        </div>`;
-      });
-    } else {
-      html += `<div style="font-size:0.78rem;color:#b45309;padding:2px 0 6px">아직 제안된 날짜가 없습니다.</div>`;
-    }
+    });
     if (me) {
-      html += `<div style="margin-top:8px;display:flex;gap:6px;align-items:center">
-        <input type="date" id="mp-member-date-input" style="flex:1;font-size:0.82rem;border:1.5px solid #fde68a;border-radius:8px;padding:5px 8px;background:#fefce8;color:#92400e;outline:none">
-        <button onclick="mpSubmitMemberDate()" style="font-size:0.78rem;font-weight:700;padding:5px 12px;border-radius:8px;border:1.5px solid #d97706;background:#fef3c7;color:#92400e;cursor:pointer;white-space:nowrap">📅 제안</button>
+      html += `<div style="margin-top:8px">
+        <input type="date" id="mp-suggest-date-input" style="position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0" onchange="mpSubmitMemberDate(this.value);this.value=''">
+        <button onclick="var el=document.getElementById('mp-suggest-date-input');el.style.pointerEvents='auto';el.focus();el.click();setTimeout(function(){el.style.pointerEvents='none'},500)" style="width:100%;font-size:0.78rem;font-weight:600;padding:7px;border-radius:8px;border:1.5px dashed #93c5fd;background:transparent;color:#3b82f6;cursor:pointer">+ 날짜 제안</button>
       </div>`;
     }
     html += `</div>`;
   }
 
   // 내용
-  if ((poll.type==='content'||poll.type==='both') && poll.contents&&poll.contents.length) {
+  if (poll.type==='content'||poll.type==='both') {
     const contentCounts = {}; const contentVoters = {};
-    poll.contents.forEach((_,i) => { contentCounts[i]=0; contentVoters[i]=[]; });
+    (poll.contents||[]).forEach((_,i) => { contentCounts[i]=0; contentVoters[i]=[]; });
+    const memberContents = poll.memberContents ? Object.entries(poll.memberContents) : [];
+    const mcCounts = {}; const mcVoters = {};
+    memberContents.forEach(([k]) => { mcCounts[k]=0; mcVoters[k]=[]; });
     Object.entries(votes).forEach(([k,v]) => {
-      if (!v.contents) return;
       const vn = v.name||k;
-      Object.keys(v.contents).forEach(i => {
+      if (v.contents) Object.keys(v.contents).forEach(i => {
         const n = Number(i);
         if (v.contents[i] && contentCounts.hasOwnProperty(n)) { contentCounts[n]++; contentVoters[n].push(vn); }
       });
+      if (v.memberContents) Object.keys(v.memberContents).forEach(ck => {
+        if (v.memberContents[ck] && mcCounts.hasOwnProperty(ck)) { mcCounts[ck]++; mcVoters[ck].push(vn); }
+      });
     });
-    const mx = Math.max(...Object.values(contentCounts), 0);
-
+    const allContMax = Math.max(...Object.values(contentCounts), ...Object.values(mcCounts), 0);
     html += `<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:14px;padding:12px 14px;margin-bottom:14px">
       <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap"><span style="font-size:0.85rem;font-weight:700;color:#065f46">🎯 내용 선택</span>${toggleBtn('contentMultiSelect',contentMultiSelect,'복수선택','단일선택')}${lockBtn('contentIsPublic',contentIsPublic)}</div>`;
-    poll.contents.forEach((c,i) => {
-      const cnt    = contentCounts[i]||0;
-      const voted  = (myVotes.contents||{})[String(i)]===true;
-      const barPct = mx>0 ? Math.round(cnt/mx*100) : 0;
+    (poll.contents||[]).forEach((c,i) => {
+      const cnt = contentCounts[i]||0;
+      const voted = (myVotes.contents||{})[String(i)]===true;
+      const barPct = allContMax>0 ? Math.round(cnt/allContMax*100) : 0;
       const votersRow = contentIsPublic && contentVoters[i].length
         ? `<div style="margin-top:4px">${contentVoters[i].map(n=>`<span class="mp-chip">${n}</span>`).join('')}</div>` : '';
-      const btn = me
-        ? `<button onclick="mpToggleContentVote(${i})" style="flex-shrink:0;font-size:0.75rem;padding:4px 10px;border-radius:8px;border:1.5px solid ${voted?'#2563eb':'#e2e8f0'};background:${voted?'#2563eb':'#fff'};color:${voted?'#fff':'#64748b'};cursor:pointer;font-weight:600">${voted?'✓ 선택됨':'선택'}</button>` : '';
+      const btn = me ? `<button onclick="mpToggleContentVote(${i})" style="flex-shrink:0;font-size:0.75rem;padding:4px 10px;border-radius:8px;border:1.5px solid ${voted?'#2563eb':'#e2e8f0'};background:${voted?'#2563eb':'#fff'};color:${voted?'#fff':'#64748b'};cursor:pointer;font-weight:600">${voted?'✓ 선택됨':'선택'}</button>` : '';
       html += `<div class="mp-option${voted?' voted':''}">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
           <div style="flex:1;min-width:0">
@@ -7588,57 +7569,32 @@ function _mpVoteSection(poll, me) {
         </div>
       </div>`;
     });
-    html += `</div>`;
-  }
-
-  // 멤버 제안 내용
-  if (poll.type==='content'||poll.type==='both') {
-    const memberContents = poll.memberContents ? Object.entries(poll.memberContents) : [];
-    const mcCounts = {}; const mcVoters = {};
-    memberContents.forEach(([k]) => { mcCounts[k]=0; mcVoters[k]=[]; });
-    Object.entries(votes).forEach(([,v]) => {
-      if (!v.memberContents) return;
-      const vn = v.name||'?';
-      Object.keys(v.memberContents).forEach(ck => {
-        if (v.memberContents[ck] && mcCounts.hasOwnProperty(ck)) { mcCounts[ck]++; mcVoters[ck].push(vn); }
-      });
-    });
-    const mcMx = Math.max(...Object.values(mcCounts), 0);
-    html += `<div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:14px;padding:12px 14px;margin-bottom:14px">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-        <span style="font-size:0.8rem;font-weight:700;color:#92400e">💡 멤버 제안 내용</span>
-        <span style="font-size:0.68rem;color:#b45309;font-weight:400">누구나 내용을 제안할 수 있어요</span>
+    memberContents.forEach(([key, mc]) => {
+      const cnt = mcCounts[key]||0;
+      const voted = (myVotes.memberContents||{})[key]===true;
+      const barPct = allContMax>0 ? Math.round(cnt/allContMax*100) : 0;
+      const votersRow = contentIsPublic && mcVoters[key].length
+        ? `<div style="margin-top:4px">${mcVoters[key].map(n=>`<span class="mp-chip">${n}</span>`).join('')}</div>` : '';
+      const btn = me ? `<button onclick="mpToggleMemberContentVote('${key}')" style="flex-shrink:0;font-size:0.75rem;padding:4px 10px;border-radius:8px;border:1.5px solid ${voted?'#d97706':'#e2e8f0'};background:${voted?'#d97706':'#fff'};color:${voted?'#fff':'#64748b'};cursor:pointer;font-weight:600">${voted?'✓ 선택됨':'선택'}</button>` : '';
+      html += `<div class="mp-option${voted?' voted':''}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:5px">
+              <span style="font-size:0.85rem;font-weight:700;color:#1e293b">${(mc.text||'').replace(/</g,'&lt;')}</span>
+              <span style="font-size:0.63rem;color:#b45309;background:#fef3c7;border-radius:6px;padding:1px 5px;font-weight:600">${mc.addedBy||'?'} 제안</span>
+            </div>
+            <div style="height:6px;background:#e2e8f0;border-radius:3px;margin:5px 0">
+              <div style="height:100%;width:${barPct}%;background:${voted?'#d97706':'#fbbf24'};border-radius:3px;transition:width .3s"></div>
+            </div>
+            <div style="font-size:0.72rem;color:#64748b">${cnt}명 선택</div>${votersRow}
+          </div>${btn}
+        </div>
       </div>`;
-    if (memberContents.length) {
-      memberContents.forEach(([key, mc]) => {
-        const cnt = mcCounts[key]||0;
-        const voted = (myVotes.memberContents||{})[key]===true;
-        const barPct = mcMx>0 ? Math.round(cnt/mcMx*100) : 0;
-        const votersRow = contentIsPublic && mcVoters[key].length
-          ? `<div style="margin-top:4px">${mcVoters[key].map(n=>`<span class="mp-chip">${n}</span>`).join('')}</div>` : '';
-        const btn = me ? `<button onclick="mpToggleMemberContentVote('${key}')" style="flex-shrink:0;font-size:0.75rem;padding:4px 10px;border-radius:8px;border:1.5px solid ${voted?'#d97706':'#fde68a'};background:${voted?'#d97706':'#fff'};color:${voted?'#fff':'#92400e'};cursor:pointer;font-weight:600">${voted?'✓ 선택됨':'선택'}</button>` : '';
-        html += `<div style="border:1px solid #fde68a;border-radius:10px;padding:10px 12px;margin-bottom:8px;background:#fefce8">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-            <div style="flex:1;min-width:0">
-              <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-                <span style="font-size:0.85rem;font-weight:700;color:#1e293b">${(mc.text||'').replace(/</g,'&lt;')}</span>
-                <span style="font-size:0.65rem;color:#b45309;background:#fef3c7;border-radius:8px;padding:1px 6px">${(mc.addedBy||'?')} 제안</span>
-              </div>
-              <div style="height:5px;background:#fde68a;border-radius:3px;margin-bottom:4px">
-                <div style="height:100%;width:${barPct}%;background:${voted?'#d97706':'#f59e0b'};border-radius:3px;transition:width .3s"></div>
-              </div>
-              <div style="font-size:0.72rem;color:#64748b">${cnt}명 선택</div>${votersRow}
-            </div>${btn}
-          </div>
-        </div>`;
-      });
-    } else {
-      html += `<div style="font-size:0.78rem;color:#b45309;padding:2px 0 6px">아직 제안된 내용이 없습니다.</div>`;
-    }
+    });
     if (me) {
       html += `<div style="margin-top:8px;display:flex;gap:6px;align-items:center">
-        <input type="text" id="mp-member-content-input" placeholder="내용 제안하기" style="flex:1;font-size:0.82rem;border:1.5px solid #fde68a;border-radius:8px;padding:5px 8px;background:#fefce8;color:#92400e;outline:none">
-        <button onclick="mpSubmitMemberContent()" style="font-size:0.78rem;font-weight:700;padding:5px 12px;border-radius:8px;border:1.5px solid #d97706;background:#fef3c7;color:#92400e;cursor:pointer;white-space:nowrap">💡 제안</button>
+        <input type="text" id="mp-suggest-content-input" placeholder="내용 제안하기..." style="flex:1;font-size:0.82rem;border:1.5px dashed #86efac;border-radius:8px;padding:6px 10px;background:transparent;color:#065f46;outline:none" onkeydown="if(event.key==='Enter'){mpSubmitMemberContent();event.preventDefault()}">
+        <button onclick="mpSubmitMemberContent()" style="font-size:0.78rem;font-weight:600;padding:6px 12px;border-radius:8px;border:1.5px dashed #86efac;background:transparent;color:#16a34a;cursor:pointer;white-space:nowrap">+ 제안</button>
       </div>`;
     }
     html += `</div>`;
@@ -8257,24 +8213,21 @@ function mpDeletePoll() {
 }
 
 // ── 멤버 제안 날짜/내용 ──
-function mpSubmitMemberDate() {
+function mpSubmitMemberDate(date) {
   const me = state.identity && state.identity.name;
   if (!me) { alert('먼저 접속자를 선택하세요.'); return; }
   if (!db || !_mpData || _mpData.status !== 'open') return;
-  const input = document.getElementById('mp-member-date-input');
-  const date = input && input.value;
-  if (!date) { alert('날짜를 선택하세요.'); return; }
+  if (!date) return;
   db.ref('jmt/meetingPoll/memberDates').push({ date, addedBy: me, addedAt: new Date().toISOString() }).catch(fbErr);
-  if (input) input.value = '';
 }
 
 function mpSubmitMemberContent() {
   const me = state.identity && state.identity.name;
   if (!me) { alert('먼저 접속자를 선택하세요.'); return; }
   if (!db || !_mpData || _mpData.status !== 'open') return;
-  const input = document.getElementById('mp-member-content-input');
+  const input = document.getElementById('mp-suggest-content-input');
   const text = input && input.value.trim();
-  if (!text) { alert('내용을 입력하세요.'); return; }
+  if (!text) return;
   db.ref('jmt/meetingPoll/memberContents').push({ text, addedBy: me, addedAt: new Date().toISOString() }).catch(fbErr);
   if (input) input.value = '';
 }
