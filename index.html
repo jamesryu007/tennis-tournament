@@ -7719,6 +7719,20 @@ function _mpResultCard(poll, allowAdminDecision=false) {
     const totalWinners = adminWinners.length + memberWinners.length;
     const memberSuggestBadge = (addedBy) =>
       `<br><span style="font-size:0.65rem;font-weight:700;background:rgba(251,191,36,0.3);color:#92400e;border-radius:10px;padding:2px 8px;margin-top:4px;display:inline-block">${addedBy||'?'} 제안</span>`;
+    // 승자 제외 나머지 후보 선택 현황
+    const otherDateChoices = (skipAdminKey, skipMemberKey) => {
+      const rows = [];
+      Object.entries(dateCounts).forEach(([d, cnt]) => {
+        if (d === skipAdminKey || cnt === 0) return;
+        rows.push(`<div style="font-size:0.7rem;color:#64748b;margin-bottom:2px"><span style="font-weight:600">${dateFmt(d)}</span>: ${dateVoters[d].map(n=>`<span class="mp-absent-chip">${n}</span>`).join(' ')}</div>`);
+      });
+      memberDates.forEach(([k, md]) => {
+        if (k === skipMemberKey || (mdCounts[k]||0) === 0) return;
+        rows.push(`<div style="font-size:0.7rem;color:#64748b;margin-bottom:2px"><span style="font-weight:600">${dateFmt(md.date)}</span> <span style="font-size:0.63rem;color:#b45309">(${md.addedBy||'?'} 제안)</span>: ${mdVoters[k].map(n=>`<span class="mp-absent-chip">${n}</span>`).join(' ')}</div>`);
+      });
+      if (!rows.length) return '';
+      return `<div style="margin-top:10px;padding-top:8px;border-top:1px solid #f1f5f9"><div style="font-size:0.68rem;color:#94a3b8;font-weight:600;margin-bottom:4px">다른 선택</div>${rows.join('')}</div>`;
+    };
     html += `<div style="margin-bottom:20px">`;
 
     if (fd.date || fd.memberDateKey) {
@@ -7741,17 +7755,20 @@ function _mpResultCard(poll, allowAdminDecision=false) {
         html += `<div style="margin-top:13px"><div style="font-size:0.7rem;font-weight:700;color:#64748b;margin-bottom:8px">👥 선택한 멤버</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px">${decVoters.map(n=>voterChip(n,'#dbeafe','#1d4ed8')).join('')}</div></div>`;
       }
+      html += otherDateChoices(fd.memberDateKey ? null : fd.date, fd.memberDateKey || null);
       html += decidedByHtml(fd);
     } else if (totalWinners === 1) {
       // 단독 1위
-      let winLabel, winVoters;
+      let winLabel, winVoters, winAdminKey = null, winMemberKey = null;
       if (memberWinners.length === 1) {
         const [k, md] = memberWinners[0];
         winLabel = dateFmt(md.date) + memberSuggestBadge(md.addedBy);
         winVoters = mdVoters[k]||[];
+        winMemberKey = k;
       } else {
         winLabel = dateFmt(adminWinners[0]);
         winVoters = dateVoters[adminWinners[0]]||[];
+        winAdminKey = adminWinners[0];
       }
       const badge = `<div style="display:inline-block;font-size:0.62rem;font-weight:800;color:#fff;background:rgba(255,255,255,0.18);border-radius:20px;padding:3px 11px;letter-spacing:0.08em;margin-bottom:10px;border:1px solid rgba(255,255,255,0.35)">✓ 확정</div>`;
       html += winnerBox({labels:[winLabel], mx, badge,
@@ -7762,6 +7779,7 @@ function _mpResultCard(poll, allowAdminDecision=false) {
         html += `<div style="margin-top:13px"><div style="font-size:0.7rem;font-weight:700;color:#64748b;margin-bottom:8px">👥 선택한 멤버</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px">${winVoters.map(n=>voterChip(n,'#dbeafe','#1d4ed8')).join('')}</div></div>`;
       }
+      html += otherDateChoices(winAdminKey, winMemberKey);
     } else if (totalWinners > 1) {
       // 동점 — 관리자 결정 필요
       html += `<div style="background:#fef9c3;border:1.5px solid #fde68a;border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px">
@@ -7810,6 +7828,21 @@ function _mpResultCard(poll, allowAdminDecision=false) {
     const totalContWinners = adminWinnerIdxs.length + memberWinnerConts.length;
     const memberSuggestBadgeC = (addedBy) =>
       `<br><span style="font-size:0.65rem;font-weight:700;background:rgba(251,191,36,0.3);color:#92400e;border-radius:10px;padding:2px 8px;margin-top:4px;display:inline-block">${addedBy||'?'} 제안</span>`;
+    const otherContChoices = (skipAdminIdx, skipMemberKey) => {
+      const rows = [];
+      Object.entries(contentCounts).forEach(([i, cnt]) => {
+        if (Number(i) === skipAdminIdx || cnt === 0) return;
+        const lbl = ((poll.contents||[])[Number(i)]||'').replace(/</g,'&lt;');
+        rows.push(`<div style="font-size:0.7rem;color:#64748b;margin-bottom:2px"><span style="font-weight:600">${lbl}</span>: ${contentVoters[Number(i)].map(n=>`<span class="mp-absent-chip">${n}</span>`).join(' ')}</div>`);
+      });
+      memberContents.forEach(([k, mc]) => {
+        if (k === skipMemberKey || (mcCounts[k]||0) === 0) return;
+        const lbl = (mc.text||'').replace(/</g,'&lt;');
+        rows.push(`<div style="font-size:0.7rem;color:#64748b;margin-bottom:2px"><span style="font-weight:600">${lbl}</span> <span style="font-size:0.63rem;color:#b45309">(${mc.addedBy||'?'} 제안)</span>: ${mcVoters[k].map(n=>`<span class="mp-absent-chip">${n}</span>`).join(' ')}</div>`);
+      });
+      if (!rows.length) return '';
+      return `<div style="margin-top:10px;padding-top:8px;border-top:1px solid #f1f5f9"><div style="font-size:0.68rem;color:#94a3b8;font-weight:600;margin-bottom:4px">다른 선택</div>${rows.join('')}</div>`;
+    };
     html += `<div style="margin-bottom:20px">`;
 
     if ((fd.contentIdx !== undefined && fd.contentIdx !== null) || fd.memberContentKey) {
@@ -7833,18 +7866,21 @@ function _mpResultCard(poll, allowAdminDecision=false) {
         html += `<div style="margin-top:13px"><div style="font-size:0.7rem;font-weight:700;color:#64748b;margin-bottom:8px">👥 선택한 멤버</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px">${decVoters.map(n=>voterChip(n,'#d1fae5','#065f46')).join('')}</div></div>`;
       }
+      html += otherContChoices(fd.memberContentKey ? null : fd.contentIdx, fd.memberContentKey || null);
       html += decidedByHtml(fd);
     } else if (totalContWinners === 1) {
       // 단독 1위
-      let winLabel, winVoters;
+      let winLabel, winVoters, winAdminIdx = null, winMemberKey = null;
       if (memberWinnerConts.length === 1) {
         const [k, mc] = memberWinnerConts[0];
         winLabel = (mc.text||'').replace(/</g,'&lt;') + memberSuggestBadgeC(mc.addedBy);
         winVoters = mcVoters[k]||[];
+        winMemberKey = k;
       } else {
         const lbl = (poll.contents||[])[adminWinnerIdxs[0]];
         winLabel = lbl ? lbl.replace(/</g,'&lt;') : '';
         winVoters = contentVoters[adminWinnerIdxs[0]]||[];
+        winAdminIdx = adminWinnerIdxs[0];
       }
       const badge = `<div style="display:inline-block;font-size:0.62rem;font-weight:800;color:#fff;background:rgba(255,255,255,0.18);border-radius:20px;padding:3px 11px;letter-spacing:0.08em;margin-bottom:10px;border:1px solid rgba(255,255,255,0.35)">✓ 확정</div>`;
       html += winnerBox({labels:[winLabel], mx, badge,
@@ -7855,6 +7891,7 @@ function _mpResultCard(poll, allowAdminDecision=false) {
         html += `<div style="margin-top:13px"><div style="font-size:0.7rem;font-weight:700;color:#64748b;margin-bottom:8px">👥 선택한 멤버</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px">${winVoters.map(n=>voterChip(n,'#d1fae5','#065f46')).join('')}</div></div>`;
       }
+      html += otherContChoices(winAdminIdx, winMemberKey);
     } else if (totalContWinners > 1) {
       // 동점
       html += `<div style="background:#fef9c3;border:1.5px solid #fde68a;border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px">
