@@ -7395,8 +7395,8 @@ function _mpVoteSection(poll, me) {
     ? `<button onclick="mpToggleSetting('${field}',${!active})" style="font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:10px;border:1.5px solid ${active?'#2563eb':'#e2e8f0'};background:${active?'#eff6ff':'#f8fafc'};color:${active?'#2563eb':'#94a3b8'};cursor:pointer;line-height:1.4">${active?labelOn:labelOff}</button>`
     : `<span style="font-size:0.7rem;${active?'color:#94a3b8;font-weight:400':'color:#f59e0b;font-weight:700;background:#fef9c3;padding:1px 7px;border-radius:6px'}">${active?labelOn:labelOff}</span>`;
   const lockBtn = (field, isPublic) => _isMgr
-    ? `<button onclick="mpToggleSetting('${field}',${!isPublic})" style="font-size:0.78rem;padding:1px 5px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;line-height:1.5">${isPublic?'🔓':'🔒'}</button>`
-    : `<span style="font-size:0.7rem;color:#94a3b8">${isPublic?'🔓':'🔒'}</span>`;
+    ? `<button onclick="mpToggleSetting('${field}',${!isPublic})" style="font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:10px;cursor:pointer;line-height:1.4;border:1.5px solid ${isPublic?'#86efac':'#fca5a5'};background:${isPublic?'#f0fdf4':'#fff5f5'};color:${isPublic?'#16a34a':'#ef4444'}">${isPublic?'🔓 공개':'🔒 비공개'}</button>`
+    : `<span style="font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:10px;border:1.5px solid ${isPublic?'#86efac':'#fca5a5'};background:${isPublic?'#f0fdf4':'#fff5f5'};color:${isPublic?'#16a34a':'#ef4444'}">${isPublic?'🔓 공개':'🔒 비공개'}</span>`;
 
   let html = `<div class="card" style="padding:0;overflow:hidden;border:1.5px solid #e2e8f0;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
     <!-- 투표 헤더 배너 -->
