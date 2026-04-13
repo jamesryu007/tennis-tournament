@@ -7522,9 +7522,9 @@ function _mpVoteSection(poll, me) {
       </div>`;
     });
     if (me) {
-      html += `<div style="margin-top:8px;position:relative">
-        <input type="date" id="mp-suggest-date-input" style="position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer" onchange="mpSubmitMemberDate(this.value);this.value=''">
-        <label for="mp-suggest-date-input" style="display:block;width:100%;font-size:0.78rem;font-weight:600;padding:7px;border-radius:8px;border:1.5px dashed #93c5fd;background:transparent;color:#3b82f6;cursor:pointer;text-align:center;box-sizing:border-box">+ 날짜 제안</label>
+      html += `<div style="margin-top:10px">
+        <div style="font-size:0.72rem;color:#64748b;margin-bottom:4px;font-weight:600">+ 날짜 제안</div>
+        <input type="date" id="mp-suggest-date-input" style="width:100%;font-size:0.85rem;padding:8px 10px;border-radius:8px;border:1.5px solid #93c5fd;background:#eff6ff;color:#1e40af;cursor:pointer;box-sizing:border-box;-webkit-appearance:none" onchange="mpSubmitMemberDate(this.value);this.value=''">
       </div>`;
     }
     html += `</div>`;
