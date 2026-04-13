@@ -7537,8 +7537,13 @@ function _mpVoteSection(poll, me) {
   }
 
   // 미참여
+  const nudgeBtn = _isAdm && nonVoters.length
+    ? `<button onclick="mpNudge()" style="flex-shrink:0;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px;border:1px solid #fcd34d;background:#fef3c7;color:#92400e;cursor:pointer;white-space:nowrap">🔔 독촉</button>`
+    : '';
   html += `<div style="margin-top:4px;padding-bottom:14px">
-    <div style="font-size:0.75rem;font-weight:700;color:#94a3b8;margin-bottom:4px">미참여 (${nonVoters.length}명)</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <span style="font-size:0.75rem;font-weight:700;color:#94a3b8">미참여 (${nonVoters.length}명)</span>${nudgeBtn}
+    </div>
     <div>${nonVoters.length ? nonVoters.map(n=>`<span class="mp-absent-chip">${n}</span>`).join('') : '<span style="font-size:0.72rem;color:#94a3b8">모두 참여!</span>'}</div>
   </div></div></div>`;
   return html;
@@ -7780,9 +7785,6 @@ function _mpAdminControls(poll) {
   let html = `<div class="card" style="padding:11px">`;
   if (poll.status==='open') {
     html += `<button class="btn btn-warning btn-full" onclick="closeMeetingPoll()">🏁 투표 마감</button>`;
-    if (isAdmin()) {
-      html += `<button class="btn btn-outline btn-full" style="margin-top:8px" onclick="mpNudge()">🔔 미참여자 독촉 푸시</button>`;
-    }
   } else {
     html += `<button class="btn btn-success btn-full" onclick="mpStartNew()">📅 새 투표 만들기</button>`;
   }
