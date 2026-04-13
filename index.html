@@ -509,6 +509,11 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .mp-option.winner{border-color:#f59e0b;background:#fef9c3}
 .mp-chip{display:inline-flex;align-items:center;font-size:0.68rem;padding:2px 7px;border-radius:10px;background:#dbeafe;color:#1d4ed8;margin:2px 2px 0 0;font-weight:600}
 .mp-absent-chip{display:inline-flex;align-items:center;font-size:0.68rem;padding:2px 7px;border-radius:10px;background:#f1f5f9;color:#94a3b8;margin:2px 2px 0 0}
+@keyframes mpConfettiFall{0%{transform:translateY(-8px) rotate(0deg);opacity:.9}100%{transform:translateY(130px) rotate(420deg);opacity:0}}
+@keyframes mpShimmer{0%{transform:translateX(-100%) skewX(-18deg)}100%{transform:translateX(320%) skewX(-18deg)}}
+@keyframes mpSparkle{0%,100%{opacity:0;transform:scale(.5) rotate(0deg)}50%{opacity:1;transform:scale(1) rotate(180deg)}}
+@keyframes mpGlowBlue{0%,100%{box-shadow:0 8px 28px rgba(37,99,235,.38)}50%{box-shadow:0 10px 44px rgba(37,99,235,.65),0 0 26px rgba(96,165,250,.4)}}
+@keyframes mpGlowGreen{0%,100%{box-shadow:0 8px 28px rgba(5,150,105,.38)}50%{box-shadow:0 10px 44px rgba(5,150,105,.65),0 0 26px rgba(52,211,153,.4)}}
 </style>
 <!-- Firebase SDK (compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -7482,6 +7487,31 @@ function _mpResultCard(poll) {
     `<span style="display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:20px;font-size:0.78rem;font-weight:700;background:${bg};color:${fg};box-shadow:0 1px 4px rgba(0,0,0,0.10)">
       <span style="width:6px;height:6px;border-radius:50%;background:${fg};opacity:0.5;flex-shrink:0"></span>${n}
     </span>`;
+  // confetti 파티클 생성 (색상, x위치, 크기, 딜레이, 모양 랜덤)
+  const confettiColors = ['#fbbf24','#f472b6','#60a5fa','#34d399','#a78bfa','#fb923c','#e879f9','#38bdf8'];
+  const confettiShapes = ['border-radius:2px','border-radius:50%','border-radius:0'];
+  function mkConfetti(n) {
+    return Array.from({length:n}, (_,i) => {
+      const color = confettiColors[i % confettiColors.length];
+      const x = 5 + Math.floor((i * 83 + 17) % 88);
+      const size = 4 + (i % 4);
+      const delay = ((i * 0.28) % 2.2).toFixed(2);
+      const dur = (1.6 + (i % 4) * 0.3).toFixed(1);
+      const shape = confettiShapes[i % 3];
+      return `<div style="position:absolute;top:0;left:${x}%;width:${size}px;height:${size}px;background:${color};${shape};animation:mpConfettiFall ${dur}s ${delay}s ease-in infinite;opacity:0;pointer-events:none"></div>`;
+    }).join('');
+  }
+  // shimmer 레이어
+  const shimmerDiv = `<div style="position:absolute;inset:0;overflow:hidden;pointer-events:none;border-radius:18px">
+    <div style="position:absolute;top:0;left:0;width:40%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.18),transparent);animation:mpShimmer 2.8s 0.5s ease-in-out infinite"></div>
+  </div>`;
+  // 반짝이 sparkle
+  function mkSparkles(color) {
+    const positions = [[12,15],[82,18],[6,72],[88,68],[48,8]];
+    return positions.map(([x,y],i) =>
+      `<div style="position:absolute;left:${x}%;top:${y}%;font-size:${i%2===0?'0.7':'0.55'}rem;color:${color};animation:mpSparkle ${1.4+i*0.3}s ${i*0.4}s ease-in-out infinite;pointer-events:none">✦</div>`
+    ).join('');
+  }
 
   let html = `<div class="card" style="padding:0;overflow:hidden;border:1.5px solid #e2e8f0;box-shadow:0 6px 28px rgba(0,0,0,0.09)">
     <div style="height:5px;background:linear-gradient(90deg,#f59e0b 0%,#fbbf24 40%,#fb923c 70%,#f59e0b 100%)"></div>
@@ -7512,7 +7542,10 @@ function _mpResultCard(poll) {
     if (winners.length && mx > 0) {
       const allWinnerVoters = [...new Set(winners.flatMap(d=>dateVoters[d]))];
       html += `
-        <div style="position:relative;background:linear-gradient(145deg,#1e40af 0%,#2563eb 55%,#3b82f6 100%);border-radius:18px;padding:22px 18px 20px;text-align:center;box-shadow:0 8px 28px rgba(37,99,235,0.38);overflow:hidden">
+        <div style="position:relative;background:linear-gradient(145deg,#1e40af 0%,#2563eb 55%,#3b82f6 100%);border-radius:18px;padding:22px 18px 20px;text-align:center;animation:mpGlowBlue 3s ease-in-out infinite;overflow:hidden">
+          ${mkConfetti(10)}
+          ${shimmerDiv}
+          ${mkSparkles('rgba(191,219,254,0.9)')}
           <div style="position:absolute;top:-20px;right:-14px;font-size:6rem;opacity:0.07;line-height:1;transform:rotate(10deg)">📅</div>
           <div style="position:absolute;bottom:-14px;left:-10px;font-size:5rem;opacity:0.06;line-height:1;transform:rotate(-8deg)">🎉</div>
           <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 60% 20%,rgba(255,255,255,0.12) 0%,transparent 70%);pointer-events:none"></div>
@@ -7559,7 +7592,10 @@ function _mpResultCard(poll) {
     html += `<div style="margin-bottom:20px">`;
     if (winnerLabels.length && mx > 0) {
       html += `
-        <div style="position:relative;background:linear-gradient(145deg,#064e3b 0%,#059669 55%,#10b981 100%);border-radius:18px;padding:22px 18px 20px;text-align:center;box-shadow:0 8px 28px rgba(5,150,105,0.38);overflow:hidden">
+        <div style="position:relative;background:linear-gradient(145deg,#064e3b 0%,#059669 55%,#10b981 100%);border-radius:18px;padding:22px 18px 20px;text-align:center;animation:mpGlowGreen 3s ease-in-out infinite;overflow:hidden">
+          ${mkConfetti(10)}
+          ${shimmerDiv}
+          ${mkSparkles('rgba(167,243,208,0.9)')}
           <div style="position:absolute;top:-20px;right:-14px;font-size:6rem;opacity:0.07;line-height:1;transform:rotate(10deg)">🎯</div>
           <div style="position:absolute;bottom:-14px;left:-10px;font-size:5rem;opacity:0.06;line-height:1;transform:rotate(-8deg)">✨</div>
           <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 60% 20%,rgba(255,255,255,0.12) 0%,transparent 70%);pointer-events:none"></div>
