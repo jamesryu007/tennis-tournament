@@ -7522,9 +7522,9 @@ function _mpVoteSection(poll, me) {
       </div>`;
     });
     if (me) {
-      html += `<div style="margin-top:8px">
-        <input type="date" id="mp-suggest-date-input" style="position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0" onchange="mpSubmitMemberDate(this.value);this.value=''">
-        <button onclick="var el=document.getElementById('mp-suggest-date-input');el.style.pointerEvents='auto';el.focus();el.click();setTimeout(function(){el.style.pointerEvents='none'},500)" style="width:100%;font-size:0.78rem;font-weight:600;padding:7px;border-radius:8px;border:1.5px dashed #93c5fd;background:transparent;color:#3b82f6;cursor:pointer">+ 날짜 제안</button>
+      html += `<div style="margin-top:8px;position:relative">
+        <input type="date" id="mp-suggest-date-input" style="position:absolute;opacity:0;width:100%;height:100%;top:0;left:0;cursor:pointer" onchange="mpSubmitMemberDate(this.value);this.value=''">
+        <label for="mp-suggest-date-input" style="display:block;width:100%;font-size:0.78rem;font-weight:600;padding:7px;border-radius:8px;border:1.5px dashed #93c5fd;background:transparent;color:#3b82f6;cursor:pointer;text-align:center;box-sizing:border-box">+ 날짜 제안</label>
       </div>`;
     }
     html += `</div>`;
@@ -7696,58 +7696,89 @@ function _mpResultCard(poll, allowAdminDecision=false) {
       </div>
       <div style="font-size:1.2rem;font-weight:900;color:#1e293b;line-height:1.35;margin-bottom:20px">${(poll.title||'모임 정하기').replace(/</g,'&lt;')}</div>`;
 
-  // ── 날짜 섹션 ──
+  // ── 날짜 섹션 (관리자 + 멤버 제안 통합) ──
   if (poll.type==='date'||poll.type==='both') {
     const dateCounts = {}; const dateVoters = {};
     (poll.dates||[]).forEach(d => { dateCounts[d]=0; dateVoters[d]=[]; });
+    const memberDates = poll.memberDates ? Object.entries(poll.memberDates) : [];
+    const mdCounts = {}; const mdVoters = {};
+    memberDates.forEach(([k]) => { mdCounts[k]=0; mdVoters[k]=[]; });
     Object.values(votes).forEach(v => {
-      if (!v.dates) return;
       const vn = v.name||'?';
-      Object.keys(v.dates).forEach(dk => {
+      if (v.dates) Object.keys(v.dates).forEach(dk => {
         if (v.dates[dk] && dateCounts.hasOwnProperty(dk)) { dateCounts[dk]++; dateVoters[dk].push(vn); }
       });
+      if (v.memberDates) Object.keys(v.memberDates).forEach(dk => {
+        if (v.memberDates[dk] && mdCounts.hasOwnProperty(dk)) { mdCounts[dk]++; mdVoters[dk].push(vn); }
+      });
     });
-    const mx = Math.max(...Object.values(dateCounts), 0);
-    const winners = Object.entries(dateCounts).filter(([,c])=>c===mx&&mx>0).map(([d])=>d).sort();
+    const allDateVals = [...Object.values(dateCounts), ...Object.values(mdCounts)];
+    const mx = allDateVals.length ? Math.max(...allDateVals, 0) : 0;
+    const adminWinners = Object.entries(dateCounts).filter(([,c])=>c===mx&&mx>0).map(([d])=>d).sort();
+    const memberWinners = memberDates.filter(([k])=>(mdCounts[k]||0)===mx&&mx>0);
+    const totalWinners = adminWinners.length + memberWinners.length;
+    const memberSuggestBadge = (addedBy) =>
+      `<br><span style="font-size:0.65rem;font-weight:700;background:rgba(251,191,36,0.3);color:#92400e;border-radius:10px;padding:2px 8px;margin-top:4px;display:inline-block">${addedBy||'?'} 제안</span>`;
     html += `<div style="margin-bottom:20px">`;
 
-    if (fd.date) {
+    if (fd.date || fd.memberDateKey) {
       // 관리자 결정 완료
+      let decLabel, decVoters;
+      if (fd.memberDateKey && poll.memberDates && poll.memberDates[fd.memberDateKey]) {
+        const md = poll.memberDates[fd.memberDateKey];
+        decLabel = dateFmt(md.date) + memberSuggestBadge(md.addedBy);
+        decVoters = mdVoters[fd.memberDateKey]||[];
+      } else {
+        decLabel = dateFmt(fd.date);
+        decVoters = dateVoters[fd.date]||[];
+      }
       const badge = `<div style="display:inline-block;font-size:0.62rem;font-weight:800;color:#1e293b;background:#fde68a;border-radius:20px;padding:3px 11px;letter-spacing:0.08em;margin-bottom:10px">👑 확정</div>`;
-      html += winnerBox({labels:[dateFmt(fd.date)], mx:dateCounts[fd.date]||mx, badge,
+      html += winnerBox({labels:[decLabel], mx:fd.memberDateKey?(mdCounts[fd.memberDateKey]||mx):(dateCounts[fd.date]||mx), badge,
         grad:'linear-gradient(145deg,#1e40af 0%,#2563eb 55%,#3b82f6 100%)',
         glowAnim:'mpGlowBlue', deco1:'📅', deco2:'🎉',
         sparkleColor:'rgba(191,219,254,0.9)', subLabel:'#93c5fd', subCount:'#bfdbfe'});
-      const decidedVoters = dateVoters[fd.date]||[];
-      if (decidedVoters.length) {
+      if (decVoters.length) {
         html += `<div style="margin-top:13px"><div style="font-size:0.7rem;font-weight:700;color:#64748b;margin-bottom:8px">👥 선택한 멤버</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">${decidedVoters.map(n=>voterChip(n,'#dbeafe','#1d4ed8')).join('')}</div></div>`;
+          <div style="display:flex;flex-wrap:wrap;gap:6px">${decVoters.map(n=>voterChip(n,'#dbeafe','#1d4ed8')).join('')}</div></div>`;
       }
       html += decidedByHtml(fd);
-    } else if (winners.length === 1) {
+    } else if (totalWinners === 1) {
       // 단독 1위
+      let winLabel, winVoters;
+      if (memberWinners.length === 1) {
+        const [k, md] = memberWinners[0];
+        winLabel = dateFmt(md.date) + memberSuggestBadge(md.addedBy);
+        winVoters = mdVoters[k]||[];
+      } else {
+        winLabel = dateFmt(adminWinners[0]);
+        winVoters = dateVoters[adminWinners[0]]||[];
+      }
       const badge = `<div style="display:inline-block;font-size:0.62rem;font-weight:800;color:#fff;background:rgba(255,255,255,0.18);border-radius:20px;padding:3px 11px;letter-spacing:0.08em;margin-bottom:10px;border:1px solid rgba(255,255,255,0.35)">✓ 확정</div>`;
-      html += winnerBox({labels:[dateFmt(winners[0])], mx, badge,
+      html += winnerBox({labels:[winLabel], mx, badge,
         grad:'linear-gradient(145deg,#1e40af 0%,#2563eb 55%,#3b82f6 100%)',
         glowAnim:'mpGlowBlue', deco1:'📅', deco2:'🎉',
         sparkleColor:'rgba(191,219,254,0.9)', subLabel:'#93c5fd', subCount:'#bfdbfe'});
-      const allVoters = dateVoters[winners[0]]||[];
-      if (allVoters.length) {
+      if (winVoters.length) {
         html += `<div style="margin-top:13px"><div style="font-size:0.7rem;font-weight:700;color:#64748b;margin-bottom:8px">👥 선택한 멤버</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">${allVoters.map(n=>voterChip(n,'#dbeafe','#1d4ed8')).join('')}</div></div>`;
+          <div style="display:flex;flex-wrap:wrap;gap:6px">${winVoters.map(n=>voterChip(n,'#dbeafe','#1d4ed8')).join('')}</div></div>`;
       }
-    } else if (winners.length > 1) {
+    } else if (totalWinners > 1) {
       // 동점 — 관리자 결정 필요
       html += `<div style="background:#fef9c3;border:1.5px solid #fde68a;border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px">
         <span style="font-size:1rem">⚖️</span>
         <div>
-          <div style="font-size:0.78rem;font-weight:800;color:#92400e">공동 1위 · ${winners.length}개 날짜</div>
+          <div style="font-size:0.78rem;font-weight:800;color:#92400e">공동 1위 · ${totalWinners}개 날짜</div>
           ${canDecide ? '<div style="font-size:0.7rem;color:#b45309;margin-top:1px">관리자가 최종 날짜를 결정해주세요</div>' : '<div style="font-size:0.7rem;color:#b45309;margin-top:1px">관리자 결정 대기 중...</div>'}
         </div>
       </div>`;
-      winners.forEach(d => {
+      adminWinners.forEach(d => {
         const btn = canDecide ? decideBtnHtml(`mpSetFinalDecision('date','${d}')`) : '';
         html += tieRow({label:dateFmt(d), mx, voters:dateVoters[d]||[], decideBtn:btn, chipBg:'#dbeafe', chipFg:'#1d4ed8'});
+      });
+      memberWinners.forEach(([k, md]) => {
+        const lbl = dateFmt(md.date) + ` <span style="font-size:0.65rem;color:#b45309;background:#fef3c7;border-radius:8px;padding:1px 6px">${md.addedBy||'?'} 제안</span>`;
+        const btn = canDecide ? decideBtnHtml(`mpSetFinalDecision('memberDateKey','${k}')`) : '';
+        html += tieRow({label:lbl, mx, voters:mdVoters[k]||[], decideBtn:btn, chipBg:'#dbeafe', chipFg:'#1d4ed8'});
       });
     } else {
       html += `<div style="font-size:0.82rem;color:#94a3b8;padding:10px 0">투표 결과 없음</div>`;
@@ -7755,128 +7786,98 @@ function _mpResultCard(poll, allowAdminDecision=false) {
     html += `</div>`;
   }
 
-  // 멤버 제안 날짜 결과
-  if ((poll.type==='date'||poll.type==='both') && poll.memberDates) {
-    const mDateEntries = Object.entries(poll.memberDates);
-    if (mDateEntries.length) {
-      const mdCounts = {}; const mdVoters = {};
-      mDateEntries.forEach(([k]) => { mdCounts[k]=0; mdVoters[k]=[]; });
-      Object.values(votes).forEach(v => {
-        if (!v.memberDates) return;
-        const vn = v.name||'?';
-        Object.keys(v.memberDates).forEach(dk => {
-          if (v.memberDates[dk] && mdCounts.hasOwnProperty(dk)) { mdCounts[dk]++; mdVoters[dk].push(vn); }
-        });
-      });
-      html += `<div style="margin-bottom:20px">
-        <div style="font-size:0.72rem;font-weight:700;color:#b45309;margin-bottom:8px">💡 멤버 제안 날짜</div>`;
-      mDateEntries.sort((a,b)=>(mdCounts[b[0]]||0)-(mdCounts[a[0]]||0)).forEach(([key, md]) => {
-        const cnt = mdCounts[key]||0;
-        const dObj = new Date(md.date+'T00:00:00');
-        const lbl = `${dObj.getMonth()+1}월 ${dObj.getDate()}일(${weekDays[dObj.getDay()]})`;
-        html += `<div style="background:#fefce8;border:1px solid #fde68a;border-radius:10px;padding:9px 12px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
-          <div>
-            <span style="font-size:0.85rem;font-weight:700;color:#1e293b">${lbl}</span>
-            <span style="font-size:0.65rem;color:#b45309;background:#fef3c7;border-radius:8px;padding:1px 6px;margin-left:6px">${md.addedBy||'?'} 제안</span>
-          </div>
-          <span style="font-size:0.75rem;font-weight:700;color:#92400e">${cnt}명</span>
-        </div>`;
-      });
-      html += `</div>`;
-    }
-  }
-
-  // ── 내용 섹션 ──
+  // ── 내용 섹션 (관리자 + 멤버 제안 통합) ──
   if (poll.type==='content'||poll.type==='both') {
     const contentCounts = {}; const contentVoters = {};
     (poll.contents||[]).forEach((_,i) => { contentCounts[i]=0; contentVoters[i]=[]; });
+    const memberContents = poll.memberContents ? Object.entries(poll.memberContents) : [];
+    const mcCounts = {}; const mcVoters = {};
+    memberContents.forEach(([k]) => { mcCounts[k]=0; mcVoters[k]=[]; });
     Object.values(votes).forEach(v => {
-      if (!v.contents) return;
       const vn = v.name||'?';
-      Object.keys(v.contents).forEach(i => {
+      if (v.contents) Object.keys(v.contents).forEach(i => {
         const n=Number(i);
         if (v.contents[i] && contentCounts.hasOwnProperty(n)) { contentCounts[n]++; contentVoters[n].push(vn); }
       });
+      if (v.memberContents) Object.keys(v.memberContents).forEach(ck => {
+        if (v.memberContents[ck] && mcCounts.hasOwnProperty(ck)) { mcCounts[ck]++; mcVoters[ck].push(vn); }
+      });
     });
-    const mx = Math.max(...Object.values(contentCounts), 0);
-    const winnerEntries = Object.entries(contentCounts).filter(([,c])=>c===mx&&mx>0);
-    const winnerIdxs = winnerEntries.map(([i])=>Number(i));
+    const allContVals = [...Object.values(contentCounts), ...Object.values(mcCounts)];
+    const mx = allContVals.length ? Math.max(...allContVals, 0) : 0;
+    const adminWinnerIdxs = Object.entries(contentCounts).filter(([,c])=>c===mx&&mx>0).map(([i])=>Number(i));
+    const memberWinnerConts = memberContents.filter(([k])=>(mcCounts[k]||0)===mx&&mx>0);
+    const totalContWinners = adminWinnerIdxs.length + memberWinnerConts.length;
+    const memberSuggestBadgeC = (addedBy) =>
+      `<br><span style="font-size:0.65rem;font-weight:700;background:rgba(251,191,36,0.3);color:#92400e;border-radius:10px;padding:2px 8px;margin-top:4px;display:inline-block">${addedBy||'?'} 제안</span>`;
     html += `<div style="margin-bottom:20px">`;
 
-    if (fd.contentIdx !== undefined && fd.contentIdx !== null) {
+    if ((fd.contentIdx !== undefined && fd.contentIdx !== null) || fd.memberContentKey) {
       // 관리자 결정 완료
-      const decided = (poll.contents||[])[fd.contentIdx];
+      let decLabel, decVoters;
+      if (fd.memberContentKey && poll.memberContents && poll.memberContents[fd.memberContentKey]) {
+        const mc = poll.memberContents[fd.memberContentKey];
+        decLabel = (mc.text||'').replace(/</g,'&lt;') + memberSuggestBadgeC(mc.addedBy);
+        decVoters = mcVoters[fd.memberContentKey]||[];
+      } else {
+        const decided = (poll.contents||[])[fd.contentIdx];
+        decLabel = decided ? decided.replace(/</g,'&lt;') : '?';
+        decVoters = contentVoters[fd.contentIdx]||[];
+      }
       const badge = `<div style="display:inline-block;font-size:0.62rem;font-weight:800;color:#1e293b;background:#fde68a;border-radius:20px;padding:3px 11px;letter-spacing:0.08em;margin-bottom:10px">👑 확정</div>`;
-      html += winnerBox({labels:[decided ? decided.replace(/</g,'&lt;') : '?'], mx:contentCounts[fd.contentIdx]||mx, badge,
+      html += winnerBox({labels:[decLabel], mx:fd.memberContentKey?(mcCounts[fd.memberContentKey]||mx):(contentCounts[fd.contentIdx]||mx), badge,
         grad:'linear-gradient(145deg,#064e3b 0%,#059669 55%,#10b981 100%)',
         glowAnim:'mpGlowGreen', deco1:'🎯', deco2:'✨',
         sparkleColor:'rgba(167,243,208,0.9)', subLabel:'#6ee7b7', subCount:'#a7f3d0'});
-      const decidedVoters = contentVoters[fd.contentIdx]||[];
-      if (decidedVoters.length) {
+      if (decVoters.length) {
         html += `<div style="margin-top:13px"><div style="font-size:0.7rem;font-weight:700;color:#64748b;margin-bottom:8px">👥 선택한 멤버</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">${decidedVoters.map(n=>voterChip(n,'#d1fae5','#065f46')).join('')}</div></div>`;
+          <div style="display:flex;flex-wrap:wrap;gap:6px">${decVoters.map(n=>voterChip(n,'#d1fae5','#065f46')).join('')}</div></div>`;
       }
       html += decidedByHtml(fd);
-    } else if (winnerIdxs.length === 1) {
+    } else if (totalContWinners === 1) {
       // 단독 1위
-      const lbl = (poll.contents||[])[winnerIdxs[0]];
+      let winLabel, winVoters;
+      if (memberWinnerConts.length === 1) {
+        const [k, mc] = memberWinnerConts[0];
+        winLabel = (mc.text||'').replace(/</g,'&lt;') + memberSuggestBadgeC(mc.addedBy);
+        winVoters = mcVoters[k]||[];
+      } else {
+        const lbl = (poll.contents||[])[adminWinnerIdxs[0]];
+        winLabel = lbl ? lbl.replace(/</g,'&lt;') : '';
+        winVoters = contentVoters[adminWinnerIdxs[0]]||[];
+      }
       const badge = `<div style="display:inline-block;font-size:0.62rem;font-weight:800;color:#fff;background:rgba(255,255,255,0.18);border-radius:20px;padding:3px 11px;letter-spacing:0.08em;margin-bottom:10px;border:1px solid rgba(255,255,255,0.35)">✓ 확정</div>`;
-      html += winnerBox({labels:[lbl ? lbl.replace(/</g,'&lt;') : ''], mx, badge,
+      html += winnerBox({labels:[winLabel], mx, badge,
         grad:'linear-gradient(145deg,#064e3b 0%,#059669 55%,#10b981 100%)',
         glowAnim:'mpGlowGreen', deco1:'🎯', deco2:'✨',
         sparkleColor:'rgba(167,243,208,0.9)', subLabel:'#6ee7b7', subCount:'#a7f3d0'});
-      const allVoters = contentVoters[winnerIdxs[0]]||[];
-      if (allVoters.length) {
+      if (winVoters.length) {
         html += `<div style="margin-top:13px"><div style="font-size:0.7rem;font-weight:700;color:#64748b;margin-bottom:8px">👥 선택한 멤버</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">${allVoters.map(n=>voterChip(n,'#d1fae5','#065f46')).join('')}</div></div>`;
+          <div style="display:flex;flex-wrap:wrap;gap:6px">${winVoters.map(n=>voterChip(n,'#d1fae5','#065f46')).join('')}</div></div>`;
       }
-    } else if (winnerIdxs.length > 1) {
+    } else if (totalContWinners > 1) {
       // 동점
       html += `<div style="background:#fef9c3;border:1.5px solid #fde68a;border-radius:12px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px">
         <span style="font-size:1rem">⚖️</span>
         <div>
-          <div style="font-size:0.78rem;font-weight:800;color:#92400e">공동 1위 · ${winnerIdxs.length}개 항목</div>
+          <div style="font-size:0.78rem;font-weight:800;color:#92400e">공동 1위 · ${totalContWinners}개 항목</div>
           ${canDecide ? '<div style="font-size:0.7rem;color:#b45309;margin-top:1px">관리자가 최종 항목을 결정해주세요</div>' : '<div style="font-size:0.7rem;color:#b45309;margin-top:1px">관리자 결정 대기 중...</div>'}
         </div>
       </div>`;
-      winnerIdxs.forEach(idx => {
+      adminWinnerIdxs.forEach(idx => {
         const lbl = ((poll.contents||[])[idx]||'').replace(/</g,'&lt;');
         const btn = canDecide ? decideBtnHtml(`mpSetFinalDecision('contentIdx',${idx})`) : '';
         html += tieRow({label:lbl, mx, voters:contentVoters[idx]||[], decideBtn:btn, chipBg:'#d1fae5', chipFg:'#065f46'});
+      });
+      memberWinnerConts.forEach(([k, mc]) => {
+        const lbl = (mc.text||'').replace(/</g,'&lt;') + ` <span style="font-size:0.65rem;color:#b45309;background:#fef3c7;border-radius:8px;padding:1px 6px">${mc.addedBy||'?'} 제안</span>`;
+        const btn = canDecide ? decideBtnHtml(`mpSetFinalDecision('memberContentKey','${k}')`) : '';
+        html += tieRow({label:lbl, mx, voters:mcVoters[k]||[], decideBtn:btn, chipBg:'#d1fae5', chipFg:'#065f46'});
       });
     } else {
       html += `<div style="font-size:0.82rem;color:#94a3b8;padding:10px 0">투표 결과 없음</div>`;
     }
     html += `</div>`;
-  }
-
-  // 멤버 제안 내용 결과
-  if ((poll.type==='content'||poll.type==='both') && poll.memberContents) {
-    const mContEntries = Object.entries(poll.memberContents);
-    if (mContEntries.length) {
-      const mcCounts = {}; const mcVoters = {};
-      mContEntries.forEach(([k]) => { mcCounts[k]=0; mcVoters[k]=[]; });
-      Object.values(votes).forEach(v => {
-        if (!v.memberContents) return;
-        const vn = v.name||'?';
-        Object.keys(v.memberContents).forEach(ck => {
-          if (v.memberContents[ck] && mcCounts.hasOwnProperty(ck)) { mcCounts[ck]++; mcVoters[ck].push(vn); }
-        });
-      });
-      html += `<div style="margin-bottom:20px">
-        <div style="font-size:0.72rem;font-weight:700;color:#b45309;margin-bottom:8px">💡 멤버 제안 내용</div>`;
-      mContEntries.sort((a,b)=>(mcCounts[b[0]]||0)-(mcCounts[a[0]]||0)).forEach(([key, mc]) => {
-        const cnt = mcCounts[key]||0;
-        html += `<div style="background:#fefce8;border:1px solid #fde68a;border-radius:10px;padding:9px 12px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between">
-          <div>
-            <span style="font-size:0.85rem;font-weight:700;color:#1e293b">${(mc.text||'').replace(/</g,'&lt;')}</span>
-            <span style="font-size:0.65rem;color:#b45309;background:#fef3c7;border-radius:8px;padding:1px 6px;margin-left:6px">${mc.addedBy||'?'} 제안</span>
-          </div>
-          <span style="font-size:0.75rem;font-weight:700;color:#92400e">${cnt}명</span>
-        </div>`;
-      });
-      html += `</div>`;
-    }
   }
 
   if (nonVoters.length) {
@@ -7893,9 +7894,21 @@ function _mpResultCard(poll, allowAdminDecision=false) {
 function mpSetFinalDecision(field, value) {
   if (!isAdmin()) return;
   if (!_mpData) return;
-  const label = field === 'date'
-    ? (() => { const o=new Date(value+'T00:00:00'); const w=['일','월','화','수','목','금','토']; return `${o.getMonth()+1}월 ${o.getDate()}일(${w[o.getDay()]})`; })()
-    : ((_mpData.contents||[])[value]||'이 항목');
+  const w = ['일','월','화','수','목','금','토'];
+  let label;
+  if (field === 'date') {
+    const o = new Date(value+'T00:00:00');
+    label = `${o.getMonth()+1}월 ${o.getDate()}일(${w[o.getDay()]})`;
+  } else if (field === 'memberDateKey') {
+    const md = (_mpData.memberDates||{})[value];
+    if (md) { const o=new Date(md.date+'T00:00:00'); label=`${o.getMonth()+1}월 ${o.getDate()}일(${w[o.getDay()]}) (${md.addedBy||'?'} 제안)`; }
+    else label = '이 날짜';
+  } else if (field === 'memberContentKey') {
+    const mc = (_mpData.memberContents||{})[value];
+    label = mc ? `${mc.text||''} (${mc.addedBy||'?'} 제안)` : '이 항목';
+  } else {
+    label = (_mpData.contents||[])[value]||'이 항목';
+  }
   if (!confirm(`"${label}"으로 최종 결정하시겠습니까?`)) return;
   const update = { [field]: value, decidedBy: (state.identity&&state.identity.name)||'관리자', decidedAt: new Date().toISOString() };
   const pollId = (_mpData.createdAt||'').toString().replace(/[:.]/g,'_');
@@ -8120,7 +8133,8 @@ function mpToggleDateVote(dateStr) {
     if (already) {
       ref.child('dates/'+dateStr).remove().catch(fbErr);
     } else if (!multiSelect) {
-      ref.child('dates').set({ [dateStr]: true }).catch(fbErr);
+      // 단일 선택: 관리자 후보 + 멤버 제안 후보 모두 초기화 후 선택
+      ref.update({ dates: { [dateStr]: true }, memberDates: null }).catch(fbErr);
     } else {
       ref.child('dates/'+dateStr).set(true).catch(fbErr);
     }
@@ -8142,7 +8156,8 @@ function mpToggleContentVote(idx) {
     if (already) {
       ref.child('contents/'+idx).remove().catch(fbErr);
     } else if (!multiSelect) {
-      ref.child('contents').set({ [String(idx)]: true }).catch(fbErr);
+      // 단일 선택: 관리자 후보 + 멤버 제안 후보 모두 초기화 후 선택
+      ref.update({ contents: { [String(idx)]: true }, memberContents: null }).catch(fbErr);
     } else {
       ref.child('contents/'+idx).set(true).catch(fbErr);
     }
@@ -8246,7 +8261,8 @@ function mpToggleMemberDateVote(key) {
     if (already) {
       ref.child('memberDates/' + key).remove().catch(fbErr);
     } else if (!multiSelect) {
-      ref.child('memberDates').set({ [key]: true }).catch(fbErr);
+      // 단일 선택: 관리자 후보 + 멤버 제안 후보 모두 초기화 후 선택
+      ref.update({ dates: null, memberDates: { [key]: true } }).catch(fbErr);
     } else {
       ref.child('memberDates/' + key).set(true).catch(fbErr);
     }
@@ -8268,7 +8284,8 @@ function mpToggleMemberContentVote(key) {
     if (already) {
       ref.child('memberContents/' + key).remove().catch(fbErr);
     } else if (!multiSelect) {
-      ref.child('memberContents').set({ [key]: true }).catch(fbErr);
+      // 단일 선택: 관리자 후보 + 멤버 제안 후보 모두 초기화 후 선택
+      ref.update({ contents: null, memberContents: { [key]: true } }).catch(fbErr);
     } else {
       ref.child('memberContents/' + key).set(true).catch(fbErr);
     }
