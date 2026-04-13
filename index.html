@@ -8358,7 +8358,10 @@ function mpNudge() {
   const fn = firebase.app().functions('asia-southeast1').httpsCallable('notifyMeetingPollNudge');
   fn({ pollTitle: _mpData.title||'모임 정하기' })
     .then(r => alert((r.data&&r.data.message)||'독촉 알림을 보냈습니다.'))
-    .catch(e => alert('오류: '+e.message));
+    .catch(e => {
+      if (e.code === 'messaging/token-subscribe-failed') return; // dev 환경 VAPID 불일치 — 무시
+      alert('오류: '+e.message);
+    });
 }
 
 // ── 댓글/답글 함수 ──
