@@ -8074,10 +8074,8 @@ function _mpStartCountdown(closesAt) {
 function _mpFormatRemaining(ms) {
   const s = Math.floor(ms/1000);
   const m = Math.floor(s/60);
-  const h = Math.floor(m/60);
-  const d = Math.floor(h/24);
-  if (d > 0) return `${d}일 ${h%24}시간 ${m%60}분 후 마감`;
-  if (h > 0) return `${h}시간 ${m%60}분 후 마감`;
+  const h = Math.floor(s/3600);
+  if (h > 0) return `${h}시간 ${m%60}분 ${s%60}초 후 마감`;
   if (m > 0) return `${m}분 ${s%60}초 후 마감`;
   return `${s}초 후 마감`;
 }
