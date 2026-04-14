@@ -7922,6 +7922,9 @@ function betRenderHome() {
       const loserChips = (r.losers||[]).map(n =>
         `<span style="display:inline-block;padding:4px 12px;border-radius:12px;background:#fee2e2;color:#dc2626;font-size:0.78rem;font-weight:700;margin:2px">💀 ${n}</span>`
       ).join('');
+      const winnerChips = (r.winners||[]).map(n =>
+        `<span style="display:inline-block;padding:4px 12px;border-radius:12px;background:#dcfce7;color:#16a34a;font-size:0.78rem;font-weight:700;margin:2px">🎉 ${n}</span>`
+      ).join('');
       const delBtn = mgr
         ? `<button onclick="betDeleteRecord('${id}')" style="border:none;background:none;color:#fca5a5;font-size:1rem;cursor:pointer;padding:0;line-height:1" title="삭제">🗑</button>`
         : '';
@@ -7933,9 +7936,10 @@ function betRenderHome() {
             ${delBtn}
           </div>
         </div>
-        <div style="margin-bottom:8px;display:flex;flex-wrap:wrap">${loserChips}</div>
+        <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${loserChips}</div>
+        <div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${winnerChips}</div>
         ${totalCost ? `<div style="font-size:0.8rem;color:#7c3aed;font-weight:700">💸 총 ${totalCost.toLocaleString()}원</div>` : ''}
-        <div style="font-size:0.7rem;color:#94a3b8;margin-top:5px">${(r.participants||[]).length}명 참여 · 패배자 ${(r.losers||[]).length}명</div>
+        <div style="font-size:0.7rem;color:#94a3b8;margin-top:5px">${(r.participants||[]).length}명 참여</div>
       </div>`;
     }).join('');
   }).catch(() => {});
