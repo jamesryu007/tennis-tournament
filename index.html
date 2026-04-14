@@ -5424,14 +5424,10 @@ function initAtpListeners() {
     atpState.rankingsFromDb = (d && d.players) ? d.players : [];
   });
 
-  // ATP 뉴스 구독
+  // ATP 뉴스 구독 — Cloud Function이 12시간마다 업데이트, 앱은 읽기만
   db.ref('jmt/atpNews').on('value', snap => {
     const d = snap.val();
-    const incoming = (d && d.articles) ? d.articles : [];
-    // headlineKo 있는 기사가 있거나 현재 뉴스가 없을 때만 갱신
-    if (incoming.some(a => a.headlineKo) || !atpState.news.length) {
-      atpState.news = incoming;
-    }
+    atpState.news = (d && d.articles) ? d.articles : [];
     atpState.newsLoaded = true;
     updateNewsBadge();
     if (atpState.currentTab === 'news' && document.getElementById('page-atp').classList.contains('active')) {
@@ -5464,7 +5460,7 @@ const _LS_NEWS_READ = 'jamite_news_read_at';
 function updateNewsBadge() {
   const badge = document.getElementById('news-new-badge');
   if (!badge) return;
-  const articles = (atpState.news || []).filter(a => a.headlineKo);
+  const articles = atpState.news || [];
   if (!articles.length) { badge.style.display = 'none'; return; }
   const latest = articles.reduce((max, a) => a.published > max ? a.published : max, '');
   const lastRead = localStorage.getItem(_LS_NEWS_READ) || '';
@@ -5476,13 +5472,12 @@ function renderAtpNewsPanel() {
   const el = document.getElementById('atp-news-content');
   if (!el) return;
   // 뉴스 탭 열면 읽음 처리 → NEW 배지 제거
-  const articles = (atpState.news || []).filter(a => a.headlineKo);
+  const articles = atpState.news || [];
   if (articles.length) {
     const latest = articles.reduce((max, a) => a.published > max ? a.published : max, '');
     if (latest) localStorage.setItem(_LS_NEWS_READ, latest);
   }
   updateNewsBadge();
-  // headlineKo 없는 기사(번역 미완료)는 표시하지 않음
   if (!articles.length) {
     el.innerHTML = atpState.newsLoaded
       ? '<div style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.85rem">뉴스가 없습니다.</div>'
@@ -7264,44 +7259,7 @@ async function triggerAtpRefresh() {
         firebase.app().functions('asia-southeast1').httpsCallable('processBets')().catch(() => {});
       }
     }
-  // 뉴스도 함께 갱신 (백그라운드, 실패해도 무시)
-  try {
-    const newsRes  = await fetch('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/news?limit=10', { mode: 'cors' });
-    const newsJson = await newsRes.json();
-    const articles = (newsJson.articles || []).slice(0, 10).map(a => ({
-      headline:    a.headline || '',
-      description: a.description || '',
-      published:   a.published || '',
-      url:         (a.links && a.links.web && a.links.web.href) || '',
-    })).filter(a => a.headline);
-    if (articles.length) {
-      // 번역 성공 시에만 DB 저장 (번역 실패 시 영문으로 DB 덮어쓰기 방지)
-      let translated = false;
-      try {
-        const TRANS_URL = 'https://script.google.com/macros/s/AKfycbwfF6W1xll0ooa0g4Gb57dnVnknXbZxKM1au3YlY52oGsrDIqHPty4q6fh6mWW0SXI00w/exec';
-        const toTrans   = articles.flatMap(a => [a.headline, a.description]);
-        const tRes      = await fetch(`${TRANS_URL}?texts=${encodeURIComponent(JSON.stringify(toTrans))}`);
-        const tJson     = await tRes.json();
-        const tr        = tJson.translated || [];
-        if (tr.length > 0) {
-          articles.forEach((a, i) => {
-            a.headlineKo    = tr[i * 2]     || a.headline;
-            a.descriptionKo = tr[i * 2 + 1] || a.description;
-          });
-          translated = true;
-        }
-      } catch(te) { console.warn('news translate error:', te); }
-      // 번역 성공한 경우에만 atpState.news 갱신 + DB 저장
-      // 번역 실패 시 headlineKo 없는 기사로 덮으면 뉴스가 사라지므로 기존 데이터 유지
-      if (translated) {
-        atpState.news = articles;
-        updateNewsBadge();
-        if (atpState.currentTab === 'news') renderAtpNewsPanel();
-        if (db) db.ref('jmt/atpNews').set({ articles, updatedAt: new Date().toISOString() }).catch(() => {});
-      }
-    }
-  } catch(e) { console.warn('news refresh error:', e); }
-
+  // 뉴스는 Cloud Function(fetchAtpNews, 12시간마다)에서만 DB 저장 — 앱에서는 읽기만 함
   } catch(e) {
     console.error('ATP refresh error:', e);
     if (el) el.innerHTML = '<div style="text-align:center;padding:16px 0;color:#ef4444;font-size:0.85rem">데이터 로드 실패. 다시 시도해주세요.<br><button onclick="triggerAtpRefresh()" style="margin-top:8px;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:0.8rem;cursor:pointer">🔄 다시 시도</button></div>';
