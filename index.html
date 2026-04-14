@@ -961,7 +961,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     <div id="bet-screen-home">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
         <div style="font-size:1.1rem;font-weight:900;color:#1e293b">🎲 무조건 내기</div>
-        <button onclick="betShowSetup()" style="font-size:0.85rem;font-weight:700;padding:9px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,0.35)">+ 새 내기</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button id="bet-clear-btn" onclick="betClearHistory()" style="display:none;font-size:0.78rem;font-weight:600;padding:7px 12px;border-radius:10px;border:1.5px solid #fecdd3;background:#fff1f2;color:#dc2626;cursor:pointer">🗑 히스토리 삭제</button>
+          <button onclick="betShowSetup()" style="font-size:0.85rem;font-weight:700;padding:9px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,0.35)">+ 새 내기</button>
+        </div>
       </div>
       <div id="bet-history-list">
         <div class="card" style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.9rem">아직 내기 기록이 없습니다</div>
@@ -1076,7 +1079,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       </div>
       <!-- 비용 입력 -->
       <div class="card" style="margin-bottom:20px" id="bet-cost-section">
-        <div style="font-size:0.68rem;font-weight:800;color:#7c3aed;letter-spacing:0.08em;margin-bottom:12px">💰 지출 비용 입력</div>
+        <div style="font-size:0.68rem;font-weight:800;color:#7c3aed;letter-spacing:0.08em;margin-bottom:6px">💰 지출 비용 입력</div>
+        <div style="font-size:0.68rem;color:#94a3b8;margin-bottom:12px">지출된 비용은 자미터에 스폰한 비용으로 정산되어 기록됩니다</div>
         <div id="bet-cost-inputs"></div>
       </div>
       <button onclick="betSaveHistory()" style="width:100%;padding:15px;border-radius:14px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:1rem;font-weight:800;cursor:pointer;box-shadow:0 4px 18px rgba(124,58,237,0.35)">💾 저장하고 나가기</button>
@@ -7896,7 +7900,15 @@ function betSaveHistory() {
   }).catch(fbErr);
 }
 
+function betClearHistory() {
+  if (!isManager()) return;
+  if (!confirm('내기 히스토리를 전부 삭제하시겠습니까?')) return;
+  if (!db) return;
+  db.ref('jmt/betHistory').remove().then(() => betRenderHome()).catch(fbErr);
+}
 function betRenderHome() {
+  const clearBtn = document.getElementById('bet-clear-btn');
+  if (clearBtn) clearBtn.style.display = isManager() ? 'inline-block' : 'none';
   if (!db) return;
   db.ref('jmt/betHistory').orderByChild('createdAt').limitToLast(10).once('value').then(snap => {
     const el = document.getElementById('bet-history-list');
