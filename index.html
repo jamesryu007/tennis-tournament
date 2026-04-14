@@ -7461,6 +7461,35 @@ function _betAudio() {
   if (!_betAudioCtx) _betAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
   return _betAudioCtx;
 }
+let _betTensionTimer = null;
+function betPlayReady() {
+  if (!_betState.soundEnabled) return;
+  betStopTension();
+  let interval = 1100;
+  function beat() {
+    try {
+      const ctx = _betAudio();
+      const now = ctx.currentTime;
+      [0, 0.2].forEach(offset => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.type = 'sine';
+        o.frequency.setValueAtTime(90, now + offset);
+        o.frequency.exponentialRampToValueAtTime(42, now + offset + 0.13);
+        g.gain.setValueAtTime(0.55, now + offset);
+        g.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.13);
+        o.start(now + offset);
+        o.stop(now + offset + 0.14);
+      });
+    } catch(e) {}
+    interval = Math.max(550, interval - 60);
+    _betTensionTimer = setTimeout(beat, interval);
+  }
+  beat();
+}
+function betStopTension() {
+  if (_betTensionTimer) { clearTimeout(_betTensionTimer); _betTensionTimer = null; }
+}
 function betPlayPass() {
   if (!_betState.soundEnabled) return;
   try {
@@ -7620,6 +7649,7 @@ function betSelectPlayer(name) {
     c.classList.toggle('selected', c.textContent === name);
   });
   document.getElementById('bet-balloon-wrap').classList.add('ready');
+  betPlayReady();
 }
 function _betUpdateGameLabels() {
   const total = _betState.participants.length;
@@ -7652,6 +7682,7 @@ function betTouchStart(e) {
   if (e) e.preventDefault();
   if (_betState.gameOver) return;
   if (document.getElementById('bet-result-overlay').style.display !== 'none') return;
+  betStopTension();
   const balloon = document.getElementById('bet-balloon');
   balloon.className = 'bet-balloon holding';
 }
@@ -7666,7 +7697,7 @@ function betTouchEnd(e) {
   const pos = _betState.currentTouch;
   const isLoser = _betState.losingPositions.includes(pos);
   balloon.className = 'bet-balloon ' + (isLoser ? 'pop' : 'fly-up');
-  document.getElementById('bet-balloon-wrap').style.pointerEvents = 'none';
+  document.getElementById('bet-balloon-wrap').classList.remove('ready');
   document.getElementById('bet-touch-hint').style.display = 'none';
 
   // 화면 플래시
@@ -7726,6 +7757,7 @@ function _betFlash(color) {
 }
 
 function betNextTurn() {
+  betStopTension();
   const overlay = document.getElementById('bet-result-overlay');
   overlay.style.display = 'none';
   const balloon = document.getElementById('bet-balloon');
