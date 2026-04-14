@@ -7929,9 +7929,53 @@ function betDeleteRecord(id) {
   if (!db) return;
   db.ref('jmt/betHistory/' + id).remove().then(() => betRenderHome()).catch(fbErr);
 }
+function _betStatsHtml(data) {
+  const loserCount = {}, costTotal = {};
+  Object.values(data).forEach(r => {
+    (r.losers||[]).forEach(n => { loserCount[n] = (loserCount[n]||0) + 1; });
+    Object.entries(r.costs||{}).forEach(([n,v]) => { costTotal[n] = (costTotal[n]||0) + (v||0); });
+  });
+  const medals = ['🥇','🥈','🥉','4','5'];
+  const top5Losers = Object.entries(loserCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const top5Cost   = Object.entries(costTotal).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  if (!top5Losers.length && !top5Cost.length) return '';
+
+  function barRows(entries, unit, color) {
+    if (!entries.length) return '<div style="font-size:0.78rem;color:#94a3b8;padding:6px 0">데이터 없음</div>';
+    const max = entries[0][1] || 1;
+    return entries.map(([name, val], i) => {
+      const pct = Math.round((val / max) * 100);
+      const label = unit === '회' ? `${val}회` : `${val.toLocaleString('ko-KR')}원`;
+      return `<div style="margin-bottom:9px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+          <div style="display:flex;align-items:center;gap:5px">
+            <span style="font-size:0.8rem;line-height:1">${medals[i]}</span>
+            <span style="font-size:0.8rem;font-weight:700;color:#1e293b">${name}</span>
+          </div>
+          <span style="font-size:0.75rem;font-weight:700;color:${color}">${label}</span>
+        </div>
+        <div style="height:7px;border-radius:4px;background:#f1f5f9;overflow:hidden">
+          <div style="height:100%;width:${pct}%;border-radius:4px;background:${color};transition:width .4s ease"></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+    <div class="card" style="padding:14px 12px">
+      <div style="font-size:0.7rem;font-weight:800;color:#dc2626;letter-spacing:0.06em;margin-bottom:10px">💀 최다 탈락 TOP 5</div>
+      ${barRows(top5Losers,'회','#f87171')}
+    </div>
+    <div class="card" style="padding:14px 12px">
+      <div style="font-size:0.7rem;font-weight:800;color:#7c3aed;letter-spacing:0.06em;margin-bottom:10px">💸 최다 스폰 TOP 5</div>
+      ${barRows(top5Cost,'원','#a78bfa')}
+    </div>
+  </div>`;
+}
+
 function betRenderHome() {
   if (!db) return;
-  db.ref('jmt/betHistory').orderByChild('createdAt').limitToLast(10).once('value').then(snap => {
+  db.ref('jmt/betHistory').orderByChild('createdAt').once('value').then(snap => {
     const el = document.getElementById('bet-history-list');
     if (!el) return;
     const data = snap.val();
@@ -7940,8 +7984,10 @@ function betRenderHome() {
       return;
     }
     const mgr = isManager();
-    const items = Object.entries(data).reverse();
-    el.innerHTML = items.map(([id, r]) => {
+    const allItems = Object.entries(data).reverse();
+    const items = allItems.slice(0, 20);
+    const statsHtml = _betStatsHtml(data);
+    el.innerHTML = statsHtml + items.map(([id, r]) => {
       const date = r.date || (r.createdAt ? r.createdAt.slice(0,10) : '');
       const displayTitle = r.betTitle || r.title || '';
       const totalCost = Object.values(r.costs||{}).reduce((s,v)=>s+(v||0),0);
