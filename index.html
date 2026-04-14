@@ -7477,23 +7477,40 @@ function betPlayReady() {
   if (!_betState.soundEnabled) return;
   betStopTension();
   let interval = 1100;
+
+  function _thump(ctx, t, freq, endFreq, gainPeak, dur, bodyFreq, bodyGain) {
+    // 메인 펄스 — 저주파 스윕 (빠른 어택, 지수 감쇠)
+    const o = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 200; f.Q.value = 1.8;
+    o.type = 'sine';
+    o.frequency.setValueAtTime(freq, t);
+    o.frequency.exponentialRampToValueAtTime(endFreq, t + dur);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(gainPeak, t + 0.007);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(f); f.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t + dur + 0.01);
+    // 바디감 레이어 — 삼각파로 두툼한 저역
+    const o2 = ctx.createOscillator(), g2 = ctx.createGain();
+    o2.type = 'triangle';
+    o2.frequency.setValueAtTime(bodyFreq, t);
+    g2.gain.setValueAtTime(bodyGain, t);
+    g2.gain.exponentialRampToValueAtTime(0.001, t + dur * 0.75);
+    o2.connect(g2); g2.connect(ctx.destination);
+    o2.start(t); o2.stop(t + dur * 0.8);
+  }
+
   function beat() {
     try {
       const ctx = _betAudio();
+      if (ctx.state === 'suspended') ctx.resume();
       const now = ctx.currentTime;
-      [0, 0.2].forEach(offset => {
-        const o = ctx.createOscillator(), g = ctx.createGain();
-        o.connect(g); g.connect(ctx.destination);
-        o.type = 'sine';
-        o.frequency.setValueAtTime(90, now + offset);
-        o.frequency.exponentialRampToValueAtTime(42, now + offset + 0.13);
-        g.gain.setValueAtTime(0.55, now + offset);
-        g.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.13);
-        o.start(now + offset);
-        o.stop(now + offset + 0.14);
-      });
+      // LUB — 더 낮고 묵직, 0.14s
+      _thump(ctx, now,        75, 27, 0.80, 0.14, 36, 0.38);
+      // DUB — 약간 높고 짧음, 0.10s (0.20초 후)
+      _thump(ctx, now + 0.20, 95, 32, 0.55, 0.10, 46, 0.22);
     } catch(e) {}
-    interval = Math.max(550, interval - 60);
+    interval = Math.max(480, interval - 55);
     _betTensionTimer = setTimeout(beat, interval);
   }
   beat();
