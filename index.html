@@ -541,9 +541,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 @keyframes betShake{0%,100%{transform:rotate(-3deg) scale(1.05)}25%{transform:rotate(4deg) scale(1.08)}50%{transform:rotate(-4deg) scale(1.12)}75%{transform:rotate(3deg) scale(1.08)}}
 @keyframes betFlyUp{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-200px) scale(0.3);opacity:0}}
 @keyframes betPop{0%{transform:scale(1);opacity:1}40%{transform:scale(1.6);opacity:1}100%{transform:scale(0.1);opacity:0}}
-.bet-balloon-wrap{display:flex;align-items:center;justify-content:center;width:200px;height:200px;cursor:pointer;user-select:none;-webkit-user-select:none;position:relative;opacity:0.4;pointer-events:none;transition:opacity .3s}
+.bet-balloon-wrap{display:flex;align-items:center;justify-content:center;width:230px;height:230px;cursor:pointer;user-select:none;-webkit-user-select:none;position:relative;opacity:0.4;pointer-events:none;transition:opacity .3s}
 .bet-balloon-wrap.ready{opacity:1;pointer-events:auto}
-.bet-balloon{font-size:130px;line-height:1;animation:betThrob 3.2s ease-in-out infinite;transition:filter .2s}
+.bet-balloon{font-size:165px;line-height:1;animation:betThrob 3.2s ease-in-out infinite;transition:filter .2s}
 .bet-balloon.floating{animation:betThrob 3.2s ease-in-out infinite}
 .bet-balloon.holding{animation:betShake .18s ease-in-out infinite;filter:drop-shadow(0 0 18px rgba(239,68,68,0.7))}
 .bet-balloon.fly-up{animation:betFlyUp .6s ease-in forwards}
@@ -991,17 +991,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         </div>
       </div>
       <!-- 패배자 수 -->
-      <div class="card" style="margin-bottom:20px">
-        <div style="font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:12px">💸 내기에 질 인원 수</div>
-        <div style="display:flex;align-items:center;justify-content:center;gap:20px">
+      <div class="card" style="margin-bottom:20px;padding:12px 16px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="font-size:0.75rem;font-weight:700;color:#64748b;flex:1">💸 내기에 질 인원 수</div>
           <button class="bet-loser-count-btn" onclick="betChangeLoserCount(-1)">−</button>
-          <div style="text-align:center">
-            <div id="bet-loser-count-display" style="font-size:2.2rem;font-weight:900;color:#7c3aed;line-height:1">1</div>
-            <div style="font-size:0.72rem;color:#94a3b8;margin-top:2px">명</div>
+          <div style="font-size:1.5rem;font-weight:900;color:#7c3aed;min-width:30px;text-align:center;line-height:1">
+            <span id="bet-loser-count-display">1</span><span style="font-size:0.8rem;color:#94a3b8;margin-left:2px">명</span>
           </div>
           <button class="bet-loser-count-btn" onclick="betChangeLoserCount(1)">+</button>
         </div>
-        <div id="bet-loser-count-hint" style="text-align:center;font-size:0.72rem;color:#94a3b8;margin-top:10px">참여 인원을 먼저 선택하세요</div>
+        <div id="bet-loser-count-hint" style="font-size:0.72rem;color:#94a3b8;margin-top:8px">참여 인원을 먼저 선택하세요</div>
       </div>
       <button onclick="betStartGame()" style="width:100%;padding:15px;border-radius:14px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:1rem;font-weight:800;cursor:pointer;box-shadow:0 4px 18px rgba(124,58,237,0.4)">🎲 게임 시작!</button>
     </div>
@@ -1026,26 +1025,29 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <div id="bet-touch-label" style="font-size:0.85rem;color:#64748b;margin-bottom:4px"></div>
         <div id="bet-remaining-label" style="font-size:0.78rem;font-weight:700;color:#7c3aed"></div>
       </div>
-      <!-- 이름 선택 영역 -->
-      <div id="bet-name-select-area" style="margin-bottom:8px;text-align:center">
-        <div style="font-size:0.75rem;color:#64748b;margin-bottom:8px;font-weight:600">내 이름을 먼저 선택하세요</div>
-        <div id="bet-game-name-chips" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center"></div>
-      </div>
-      <!-- 풍선 터치 영역 -->
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:260px;position:relative">
-        <div class="bet-balloon-wrap" id="bet-balloon-wrap"
-          onmousedown="betTouchStart()" onmouseup="betTouchEnd()" onmouseleave="betTouchEnd()"
-          ontouchstart="betTouchStart(event)" ontouchend="betTouchEnd(event)">
-          <div class="bet-balloon floating" id="bet-balloon">🎈</div>
+      <!-- 이름선택 + 풍선 + 결과 통합 컨테이너 -->
+      <div style="position:relative;min-height:310px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+        <!-- 이름 선택 영역 -->
+        <div id="bet-name-select-area" style="margin-bottom:10px;text-align:center;width:100%">
+          <div style="font-size:0.75rem;color:#64748b;margin-bottom:8px;font-weight:600">내 이름을 먼저 선택하세요</div>
+          <div id="bet-game-name-chips" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center"></div>
         </div>
-        <div id="bet-touch-hint" style="font-size:0.82rem;color:#94a3b8;margin-top:8px;text-align:center">풍선을 눌렀다 떼세요!</div>
-      </div>
-      <!-- 결과 오버레이 (통과/당첨) -->
-      <div id="bet-result-overlay" style="display:none;text-align:center;padding:20px 0">
-        <div id="bet-result-emoji" style="font-size:5rem;margin-bottom:12px"></div>
-        <div id="bet-result-msg" style="font-size:1.4rem;font-weight:900;margin-bottom:8px"></div>
-        <div id="bet-result-sub" style="font-size:0.9rem;color:#64748b;margin-bottom:20px"></div>
-        <button id="bet-next-btn" onclick="betNextTurn()" style="padding:13px 32px;border-radius:12px;border:none;background:#1d4ed8;color:#fff;font-size:0.95rem;font-weight:700;cursor:pointer">다음 →</button>
+        <!-- 풍선 터치 영역 -->
+        <div style="display:flex;flex-direction:column;align-items:center">
+          <div class="bet-balloon-wrap" id="bet-balloon-wrap"
+            onmousedown="betTouchStart()" onmouseup="betTouchEnd()" onmouseleave="betTouchEnd()"
+            ontouchstart="betTouchStart(event)" ontouchend="betTouchEnd(event)">
+            <div class="bet-balloon floating" id="bet-balloon">🎈</div>
+          </div>
+          <div id="bet-touch-hint" style="font-size:0.82rem;color:#94a3b8;margin-top:8px;text-align:center">풍선을 눌렀다 떼세요!</div>
+        </div>
+        <!-- 결과 오버레이 — 풍선 자리에 absolute로 겹쳐서 표시 -->
+        <div id="bet-result-overlay" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:rgba(255,255,255,0.96);border-radius:16px">
+          <div id="bet-result-emoji" style="font-size:5rem;margin-bottom:12px"></div>
+          <div id="bet-result-msg" style="font-size:1.4rem;font-weight:900;margin-bottom:8px"></div>
+          <div id="bet-result-sub" style="font-size:0.9rem;color:#64748b;margin-bottom:20px"></div>
+          <button id="bet-next-btn" onclick="betNextTurn()" style="padding:13px 32px;border-radius:12px;border:none;background:#1d4ed8;color:#fff;font-size:0.95rem;font-weight:700;cursor:pointer">다음 →</button>
+        </div>
       </div>
     </div>
 
@@ -7593,8 +7595,9 @@ function _betUpdateLoserHint() {
 }
 
 function betStartGame() {
-  const title = document.getElementById('bet-title-input').value.trim();
-  if (!title) { alert('내기 제목을 입력해주세요.'); return; }
+  const _randomBetTitles = ['맥주 내기','커피 내기','삼겹살 내기','치킨 내기','아이스크림 내기','점심값 내기','라면 내기','떡볶이 내기','피자 내기','밥값 내기'];
+  const raw = document.getElementById('bet-title-input').value.trim();
+  const title = raw || _randomBetTitles[Math.floor(Math.random() * _randomBetTitles.length)];
   if (_betState.participants.length < 2) { alert('참여 인원을 2명 이상 선택해주세요.'); return; }
   _betState.title = title;
   _betState.losers = [];
@@ -7722,7 +7725,7 @@ function betTouchEnd(e) {
 
   setTimeout(() => {
     _betRenderProgressDots();
-    overlay.style.display = 'block';
+    overlay.style.display = 'flex';
     const nsa = document.getElementById('bet-name-select-area');
     if (nsa) nsa.style.display = 'none';
     if (isLoser) {
