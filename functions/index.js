@@ -353,7 +353,7 @@ async function saveAtpData(tournamentInfo, matches, isGrandSlam) {
   await db.ref('jmt/atpData').set({ tournamentInfo, matches, updatedAt });
   await saveGrandSlamIfNeeded(tournamentInfo, matches, isGrandSlam);
   await autoProcessWinnerBet(matches);
-  await fetchAndSaveNews();
+  // 뉴스는 fetchAtpNews(asia-southeast1)에서만 처리 — fetchAtpData(us-central1)에서 호출 시 ESPN 미국 캐시 기사로 덮어쓰는 문제 방지
 }
 
 // ── ATP 뉴스 fetch + 번역 + Firebase 저장 ─────────────────────────
@@ -898,7 +898,7 @@ async function translateTexts(texts) {
 exports.notifyMeetingPollOpen = onValueCreated(
   { ref: 'jmt/meetingPoll/status', region: 'asia-southeast1' },
   async snap => {
-    if (snap.val() !== 'open') return;
+    if (snap.data.val() !== 'open') return;
     const pollSnap = await db.ref('jmt/meetingPoll').once('value');
     const poll = pollSnap.val();
     if (!poll) return;
@@ -1066,13 +1066,6 @@ exports.fetchAtpNews = onSchedule(
       })).filter(a => a.headline);
 
       if (!items.length) { console.warn('fetchAtpNews: no articles'); return; }
-
-      // 이전 뉴스와 비교 — 첫 번째 기사 URL이 같으면 번역/저장 스킵
-      const prev = await db.ref('jmt/atpNews/articles/0/url').once('value');
-      if (prev.val() && prev.val() === items[0].url) {
-        console.log('fetchAtpNews: no new articles, skip');
-        return;
-      }
 
       // 헤드라인 + 설명 번역
       const toTranslate = items.flatMap(a => [a.headline, a.description]);
