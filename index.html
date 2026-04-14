@@ -7599,9 +7599,16 @@ function _betUpdateLoserHint() {
 }
 
 function betStartGame() {
-  const _randomBetTitles = ['맥주 내기','커피 내기','삼겹살 내기','치킨 내기','아이스크림 내기','점심값 내기','라면 내기','떡볶이 내기','피자 내기','밥값 내기'];
+  const _betPlaces = ['압구정','홍대','강남','이태원','신촌','건대','명동','종로','여의도','성수','합정','을지로','망원','연남동','서래마을'];
+  const _betItems  = [
+    '삼겹살에 소주 사기','치킨에 맥주 사기','냉면 사기','족발 한 판 사기','초밥 사기','마라탕 사기',
+    '라멘 사기','피자 사기','곱창 사기','한우 구이 사기','갈비찜 사기','보쌈 사기','커피 쏘기',
+    '아이스크림 사기','파전에 막걸리 사기','소고기 쏘기','떡볶이 사기','밥값 내기','점심 쏘기','디저트 사기'
+  ];
   const raw = document.getElementById('bet-title-input').value.trim();
-  const title = raw || _randomBetTitles[Math.floor(Math.random() * _randomBetTitles.length)];
+  const _rPlace = _betPlaces[Math.floor(Math.random() * _betPlaces.length)];
+  const _rItem  = _betItems[Math.floor(Math.random() * _betItems.length)];
+  const title = raw || `${_rPlace}에서 ${_rItem}`;
   if (_betState.participants.length < 2) { alert('참여 인원을 2명 이상 선택해주세요.'); return; }
   _betState.title = title;
   _betState.losers = [];
