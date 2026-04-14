@@ -7935,9 +7935,9 @@ function _betStatsHtml(data) {
     (r.losers||[]).forEach(n => { loserCount[n] = (loserCount[n]||0) + 1; });
     Object.entries(r.costs||{}).forEach(([n,v]) => { costTotal[n] = (costTotal[n]||0) + (v||0); });
   });
-  const medals = ['🥇','🥈','🥉','4','5'];
-  const top5Losers = Object.entries(loserCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  const top5Cost   = Object.entries(costTotal).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const medals = ['🥇','🥈','🥉','4','5','6','7','8','9','10'];
+  const top5Losers = Object.entries(loserCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const top5Cost   = Object.entries(costTotal).sort((a,b)=>b[1]-a[1]).slice(0,10);
   if (!top5Losers.length && !top5Cost.length) return '';
 
   function barRows(entries, unit, color) {
