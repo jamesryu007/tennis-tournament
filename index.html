@@ -1054,29 +1054,32 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     <!-- 화면5: 결과 -->
     <div id="bet-screen-result" style="display:none">
       <!-- 헤더 배너 -->
-      <div style="position:relative;background:linear-gradient(135deg,#1e293b,#334155);border-radius:18px;padding:22px 18px 18px;margin-bottom:14px;overflow:hidden;text-align:center">
+      <div style="position:relative;background:linear-gradient(135deg,#1e293b,#334155);border-radius:18px;padding:22px 18px 18px;margin-bottom:16px;overflow:hidden;text-align:center">
         <div style="position:absolute;top:-12px;right:-10px;font-size:5.5rem;opacity:0.06;line-height:1">🎲</div>
         <div style="font-size:0.62rem;font-weight:800;color:#64748b;letter-spacing:0.12em;margin-bottom:6px">RESULT</div>
         <div id="bet-final-title" style="font-size:1.15rem;font-weight:900;color:#fff;line-height:1.35"></div>
         <div id="bet-final-date" style="font-size:0.72rem;color:#64748b;margin-top:5px"></div>
       </div>
-      <!-- 패배자 -->
-      <div style="border-radius:16px;background:linear-gradient(135deg,#fff1f2,#ffe4e6);border:1.5px solid #fecdd3;padding:16px 16px 14px;margin-bottom:12px">
-        <div style="font-size:0.68rem;font-weight:800;color:#dc2626;letter-spacing:0.08em;margin-bottom:12px">💀 내기에 진 사람</div>
-        <div id="bet-losers-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      <!-- 승패 VS 비교 카드 -->
+      <div style="display:grid;grid-template-columns:1fr 36px 1fr;margin-bottom:16px;border-radius:16px;overflow:hidden;border:1.5px solid #e2e8f0;box-shadow:0 4px 16px rgba(0,0,0,0.07)">
+        <div style="background:linear-gradient(160deg,#f0fdf4,#dcfce7);padding:16px 12px;text-align:center">
+          <div style="font-size:0.6rem;font-weight:800;color:#16a34a;letter-spacing:0.08em;margin-bottom:10px">🎉 이긴 사람</div>
+          <div id="bet-winners-list" style="display:flex;flex-direction:column;gap:6px;align-items:center"></div>
+        </div>
+        <div style="background:#f1f5f9;display:flex;align-items:center;justify-content:center">
+          <span style="font-size:0.72rem;font-weight:900;color:#94a3b8">VS</span>
+        </div>
+        <div style="background:linear-gradient(160deg,#fff1f2,#ffe4e6);padding:16px 12px;text-align:center">
+          <div style="font-size:0.6rem;font-weight:800;color:#dc2626;letter-spacing:0.08em;margin-bottom:10px">💀 진 사람</div>
+          <div id="bet-losers-list" style="display:flex;flex-direction:column;gap:6px;align-items:center"></div>
+        </div>
       </div>
       <!-- 비용 입력 -->
-      <div class="card" style="margin-bottom:12px" id="bet-cost-section">
+      <div class="card" style="margin-bottom:20px" id="bet-cost-section">
         <div style="font-size:0.68rem;font-weight:800;color:#7c3aed;letter-spacing:0.08em;margin-bottom:12px">💰 지출 비용 입력</div>
         <div id="bet-cost-inputs"></div>
       </div>
-      <!-- 승자 -->
-      <div style="border-radius:16px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #bbf7d0;padding:16px 16px 14px;margin-bottom:18px">
-        <div style="font-size:0.68rem;font-weight:800;color:#16a34a;letter-spacing:0.08em;margin-bottom:10px">🎉 내기에 이긴 사람</div>
-        <div id="bet-winners-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-      </div>
-      <button onclick="betSaveHistory()" style="width:100%;padding:15px;border-radius:14px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:1rem;font-weight:800;cursor:pointer;margin-bottom:10px;box-shadow:0 4px 18px rgba(124,58,237,0.35)">💾 저장하기</button>
-      <button onclick="betShowHome()" style="width:100%;padding:13px;border-radius:12px;border:1.5px solid #a855f7;background:#fff;color:#7c3aed;font-size:0.92rem;font-weight:700;cursor:pointer">🎲 또 내기하자!</button>
+      <button onclick="betSaveHistory()" style="width:100%;padding:15px;border-radius:14px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:1rem;font-weight:800;cursor:pointer;box-shadow:0 4px 18px rgba(124,58,237,0.35)">💾 저장하고 나가기</button>
     </div>
 
   </div><!-- /setup-panel-bet -->
@@ -7791,25 +7794,23 @@ function betShowResult() {
   document.getElementById('bet-final-title').textContent = _betState.title;
   document.getElementById('bet-final-date').textContent = dateStr;
   const losers = _betState.losers.filter(Boolean);
-  // 패배자 — 이름이 이미 기록되어 있으므로 칩으로 표시
-  const losersEl = document.getElementById('bet-losers-list');
-  losersEl.innerHTML = losers.map(name =>
-    `<span style="display:inline-block;padding:7px 16px;border-radius:20px;background:#fee2e2;color:#dc2626;font-size:0.88rem;font-weight:700;margin:3px">${name}</span>`
+  // 패배자 칩 (VS 카드 오른쪽)
+  document.getElementById('bet-losers-list').innerHTML = losers.map(name =>
+    `<span style="display:inline-block;padding:6px 14px;border-radius:20px;background:#fecdd3;color:#dc2626;font-size:0.85rem;font-weight:700">${name}</span>`
   ).join('');
-  // 비용 입력 — 패배자 확정되었으므로 바로 렌더
-  const costEl = document.getElementById('bet-cost-inputs');
-  costEl.innerHTML = losers.map(name =>
+  // 비용 입력 — 천단위 콤마 text 입력
+  document.getElementById('bet-cost-inputs').innerHTML = losers.map(name =>
     `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
       <span style="flex:1;font-size:0.88rem;font-weight:600;color:#1e293b">${name}</span>
       <div style="display:flex;align-items:center;gap:4px">
-        <input type="number" id="bet-cost-${name}" placeholder="0" min="0" step="100"
-          style="width:100px;padding:8px 10px;border-radius:8px;border:1.5px solid #e2e8f0;font-size:0.9rem;text-align:right"
-          oninput="betUpdateCost('${name}', this.value)">
+        <input type="text" inputmode="numeric" id="bet-cost-${name}" placeholder="0"
+          style="width:110px;padding:8px 10px;border-radius:8px;border:1.5px solid #e2e8f0;font-size:0.9rem;text-align:right"
+          oninput="betInputCost('${name}',this)">
         <span style="font-size:0.82rem;color:#64748b">원</span>
       </div>
     </div>`
   ).join('');
-  // 승자
+  // 승자 (VS 카드 왼쪽)
   _betUpdateWinners();
 }
 
@@ -7839,8 +7840,10 @@ function betUpdateLoserNames() {
   ).join('');
 }
 
-function betUpdateCost(name, value) {
-  _betState.costs[name] = parseInt(value) || 0;
+function betInputCost(name, el) {
+  const raw = el.value.replace(/[^0-9]/g, '');
+  _betState.costs[name] = parseInt(raw) || 0;
+  el.value = raw ? parseInt(raw).toLocaleString('ko-KR') : '';
 }
 function _betUpdateWinners() {
   const losers = _betState.losers.filter(Boolean);
@@ -7848,7 +7851,7 @@ function _betUpdateWinners() {
   const el = document.getElementById('bet-winners-list');
   if (!el) return;
   el.innerHTML = winners.map(w =>
-    `<span style="display:inline-block;padding:6px 14px;border-radius:20px;background:#dcfce7;color:#15803d;font-size:0.82rem;font-weight:600">${w}</span>`
+    `<span style="display:inline-block;padding:6px 14px;border-radius:20px;background:#bbf7d0;color:#15803d;font-size:0.85rem;font-weight:700">${w}</span>`
   ).join('');
 }
 
@@ -7872,7 +7875,6 @@ function betSaveHistory() {
   };
   if (!db) { alert('DB 연결 오류'); return; }
   db.ref('jmt/betHistory').push(record).then(() => {
-    alert('저장 완료!');
     betShowHome();
   }).catch(fbErr);
 }
