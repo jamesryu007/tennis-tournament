@@ -7505,10 +7505,10 @@ function betPlayReady() {
       const ctx = _betAudio();
       if (ctx.state === 'suspended') ctx.resume();
       const now = ctx.currentTime;
-      // LUB — 더 낮고 묵직, 0.14s
-      _thump(ctx, now,        75, 27, 0.80, 0.14, 36, 0.38);
-      // DUB — 약간 높고 짧음, 0.10s (0.20초 후)
-      _thump(ctx, now + 0.20, 95, 32, 0.55, 0.10, 46, 0.22);
+      // LUB — 매우 낮고 묵직, 0.16s
+      _thump(ctx, now,        48, 16, 0.95, 0.16, 22, 0.50);
+      // DUB — 낮고 짧음, 0.11s (0.22초 후)
+      _thump(ctx, now + 0.22, 62, 20, 0.70, 0.11, 30, 0.30);
     } catch(e) {}
     interval = Math.max(480, interval - 55);
     _betTensionTimer = setTimeout(beat, interval);
