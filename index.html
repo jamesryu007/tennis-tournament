@@ -7897,6 +7897,25 @@ function betSaveHistory() {
   }).catch(fbErr);
 }
 
+function betShowCostEdit(id) {
+  document.getElementById('bet-cost-view-'+id).style.display = 'none';
+  document.getElementById('bet-cost-edit-'+id).style.display = 'block';
+}
+function betCancelCostEdit(id) {
+  document.getElementById('bet-cost-edit-'+id).style.display = 'none';
+  document.getElementById('bet-cost-view-'+id).style.display = 'flex';
+}
+function betSaveCostEdit(id) {
+  if (!isManager() || !db) return;
+  const panel = document.getElementById('bet-cost-edit-'+id);
+  const losers = JSON.parse(decodeURIComponent(panel.dataset.losers || '[]'));
+  const costs = {};
+  losers.forEach((name, i) => {
+    const el = document.getElementById(`bce-${id}-${i}`);
+    if (el) costs[name] = parseInt(el.value.replace(/[^0-9]/g,'')) || 0;
+  });
+  db.ref('jmt/betHistory/'+id+'/costs').set(costs).then(() => betRenderHome()).catch(fbErr);
+}
 function betDeleteRecord(id) {
   if (!isManager()) return;
   if (!confirm('이 내기 기록을 삭제하시겠습니까?')) return;
@@ -7925,8 +7944,25 @@ function betRenderHome() {
       const winnerChips = (r.winners||[]).map(n =>
         `<span style="display:inline-block;padding:4px 12px;border-radius:12px;background:#dcfce7;color:#16a34a;font-size:0.78rem;font-weight:700;margin:2px">🎉 ${n}</span>`
       ).join('');
+      const losersJson = encodeURIComponent(JSON.stringify(r.losers||[]));
+      const costsJson  = encodeURIComponent(JSON.stringify(r.costs||{}));
+      const costInputs = (r.losers||[]).map((name, i) => {
+        const val = ((r.costs||{})[name]||0);
+        const fmt = val ? val.toLocaleString('ko-KR') : '';
+        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="flex:1;font-size:0.85rem;font-weight:600;color:#1e293b">${name}</span>
+          <input type="text" inputmode="numeric" id="bce-${id}-${i}"
+            value="${fmt}" placeholder="0"
+            style="width:110px;padding:6px 8px;border-radius:8px;border:1.5px solid #e2e8f0;font-size:0.88rem;text-align:right"
+            oninput="const r=this.value.replace(/[^0-9]/g,'');this.value=r?parseInt(r).toLocaleString('ko-KR'):''">
+          <span style="font-size:0.78rem;color:#64748b">원</span>
+        </div>`;
+      }).join('');
       const delBtn = mgr
         ? `<button onclick="betDeleteRecord('${id}')" style="border:none;background:none;color:#fca5a5;font-size:1rem;cursor:pointer;padding:0;line-height:1" title="삭제">🗑</button>`
+        : '';
+      const editBtn = mgr
+        ? `<button onclick="betShowCostEdit('${id}')" style="border:none;background:none;color:#a78bfa;font-size:0.75rem;font-weight:700;cursor:pointer;padding:0">💰 수정</button>`
         : '';
       return `<div class="bet-history-item">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -7938,8 +7974,18 @@ function betRenderHome() {
         </div>
         <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${loserChips}</div>
         <div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${winnerChips}</div>
-        ${totalCost ? `<div style="font-size:0.8rem;color:#7c3aed;font-weight:700">💸 총 ${totalCost.toLocaleString()}원</div>` : ''}
-        <div style="font-size:0.7rem;color:#94a3b8;margin-top:5px">${(r.participants||[]).length}명 참여</div>
+        <div id="bet-cost-view-${id}" style="display:flex;align-items:center;gap:10px">
+          ${totalCost ? `<div style="font-size:0.8rem;color:#7c3aed;font-weight:700">💸 총 ${totalCost.toLocaleString()}원</div>` : `<div style="font-size:0.75rem;color:#94a3b8">비용 미입력</div>`}
+          ${editBtn}
+        </div>
+        <div id="bet-cost-edit-${id}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9" data-losers="${losersJson}">
+          ${costInputs}
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <button onclick="betCancelCostEdit('${id}')" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:0.82rem;cursor:pointer">취소</button>
+            <button onclick="betSaveCostEdit('${id}')" style="flex:2;padding:8px;border-radius:8px;border:none;background:#7c3aed;color:#fff;font-size:0.82rem;font-weight:700;cursor:pointer">저장</button>
+          </div>
+        </div>
+        <div style="font-size:0.7rem;color:#94a3b8;margin-top:6px">${(r.participants||[]).length}명 참여</div>
       </div>`;
     }).join('');
   }).catch(() => {});
