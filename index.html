@@ -7733,26 +7733,43 @@ function betTouchEnd(e) {
     overlay.style.display = 'flex';
     const nsa = document.getElementById('bet-name-select-area');
     if (nsa) nsa.style.display = 'none';
+
+    // 자동 종료 조건 계산
+    const remaining = _betState.participants.filter(
+      p => !_betState.losers.includes(p) && !(_betState.passers||[]).includes(p)
+    );
+    const losersComplete = _betState.losers.length >= _betState.loserCount;
+    const winnersNeeded  = _betState.participants.length - _betState.loserCount;
+    const winnersComplete = (_betState.passers||[]).length >= winnersNeeded;
+
+    let autoMsg = '';
+    if (!losersComplete && winnersComplete && remaining.length > 0) {
+      // 승자가 다 찼음 → 남은 사람 모두 자동 패배
+      _betState.losers.push(...remaining);
+      autoMsg = `💀 ${remaining.join(', ')} 자동 탈락!`;
+    } else if (losersComplete && remaining.length > 0) {
+      // 패배자가 다 찼음 → 남은 사람 모두 자동 승리
+      autoMsg = `🎉 ${remaining.join(', ')} 자동 통과!`;
+    }
+
+    const done = losersComplete || winnersComplete ||
+                 _betState.currentTouch >= _betState.participants.length;
+
     if (isLoser) {
       document.getElementById('bet-result-emoji').textContent = '💥';
       document.getElementById('bet-result-msg').innerHTML = `<span style="color:#dc2626">${player} 꽝! 내기 짐!</span>`;
-      document.getElementById('bet-result-sub').textContent = '다음 사람에게 넘기세요';
-      document.getElementById('bet-next-btn').textContent =
-        _betState.losers.length >= _betState.loserCount ? '결과 보기 →' : '다음 →';
     } else {
       document.getElementById('bet-result-emoji').textContent = '😮‍💨';
       document.getElementById('bet-result-msg').innerHTML = `<span style="color:#16a34a">${player} 통과!</span>`;
-      document.getElementById('bet-result-sub').textContent = '안도의 한숨... 다음 사람에게 넘기세요';
-      document.getElementById('bet-next-btn').textContent =
-        _betState.currentTouch >= _betState.participants.length ? '결과 보기 →' : '다음 →';
     }
-    // 마지막 터치이거나 패배자가 다 나왔으면 버튼 텍스트 변경
-    const done = _betState.currentTouch >= _betState.participants.length ||
-                 _betState.losers.length >= _betState.loserCount;
+    document.getElementById('bet-result-sub').textContent =
+      autoMsg || (done ? '' : '다음 사람에게 넘기세요');
+
     if (done) {
       document.getElementById('bet-next-btn').textContent = '결과 보기 →';
       document.getElementById('bet-next-btn').onclick = betShowResult;
     } else {
+      document.getElementById('bet-next-btn').textContent = '다음 →';
       document.getElementById('bet-next-btn').onclick = betNextTurn;
     }
   }, isLoser ? 600 : 500);
