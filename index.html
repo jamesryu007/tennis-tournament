@@ -1051,25 +1051,30 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
     <!-- 화면5: 결과 -->
     <div id="bet-screen-result" style="display:none">
-      <div style="font-size:1rem;font-weight:800;color:#1e293b;margin-bottom:16px;text-align:center">🏳️ 내기 결과</div>
-      <div id="bet-final-title" style="text-align:center;font-size:0.9rem;color:#64748b;margin-bottom:16px"></div>
+      <!-- 헤더 배너 -->
+      <div style="position:relative;background:linear-gradient(135deg,#1e293b,#334155);border-radius:18px;padding:22px 18px 18px;margin-bottom:14px;overflow:hidden;text-align:center">
+        <div style="position:absolute;top:-12px;right:-10px;font-size:5.5rem;opacity:0.06;line-height:1">🎲</div>
+        <div style="font-size:0.62rem;font-weight:800;color:#64748b;letter-spacing:0.12em;margin-bottom:6px">RESULT</div>
+        <div id="bet-final-title" style="font-size:1.15rem;font-weight:900;color:#fff;line-height:1.35"></div>
+        <div id="bet-final-date" style="font-size:0.72rem;color:#64748b;margin-top:5px"></div>
+      </div>
       <!-- 패배자 -->
-      <div class="card" style="margin-bottom:12px;background:linear-gradient(135deg,#fff1f2,#ffe4e6);border:1.5px solid #fecdd3">
-        <div style="font-size:0.78rem;font-weight:700;color:#dc2626;margin-bottom:10px">😱 내기에 진 사람</div>
-        <div id="bet-losers-list"></div>
+      <div style="border-radius:16px;background:linear-gradient(135deg,#fff1f2,#ffe4e6);border:1.5px solid #fecdd3;padding:16px 16px 14px;margin-bottom:12px">
+        <div style="font-size:0.68rem;font-weight:800;color:#dc2626;letter-spacing:0.08em;margin-bottom:12px">💀 내기에 진 사람</div>
+        <div id="bet-losers-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
       </div>
       <!-- 비용 입력 -->
       <div class="card" style="margin-bottom:12px" id="bet-cost-section">
-        <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:10px">💰 지출 비용 입력 <span style="font-size:0.68rem;font-weight:400">(내기에 진 분이 입력)</span></div>
+        <div style="font-size:0.68rem;font-weight:800;color:#7c3aed;letter-spacing:0.08em;margin-bottom:12px">💰 지출 비용 입력</div>
         <div id="bet-cost-inputs"></div>
       </div>
       <!-- 승자 -->
-      <div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #bbf7d0">
-        <div style="font-size:0.78rem;font-weight:700;color:#16a34a;margin-bottom:8px">🎉 내기에 이긴 사람</div>
+      <div style="border-radius:16px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #bbf7d0;padding:16px 16px 14px;margin-bottom:18px">
+        <div style="font-size:0.68rem;font-weight:800;color:#16a34a;letter-spacing:0.08em;margin-bottom:10px">🎉 내기에 이긴 사람</div>
         <div id="bet-winners-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       </div>
-      <button onclick="betSaveHistory()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:0.95rem;font-weight:800;cursor:pointer;margin-bottom:10px">💾 저장하기</button>
-      <button onclick="betShowHome()" style="width:100%;padding:12px;border-radius:12px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:0.88rem;font-weight:600;cursor:pointer">홈으로</button>
+      <button onclick="betSaveHistory()" style="width:100%;padding:15px;border-radius:14px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:1rem;font-weight:800;cursor:pointer;margin-bottom:10px;box-shadow:0 4px 18px rgba(124,58,237,0.35)">💾 저장하기</button>
+      <button onclick="betShowHome()" style="width:100%;padding:13px;border-radius:12px;border:1.5px solid #a855f7;background:#fff;color:#7c3aed;font-size:0.92rem;font-weight:700;cursor:pointer">🎲 또 내기하자!</button>
     </div>
 
   </div><!-- /setup-panel-bet -->
@@ -7530,6 +7535,7 @@ function betShowScreen(id) {
 function betShowHome() { betShowScreen('home'); betRenderHome(); }
 function betShowSetup() {
   betShowScreen('setup');
+  _betState.participants = [];
   _betRenderMemberChips();
   document.getElementById('bet-title-input').value = '';
   _betState.loserCount = 1;
@@ -7717,6 +7723,8 @@ function betTouchEnd(e) {
   setTimeout(() => {
     _betRenderProgressDots();
     overlay.style.display = 'block';
+    const nsa = document.getElementById('bet-name-select-area');
+    if (nsa) nsa.style.display = 'none';
     if (isLoser) {
       document.getElementById('bet-result-emoji').textContent = '💥';
       document.getElementById('bet-result-msg').innerHTML = `<span style="color:#dc2626">${player} 꽝! 내기 짐!</span>`;
@@ -7766,13 +7774,17 @@ function betNextTurn() {
   _betState.currentPlayer = '';
   document.getElementById('bet-balloon-wrap').classList.remove('ready');
   document.getElementById('bet-touch-hint').style.display = 'block';
+  const nsa = document.getElementById('bet-name-select-area');
+  if (nsa) nsa.style.display = 'block';
   _betRenderGameNameChips();
   _betUpdateGameLabels();
 }
 
 function betShowResult() {
   betShowScreen('result');
-  document.getElementById('bet-final-title').textContent = `📝 ${_betState.title}`;
+  const dateStr = new Date().toISOString().slice(0,10);
+  document.getElementById('bet-final-title').textContent = _betState.title;
+  document.getElementById('bet-final-date').textContent = dateStr;
   const losers = _betState.losers.filter(Boolean);
   // 패배자 — 이름이 이미 기록되어 있으므로 칩으로 표시
   const losersEl = document.getElementById('bet-losers-list');
@@ -7838,15 +7850,20 @@ function _betUpdateWinners() {
 function betSaveHistory() {
   const losers = _betState.losers.filter(Boolean);
   const winners = _betState.participants.filter(p => !losers.includes(p));
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10);
+  const betTitle = _betState.title;
   const record = {
-    title: _betState.title,
+    title: `[${dateStr}] ${betTitle}`,
+    betTitle,
+    date: dateStr,
     participants: _betState.participants,
     loserCount: _betState.loserCount,
     losers,
     winners,
     costs: _betState.costs,
     gameType: 'relay',
-    createdAt: new Date().toISOString()
+    createdAt: now.toISOString()
   };
   if (!db) { alert('DB 연결 오류'); return; }
   db.ref('jmt/betHistory').push(record).then(() => {
@@ -7867,19 +7884,20 @@ function betRenderHome() {
     }
     const items = Object.entries(data).reverse();
     el.innerHTML = items.map(([id, r]) => {
-      const date = r.createdAt ? r.createdAt.slice(0,10) : '';
+      const date = r.date || (r.createdAt ? r.createdAt.slice(0,10) : '');
+      const displayTitle = r.betTitle || r.title || '';
       const totalCost = Object.values(r.costs||{}).reduce((s,v)=>s+(v||0),0);
       const loserChips = (r.losers||[]).map(n =>
-        `<span style="display:inline-block;padding:3px 10px;border-radius:12px;background:#fee2e2;color:#dc2626;font-size:0.75rem;font-weight:600;margin:2px">${n}</span>`
+        `<span style="display:inline-block;padding:4px 12px;border-radius:12px;background:#fee2e2;color:#dc2626;font-size:0.78rem;font-weight:700;margin:2px">💀 ${n}</span>`
       ).join('');
       return `<div class="bet-history-item">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-          <div style="font-size:0.92rem;font-weight:800;color:#1e293b">${r.title||''}</div>
-          <div style="font-size:0.72rem;color:#94a3b8">${date}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-size:0.95rem;font-weight:800;color:#1e293b">${displayTitle}</div>
+          <div style="font-size:0.7rem;color:#94a3b8;white-space:nowrap;margin-left:8px">${date}</div>
         </div>
-        <div style="margin-bottom:6px">${loserChips}</div>
-        ${totalCost ? `<div style="font-size:0.78rem;color:#7c3aed;font-weight:700">💸 총 ${totalCost.toLocaleString()}원</div>` : ''}
-        <div style="font-size:0.72rem;color:#94a3b8;margin-top:4px">${(r.participants||[]).length}명 참여 · 패배자 ${(r.losers||[]).length}명</div>
+        <div style="margin-bottom:8px;display:flex;flex-wrap:wrap">${loserChips}</div>
+        ${totalCost ? `<div style="font-size:0.8rem;color:#7c3aed;font-weight:700">💸 총 ${totalCost.toLocaleString()}원</div>` : ''}
+        <div style="font-size:0.7rem;color:#94a3b8;margin-top:5px">${(r.participants||[]).length}명 참여 · 패배자 ${(r.losers||[]).length}명</div>
       </div>`;
     }).join('');
   }).catch(() => {});
