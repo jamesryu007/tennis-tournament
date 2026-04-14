@@ -518,17 +518,33 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 @keyframes mpLivePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
 @keyframes mpTitleShimmer{0%{transform:translateX(-100%) skewX(-18deg)}100%{transform:translateX(320%) skewX(-18deg)}}
 /* ── 무조건 내기 ── */
-@keyframes betFloat{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-22px) rotate(3deg)}}
+/* 대기 중: 강하게 떨다가 → 잠잠해졌다가 → 다시 강하게 반복 */
+@keyframes betThrob{
+  0%   {transform:scale(1.00) rotate(-4deg)}
+  4%   {transform:scale(1.18) rotate(5deg)}
+  8%   {transform:scale(0.87) rotate(-6deg)}
+  12%  {transform:scale(1.20) rotate(6deg)}
+  16%  {transform:scale(0.88) rotate(-5deg)}
+  22%  {transform:scale(1.08) rotate(3deg)}
+  30%  {transform:scale(0.97) rotate(-2deg)}
+  38%  {transform:scale(1.03) rotate(2deg)}
+  46%  {transform:scale(0.99) rotate(-1deg)}
+  54%  {transform:scale(1.01) rotate(1deg)}
+  62%  {transform:scale(1.00) rotate(-1deg)}
+  70%  {transform:scale(1.05) rotate(3deg)}
+  76%  {transform:scale(0.92) rotate(-4deg)}
+  82%  {transform:scale(1.12) rotate(5deg)}
+  88%  {transform:scale(0.90) rotate(-5deg)}
+  94%  {transform:scale(1.15) rotate(5deg)}
+  100% {transform:scale(1.00) rotate(-4deg)}
+}
 @keyframes betShake{0%,100%{transform:rotate(-3deg) scale(1.05)}25%{transform:rotate(4deg) scale(1.08)}50%{transform:rotate(-4deg) scale(1.12)}75%{transform:rotate(3deg) scale(1.08)}}
-@keyframes betGrow{0%{transform:scale(1)}100%{transform:scale(1.4)}}
 @keyframes betFlyUp{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-200px) scale(0.3);opacity:0}}
 @keyframes betPop{0%{transform:scale(1);opacity:1}40%{transform:scale(1.6);opacity:1}100%{transform:scale(0.1);opacity:0}}
-@keyframes betFlashRed{0%,100%{background:transparent}20%,60%{background:rgba(239,68,68,0.35)}40%,80%{background:rgba(239,68,68,0.15)}}
-@keyframes betFlashGreen{0%,100%{background:transparent}50%{background:rgba(34,197,94,0.3)}}
-@keyframes betPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
-.bet-balloon-wrap{display:flex;align-items:center;justify-content:center;width:200px;height:200px;cursor:pointer;user-select:none;-webkit-user-select:none;position:relative}
-.bet-balloon{font-size:130px;line-height:1;animation:betFloat 2.2s ease-in-out infinite;transition:filter .2s}
-.bet-balloon.floating{animation:betFloat 2.2s ease-in-out infinite}
+.bet-balloon-wrap{display:flex;align-items:center;justify-content:center;width:200px;height:200px;cursor:pointer;user-select:none;-webkit-user-select:none;position:relative;opacity:0.4;pointer-events:none;transition:opacity .3s}
+.bet-balloon-wrap.ready{opacity:1;pointer-events:auto}
+.bet-balloon{font-size:130px;line-height:1;animation:betThrob 3.2s ease-in-out infinite;transition:filter .2s}
+.bet-balloon.floating{animation:betThrob 3.2s ease-in-out infinite}
 .bet-balloon.holding{animation:betShake .18s ease-in-out infinite;filter:drop-shadow(0 0 18px rgba(239,68,68,0.7))}
 .bet-balloon.fly-up{animation:betFlyUp .6s ease-in forwards}
 .bet-balloon.pop{animation:betPop .4s ease-out forwards}
@@ -1009,6 +1025,11 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:5px;margin:10px 0" id="bet-progress-dots"></div>
         <div id="bet-touch-label" style="font-size:0.85rem;color:#64748b;margin-bottom:4px"></div>
         <div id="bet-remaining-label" style="font-size:0.78rem;font-weight:700;color:#7c3aed"></div>
+      </div>
+      <!-- 이름 선택 영역 -->
+      <div id="bet-name-select-area" style="margin-bottom:8px;text-align:center">
+        <div style="font-size:0.75rem;color:#64748b;margin-bottom:8px;font-weight:600">내 이름을 먼저 선택하세요</div>
+        <div id="bet-game-name-chips" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center"></div>
       </div>
       <!-- 풍선 터치 영역 -->
       <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:260px;position:relative">
@@ -7432,7 +7453,7 @@ let _betState = {
   title: '', participants: [], loserCount: 1,
   losingPositions: [], currentTouch: 0, losers: [],
   gameOver: false, soundEnabled: false, holdTimer: null,
-  costs: {}
+  costs: {}, currentPlayer: ''
 };
 let _betAudioCtx = null;
 
@@ -7542,9 +7563,11 @@ function betStartGame() {
   if (_betState.participants.length < 2) { alert('참여 인원을 2명 이상 선택해주세요.'); return; }
   _betState.title = title;
   _betState.losers = [];
+  _betState.passers = [];
   _betState.costs = {};
   _betState.currentTouch = 0;
   _betState.gameOver = false;
+  _betState.currentPlayer = '';
   // 패배 위치 사전 결정 (랜덤 셔플 후 앞 N개)
   const positions = Array.from({length: _betState.participants.length}, (_, i) => i);
   for (let i = positions.length - 1; i > 0; i--) {
@@ -7572,10 +7595,31 @@ function _betInitGameScreen() {
   const balloon = document.getElementById('bet-balloon');
   balloon.textContent = '🎈';
   balloon.className = 'bet-balloon floating';
-  document.getElementById('bet-balloon-wrap').style.pointerEvents = 'auto';
+  _betState.currentPlayer = '';
+  document.getElementById('bet-balloon-wrap').classList.remove('ready');
   document.getElementById('bet-touch-hint').style.display = 'block';
+  _betRenderGameNameChips();
   _betUpdateGameLabels();
   _betRenderProgressDots();
+}
+function _betRenderGameNameChips() {
+  const el = document.getElementById('bet-game-name-chips');
+  if (!el) return;
+  // 이미 통과/패배한 사람은 제외 (passed + losers)
+  const used = _betState.losers.concat(
+    _betState.passers || []
+  );
+  const remaining = _betState.participants.filter(p => !used.includes(p));
+  el.innerHTML = remaining.map(name =>
+    `<span class="bet-member-chip" id="bgc-${name}" onclick="betSelectPlayer('${name}')" style="cursor:pointer">${name}</span>`
+  ).join('');
+}
+function betSelectPlayer(name) {
+  _betState.currentPlayer = name;
+  document.querySelectorAll('#bet-game-name-chips .bet-member-chip').forEach(c => {
+    c.classList.toggle('selected', c.textContent === name);
+  });
+  document.getElementById('bet-balloon-wrap').classList.add('ready');
 }
 function _betUpdateGameLabels() {
   const total = _betState.participants.length;
@@ -7628,11 +7672,14 @@ function betTouchEnd(e) {
   // 화면 플래시
   _betFlash(isLoser ? 'red' : 'green');
 
+  const player = _betState.currentPlayer || '???';
   if (isLoser) {
     betPlayLose();
-    _betState.losers.push('???'); // 누가 눌렀는지 모름, 결과 화면에서 입력
+    _betState.losers.push(player);
   } else {
     betPlayPass();
+    if (!_betState.passers) _betState.passers = [];
+    _betState.passers.push(player);
   }
   _betState.currentTouch++;
 
@@ -7641,13 +7688,13 @@ function betTouchEnd(e) {
     overlay.style.display = 'block';
     if (isLoser) {
       document.getElementById('bet-result-emoji').textContent = '💥';
-      document.getElementById('bet-result-msg').innerHTML = '<span style="color:#dc2626">꽝! 내기 짐!</span>';
-      document.getElementById('bet-result-sub').textContent = `결과 화면에서 이름을 선택해주세요`;
+      document.getElementById('bet-result-msg').innerHTML = `<span style="color:#dc2626">${player} 꽝! 내기 짐!</span>`;
+      document.getElementById('bet-result-sub').textContent = '다음 사람에게 넘기세요';
       document.getElementById('bet-next-btn').textContent =
         _betState.losers.length >= _betState.loserCount ? '결과 보기 →' : '다음 →';
     } else {
       document.getElementById('bet-result-emoji').textContent = '😮‍💨';
-      document.getElementById('bet-result-msg').innerHTML = '<span style="color:#16a34a">통과!</span>';
+      document.getElementById('bet-result-msg').innerHTML = `<span style="color:#16a34a">${player} 통과!</span>`;
       document.getElementById('bet-result-sub').textContent = '안도의 한숨... 다음 사람에게 넘기세요';
       document.getElementById('bet-next-btn').textContent =
         _betState.currentTouch >= _betState.participants.length ? '결과 보기 →' : '다음 →';
@@ -7684,29 +7731,35 @@ function betNextTurn() {
   const balloon = document.getElementById('bet-balloon');
   balloon.textContent = '🎈';
   balloon.className = 'bet-balloon floating';
-  document.getElementById('bet-balloon-wrap').style.pointerEvents = 'auto';
+  _betState.currentPlayer = '';
+  document.getElementById('bet-balloon-wrap').classList.remove('ready');
   document.getElementById('bet-touch-hint').style.display = 'block';
+  _betRenderGameNameChips();
   _betUpdateGameLabels();
 }
 
 function betShowResult() {
   betShowScreen('result');
   document.getElementById('bet-final-title').textContent = `📝 ${_betState.title}`;
-  const loserCount = _betState.losers.length;
-  // 패배자 선택 (누가 눌렀는지 모르므로 결과 화면에서 선택)
+  const losers = _betState.losers.filter(Boolean);
+  // 패배자 — 이름이 이미 기록되어 있으므로 칩으로 표시
   const losersEl = document.getElementById('bet-losers-list');
-  losersEl.innerHTML = Array.from({length: loserCount}, (_, i) =>
-    `<div style="margin-bottom:10px">
-      <div style="font-size:0.72rem;color:#dc2626;font-weight:600;margin-bottom:5px">${i+1}번째 패배자</div>
-      <select id="bet-loser-select-${i}" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #fecdd3;font-size:0.9rem;background:#fff;color:#1e293b" onchange="betUpdateLoserNames()">
-        <option value="">-- 이름 선택 --</option>
-        ${_betState.participants.map(p => `<option value="${p}">${p}</option>`).join('')}
-      </select>
+  losersEl.innerHTML = losers.map(name =>
+    `<span style="display:inline-block;padding:7px 16px;border-radius:20px;background:#fee2e2;color:#dc2626;font-size:0.88rem;font-weight:700;margin:3px">${name}</span>`
+  ).join('');
+  // 비용 입력 — 패배자 확정되었으므로 바로 렌더
+  const costEl = document.getElementById('bet-cost-inputs');
+  costEl.innerHTML = losers.map(name =>
+    `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="flex:1;font-size:0.88rem;font-weight:600;color:#1e293b">${name}</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <input type="number" id="bet-cost-${name}" placeholder="0" min="0" step="100"
+          style="width:100px;padding:8px 10px;border-radius:8px;border:1.5px solid #e2e8f0;font-size:0.9rem;text-align:right"
+          oninput="betUpdateCost('${name}', this.value)">
+        <span style="font-size:0.82rem;color:#64748b">원</span>
+      </div>
     </div>`
   ).join('');
-  // 비용 입력 (패배자 확정 후 표시)
-  document.getElementById('bet-cost-inputs').innerHTML =
-    '<div style="font-size:0.82rem;color:#94a3b8;text-align:center;padding:8px 0">패배자를 먼저 선택하세요</div>';
   // 승자
   _betUpdateWinners();
 }
@@ -7752,10 +7805,6 @@ function _betUpdateWinners() {
 
 function betSaveHistory() {
   const losers = _betState.losers.filter(Boolean);
-  if (losers.length < _betState.loserCount) {
-    alert(`패배자 ${_betState.loserCount}명을 모두 선택해주세요.`);
-    return;
-  }
   const winners = _betState.participants.filter(p => !losers.includes(p));
   const record = {
     title: _betState.title,
