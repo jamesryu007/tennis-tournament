@@ -7636,6 +7636,8 @@ function _betInitGameScreen() {
   _betState.currentPlayer = '';
   document.getElementById('bet-balloon-wrap').classList.remove('ready');
   document.getElementById('bet-touch-hint').style.display = 'block';
+  const _nsa = document.getElementById('bet-name-select-area');
+  if (_nsa) _nsa.style.display = 'block';
   _betRenderGameNameChips();
   _betUpdateGameLabels();
   _betRenderProgressDots();
