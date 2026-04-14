@@ -541,9 +541,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 @keyframes betShake{0%,100%{transform:rotate(-3deg) scale(1.05)}25%{transform:rotate(4deg) scale(1.08)}50%{transform:rotate(-4deg) scale(1.12)}75%{transform:rotate(3deg) scale(1.08)}}
 @keyframes betFlyUp{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-200px) scale(0.3);opacity:0}}
 @keyframes betPop{0%{transform:scale(1);opacity:1}40%{transform:scale(1.6);opacity:1}100%{transform:scale(0.1);opacity:0}}
-.bet-balloon-wrap{display:flex;align-items:center;justify-content:center;width:230px;height:230px;cursor:pointer;user-select:none;-webkit-user-select:none;position:relative;opacity:0.4;pointer-events:none;transition:opacity .3s}
+.bet-balloon-wrap{display:flex;align-items:center;justify-content:center;width:290px;height:290px;cursor:pointer;user-select:none;-webkit-user-select:none;position:relative;opacity:0.4;pointer-events:none;transition:opacity .3s}
 .bet-balloon-wrap.ready{opacity:1;pointer-events:auto}
-.bet-balloon{font-size:165px;line-height:1;animation:betThrob 3.2s ease-in-out infinite;transition:filter .2s}
+.bet-balloon{font-size:210px;line-height:1;animation:betThrob 3.2s ease-in-out infinite;transition:filter .2s}
 .bet-balloon.floating{animation:betThrob 3.2s ease-in-out infinite}
 .bet-balloon.holding{animation:betShake .18s ease-in-out infinite;filter:drop-shadow(0 0 18px rgba(239,68,68,0.7))}
 .bet-balloon.fly-up{animation:betFlyUp .6s ease-in forwards}
@@ -1033,7 +1033,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           <div id="bet-game-name-chips" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center"></div>
         </div>
         <!-- 풍선 터치 영역 -->
-        <div style="display:flex;flex-direction:column;align-items:center">
+        <div style="display:flex;flex-direction:column;align-items:center;margin-top:18px">
           <div class="bet-balloon-wrap" id="bet-balloon-wrap"
             onmousedown="betTouchStart()" onmouseup="betTouchEnd()" onmouseleave="betTouchEnd()"
             ontouchstart="betTouchStart(event)" ontouchend="betTouchEnd(event)">
@@ -7506,9 +7506,9 @@ function betPlayReady() {
       if (ctx.state === 'suspended') ctx.resume();
       const now = ctx.currentTime;
       // LUB — 매우 낮고 묵직, 0.16s
-      _thump(ctx, now,        48, 16, 0.95, 0.16, 22, 0.50);
+      _thump(ctx, now,        48, 16, 1.20, 0.16, 22, 0.65);
       // DUB — 낮고 짧음, 0.11s (0.22초 후)
-      _thump(ctx, now + 0.22, 62, 20, 0.70, 0.11, 30, 0.30);
+      _thump(ctx, now + 0.22, 62, 20, 0.90, 0.11, 30, 0.42);
     } catch(e) {}
     interval = Math.max(480, interval - 55);
     _betTensionTimer = setTimeout(beat, interval);
