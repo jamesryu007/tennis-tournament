@@ -885,10 +885,12 @@ async function translateTexts(texts) {
     const encoded = encodeURIComponent(JSON.stringify(texts));
     const res  = await fetch(`${TRANSLATE_URL}?texts=${encoded}`);
     const json = await res.json();
-    return json.translated || texts;
+    const result = json.translated;
+    if (!result || result.length === 0) return null; // 번역 실패 시 null
+    return result;
   } catch(e) {
     console.warn('translateTexts error:', e.message);
-    return texts;
+    return null; // 번역 실패 시 null
   }
 }
 
@@ -1067,9 +1069,13 @@ exports.fetchAtpNews = onSchedule(
 
       if (!items.length) { console.warn('fetchAtpNews: no articles'); return; }
 
-      // 헤드라인 + 설명 번역
+      // 헤드라인 + 설명 번역 — 실패 시 기존 DB 유지 (영문으로 덮어쓰기 방지)
       const toTranslate = items.flatMap(a => [a.headline, a.description]);
       const translated  = await translateTexts(toTranslate);
+      if (!translated) {
+        console.warn('fetchAtpNews: translation failed, skipping DB write to preserve existing Korean data');
+        return;
+      }
       items.forEach((a, i) => {
         a.headlineKo    = translated[i * 2]     || a.headline;
         a.descriptionKo = translated[i * 2 + 1] || a.description;
