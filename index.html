@@ -517,7 +517,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 @keyframes mpGlowAmber{0%,100%{box-shadow:0 8px 28px rgba(217,119,6,.38)}50%{box-shadow:0 10px 44px rgba(217,119,6,.65),0 0 26px rgba(251,191,36,.4)}}
 @keyframes mpLivePulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
 @keyframes mpTitleShimmer{0%{transform:translateX(-100%) skewX(-18deg)}100%{transform:translateX(320%) skewX(-18deg)}}
-/* ── 무조건 내기 ── */
+/* ── 릴레이 풍선 터치 ── */
 /* 대기 중: 강하게 떨다가 → 잠잠해졌다가 → 다시 강하게 반복 */
 @keyframes betThrob{
   0%   {transform:scale(1.00) rotate(-4deg)}
@@ -954,13 +954,13 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     </div>
   </div>
 
-  <!-- 무조건 내기 패널 -->
+  <!-- 릴레이 풍선 터치 패널 -->
   <div id="setup-panel-bet" style="display:none">
 
     <!-- 화면1: 홈 -->
     <div id="bet-screen-home">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-        <div style="font-size:1.1rem;font-weight:900;color:#1e293b">🎲 무조건 내기</div>
+        <div style="font-size:1.1rem;font-weight:900;color:#1e293b">🎈 릴레이 풍선 터치</div>
         <button onclick="betShowSetup()" style="font-size:0.85rem;font-weight:700;padding:9px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,0.35)">+ 새 내기</button>
       </div>
       <div id="bet-history-list">
@@ -7458,7 +7458,7 @@ function switchSetupTab(tab) {
 }
 
 // ══════════════════════════════════════════════════════════
-// 무조건 내기
+// 릴레이 풍선 터치
 // ══════════════════════════════════════════════════════════
 let _betState = {
   title: '', participants: [], loserCount: 1,
