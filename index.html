@@ -547,8 +547,6 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .bomb-pulse{animation:bombPulse 0.75s ease-in-out infinite}
 .bomb-tick-light{animation:bombTickLight 0.75s ease-in-out infinite}
 .bomb-reveal-anim{animation:bombRevealBounce 0.65s cubic-bezier(0.34,1.56,0.64,1) forwards}
-.new-bet-sheet-overlay{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.45);display:flex;align-items:flex-end}
-.new-bet-sheet{background:#fff;border-radius:22px 22px 0 0;padding:20px 20px 36px;width:100%;box-sizing:border-box}
 @keyframes betPop{0%{transform:scale(1);opacity:1}40%{transform:scale(1.6);opacity:1}100%{transform:scale(0.1);opacity:0}}
 .bet-balloon-wrap{display:flex;align-items:center;justify-content:center;width:290px;height:290px;cursor:pointer;user-select:none;-webkit-user-select:none;position:relative;opacity:0.4;pointer-events:none;transition:opacity .3s}
 .bet-balloon-wrap.ready{opacity:1;pointer-events:auto}
@@ -968,11 +966,22 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
     <!-- 화면1: 홈 -->
     <div id="bet-screen-home">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-        <div style="font-size:1.1rem;font-weight:900;color:#1e293b">🎲 내기 게임</div>
-        <button onclick="openNewBetSheet()" style="font-size:0.85rem;font-weight:700;padding:9px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,0.35)">+ 새 내기</button>
+      <div id="bet-home-header" style="margin-bottom:12px">
+        <div style="text-align:right">
+          <button onclick="toggleBetGamePicker()" id="bet-new-btn" style="font-size:0.85rem;font-weight:700;padding:9px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,0.35)">+ 새 내기</button>
+        </div>
+        <div id="bet-game-picker" style="display:none;background:#fff;border-radius:16px;border:1.5px solid #e2e8f0;padding:12px;margin-top:8px;box-shadow:0 4px 20px rgba(0,0,0,0.12)">
+          <button onclick="closeBetGamePicker();betShowSetup()" style="width:100%;padding:14px;border-radius:14px;border:1.5px solid #ede9fe;background:linear-gradient(135deg,#f5f3ff,#ede9fe);color:#1e293b;font-size:0.9rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+            <span style="font-size:1.8rem">🎈</span>
+            <div><div style="font-weight:800">릴레이 풍선 터치</div><div style="font-size:0.72rem;color:#7c3aed;font-weight:600">한 명씩 순서대로 터치 — 끝까지 살아남아라!</div></div>
+          </button>
+          <button onclick="closeBetGamePicker();bombShowSetup()" style="width:100%;padding:14px;border-radius:14px;border:1.5px solid #fee2e2;background:linear-gradient(135deg,#fff5f5,#fee2e2);color:#1e293b;font-size:0.9rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px">
+            <span style="font-size:1.8rem">💣</span>
+            <div><div style="font-weight:800">시한폭탄 피하기</div><div style="font-size:0.72rem;color:#dc2626;font-weight:600">방장이 시작 — 동시에 폭탄방 공개!</div></div>
+          </button>
+        </div>
       </div>
-      <div id="bomb-live-banner" style="display:none;margin-bottom:12px"></div>
+      <div id="bomb-live-banner" style="margin-bottom:12px"></div>
       <div id="bet-history-list">
         <div class="card" style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.9rem">아직 내기 기록이 없습니다</div>
       </div>
@@ -1107,7 +1116,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     <div id="bet-screen-bomb-setup" style="display:none">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
         <button onclick="betShowHome()" style="border:none;background:none;font-size:1.4rem;cursor:pointer;padding:0;color:#64748b">←</button>
-        <div style="font-size:1rem;font-weight:800;color:#1e293b">방 만들기</div>
+        <div style="font-size:1rem;font-weight:800;color:#1e293b">방에 폭탄 설치하기</div>
       </div>
       <div class="card" style="margin-bottom:12px">
         <div style="font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:8px">📝 내기 제목</div>
@@ -1135,7 +1144,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           <button class="bet-loser-count-btn" onclick="bombChangeLoserCount2(1)">+</button>
         </div>
       </div>
-      <button onclick="bombCreateRoom()" style="width:100%;padding:15px;border-radius:14px;border:none;background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;font-size:1rem;font-weight:800;cursor:pointer;box-shadow:0 4px 18px rgba(220,38,38,0.4)">💣 방 만들기</button>
+      <button onclick="bombCreateRoom()" style="width:100%;padding:15px;border-radius:14px;border:none;background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;font-size:1rem;font-weight:800;cursor:pointer;box-shadow:0 4px 18px rgba(220,38,38,0.4)">💣 방에 폭탄 설치하기</button>
     </div>
 
     <!-- 폭탄③: 마스터 보드 (방장) -->
@@ -1144,7 +1153,6 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <div style="font-size:0.65rem;font-weight:800;color:#dc2626;letter-spacing:0.12em;margin-bottom:4px">👑 방장 대기실</div>
         <div id="bomb-master-title" style="font-size:1rem;font-weight:900;color:#1e293b;margin-bottom:6px"></div>
         <div style="display:flex;justify-content:center;gap:10px;align-items:center">
-          <span id="bomb-master-code" style="font-size:0.8rem;background:#fee2e2;color:#dc2626;border-radius:8px;padding:3px 11px;font-weight:800"></span>
           <span id="bomb-master-count" style="font-size:0.78rem;color:#64748b;font-weight:600"></span>
         </div>
       </div>
@@ -1158,23 +1166,31 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
     <!-- 폭탄④: 대기 화면 (멤버) -->
     <div id="bet-screen-bomb-waiting" style="display:none;text-align:center;padding:16px 0">
-      <div id="bomb-waiting-title" style="font-size:0.9rem;font-weight:800;color:#1e293b;margin-bottom:4px"></div>
-      <div id="bomb-waiting-count" style="font-size:0.78rem;color:#64748b;margin-bottom:20px"></div>
-      <!-- 방+폭탄 이미지 -->
-      <div style="display:inline-block;margin-bottom:18px">
-        <div style="width:240px;height:190px;background:linear-gradient(180deg,#1e1b4b 0%,#312e81 55%,#4c1d95 100%);border-radius:20px;position:relative;overflow:hidden;box-shadow:0 8px 28px rgba(0,0,0,0.45);margin:0 auto">
-          <div style="position:absolute;top:18px;left:18px;width:48px;height:38px;background:#fef9c3;border-radius:6px;border:3px solid #92400e;box-shadow:0 0 14px #fef08a"></div>
-          <div style="position:absolute;top:18px;right:18px;width:48px;height:38px;background:#fef9c3;border-radius:6px;border:3px solid #92400e;box-shadow:0 0 14px #fef08a"></div>
-          <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:46px;height:68px;background:#78350f;border-radius:8px 8px 0 0;border:3px solid #92400e">
-            <div style="width:8px;height:8px;background:#fef08a;border-radius:50%;position:absolute;right:7px;top:50%;transform:translateY(-50%)"></div>
+      <div id="bomb-waiting-title" style="font-size:1rem;font-weight:900;color:#1e293b;margin-bottom:2px"></div>
+      <div id="bomb-waiting-count" style="font-size:0.78rem;color:#64748b;margin-bottom:16px"></div>
+      <!-- 방+폭탄 이미지 (참여자 이름 포함) -->
+      <div style="display:inline-block;margin-bottom:18px;width:100%;max-width:320px">
+        <div style="background:linear-gradient(180deg,#1e1b4b 0%,#312e81 55%,#4c1d95 100%);border-radius:22px;position:relative;overflow:hidden;box-shadow:0 10px 34px rgba(0,0,0,0.55);padding:18px 14px 80px;min-height:220px">
+          <!-- 창문 두 개 -->
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+            <div style="width:48px;height:38px;background:#fef9c3;border-radius:6px;border:3px solid #92400e;box-shadow:0 0 14px #fef08a"></div>
+            <div style="width:48px;height:38px;background:#fef9c3;border-radius:6px;border:3px solid #92400e;box-shadow:0 0 14px #fef08a"></div>
           </div>
-          <div class="bomb-pulse" style="position:absolute;bottom:72px;left:50%;transform:translateX(-50%);font-size:3.8rem;filter:drop-shadow(0 0 10px rgba(255,80,0,0.9))">💣</div>
-          <div class="bomb-tick-light" style="position:absolute;bottom:116px;left:calc(50% + 14px);width:10px;height:10px;background:#fbbf24;border-radius:50%;box-shadow:0 0 10px #fbbf24"></div>
+          <!-- 참여자 이름 칩 (일러스트 안) -->
+          <div id="bomb-waiting-players" style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;padding:6px 4px 60px"></div>
+          <!-- 폭탄 -->
+          <div style="position:absolute;bottom:46px;left:50%;transform:translateX(-50%)">
+            <div class="bomb-pulse" style="font-size:3.4rem;filter:drop-shadow(0 0 12px rgba(255,80,0,0.9))">💣</div>
+            <div class="bomb-tick-light" style="width:9px;height:9px;background:#fbbf24;border-radius:50%;position:absolute;right:-4px;top:4px;box-shadow:0 0 10px #fbbf24"></div>
+          </div>
+          <!-- 문 -->
+          <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:44px;height:60px;background:#78350f;border-radius:8px 8px 0 0;border:3px solid #92400e">
+            <div style="width:7px;height:7px;background:#fef08a;border-radius:50%;position:absolute;right:6px;top:50%;transform:translateY(-50%)"></div>
+          </div>
         </div>
       </div>
       <div style="font-size:1.05rem;font-weight:800;color:#1e293b;margin-bottom:5px">방장이 시작하면 결과 공개!</div>
       <div style="font-size:0.85rem;color:#dc2626;font-weight:700;margin-bottom:18px">폭탄방에서 탈출하세요 💨</div>
-      <div id="bomb-waiting-players" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:16px"></div>
       <button onclick="bombLeaveRoom()" style="border:none;background:none;color:#94a3b8;font-size:0.8rem;cursor:pointer;text-decoration:underline">방 나가기</button>
     </div>
 
@@ -8020,16 +8036,18 @@ function _betStatsHtml(data) {
   const allCost   = Object.entries(costTotal).sort((a,b)=>b[1]-a[1]);
   if (!allLosers.length && !allCost.length) return '';
 
-  function barRows(entries, unit, color) {
+  function barRows(entries, unit, color, offset) {
     if (!entries.length) return '<div style="font-size:0.78rem;color:#94a3b8;padding:6px 0">데이터 없음</div>';
-    const max = entries[0][1] || 1;
+    const off = offset || 0;
+    const max = (allLosers[0]||allCost[0]||[[],1])[1] || entries[0][1] || 1;
     return entries.map(([name, val], i) => {
+      const pos = i + off;
       const pct = Math.round((val / max) * 100);
       const label = unit === '회' ? `${val}회` : `${val.toLocaleString('ko-KR')}원`;
       return `<div style="margin-bottom:9px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
           <div style="display:flex;align-items:center;gap:5px">
-            <span style="font-size:0.8rem;line-height:1">${medals[i]||String(i+1)}</span>
+            <span style="font-size:0.8rem;line-height:1">${medals[pos]||String(pos+1)}</span>
             <span style="font-size:0.8rem;font-weight:700;color:#1e293b">${name}</span>
           </div>
           <span style="font-size:0.75rem;font-weight:700;color:${color}">${label}</span>
@@ -8050,10 +8068,10 @@ function _betStatsHtml(data) {
       if(el.style.display==='none'){el.style.display='block';btn.textContent='접기 ▲';}
       else{el.style.display='none';btn.textContent='더보기 ▼';}
     " style="width:100%;margin-top:6px;padding:5px;border:none;background:none;color:#94a3b8;font-size:0.72rem;cursor:pointer;font-weight:600">더보기 ▼</button>
-    <div id="${idPrefix}-more" style="display:none">${barRows(rest.map((e,i)=>{e=e.slice();return e;}), unit, color)}</div>` : '';
+    <div id="${idPrefix}-more" style="display:none">${barRows(rest, unit, color, 5)}</div>` : '';
     return `<div class="card" style="padding:14px 12px">
       <div style="font-size:0.7rem;font-weight:800;color:${color==='#f87171'?'#dc2626':'#7c3aed'};letter-spacing:0.06em;margin-bottom:10px">${title} TOP 5</div>
-      ${barRows(top5, unit, color)}
+      ${barRows(top5, unit, color, 0)}
       ${moreBtn}
     </div>`;
   }
@@ -8066,27 +8084,66 @@ function _betStatsHtml(data) {
 
 function betRenderHome() {
   if (!db) return;
-  // 실시간 bomb 방 배너
+  const mgr = isManager();
+  // 관리자 여부에 따라 헤더 표시
+  const headerEl = document.getElementById('bet-home-header');
+  if (headerEl) headerEl.style.display = mgr ? 'block' : 'none';
+
   const bannerEl = document.getElementById('bomb-live-banner');
+  const histEl   = document.getElementById('bet-history-list');
+
+  // 실시간 bomb 방 배너 (관리자: 소형 / 멤버: 풀스크린 카드)
   if (bannerEl) {
     db.ref('jmt/bombRooms').once('value').then(snap => {
       const rooms = [];
       snap.forEach(child => { const r = child.val(); if (r && r.status === 'waiting') rooms.push({id:child.key,...r}); });
-      if (!rooms.length) { bannerEl.style.display = 'none'; return; }
-      bannerEl.style.display = 'block';
-      bannerEl.innerHTML = rooms.map(r => {
-        const cnt = Object.keys(r.players||{}).length;
-        return `<div onclick="bombJoinFromHome('${r.id}')" style="background:linear-gradient(135deg,#fff5f5,#fee2e2);border:1.5px solid #fca5a5;border-radius:14px;padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:8px">
-          <div style="font-size:1.5rem">💣</div>
-          <div style="flex:1">
-            <div style="font-size:0.88rem;font-weight:800;color:#1e293b">${r.title}</div>
-            <div style="font-size:0.72rem;color:#dc2626;margin-top:2px">방장: ${r.hostName} · ${cnt}/${r.maxPlayers}명 대기중</div>
-          </div>
-          <div style="font-size:0.75rem;font-weight:700;color:#dc2626;background:#fff;border-radius:8px;padding:5px 10px;border:1px solid #fca5a5">입장 →</div>
-        </div>`;
-      }).join('');
+      if (mgr) {
+        // 관리자: 작은 배너
+        if (!rooms.length) { bannerEl.innerHTML = ''; return; }
+        bannerEl.innerHTML = rooms.map(r => {
+          const cnt = Object.keys(r.players||{}).length;
+          return `<div onclick="bombJoinFromHome('${r.id}')" style="background:linear-gradient(135deg,#fff5f5,#fee2e2);border:1.5px solid #fca5a5;border-radius:14px;padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <div style="font-size:1.5rem">💣</div>
+            <div style="flex:1">
+              <div style="font-size:0.88rem;font-weight:800;color:#1e293b">${r.title}</div>
+              <div style="font-size:0.72rem;color:#dc2626;margin-top:2px">방장: ${r.hostName} · ${cnt}명 대기중</div>
+            </div>
+            <div style="font-size:0.75rem;font-weight:700;color:#dc2626;background:#fff;border-radius:8px;padding:5px 10px;border:1px solid #fca5a5">입장 →</div>
+          </div>`;
+        }).join('');
+      } else {
+        // 멤버: 크고 화려한 입장 카드
+        if (!rooms.length) {
+          bannerEl.innerHTML = `<div style="text-align:center;padding:60px 20px">
+            <div style="font-size:4rem;margin-bottom:16px;opacity:0.25">💣</div>
+            <div style="font-size:1rem;font-weight:700;color:#94a3b8">현재 진행 중인 게임이 없습니다</div>
+            <div style="font-size:0.8rem;color:#cbd5e1;margin-top:6px">방장이 방을 만들면 여기에 표시됩니다</div>
+          </div>`;
+          if (histEl) histEl.innerHTML = '';
+          return;
+        }
+        bannerEl.innerHTML = rooms.map(r => {
+          const cnt = Object.keys(r.players||{}).length;
+          const names = Object.keys(r.players||{}).join(' · ');
+          return `<div onclick="bombJoinFromHome('${r.id}')" style="cursor:pointer;background:linear-gradient(145deg,#1e1b4b,#4c1d95);border-radius:22px;padding:28px 22px;margin-bottom:14px;box-shadow:0 8px 30px rgba(76,29,149,0.45);position:relative;overflow:hidden">
+            <div style="position:absolute;top:-20px;right:-20px;font-size:8rem;opacity:0.08;pointer-events:none">💣</div>
+            <div style="font-size:0.7rem;font-weight:800;color:rgba(255,255,255,0.6);letter-spacing:0.1em;margin-bottom:8px">💣 시한폭탄 피하기</div>
+            <div style="font-size:1.3rem;font-weight:900;color:#fff;margin-bottom:6px;line-height:1.3">${r.title}</div>
+            <div style="font-size:0.8rem;color:rgba(255,255,255,0.65);margin-bottom:20px">방장: ${r.hostName} · 탈락 ${r.loserCount}명</div>
+            ${names ? `<div style="font-size:0.75rem;color:rgba(255,255,255,0.5);margin-bottom:20px">${names}</div>` : ''}
+            <div style="background:linear-gradient(135deg,#ef4444,#dc2626);border-radius:14px;padding:14px;text-align:center;font-size:1rem;font-weight:800;color:#fff;letter-spacing:0.04em;box-shadow:0 4px 16px rgba(220,38,38,0.5)">
+              💥 지금 입장하기 · ${cnt}명 대기중
+            </div>
+          </div>`;
+        }).join('');
+        if (histEl) histEl.innerHTML = '';
+        return;
+      }
     }).catch(()=>{});
   }
+
+  if (!mgr) return; // 멤버는 히스토리/통계 표시 안 함
+
   db.ref('jmt/betHistory').orderByChild('createdAt').once('value').then(snap => {
     const el = document.getElementById('bet-history-list');
     if (!el) return;
@@ -8095,7 +8152,6 @@ function betRenderHome() {
       el.innerHTML = '<div class="card" style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.9rem">아직 내기 기록이 없습니다</div>';
       return;
     }
-    const mgr = isManager();
     const allItems = Object.entries(data).reverse();
     const items = allItems.slice(0, 20);
     const statsHtml = _betStatsHtml(data);
@@ -8132,10 +8188,13 @@ function betRenderHome() {
       const gameTypeBadge = r.gameType === 'bomb'
         ? `<span style="font-size:0.65rem;background:#fee2e2;color:#dc2626;border-radius:6px;padding:2px 7px;font-weight:700;margin-right:6px">💣 시한폭탄</span>`
         : `<span style="font-size:0.65rem;background:#ede9fe;color:#7c3aed;border-radius:6px;padding:2px 7px;font-weight:700;margin-right:6px">🎈 릴레이</span>`;
+      const hostBadge = r.hostName
+        ? `<span style="font-size:0.65rem;background:#fef9c3;color:#92400e;border-radius:6px;padding:2px 7px;font-weight:700">👑 ${r.hostName}</span>`
+        : '';
       return `<div class="bet-history-item">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <div style="flex:1">
-            <div style="margin-bottom:4px">${gameTypeBadge}</div>
+            <div style="margin-bottom:4px;display:flex;align-items:center;gap:4px;flex-wrap:wrap">${gameTypeBadge}${hostBadge}</div>
             <div style="font-size:0.95rem;font-weight:800;color:#1e293b">${displayTitle}</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px;margin-left:8px">
@@ -8163,13 +8222,16 @@ function betRenderHome() {
 }
 
 // ══════════════════════════════════════════════════════════
-// 새 내기 선택 시트
+// 새 내기 인라인 선택
 // ══════════════════════════════════════════════════════════
-function openNewBetSheet() {
-  document.getElementById('new-bet-sheet').style.display = 'flex';
+function toggleBetGamePicker() {
+  const el = document.getElementById('bet-game-picker');
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
-function closeNewBetSheet() {
-  document.getElementById('new-bet-sheet').style.display = 'none';
+function closeBetGamePicker() {
+  const el = document.getElementById('bet-game-picker');
+  if (el) el.style.display = 'none';
 }
 function bombJoinFromHome(roomId) {
   _bombState.myName = state.identity && state.identity.name;
@@ -8296,7 +8358,6 @@ function bombJoinRoom(roomId) {
     if (room.status === 'playing') { alert('이미 게임이 진행 중입니다'); return; }
     const myName = _bombState.myName;
     if (!(room.players && room.players[myName])) {
-      if (Object.keys(room.players||{}).length >= room.maxPlayers) { alert('방이 가득 찼습니다'); return; }
       db.ref(`jmt/bombRooms/${roomId}/players/${myName}`).set({ isHost: false, joinedAt: new Date().toISOString(), result: null });
     }
     _bombState.roomId = roomId;
@@ -8351,18 +8412,15 @@ function _bombRenderMaster(room) {
 
   const titleEl = document.getElementById('bomb-master-title');
   if (titleEl) titleEl.textContent = room.title;
-  const codeEl = document.getElementById('bomb-master-code');
-  if (codeEl) codeEl.textContent = `코드: ${room.code}`;
   const countEl = document.getElementById('bomb-master-count');
-  if (countEl) countEl.textContent = `${cnt}/${room.maxPlayers}명 입장`;
+  if (countEl) countEl.textContent = `${cnt}명 입장`;
 
   const grid = document.getElementById('bomb-master-grid');
   if (!grid) return;
-  const slots = Array(room.maxPlayers).fill(null);
-  list.forEach(([name, data], i) => { slots[i] = { name, ...data }; });
-
-  grid.innerHTML = slots.map(p => {
-    if (!p) return `<div style="background:#f8fafc;border:2px dashed #e2e8f0;border-radius:12px;padding:12px 6px;text-align:center;color:#cbd5e1;font-size:0.72rem">빈 슬롯</div>`;
+  // 빈 슬롯 없이 실제 참여자만 표시
+  grid.innerHTML = list.map(([name, data]) => {
+    const p = { name, ...data };
+    if (!p) return '';
     let bg = '#f0fdf4', border = '#86efac', emoji = '✅', label = isPlaying ? '' : '준비완료';
     if (isPlaying && p.result === 'loser')  { bg='#fff1f2'; border='#fca5a5'; emoji='💥'; label='탈락!'; }
     if (isPlaying && p.result === 'winner') { bg='#f0fdf4'; border='#86efac'; emoji='😊'; label='안전!'; }
@@ -8420,11 +8478,11 @@ function _bombRenderWaiting(room) {
   const titleEl = document.getElementById('bomb-waiting-title');
   if (titleEl) titleEl.textContent = room.title;
   const countEl = document.getElementById('bomb-waiting-count');
-  if (countEl) countEl.textContent = `${cnt}명 입장 (최대 ${room.maxPlayers}명)`;
+  if (countEl) countEl.textContent = `${cnt}명 입장`;
   const listEl = document.getElementById('bomb-waiting-players');
   if (listEl) {
     listEl.innerHTML = Object.entries(room.players||{})
-      .map(([name]) => `<span style="background:#f0fdf4;border:1px solid #86efac;border-radius:20px;padding:5px 12px;font-size:0.78rem;font-weight:600;color:#166534">${name}</span>`)
+      .map(([name, p]) => `<span style="background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);border-radius:20px;padding:5px 12px;font-size:0.78rem;font-weight:700;color:#fff">${p.isHost ? '👑 ' : ''}${name}</span>`)
       .join('');
   }
 }
@@ -10074,26 +10132,5 @@ function deleteMpHistory(pollId, event) {
   }, { passive: true });
 })();
 </script>
-<!-- 새 내기 게임 선택 시트 -->
-<div id="new-bet-sheet" class="new-bet-sheet-overlay" style="display:none" onclick="if(event.target===this)closeNewBetSheet()">
-  <div class="new-bet-sheet">
-    <div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 18px"></div>
-    <div style="font-size:0.72rem;font-weight:800;color:#94a3b8;letter-spacing:0.1em;text-align:center;margin-bottom:16px">게임 선택</div>
-    <button onclick="closeNewBetSheet();betShowSetup()" style="width:100%;padding:16px;border-radius:16px;border:1.5px solid #ede9fe;background:linear-gradient(135deg,#f5f3ff,#ede9fe);color:#1e293b;font-size:0.95rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:10px;display:flex;align-items:center;gap:14px">
-      <span style="font-size:2rem">🎈</span>
-      <div>
-        <div style="font-weight:800;margin-bottom:2px">릴레이 풍선 터치</div>
-        <div style="font-size:0.75rem;color:#7c3aed;font-weight:600">한 명씩 순서대로 터치 — 끝까지 살아남아라!</div>
-      </div>
-    </button>
-    <button onclick="closeNewBetSheet();bombShowSetup()" style="width:100%;padding:16px;border-radius:16px;border:1.5px solid #fee2e2;background:linear-gradient(135deg,#fff5f5,#fee2e2);color:#1e293b;font-size:0.95rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:14px">
-      <span style="font-size:2rem">💣</span>
-      <div>
-        <div style="font-weight:800;margin-bottom:2px">시한폭탄 피하기</div>
-        <div style="font-size:0.75rem;color:#dc2626;font-weight:600">방장이 시작 — 동시에 폭탄방 공개!</div>
-      </div>
-    </button>
-  </div>
-</div>
 </body>
 </html>
