@@ -8086,13 +8086,15 @@ function _betStatsHtml(data) {
 function betRenderHome() {
   if (!db) return;
 
-  // 활성 방에 참여 중이면 해당 화면으로 바로 복귀
-  if (_bombState.roomId && _bombState.room) {
+  // 활성 방에 참여 중이면 해당 화면으로 바로 복귀 (room 데이터 로딩 전이어도)
+  if (_bombState.roomId && !_bombState.revealed) {
     if (_bombState.isHost) {
       betShowScreen('bomb-master');
-      _bombRenderMaster(_bombState.room);
+      if (_bombState.room) _bombRenderMaster(_bombState.room);
       return;
-    } else if (!_bombState.revealed) {
+    } else {
+      // 멤버: 리스너가 없으면 다시 연결 후 대기 화면
+      if (!_bombState.roomListener) _bombListenRoom(_bombState.roomId);
       betShowScreen('bomb-waiting');
       return;
     }
@@ -8137,9 +8139,7 @@ function betRenderHome() {
             badgeHtml = `<div style="font-size:0.72rem;font-weight:700;color:#7c3aed;background:#f5f3ff;border-radius:8px;padding:4px 9px;border:1px solid #ede9fe;white-space:nowrap">👑 내 방</div>`;
             clickAttr = `onclick="bombRejoinAsHost('${r.id}')"`;
           } else if (isJoined) {
-            borderColor = '#86efac';
-            badgeHtml = `<div style="font-size:0.72rem;font-weight:700;color:#16a34a;background:#f0fdf4;border-radius:8px;padding:4px 9px;border:1px solid #86efac;white-space:nowrap">대기중</div>`;
-            clickAttr = `onclick="bombRejoinAsMember('${r.id}')"`;
+            return ''; // 이미 입장한 방은 배너에 표시 안 함 (bomb-waiting으로 자동 이동)
           } else {
             badgeHtml = `<div style="font-size:0.72rem;font-weight:700;color:#dc2626;background:#fff;border-radius:8px;padding:4px 9px;border:1px solid #fca5a5;white-space:nowrap">입장 →</div>`;
             clickAttr = `onclick="bombJoinFromHome('${r.id}')"`;
@@ -8158,7 +8158,7 @@ function betRenderHome() {
           if (isHost) {
             actionHtml = `<div style="background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:14px;padding:14px;text-align:center;font-size:1rem;font-weight:800;color:#fff;box-shadow:0 4px 16px rgba(124,58,237,0.5)" onclick="bombRejoinAsHost('${r.id}')">👑 내 방으로 돌아가기</div>`;
           } else if (isJoined) {
-            actionHtml = `<div style="background:rgba(255,255,255,0.12);border-radius:14px;padding:14px;text-align:center;font-size:0.95rem;font-weight:700;color:rgba(255,255,255,0.75)" onclick="bombRejoinAsMember('${r.id}')">✅ 이미 입장 · 대기 중</div>`;
+            return ''; // 이미 입장한 방은 표시 안 함
           } else {
             actionHtml = `<div style="background:linear-gradient(135deg,#ef4444,#dc2626);border-radius:14px;padding:14px;text-align:center;font-size:1rem;font-weight:800;color:#fff;box-shadow:0 4px 16px rgba(220,38,38,0.5)" onclick="bombJoinFromHome('${r.id}')">💥 지금 입장하기 · ${cnt}명 대기중</div>`;
           }
