@@ -540,6 +540,15 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 }
 @keyframes betShake{0%,100%{transform:rotate(-3deg) scale(1.05)}25%{transform:rotate(4deg) scale(1.08)}50%{transform:rotate(-4deg) scale(1.12)}75%{transform:rotate(3deg) scale(1.08)}}
 @keyframes betFlyUp{0%{transform:translateY(0) scale(1);opacity:1}100%{transform:translateY(-200px) scale(0.3);opacity:0}}
+@keyframes bombPulse{0%,100%{transform:scale(1) rotate(-2deg)}50%{transform:scale(1.09) rotate(2deg)}}
+@keyframes bombTickLight{0%,100%{opacity:1}50%{opacity:0.08}}
+@keyframes bombRevealBounce{0%{transform:scale(0.2);opacity:0}60%{transform:scale(1.18)}80%{transform:scale(0.94)}100%{transform:scale(1);opacity:1}}
+@keyframes bombFlashBg{0%,100%{opacity:0}50%{opacity:0.55}}
+.bomb-pulse{animation:bombPulse 0.75s ease-in-out infinite}
+.bomb-tick-light{animation:bombTickLight 0.75s ease-in-out infinite}
+.bomb-reveal-anim{animation:bombRevealBounce 0.65s cubic-bezier(0.34,1.56,0.64,1) forwards}
+.new-bet-sheet-overlay{position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,0.45);display:flex;align-items:flex-end}
+.new-bet-sheet{background:#fff;border-radius:22px 22px 0 0;padding:20px 20px 36px;width:100%;box-sizing:border-box}
 @keyframes betPop{0%{transform:scale(1);opacity:1}40%{transform:scale(1.6);opacity:1}100%{transform:scale(0.1);opacity:0}}
 .bet-balloon-wrap{display:flex;align-items:center;justify-content:center;width:290px;height:290px;cursor:pointer;user-select:none;-webkit-user-select:none;position:relative;opacity:0.4;pointer-events:none;transition:opacity .3s}
 .bet-balloon-wrap.ready{opacity:1;pointer-events:auto}
@@ -960,8 +969,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     <!-- 화면1: 홈 -->
     <div id="bet-screen-home">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-        <div style="font-size:1.1rem;font-weight:900;color:#1e293b">🎈 릴레이 풍선 터치</div>
-        <button onclick="betShowSetup()" style="font-size:0.85rem;font-weight:700;padding:9px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,0.35)">+ 새 내기</button>
+        <div style="font-size:1.1rem;font-weight:900;color:#1e293b">🎲 내기 게임</div>
+        <button onclick="openNewBetSheet()" style="font-size:0.85rem;font-weight:700;padding:9px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,0.35)">+ 새 내기</button>
       </div>
       <div id="bet-history-list">
         <div class="card" style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.9rem">아직 내기 기록이 없습니다</div>
@@ -1081,6 +1090,119 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <div id="bet-cost-inputs"></div>
       </div>
       <button onclick="betSaveHistory()" style="width:100%;padding:15px;border-radius:14px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:1rem;font-weight:800;cursor:pointer;box-shadow:0 4px 18px rgba(124,58,237,0.35)">💾 저장하고 나가기</button>
+    </div>
+
+    <!-- 폭탄①: 방 목록 -->
+    <div id="bet-screen-bomb-list" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-size:1.05rem;font-weight:900;color:#1e293b">💣 시한폭탄 피하기</div>
+        <button onclick="bombShowSetup()" style="font-size:0.82rem;font-weight:700;padding:8px 16px;border-radius:12px;border:none;background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(220,38,38,0.35)">+ 방 만들기</button>
+      </div>
+      <div id="bomb-room-list"><div style="text-align:center;padding:50px 20px;color:#94a3b8;font-size:0.9rem">💣 열려있는 방이 없습니다<br><span style="font-size:0.8rem">방 만들기로 새 게임을 시작하세요</span></div></div>
+      <div style="margin-top:14px">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+          <div style="flex:1;height:1px;background:#e2e8f0"></div>
+          <span style="font-size:0.72rem;color:#94a3b8">코드로 빠른 입장</span>
+          <div style="flex:1;height:1px;background:#e2e8f0"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <input id="bomb-code-input" type="number" placeholder="4자리 코드" maxlength="4"
+            style="flex:1;font-size:1rem;padding:10px 14px;border-radius:10px;border:1.5px solid #e2e8f0;outline:none;color:#1e293b;box-sizing:border-box"
+            onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='#e2e8f0'">
+          <button onclick="bombJoinByCode()" style="padding:10px 18px;border-radius:10px;border:none;background:#dc2626;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer">입장</button>
+        </div>
+      </div>
+      <button onclick="betShowHome()" style="width:100%;margin-top:14px;padding:11px;border-radius:12px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:0.82rem;font-weight:600;cursor:pointer">← 돌아가기</button>
+    </div>
+
+    <!-- 폭탄②: 방 설정 (방장) -->
+    <div id="bet-screen-bomb-setup" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <button onclick="bombGoHome()" style="border:none;background:none;font-size:1.4rem;cursor:pointer;padding:0;color:#64748b">←</button>
+        <div style="font-size:1rem;font-weight:800;color:#1e293b">방 만들기</div>
+      </div>
+      <div class="card" style="margin-bottom:12px">
+        <div style="font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:8px">📝 내기 제목</div>
+        <input id="bomb-setup-title" type="text" placeholder="빈칸이면 자동 생성" maxlength="30"
+          style="width:100%;font-size:0.95rem;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;box-sizing:border-box;outline:none;color:#1e293b"
+          onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='#e2e8f0'">
+      </div>
+      <div class="card" style="margin-bottom:12px;padding:12px 16px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="font-size:0.75rem;font-weight:700;color:#64748b;flex:1">👥 최대 인원</div>
+          <button class="bet-loser-count-btn" onclick="bombChangeMaxPlayers(-1)">−</button>
+          <div style="font-size:1.5rem;font-weight:900;color:#dc2626;min-width:34px;text-align:center">
+            <span id="bomb-max-players-display">8</span><span style="font-size:0.8rem;color:#94a3b8;margin-left:2px">명</span>
+          </div>
+          <button class="bet-loser-count-btn" onclick="bombChangeMaxPlayers(1)">+</button>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:12px;padding:12px 16px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="font-size:0.75rem;font-weight:700;color:#64748b;flex:1">💣 탈락 인원 수</div>
+          <button class="bet-loser-count-btn" onclick="bombChangeLoserCount2(-1)">−</button>
+          <div style="font-size:1.5rem;font-weight:900;color:#dc2626;min-width:34px;text-align:center">
+            <span id="bomb-loser-count-display2">1</span><span style="font-size:0.8rem;color:#94a3b8;margin-left:2px">명</span>
+          </div>
+          <button class="bet-loser-count-btn" onclick="bombChangeLoserCount2(1)">+</button>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:20px">
+        <div style="font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:8px">💰 내기 금액 (선택)</div>
+        <input id="bomb-stake-input" type="text" placeholder="예) 3만원, 점심값..."
+          style="width:100%;font-size:0.95rem;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;box-sizing:border-box;outline:none;color:#1e293b"
+          onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='#e2e8f0'">
+      </div>
+      <button onclick="bombCreateRoom()" style="width:100%;padding:15px;border-radius:14px;border:none;background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;font-size:1rem;font-weight:800;cursor:pointer;box-shadow:0 4px 18px rgba(220,38,38,0.4)">💣 방 만들기</button>
+    </div>
+
+    <!-- 폭탄③: 마스터 보드 (방장) -->
+    <div id="bet-screen-bomb-master" style="display:none">
+      <div style="text-align:center;margin-bottom:12px">
+        <div style="font-size:0.65rem;font-weight:800;color:#dc2626;letter-spacing:0.12em;margin-bottom:4px">👑 방장 대기실</div>
+        <div id="bomb-master-title" style="font-size:1rem;font-weight:900;color:#1e293b;margin-bottom:6px"></div>
+        <div style="display:flex;justify-content:center;gap:10px;align-items:center">
+          <span id="bomb-master-code" style="font-size:0.8rem;background:#fee2e2;color:#dc2626;border-radius:8px;padding:3px 11px;font-weight:800"></span>
+          <span id="bomb-master-count" style="font-size:0.78rem;color:#64748b;font-weight:600"></span>
+        </div>
+      </div>
+      <div id="bomb-master-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px"></div>
+      <button id="bomb-start-btn" onclick="bombStartGame()"
+        style="width:100%;padding:15px;border-radius:14px;border:none;background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;font-size:1rem;font-weight:800;cursor:pointer;box-shadow:0 4px 18px rgba(220,38,38,0.4)">
+        💣 지금 바로 시작!
+      </button>
+    </div>
+
+    <!-- 폭탄④: 대기 화면 (멤버) -->
+    <div id="bet-screen-bomb-waiting" style="display:none;text-align:center;padding:16px 0">
+      <div id="bomb-waiting-title" style="font-size:0.9rem;font-weight:800;color:#1e293b;margin-bottom:4px"></div>
+      <div id="bomb-waiting-count" style="font-size:0.78rem;color:#64748b;margin-bottom:20px"></div>
+      <!-- 방+폭탄 이미지 -->
+      <div style="display:inline-block;margin-bottom:18px">
+        <div style="width:240px;height:190px;background:linear-gradient(180deg,#1e1b4b 0%,#312e81 55%,#4c1d95 100%);border-radius:20px;position:relative;overflow:hidden;box-shadow:0 8px 28px rgba(0,0,0,0.45);margin:0 auto">
+          <div style="position:absolute;top:18px;left:18px;width:48px;height:38px;background:#fef9c3;border-radius:6px;border:3px solid #92400e;box-shadow:0 0 14px #fef08a"></div>
+          <div style="position:absolute;top:18px;right:18px;width:48px;height:38px;background:#fef9c3;border-radius:6px;border:3px solid #92400e;box-shadow:0 0 14px #fef08a"></div>
+          <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:46px;height:68px;background:#78350f;border-radius:8px 8px 0 0;border:3px solid #92400e">
+            <div style="width:8px;height:8px;background:#fef08a;border-radius:50%;position:absolute;right:7px;top:50%;transform:translateY(-50%)"></div>
+          </div>
+          <div class="bomb-pulse" style="position:absolute;bottom:72px;left:50%;transform:translateX(-50%);font-size:3.8rem;filter:drop-shadow(0 0 10px rgba(255,80,0,0.9))">💣</div>
+          <div class="bomb-tick-light" style="position:absolute;bottom:116px;left:calc(50% + 14px);width:10px;height:10px;background:#fbbf24;border-radius:50%;box-shadow:0 0 10px #fbbf24"></div>
+        </div>
+      </div>
+      <div style="font-size:1.05rem;font-weight:800;color:#1e293b;margin-bottom:5px">방장이 시작하면 결과 공개!</div>
+      <div style="font-size:0.85rem;color:#dc2626;font-weight:700;margin-bottom:18px">폭탄방에서 탈출하세요 💨</div>
+      <div id="bomb-waiting-players" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:16px"></div>
+      <button onclick="bombLeaveRoom()" style="border:none;background:none;color:#94a3b8;font-size:0.8rem;cursor:pointer;text-decoration:underline">방 나가기</button>
+    </div>
+
+    <!-- 폭탄⑤: 결과 공개 -->
+    <div id="bet-screen-bomb-reveal" style="display:none;text-align:center;padding:30px 0">
+      <div id="bomb-reveal-emoji" class="bomb-reveal-anim" style="font-size:7rem;margin-bottom:14px;display:block"></div>
+      <div id="bomb-reveal-title" style="font-size:0.78rem;color:#94a3b8;margin-bottom:10px"></div>
+      <div id="bomb-reveal-msg" style="font-size:1.65rem;font-weight:900;margin-bottom:8px;line-height:1.3"></div>
+      <div id="bomb-reveal-sub" style="font-size:0.88rem;color:#64748b;margin-bottom:32px"></div>
+      <button id="bomb-reveal-master-btn" style="display:none;width:100%;padding:11px;border-radius:12px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:0.85rem;font-weight:600;cursor:pointer;margin-bottom:10px" onclick="bombShowMasterFromReveal()">📊 전체 현황 보기</button>
+      <button onclick="bombSaveAndHome()" style="width:100%;padding:15px;border-radius:14px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-size:1rem;font-weight:800;cursor:pointer;box-shadow:0 4px 18px rgba(124,58,237,0.35)">💾 저장하고 나가기</button>
     </div>
 
   </div><!-- /setup-panel-bet -->
@@ -7508,7 +7630,7 @@ function betPlayLose() {
 }
 
 function betShowScreen(id) {
-  ['home','setup','sound','game','result'].forEach(s => {
+  ['home','setup','sound','game','result','bomb-list','bomb-setup','bomb-master','bomb-waiting','bomb-reveal'].forEach(s => {
     const el = document.getElementById(`bet-screen-${s}`);
     if (el) el.style.display = s === id ? 'block' : 'none';
   });
@@ -8017,6 +8139,354 @@ function betRenderHome() {
       </div>`;
     }).join('');
   }).catch(() => {});
+}
+
+// ══════════════════════════════════════════════════════════
+// 새 내기 선택 시트
+// ══════════════════════════════════════════════════════════
+function openNewBetSheet() {
+  document.getElementById('new-bet-sheet').style.display = 'flex';
+}
+function closeNewBetSheet() {
+  document.getElementById('new-bet-sheet').style.display = 'none';
+}
+
+// ══════════════════════════════════════════════════════════
+// 💣 시한폭탄 피하기
+// ══════════════════════════════════════════════════════════
+
+let _bombState = {
+  roomId: null, isHost: false, room: null,
+  roomListener: null, roomsListener: null,
+  myName: null, revealed: false,
+};
+let _bombSetupState = { maxPlayers: 8, loserCount: 1 };
+
+// ── 진입 ──────────────────────────────────────────────────
+function bombGoHome() {
+  _bombState.myName = state.identity && state.identity.name;
+  if (!_bombState.myName) { alert('로그인이 필요합니다'); return; }
+  _bombCleanup();
+  betShowScreen('bomb-list');
+  _bombListenRooms();
+}
+
+// ── 방 목록 실시간 수신 ────────────────────────────────────
+function _bombListenRooms() {
+  if (_bombState.roomsListener) db.ref('jmt/bombRooms').off('value', _bombState.roomsListener);
+  const fn = snap => {
+    const rooms = [];
+    snap.forEach(child => {
+      const r = child.val();
+      if (r && r.status !== 'done') rooms.push({ id: child.key, ...r });
+    });
+    _bombRenderList(rooms);
+  };
+  _bombState.roomsListener = fn;
+  db.ref('jmt/bombRooms').on('value', fn);
+}
+
+function _bombRenderList(rooms) {
+  const el = document.getElementById('bomb-room-list');
+  if (!el) return;
+  if (!rooms.length) {
+    el.innerHTML = '<div style="text-align:center;padding:50px 20px;color:#94a3b8;font-size:0.9rem">💣 열려있는 방이 없습니다<br><span style="font-size:0.8rem">방 만들기로 새 게임을 시작하세요</span></div>';
+    return;
+  }
+  el.innerHTML = rooms.map(r => {
+    const cnt = Object.keys(r.players || {}).length;
+    const isPlaying = r.status === 'playing';
+    return `<div onclick="${isPlaying ? '' : `bombJoinRoom('${r.id}')`}"
+      style="background:#fff;border-radius:16px;border:1.5px solid ${isPlaying ? '#fca5a5' : '#e2e8f0'};padding:16px;margin-bottom:10px;cursor:${isPlaying ? 'default' : 'pointer'};opacity:${isPlaying ? '0.65' : '1'}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-size:0.95rem;font-weight:800;color:#1e293b">${r.title}</div>
+        <span style="font-size:0.65rem;background:${isPlaying ? '#fee2e2' : '#f0fdf4'};color:${isPlaying ? '#dc2626' : '#16a34a'};border-radius:6px;padding:2px 8px;font-weight:700">${isPlaying ? '진행중' : '대기중'}</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:0.78rem;color:#64748b">💣 ${r.loserCount}명 탈락 · 👥 ${cnt}/${r.maxPlayers}명</span>
+        ${r.stake ? `<span style="font-size:0.7rem;background:#fef3c7;color:#b45309;border-radius:6px;padding:2px 7px;font-weight:700">${r.stake}</span>` : ''}
+      </div>
+      <div style="font-size:0.68rem;color:#94a3b8;margin-top:4px">방장: ${r.hostName} · 코드 ${r.code}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── 방 설정 화면 ───────────────────────────────────────────
+function bombShowSetup() {
+  document.getElementById('bomb-setup-title').value = '';
+  _bombSetupState = { maxPlayers: 8, loserCount: 1 };
+  document.getElementById('bomb-max-players-display').textContent = '8';
+  document.getElementById('bomb-loser-count-display2').textContent = '1';
+  document.getElementById('bomb-stake-input').value = '';
+  betShowScreen('bomb-setup');
+}
+
+function bombChangeMaxPlayers(d) {
+  _bombSetupState.maxPlayers = Math.max(2, Math.min(15, _bombSetupState.maxPlayers + d));
+  document.getElementById('bomb-max-players-display').textContent = _bombSetupState.maxPlayers;
+  if (_bombSetupState.loserCount >= _bombSetupState.maxPlayers) {
+    _bombSetupState.loserCount = _bombSetupState.maxPlayers - 1;
+    document.getElementById('bomb-loser-count-display2').textContent = _bombSetupState.loserCount;
+  }
+}
+function bombChangeLoserCount2(d) {
+  _bombSetupState.loserCount = Math.max(1, Math.min(_bombSetupState.maxPlayers - 1, _bombSetupState.loserCount + d));
+  document.getElementById('bomb-loser-count-display2').textContent = _bombSetupState.loserCount;
+}
+
+// ── 방 생성 ────────────────────────────────────────────────
+function bombCreateRoom() {
+  const raw = document.getElementById('bomb-setup-title').value.trim();
+  const places = ['압구정','홍대','강남','이태원','신촌','건대','명동','종로','여의도','성수','합정','을지로','망원','연남동','서래마을'];
+  const items  = ['삼겹살에 소주 사기','치킨에 맥주 사기','냉면 사기','족발 한 판 사기','초밥 사기','마라탕 사기','라멘 사기','피자 사기','곱창 사기','한우 구이 사기','갈비찜 사기','보쌈 사기','커피 쏘기','아이스크림 사기','파전에 막걸리 사기','소고기 쏘기','밥값 내기','점심 쏘기','디저트 사기'];
+  const title = raw || `${places[Math.floor(Math.random()*places.length)]}에서 ${items[Math.floor(Math.random()*items.length)]}`;
+  const code  = String(Math.floor(1000 + Math.random() * 9000));
+  const hostName = _bombState.myName;
+
+  const room = {
+    code, title, hostName,
+    maxPlayers: _bombSetupState.maxPlayers,
+    loserCount: _bombSetupState.loserCount,
+    stake: document.getElementById('bomb-stake-input').value.trim() || '',
+    status: 'waiting',
+    createdAt: new Date().toISOString(),
+    players: { [hostName]: { isHost: true, joinedAt: new Date().toISOString(), result: null } }
+  };
+
+  const ref = db.ref('jmt/bombRooms').push(room);
+  _bombState.roomId = ref.key;
+  _bombState.isHost = true;
+  _bombState.revealed = false;
+  _bombListenRoom(_bombState.roomId);
+  betShowScreen('bomb-master');
+}
+
+// ── 방 참여 ────────────────────────────────────────────────
+function bombJoinRoom(roomId) {
+  db.ref(`jmt/bombRooms/${roomId}`).once('value').then(snap => {
+    const room = snap.val();
+    if (!room) { alert('방이 존재하지 않습니다'); return; }
+    if (room.status === 'playing') { alert('이미 게임이 진행 중입니다'); return; }
+    const myName = _bombState.myName;
+    if (!(room.players && room.players[myName])) {
+      if (Object.keys(room.players||{}).length >= room.maxPlayers) { alert('방이 가득 찼습니다'); return; }
+      db.ref(`jmt/bombRooms/${roomId}/players/${myName}`).set({ isHost: false, joinedAt: new Date().toISOString(), result: null });
+    }
+    _bombState.roomId = roomId;
+    _bombState.isHost = false;
+    _bombState.revealed = false;
+    _bombListenRoom(roomId);
+    betShowScreen('bomb-waiting');
+  });
+}
+
+function bombJoinByCode() {
+  const code = (document.getElementById('bomb-code-input').value || '').trim();
+  if (!code || code.length > 4) { alert('4자리 코드를 입력해주세요'); return; }
+  db.ref('jmt/bombRooms').orderByChild('code').equalTo(code).once('value').then(snap => {
+    let roomId = null;
+    snap.forEach(child => { if (child.val().status === 'waiting') roomId = child.key; });
+    if (!roomId) { alert('해당 코드의 방이 없거나 이미 시작됐습니다'); return; }
+    bombJoinRoom(roomId);
+  });
+}
+
+function bombLeaveRoom() {
+  if (_bombState.roomId && !_bombState.isHost && _bombState.myName) {
+    db.ref(`jmt/bombRooms/${_bombState.roomId}/players/${_bombState.myName}`).remove();
+  }
+  _bombCleanup();
+  bombGoHome();
+}
+
+// ── 방 실시간 구독 ─────────────────────────────────────────
+function _bombListenRoom(roomId) {
+  if (_bombState.roomListener && _bombState.roomId) {
+    db.ref(`jmt/bombRooms/${_bombState.roomId}`).off('value', _bombState.roomListener);
+  }
+  const fn = snap => {
+    const room = snap.val();
+    if (!room) return;
+    _bombState.room = room;
+    if (_bombState.isHost) _bombRenderMaster(room);
+    else _bombRenderWaiting(room);
+    // 결과 공개 트리거
+    if (room.status === 'playing' && !_bombState.revealed) {
+      const me = room.players && room.players[_bombState.myName];
+      if (me && me.result) { _bombState.revealed = true; bombReveal(me.result, room); }
+    }
+  };
+  _bombState.roomListener = fn;
+  db.ref(`jmt/bombRooms/${roomId}`).on('value', fn);
+}
+
+// ── 마스터 보드 (방장) ─────────────────────────────────────
+function _bombRenderMaster(room) {
+  const players = room.players || {};
+  const list = Object.entries(players).sort((a,b) => (a[1].joinedAt||'').localeCompare(b[1].joinedAt||''));
+  const cnt = list.length;
+  const isPlaying = room.status === 'playing';
+
+  const titleEl = document.getElementById('bomb-master-title');
+  if (titleEl) titleEl.textContent = room.title;
+  const codeEl = document.getElementById('bomb-master-code');
+  if (codeEl) codeEl.textContent = `코드: ${room.code}`;
+  const countEl = document.getElementById('bomb-master-count');
+  if (countEl) countEl.textContent = `${cnt}/${room.maxPlayers}명 입장`;
+
+  const grid = document.getElementById('bomb-master-grid');
+  if (!grid) return;
+  const slots = Array(room.maxPlayers).fill(null);
+  list.forEach(([name, data], i) => { slots[i] = { name, ...data }; });
+
+  grid.innerHTML = slots.map(p => {
+    if (!p) return `<div style="background:#f8fafc;border:2px dashed #e2e8f0;border-radius:12px;padding:12px 6px;text-align:center;color:#cbd5e1;font-size:0.72rem">빈 슬롯</div>`;
+    let bg = '#f0fdf4', border = '#86efac', emoji = '✅', label = isPlaying ? '' : '준비완료';
+    if (isPlaying && p.result === 'loser')  { bg='#fff1f2'; border='#fca5a5'; emoji='💥'; label='탈락!'; }
+    if (isPlaying && p.result === 'winner') { bg='#f0fdf4'; border='#86efac'; emoji='😊'; label='안전!'; }
+    if (!isPlaying) { bg='#f0fdf4'; border='#86efac'; }
+    return `<div style="background:${bg};border:2px solid ${border};border-radius:12px;padding:10px 6px;text-align:center">
+      <div style="font-size:1.3rem;margin-bottom:3px">${emoji}</div>
+      <div style="font-size:0.75rem;font-weight:700;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}${p.isHost ? ' 👑' : ''}</div>
+      ${label ? `<div style="font-size:0.62rem;color:#64748b;margin-top:2px">${label}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  const startBtn = document.getElementById('bomb-start-btn');
+  if (startBtn) {
+    startBtn.style.display = isPlaying ? 'none' : 'block';
+    const canStart = cnt >= 2;
+    startBtn.disabled = !canStart;
+    startBtn.style.opacity = canStart ? '1' : '0.45';
+  }
+}
+
+// ── 대기 화면 (멤버) ───────────────────────────────────────
+function _bombRenderWaiting(room) {
+  if (room.status === 'playing') return;
+  const cnt = Object.keys(room.players || {}).length;
+  const titleEl = document.getElementById('bomb-waiting-title');
+  if (titleEl) titleEl.textContent = room.title;
+  const countEl = document.getElementById('bomb-waiting-count');
+  if (countEl) countEl.textContent = `${cnt}명 입장 (최대 ${room.maxPlayers}명)`;
+  const listEl = document.getElementById('bomb-waiting-players');
+  if (listEl) {
+    listEl.innerHTML = Object.entries(room.players||{})
+      .map(([name]) => `<span style="background:#f0fdf4;border:1px solid #86efac;border-radius:20px;padding:5px 12px;font-size:0.78rem;font-weight:600;color:#166534">${name}</span>`)
+      .join('');
+  }
+}
+
+// ── 게임 시작 (방장) ───────────────────────────────────────
+function bombStartGame() {
+  const room = _bombState.room;
+  if (!room || !_bombState.isHost) return;
+  const players = room.players || {};
+  const names = Object.keys(players);
+  if (names.length < 2) { alert('2명 이상 필요합니다'); return; }
+
+  const shuffled = [...names].sort(() => Math.random() - 0.5);
+  const losers   = new Set(shuffled.slice(0, room.loserCount));
+  const updates  = { [`jmt/bombRooms/${_bombState.roomId}/status`]: 'playing' };
+  names.forEach(n => { updates[`jmt/bombRooms/${_bombState.roomId}/players/${n}/result`] = losers.has(n) ? 'loser' : 'winner'; });
+  db.ref().update(updates);
+}
+
+// ── 결과 공개 ──────────────────────────────────────────────
+function bombReveal(result, room) {
+  const isLoser = result === 'loser';
+  const emojiEl = document.getElementById('bomb-reveal-emoji');
+  emojiEl.textContent = isLoser ? '💥' : '🎉';
+  emojiEl.className = 'bomb-reveal-anim';
+  document.getElementById('bomb-reveal-title').textContent = room.title;
+  const msgEl = document.getElementById('bomb-reveal-msg');
+  msgEl.textContent = isLoser ? '당신이 밥 쏠 차례입니다!' : '축하합니다! 무료 식사 확정';
+  msgEl.style.color = isLoser ? '#dc2626' : '#16a34a';
+  document.getElementById('bomb-reveal-sub').textContent = isLoser ? '💣 폭탄방에서 탈출 실패!' : '🎊 폭탄방을 피했어요!';
+  const masterBtn = document.getElementById('bomb-reveal-master-btn');
+  if (masterBtn) masterBtn.style.display = _bombState.isHost ? 'block' : 'none';
+  betShowScreen('bomb-reveal');
+  _bombPlayReveal(isLoser);
+  if (isLoser) _bombFlash();
+}
+
+function bombShowMasterFromReveal() {
+  betShowScreen('bomb-master');
+  if (_bombState.room) _bombRenderMaster(_bombState.room);
+}
+
+// ── 효과음 ─────────────────────────────────────────────────
+function _bombPlayReveal(isLoser) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (isLoser) {
+      for (let i = 0; i < 3; i++) {
+        [[400,900],[900,400]].forEach(([s,e], j) => {
+          const o = ctx.createOscillator(), g = ctx.createGain();
+          o.type = 'sawtooth';
+          const t = ctx.currentTime + i * 0.9 + j * 0.45;
+          o.frequency.setValueAtTime(s, t);
+          o.frequency.linearRampToValueAtTime(e, t + 0.42);
+          g.gain.setValueAtTime(0.38, t); g.gain.linearRampToValueAtTime(0, t + 0.42);
+          o.connect(g); g.connect(ctx.destination);
+          o.start(t); o.stop(t + 0.45);
+        });
+      }
+    } else {
+      [523, 659, 784, 1047].forEach((freq, i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = freq;
+        const t = ctx.currentTime + i * 0.13;
+        g.gain.setValueAtTime(0.45, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t); o.stop(t + 0.38);
+      });
+    }
+  } catch(e) {}
+}
+
+function _bombFlash() {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:#dc2626;z-index:9999;pointer-events:none;opacity:0;transition:opacity 0.1s';
+  document.body.appendChild(overlay);
+  let n = 0;
+  const go = () => {
+    if (n >= 8) { overlay.remove(); return; }
+    overlay.style.opacity = n % 2 === 0 ? '0.5' : '0';
+    n++; setTimeout(go, 130);
+  };
+  go();
+}
+
+// ── 저장 후 홈 ─────────────────────────────────────────────
+function bombSaveAndHome() {
+  const room = _bombState.room;
+  if (room && _bombState.isHost && db) {
+    const players = room.players || {};
+    const losers  = Object.entries(players).filter(([,p]) => p.result==='loser').map(([n])=>n);
+    const winners = Object.entries(players).filter(([,p]) => p.result==='winner').map(([n])=>n);
+    const now = new Date();
+    db.ref('jmt/betHistory').push({
+      title: `[${now.toISOString().slice(0,10)}] ${room.title}`,
+      betTitle: room.title,
+      date: now.toISOString().slice(0,10),
+      participants: Object.keys(players),
+      loserCount: room.loserCount,
+      losers, winners, costs: {},
+      gameType: 'bomb',
+      createdAt: now.toISOString()
+    });
+    db.ref(`jmt/bombRooms/${_bombState.roomId}`).remove();
+  }
+  _bombCleanup();
+  betShowHome();
+}
+
+// ── 정리 ───────────────────────────────────────────────────
+function _bombCleanup() {
+  if (_bombState.roomsListener) { db.ref('jmt/bombRooms').off('value', _bombState.roomsListener); }
+  if (_bombState.roomListener && _bombState.roomId) { db.ref(`jmt/bombRooms/${_bombState.roomId}`).off('value', _bombState.roomListener); }
+  _bombState = { roomId:null, isHost:false, room:null, roomListener:null, roomsListener:null, myName:_bombState.myName, revealed:false };
 }
 
 // ══════════════════════════════════════════════════════════
@@ -9529,5 +9999,26 @@ function deleteMpHistory(pollId, event) {
   }, { passive: true });
 })();
 </script>
+<!-- 새 내기 게임 선택 시트 -->
+<div id="new-bet-sheet" class="new-bet-sheet-overlay" style="display:none" onclick="if(event.target===this)closeNewBetSheet()">
+  <div class="new-bet-sheet">
+    <div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 18px"></div>
+    <div style="font-size:0.72rem;font-weight:800;color:#94a3b8;letter-spacing:0.1em;text-align:center;margin-bottom:16px">게임 선택</div>
+    <button onclick="closeNewBetSheet();betShowSetup()" style="width:100%;padding:16px;border-radius:16px;border:1.5px solid #ede9fe;background:linear-gradient(135deg,#f5f3ff,#ede9fe);color:#1e293b;font-size:0.95rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:10px;display:flex;align-items:center;gap:14px">
+      <span style="font-size:2rem">🎈</span>
+      <div>
+        <div style="font-weight:800;margin-bottom:2px">릴레이 풍선 터치</div>
+        <div style="font-size:0.75rem;color:#7c3aed;font-weight:600">한 명씩 순서대로 터치 — 끝까지 살아남아라!</div>
+      </div>
+    </button>
+    <button onclick="closeNewBetSheet();bombGoHome()" style="width:100%;padding:16px;border-radius:16px;border:1.5px solid #fee2e2;background:linear-gradient(135deg,#fff5f5,#fee2e2);color:#1e293b;font-size:0.95rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:14px">
+      <span style="font-size:2rem">💣</span>
+      <div>
+        <div style="font-weight:800;margin-bottom:2px">시한폭탄 피하기</div>
+        <div style="font-size:0.75rem;color:#dc2626;font-weight:600">방장이 시작 — 동시에 폭탄방 공개!</div>
+      </div>
+    </button>
+  </div>
+</div>
 </body>
 </html>
