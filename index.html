@@ -8036,10 +8036,10 @@ function _betStatsHtml(data) {
   const allCost   = Object.entries(costTotal).sort((a,b)=>b[1]-a[1]);
   if (!allLosers.length && !allCost.length) return '';
 
-  function barRows(entries, unit, color, offset) {
+  function barRows(entries, unit, color, offset, globalMax) {
     if (!entries.length) return '<div style="font-size:0.78rem;color:#94a3b8;padding:6px 0">데이터 없음</div>';
     const off = offset || 0;
-    const max = (allLosers[0]||allCost[0]||[[],1])[1] || entries[0][1] || 1;
+    const max = globalMax || entries[0][1] || 1;
     return entries.map(([name, val], i) => {
       const pos = i + off;
       const pct = Math.round((val / max) * 100);
@@ -8062,16 +8062,17 @@ function _betStatsHtml(data) {
   function statsCard(allEntries, unit, color, title, idPrefix) {
     const top5 = allEntries.slice(0,5);
     const rest  = allEntries.slice(5);
+    const globalMax = allEntries.length ? allEntries[0][1] : 1;
     const moreBtn = rest.length ? `<button onclick="
       var el=document.getElementById('${idPrefix}-more');
       var btn=this;
       if(el.style.display==='none'){el.style.display='block';btn.textContent='접기 ▲';}
       else{el.style.display='none';btn.textContent='더보기 ▼';}
     " style="width:100%;margin-top:6px;padding:5px;border:none;background:none;color:#94a3b8;font-size:0.72rem;cursor:pointer;font-weight:600">더보기 ▼</button>
-    <div id="${idPrefix}-more" style="display:none">${barRows(rest, unit, color, 5)}</div>` : '';
+    <div id="${idPrefix}-more" style="display:none">${barRows(rest, unit, color, 5, globalMax)}</div>` : '';
     return `<div class="card" style="padding:14px 12px">
       <div style="font-size:0.7rem;font-weight:800;color:${color==='#f87171'?'#dc2626':'#7c3aed'};letter-spacing:0.06em;margin-bottom:10px">${title} TOP 5</div>
-      ${barRows(top5, unit, color, 0)}
+      ${barRows(top5, unit, color, 0, globalMax)}
       ${moreBtn}
     </div>`;
   }
@@ -8084,8 +8085,20 @@ function _betStatsHtml(data) {
 
 function betRenderHome() {
   if (!db) return;
+
+  // 활성 방에 참여 중이면 해당 화면으로 바로 복귀
+  if (_bombState.roomId && _bombState.room) {
+    if (_bombState.isHost) {
+      betShowScreen('bomb-master');
+      _bombRenderMaster(_bombState.room);
+      return;
+    } else if (!_bombState.revealed) {
+      betShowScreen('bomb-waiting');
+      return;
+    }
+  }
+
   const mgr = isManager();
-  // 관리자 여부에 따라 헤더 표시
   const headerEl = document.getElementById('bet-home-header');
   if (headerEl) headerEl.style.display = mgr ? 'block' : 'none';
 
@@ -8097,18 +8110,25 @@ function betRenderHome() {
     db.ref('jmt/bombRooms').once('value').then(snap => {
       const rooms = [];
       snap.forEach(child => { const r = child.val(); if (r && r.status === 'waiting') rooms.push({id:child.key,...r}); });
+      const myName = state.identity && state.identity.name;
       if (mgr) {
         // 관리자: 작은 배너
         if (!rooms.length) { bannerEl.innerHTML = ''; return; }
         bannerEl.innerHTML = rooms.map(r => {
           const cnt = Object.keys(r.players||{}).length;
-          return `<div onclick="bombJoinFromHome('${r.id}')" style="background:linear-gradient(135deg,#fff5f5,#fee2e2);border:1.5px solid #fca5a5;border-radius:14px;padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          const isMyRoom = r.hostName === myName;
+          const action = isMyRoom
+            ? `onclick="bombRejoinAsHost('${r.id}')"` : `onclick="bombJoinFromHome('${r.id}')"`;
+          const badge = isMyRoom
+            ? `<div style="font-size:0.75rem;font-weight:700;color:#7c3aed;background:#f5f3ff;border-radius:8px;padding:5px 10px;border:1px solid #ede9fe">👑 내 방</div>`
+            : `<div style="font-size:0.75rem;font-weight:700;color:#dc2626;background:#fff;border-radius:8px;padding:5px 10px;border:1px solid #fca5a5">입장 →</div>`;
+          return `<div ${action} style="background:linear-gradient(135deg,#fff5f5,#fee2e2);border:1.5px solid ${isMyRoom?'#c4b5fd':'#fca5a5'};border-radius:14px;padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:8px">
             <div style="font-size:1.5rem">💣</div>
             <div style="flex:1">
               <div style="font-size:0.88rem;font-weight:800;color:#1e293b">${r.title}</div>
-              <div style="font-size:0.72rem;color:#dc2626;margin-top:2px">방장: ${r.hostName} · ${cnt}명 대기중</div>
+              <div style="font-size:0.72rem;color:#dc2626;margin-top:2px">${isMyRoom?'내가 만든 방':'방장: '+r.hostName} · ${cnt}명 대기중</div>
             </div>
-            <div style="font-size:0.75rem;font-weight:700;color:#dc2626;background:#fff;border-radius:8px;padding:5px 10px;border:1px solid #fca5a5">입장 →</div>
+            ${badge}
           </div>`;
         }).join('');
       } else {
@@ -8238,6 +8258,16 @@ function bombJoinFromHome(roomId) {
   if (!_bombState.myName) { alert('로그인이 필요합니다'); return; }
   _bombCleanup();
   bombJoinRoom(roomId);
+}
+function bombRejoinAsHost(roomId) {
+  _bombState.myName = state.identity && state.identity.name;
+  if (!_bombState.myName) { alert('로그인이 필요합니다'); return; }
+  _bombCleanup();
+  _bombState.roomId = roomId;
+  _bombState.isHost = true;
+  _bombState.revealed = false;
+  _bombListenRoom(roomId);
+  betShowScreen('bomb-master');
 }
 
 // ══════════════════════════════════════════════════════════
@@ -8383,7 +8413,12 @@ function _bombListenRoom(roomId) {
   }
   const fn = snap => {
     const room = snap.val();
-    if (!room) return;
+    if (!room) {
+      // 방이 삭제됨(방장 취소) → 전원 홈으로
+      _bombCleanup();
+      betShowHome();
+      return;
+    }
     _bombState.room = room;
     if (_bombState.isHost) _bombRenderMaster(room);
     else _bombRenderWaiting(room);
@@ -8443,10 +8478,9 @@ function _bombRenderMaster(room) {
   const actionEl = document.getElementById('bomb-master-action');
   if (!actionEl) return;
   if (!isPlaying) {
-    // 대기 중: 방장만 시작 버튼 (위에 있음), 멤버는 나가기
-    actionEl.innerHTML = !_bombState.isHost
-      ? `<button onclick="bombLeaveAndHome()" style="width:100%;padding:12px;border-radius:12px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:0.88rem;font-weight:600;cursor:pointer">나가기</button>`
-      : '';
+    actionEl.innerHTML = _bombState.isHost
+      ? `<button onclick="bombCancelRoom()" style="width:100%;margin-top:6px;padding:11px;border-radius:12px;border:1.5px solid #fca5a5;background:#fff5f5;color:#dc2626;font-size:0.82rem;font-weight:700;cursor:pointer">✕ 방 취소하기</button>`
+      : `<button onclick="bombLeaveAndHome()" style="width:100%;padding:12px;border-radius:12px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:0.88rem;font-weight:600;cursor:pointer">나가기</button>`;
     return;
   }
   // 게임 종료 상태
@@ -8607,6 +8641,13 @@ function bombSaveAndHome() {
   }
   _bombCleanup();
   betShowHome();
+}
+
+// ── 방 취소 (방장, 게임 시작 전) ────────────────────────────
+function bombCancelRoom() {
+  if (!_bombState.isHost || !_bombState.roomId || !db) return;
+  // room 삭제 → 모든 참여자의 _bombListenRoom null 핸들러가 자동으로 betShowHome() 호출
+  db.ref(`jmt/bombRooms/${_bombState.roomId}`).remove();
 }
 
 // ── 나가기 (멤버) ───────────────────────────────────────────
