@@ -8111,54 +8111,74 @@ function betRenderHome() {
       const rooms = [];
       snap.forEach(child => { const r = child.val(); if (r && r.status === 'waiting') rooms.push({id:child.key,...r}); });
       const myName = state.identity && state.identity.name;
-      if (mgr) {
-        // 관리자: 작은 배너
-        if (!rooms.length) { bannerEl.innerHTML = ''; return; }
-        bannerEl.innerHTML = rooms.map(r => {
-          const cnt = Object.keys(r.players||{}).length;
-          const isMyRoom = r.hostName === myName;
-          const action = isMyRoom
-            ? `onclick="bombRejoinAsHost('${r.id}')"` : `onclick="bombJoinFromHome('${r.id}')"`;
-          const badge = isMyRoom
-            ? `<div style="font-size:0.75rem;font-weight:700;color:#7c3aed;background:#f5f3ff;border-radius:8px;padding:5px 10px;border:1px solid #ede9fe">👑 내 방</div>`
-            : `<div style="font-size:0.75rem;font-weight:700;color:#dc2626;background:#fff;border-radius:8px;padding:5px 10px;border:1px solid #fca5a5">입장 →</div>`;
-          return `<div ${action} style="background:linear-gradient(135deg,#fff5f5,#fee2e2);border:1.5px solid ${isMyRoom?'#c4b5fd':'#fca5a5'};border-radius:14px;padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:8px">
-            <div style="font-size:1.5rem">💣</div>
-            <div style="flex:1">
-              <div style="font-size:0.88rem;font-weight:800;color:#1e293b">${r.title}</div>
-              <div style="font-size:0.72rem;color:#dc2626;margin-top:2px">${isMyRoom?'내가 만든 방':'방장: '+r.hostName} · ${cnt}명 대기중</div>
-            </div>
-            ${badge}
-          </div>`;
-        }).join('');
-      } else {
-        // 멤버: 크고 화려한 입장 카드
-        if (!rooms.length) {
-          bannerEl.innerHTML = `<div style="text-align:center;padding:60px 20px">
-            <div style="font-size:4rem;margin-bottom:16px;opacity:0.25">💣</div>
-            <div style="font-size:1rem;font-weight:700;color:#94a3b8">현재 진행 중인 게임이 없습니다</div>
-            <div style="font-size:0.8rem;color:#cbd5e1;margin-top:6px">방장이 방을 만들면 여기에 표시됩니다</div>
-          </div>`;
-          if (histEl) histEl.innerHTML = '';
-          return;
-        }
-        bannerEl.innerHTML = rooms.map(r => {
-          const cnt = Object.keys(r.players||{}).length;
-          const names = Object.keys(r.players||{}).join(' · ');
-          return `<div onclick="bombJoinFromHome('${r.id}')" style="cursor:pointer;background:linear-gradient(145deg,#1e1b4b,#4c1d95);border-radius:22px;padding:28px 22px;margin-bottom:14px;box-shadow:0 8px 30px rgba(76,29,149,0.45);position:relative;overflow:hidden">
-            <div style="position:absolute;top:-20px;right:-20px;font-size:8rem;opacity:0.08;pointer-events:none">💣</div>
-            <div style="font-size:0.7rem;font-weight:800;color:rgba(255,255,255,0.6);letter-spacing:0.1em;margin-bottom:8px">💣 시한폭탄 피하기</div>
-            <div style="font-size:1.3rem;font-weight:900;color:#fff;margin-bottom:6px;line-height:1.3">${r.title}</div>
-            <div style="font-size:0.8rem;color:rgba(255,255,255,0.65);margin-bottom:20px">방장: ${r.hostName} · 탈락 ${r.loserCount}명</div>
-            ${names ? `<div style="font-size:0.75rem;color:rgba(255,255,255,0.5);margin-bottom:20px">${names}</div>` : ''}
-            <div style="background:linear-gradient(135deg,#ef4444,#dc2626);border-radius:14px;padding:14px;text-align:center;font-size:1rem;font-weight:800;color:#fff;letter-spacing:0.04em;box-shadow:0 4px 16px rgba(220,38,38,0.5)">
-              💥 지금 입장하기 · ${cnt}명 대기중
-            </div>
-          </div>`;
-        }).join('');
-        if (histEl) histEl.innerHTML = '';
+
+      if (!rooms.length) {
+        bannerEl.innerHTML = mgr ? '' : `<div style="text-align:center;padding:60px 20px">
+          <div style="font-size:4rem;margin-bottom:16px;opacity:0.25">💣</div>
+          <div style="font-size:1rem;font-weight:700;color:#94a3b8">현재 진행 중인 게임이 없습니다</div>
+          <div style="font-size:0.8rem;color:#cbd5e1;margin-top:6px">방장이 방을 만들면 여기에 표시됩니다</div>
+        </div>`;
+        if (!mgr && histEl) histEl.innerHTML = '';
         return;
       }
+
+      // 방마다 나와의 관계 판단 (mgr/멤버 무관)
+      bannerEl.innerHTML = rooms.map(r => {
+        const players = r.players || {};
+        const cnt = Object.keys(players).length;
+        const isHost   = r.hostName === myName;
+        const isJoined = !isHost && !!players[myName];
+
+        if (mgr) {
+          // 관리자: 소형 카드
+          let borderColor = '#fca5a5', badgeHtml = '', clickAttr = '';
+          if (isHost) {
+            borderColor = '#c4b5fd';
+            badgeHtml = `<div style="font-size:0.72rem;font-weight:700;color:#7c3aed;background:#f5f3ff;border-radius:8px;padding:4px 9px;border:1px solid #ede9fe;white-space:nowrap">👑 내 방</div>`;
+            clickAttr = `onclick="bombRejoinAsHost('${r.id}')"`;
+          } else if (isJoined) {
+            borderColor = '#86efac';
+            badgeHtml = `<div style="font-size:0.72rem;font-weight:700;color:#16a34a;background:#f0fdf4;border-radius:8px;padding:4px 9px;border:1px solid #86efac;white-space:nowrap">대기중</div>`;
+            clickAttr = `onclick="bombRejoinAsMember('${r.id}')"`;
+          } else {
+            badgeHtml = `<div style="font-size:0.72rem;font-weight:700;color:#dc2626;background:#fff;border-radius:8px;padding:4px 9px;border:1px solid #fca5a5;white-space:nowrap">입장 →</div>`;
+            clickAttr = `onclick="bombJoinFromHome('${r.id}')"`;
+          }
+          return `<div ${clickAttr} style="background:linear-gradient(135deg,#fff5f5,#fee2e2);border:1.5px solid ${borderColor};border-radius:14px;padding:11px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:8px">
+            <div style="font-size:1.4rem">💣</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:0.85rem;font-weight:800;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.title}</div>
+              <div style="font-size:0.7rem;color:#dc2626;margin-top:1px">${isHost?'내가 만든 방':'방장: '+r.hostName} · ${cnt}명</div>
+            </div>
+            ${badgeHtml}
+          </div>`;
+        } else {
+          // 멤버: 대형 카드
+          let actionHtml = '';
+          if (isHost) {
+            actionHtml = `<div style="background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:14px;padding:14px;text-align:center;font-size:1rem;font-weight:800;color:#fff;box-shadow:0 4px 16px rgba(124,58,237,0.5)" onclick="bombRejoinAsHost('${r.id}')">👑 내 방으로 돌아가기</div>`;
+          } else if (isJoined) {
+            actionHtml = `<div style="background:rgba(255,255,255,0.12);border-radius:14px;padding:14px;text-align:center;font-size:0.95rem;font-weight:700;color:rgba(255,255,255,0.75)" onclick="bombRejoinAsMember('${r.id}')">✅ 이미 입장 · 대기 중</div>`;
+          } else {
+            actionHtml = `<div style="background:linear-gradient(135deg,#ef4444,#dc2626);border-radius:14px;padding:14px;text-align:center;font-size:1rem;font-weight:800;color:#fff;box-shadow:0 4px 16px rgba(220,38,38,0.5)" onclick="bombJoinFromHome('${r.id}')">💥 지금 입장하기 · ${cnt}명 대기중</div>`;
+          }
+          const memberChips = Object.entries(players).map(([n,p])=>
+            `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.15);border-radius:20px;padding:4px 10px;font-size:0.75rem;font-weight:600;color:#fff">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+              ${n}${p.isHost?' 👑':''}
+            </span>`
+          ).join('');
+          return `<div style="cursor:default;background:linear-gradient(145deg,#1e1b4b,#4c1d95);border-radius:22px;padding:24px 20px;margin-bottom:14px;box-shadow:0 8px 30px rgba(76,29,149,0.45);position:relative;overflow:hidden">
+            <div style="position:absolute;top:-20px;right:-20px;font-size:8rem;opacity:0.08;pointer-events:none">💣</div>
+            <div style="font-size:0.7rem;font-weight:800;color:rgba(255,255,255,0.55);letter-spacing:0.1em;margin-bottom:8px">💣 시한폭탄 피하기</div>
+            <div style="font-size:1.2rem;font-weight:900;color:#fff;margin-bottom:4px;line-height:1.3">${r.title}</div>
+            <div style="font-size:0.78rem;color:rgba(255,255,255,0.6);margin-bottom:14px">방장: ${r.hostName} · 탈락 ${r.loserCount}명</div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:16px">${memberChips}</div>
+            ${actionHtml}
+          </div>`;
+        }
+      }).join('');
+      if (!mgr && histEl) histEl.innerHTML = '';
     }).catch(()=>{});
   }
 
@@ -8268,6 +8288,16 @@ function bombRejoinAsHost(roomId) {
   _bombState.revealed = false;
   _bombListenRoom(roomId);
   betShowScreen('bomb-master');
+}
+function bombRejoinAsMember(roomId) {
+  _bombState.myName = state.identity && state.identity.name;
+  if (!_bombState.myName) { return; }
+  _bombCleanup();
+  _bombState.roomId = roomId;
+  _bombState.isHost = false;
+  _bombState.revealed = false;
+  _bombListenRoom(roomId);
+  betShowScreen('bomb-waiting');
 }
 
 // ══════════════════════════════════════════════════════════
@@ -8516,7 +8546,10 @@ function _bombRenderWaiting(room) {
   const listEl = document.getElementById('bomb-waiting-players');
   if (listEl) {
     listEl.innerHTML = Object.entries(room.players||{})
-      .map(([name, p]) => `<span style="background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);border-radius:20px;padding:5px 12px;font-size:0.78rem;font-weight:700;color:#fff">${p.isHost ? '👑 ' : ''}${name}</span>`)
+      .map(([name, p]) => `<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,0.18);border:1px solid rgba(255,255,255,0.35);border-radius:20px;padding:6px 13px;font-size:0.78rem;font-weight:700;color:#fff">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="opacity:0.85;flex-shrink:0"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+        ${p.isHost ? '👑 ' : ''}${name}
+      </span>`)
       .join('');
   }
 }
