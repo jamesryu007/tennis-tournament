@@ -970,14 +970,18 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <div style="text-align:right">
           <button onclick="toggleBetGamePicker()" id="bet-new-btn" style="font-size:0.85rem;font-weight:700;padding:9px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,0.35)">+ 새 내기</button>
         </div>
-        <div id="bet-game-picker" style="display:none;background:#fff;border-radius:16px;border:1.5px solid #e2e8f0;padding:12px;margin-top:8px;box-shadow:0 4px 20px rgba(0,0,0,0.12)">
-          <button onclick="closeBetGamePicker();betShowSetup()" style="width:100%;padding:14px;border-radius:14px;border:1.5px solid #ede9fe;background:linear-gradient(135deg,#f5f3ff,#ede9fe);color:#1e293b;font-size:0.9rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:8px;display:flex;align-items:center;gap:12px">
-            <span style="font-size:1.8rem">🎈</span>
-            <div><div style="font-weight:800">릴레이 풍선 터치</div><div style="font-size:0.72rem;color:#7c3aed;font-weight:600">한 명씩 순서대로 터치 — 끝까지 살아남아라!</div></div>
+        <div id="bet-game-picker" style="display:none;background:#fff;border-radius:14px;border:1.5px solid #e2e8f0;padding:8px;margin-top:6px;box-shadow:0 4px 16px rgba(0,0,0,0.10)">
+          <button onclick="closeBetGamePicker();betShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #ede9fe;background:linear-gradient(135deg,#f5f3ff,#ede9fe);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
+            <span style="font-size:1.4rem">🎈</span>
+            <div><div style="font-weight:800">릴레이 풍선 터치</div><div style="font-size:0.68rem;color:#7c3aed;font-weight:600">순서대로 터치 — 끝까지 살아남아라!</div></div>
           </button>
-          <button onclick="closeBetGamePicker();bombShowSetup()" style="width:100%;padding:14px;border-radius:14px;border:1.5px solid #fee2e2;background:linear-gradient(135deg,#fff5f5,#fee2e2);color:#1e293b;font-size:0.9rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px">
-            <span style="font-size:1.8rem">💣</span>
-            <div><div style="font-weight:800">시한폭탄 피하기</div><div style="font-size:0.72rem;color:#dc2626;font-weight:600">방장이 시작 — 동시에 폭탄방 공개!</div></div>
+          <button onclick="closeBetGamePicker();ladderShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #bbf7d0;background:linear-gradient(135deg,#f0fdf4,#dcfce7);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
+            <span style="font-size:1.4rem">🪜</span>
+            <div><div style="font-weight:800">사다리 타기</div><div style="font-size:0.68rem;color:#16a34a;font-weight:600">이름 클릭 → 사다리 따라 결과 공개!</div></div>
+          </button>
+          <button onclick="closeBetGamePicker();bombShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #fee2e2;background:linear-gradient(135deg,#fff5f5,#fee2e2);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px">
+            <span style="font-size:1.4rem">💣</span>
+            <div><div style="font-weight:800">시한폭탄 피하기</div><div style="font-size:0.68rem;color:#dc2626;font-weight:600">방장이 시작 — 동시에 폭탄방 공개!</div></div>
           </button>
         </div>
       </div>
@@ -1202,6 +1206,73 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div id="bomb-reveal-sub" style="font-size:0.88rem;color:#64748b;margin-bottom:32px"></div>
       <button id="bomb-reveal-master-btn" style="display:none;width:100%;padding:11px;border-radius:12px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:0.85rem;font-weight:600;cursor:pointer;margin-bottom:10px" onclick="bombShowMasterFromReveal()">📊 전체 현황 보기</button>
       <button id="bomb-reveal-exit-btn" onclick="bombLeaveAndHome()" style="width:100%;padding:15px;border-radius:14px;border:none;background:#f1f5f9;color:#1e293b;font-size:1rem;font-weight:700;cursor:pointer">나가기</button>
+    </div>
+
+    <!-- 사다리①: 설정 -->
+    <div id="bet-screen-ladder-setup" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+        <button onclick="betShowHome()" style="border:none;background:none;font-size:1.4rem;cursor:pointer;padding:0;color:#64748b">←</button>
+        <div style="font-size:1rem;font-weight:800;color:#1e293b">🪜 사다리 타기 설정</div>
+      </div>
+      <div class="card" style="margin-bottom:10px">
+        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:7px">📝 내기 제목 <span style="color:#94a3b8;font-weight:400">(빈칸이면 자동 생성)</span></div>
+        <input id="ladder-title-input" type="text" placeholder="예) 코트비 결제자 정하기..." maxlength="30"
+          style="width:100%;font-size:0.9rem;padding:9px 11px;border-radius:10px;border:1.5px solid #e2e8f0;box-sizing:border-box;outline:none;color:#1e293b"
+          onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#e2e8f0'">
+      </div>
+      <div class="card" style="margin-bottom:10px">
+        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:8px">👥 참가자 <span id="ladder-participant-count" style="color:#16a34a">(0명)</span></div>
+        <div id="ladder-member-chips" style="display:flex;flex-wrap:wrap;gap:0"></div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button onclick="ladderSelectAll()" style="flex:1;font-size:0.75rem;padding:6px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#475569;cursor:pointer">전체 선택</button>
+          <button onclick="ladderDeselectAll()" style="flex:1;font-size:0.75rem;padding:6px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#475569;cursor:pointer">전체 해제</button>
+        </div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:8px">🎯 결과 항목 <span id="ladder-item-hint" style="font-weight:400"></span></div>
+        <!-- 꽝 빠른추가 -->
+        <button onclick="ladderAddItemFromTemplate('💀 꽝')" style="font-size:0.75rem;padding:6px 12px;border-radius:8px;border:1.5px solid #fecaca;background:#fff5f5;color:#dc2626;cursor:pointer;margin-bottom:10px">+ 💀 꽝 추가</button>
+        <!-- 선택된 결과 항목 칩 -->
+        <div id="ladder-items-list" style="display:flex;flex-wrap:wrap;gap:0;margin-bottom:10px"></div>
+        <!-- 직접 입력 -->
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+          <input id="ladder-item-input" type="text" placeholder="직접 입력 후 추가..." maxlength="15"
+            style="flex:1;font-size:0.85rem;padding:7px 10px;border-radius:8px;border:1.5px solid #e2e8f0;outline:none"
+            onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#e2e8f0'"
+            onkeydown="if(event.key==='Enter')ladderAddItemManual()">
+          <button onclick="ladderAddItemManual()" style="font-size:0.78rem;padding:7px 12px;border-radius:8px;border:none;background:#16a34a;color:#fff;cursor:pointer;font-weight:700">추가</button>
+        </div>
+        <!-- 멤버 불러오기 -->
+        <button onclick="ladderToggleMemberPicker()" style="width:100%;font-size:0.78rem;padding:7px;border-radius:8px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;font-weight:600">👤 멤버에서 불러오기 (다중 선택)</button>
+        <div id="ladder-member-picker-popup" style="display:none;margin-top:8px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px"></div>
+      </div>
+      <button onclick="ladderStartGame()" style="width:100%;padding:14px;border-radius:14px;border:none;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-size:1rem;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(22,163,74,0.4)">🪜 사다리 시작!</button>
+    </div>
+
+    <!-- 사다리②: 게임 -->
+    <div id="bet-screen-ladder-game" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <button onclick="ladderBackToSetup()" style="border:none;background:none;font-size:1.4rem;cursor:pointer;padding:0;color:#64748b">←</button>
+        <div id="ladder-game-title" style="font-size:0.9rem;font-weight:800;color:#1e293b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+      </div>
+      <div id="ladder-game-hint" style="text-align:center;font-size:0.78rem;color:#64748b;margin-bottom:6px;font-weight:600">이름을 눌러 사다리를 타세요!</div>
+      <canvas id="ladder-canvas" onclick="ladderCanvasClick(event)" style="width:100%;border-radius:12px;background:#f0fdf4;display:block;cursor:pointer"></canvas>
+      <div id="ladder-game-actions" style="display:none;margin-top:12px;gap:8px">
+        <button onclick="ladderShare()" style="flex:1;padding:13px;border-radius:13px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;font-size:0.9rem;font-weight:700;cursor:pointer">📤 공유</button>
+        <button onclick="betShowHome()" style="flex:1;padding:13px;border-radius:13px;border:none;background:#f1f5f9;color:#1e293b;font-size:0.9rem;font-weight:700;cursor:pointer">나가기</button>
+      </div>
+    </div>
+
+    <!-- 사다리③: 결과 -->
+    <div id="bet-screen-ladder-result" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="font-size:1rem;font-weight:800;color:#1e293b">🪜 사다리 결과</div>
+      </div>
+      <div id="ladder-result-cards" style="margin-bottom:16px"></div>
+      <div style="display:flex;gap:8px">
+        <button onclick="ladderShare()" style="flex:1;padding:14px;border-radius:14px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;font-size:0.9rem;font-weight:700;cursor:pointer">📤 공유</button>
+        <button onclick="ladderSaveAndHome()" style="flex:1;padding:14px;border-radius:14px;border:none;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer">저장하고 나가기</button>
+      </div>
     </div>
 
   </div><!-- /setup-panel-bet -->
@@ -7629,7 +7700,7 @@ function betPlayLose() {
 }
 
 function betShowScreen(id) {
-  ['home','setup','sound','game','result','bomb-list','bomb-setup','bomb-master','bomb-waiting','bomb-reveal'].forEach(s => {
+  ['home','setup','sound','game','result','bomb-list','bomb-setup','bomb-master','bomb-waiting','bomb-reveal','ladder-setup','ladder-game','ladder-result'].forEach(s => {
     const el = document.getElementById(`bet-screen-${s}`);
     if (el) el.style.display = s === id ? 'block' : 'none';
   });
@@ -8102,7 +8173,7 @@ function betRenderHome() {
 
   const mgr = isManager();
   const headerEl = document.getElementById('bet-home-header');
-  if (headerEl) headerEl.style.display = mgr ? 'block' : 'none';
+  if (headerEl) headerEl.style.display = 'block';
 
   const bannerEl = document.getElementById('bomb-live-banner');
   const histEl   = document.getElementById('bet-history-list');
@@ -8114,53 +8185,31 @@ function betRenderHome() {
       snap.forEach(child => { const r = child.val(); if (r && r.status === 'waiting') rooms.push({id:child.key,...r}); });
       const myName = state.identity && state.identity.name;
 
-      if (!rooms.length) {
-        bannerEl.innerHTML = mgr ? '' : `<div style="text-align:center;padding:60px 20px">
-          <div style="font-size:4rem;margin-bottom:16px;opacity:0.25">💣</div>
-          <div style="font-size:1rem;font-weight:700;color:#94a3b8">현재 진행 중인 게임이 없습니다</div>
-          <div style="font-size:0.8rem;color:#cbd5e1;margin-top:6px">방장이 방을 만들면 여기에 표시됩니다</div>
-        </div>`;
-        if (!mgr && histEl) histEl.innerHTML = '';
-        return;
+      // 로컬 상태 없어도 DB 기준으로 자동 rejoin (페이지 새로고침/세션 재시작 대응)
+      if (myName && !_bombState.roomId) {
+        for (const r of rooms) {
+          if (r.hostName === myName) { bombRejoinAsHost(r.id); return; }
+          if (r.players && r.players[myName]) { bombRejoinAsMember(r.id); return; }
+        }
       }
 
-      // 방마다 나와의 관계 판단 (mgr/멤버 무관)
-      bannerEl.innerHTML = rooms.map(r => {
-        const players = r.players || {};
-        const cnt = Object.keys(players).length;
-        const isHost   = r.hostName === myName;
-        const isJoined = !isHost && !!players[myName];
-
-        if (mgr) {
-          // 관리자: 소형 카드
-          let borderColor = '#fca5a5', badgeHtml = '', clickAttr = '';
-          if (isHost) {
-            borderColor = '#c4b5fd';
-            badgeHtml = `<div style="font-size:0.72rem;font-weight:700;color:#7c3aed;background:#f5f3ff;border-radius:8px;padding:4px 9px;border:1px solid #ede9fe;white-space:nowrap">👑 내 방</div>`;
-            clickAttr = `onclick="bombRejoinAsHost('${r.id}')"`;
-          } else if (isJoined) {
-            return ''; // 이미 입장한 방은 배너에 표시 안 함 (bomb-waiting으로 자동 이동)
-          } else {
-            badgeHtml = `<div style="font-size:0.72rem;font-weight:700;color:#dc2626;background:#fff;border-radius:8px;padding:4px 9px;border:1px solid #fca5a5;white-space:nowrap">입장 →</div>`;
-            clickAttr = `onclick="bombJoinFromHome('${r.id}')"`;
-          }
-          return `<div ${clickAttr} style="background:linear-gradient(135deg,#fff5f5,#fee2e2);border:1.5px solid ${borderColor};border-radius:14px;padding:11px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:8px">
-            <div style="font-size:1.4rem">💣</div>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:0.85rem;font-weight:800;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.title}</div>
-              <div style="font-size:0.7rem;color:#dc2626;margin-top:1px">${isHost?'내가 만든 방':'방장: '+r.hostName} · ${cnt}명</div>
-            </div>
-            ${badgeHtml}
-          </div>`;
-        } else {
-          // 멤버: 대형 카드
+      if (!rooms.length) {
+        bannerEl.innerHTML = '';
+        if (histEl) histEl.style.display = '';
+      } else {
+        // 방마다 나와의 관계 판단 — 모든 유저에게 동일한 대형 카드 표시
+        bannerEl.innerHTML = rooms.map(r => {
+          const players = r.players || {};
+          const cnt = Object.keys(players).length;
+          const isHost   = r.hostName === myName;
+          const isJoined = !isHost && !!players[myName];
           let actionHtml = '';
           if (isHost) {
-            actionHtml = `<div style="background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:14px;padding:14px;text-align:center;font-size:1rem;font-weight:800;color:#fff;box-shadow:0 4px 16px rgba(124,58,237,0.5)" onclick="bombRejoinAsHost('${r.id}')">👑 내 방으로 돌아가기</div>`;
+            actionHtml = `<div style="background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:14px;padding:14px;text-align:center;font-size:1rem;font-weight:800;color:#fff;box-shadow:0 4px 16px rgba(124,58,237,0.5);cursor:pointer" onclick="bombRejoinAsHost('${r.id}')">👑 내 방으로 돌아가기</div>`;
           } else if (isJoined) {
-            return ''; // 이미 입장한 방은 표시 안 함
+            return ''; // 이미 입장한 방은 자동 rejoin으로 처리됨
           } else {
-            actionHtml = `<div style="background:linear-gradient(135deg,#ef4444,#dc2626);border-radius:14px;padding:14px;text-align:center;font-size:1rem;font-weight:800;color:#fff;box-shadow:0 4px 16px rgba(220,38,38,0.5)" onclick="bombJoinFromHome('${r.id}')">💥 지금 입장하기 · ${cnt}명 대기중</div>`;
+            actionHtml = `<div style="background:linear-gradient(135deg,#ef4444,#dc2626);border-radius:14px;padding:14px;text-align:center;font-size:1rem;font-weight:800;color:#fff;box-shadow:0 4px 16px rgba(220,38,38,0.5);cursor:pointer" onclick="bombJoinFromHome('${r.id}')">💥 지금 입장하기 · ${cnt}명 대기중</div>`;
           }
           const memberChips = Object.entries(players).map(([n,p])=>
             `<span style="display:inline-flex;align-items:center;gap:4px;background:rgba(255,255,255,0.15);border-radius:20px;padding:4px 10px;font-size:0.75rem;font-weight:600;color:#fff">
@@ -8176,13 +8225,11 @@ function betRenderHome() {
             <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:16px">${memberChips}</div>
             ${actionHtml}
           </div>`;
-        }
-      }).join('');
-      if (!mgr && histEl) histEl.innerHTML = '';
+        }).join('');
+        if (histEl) histEl.style.display = 'none'; // 방 진행 중엔 통계/히스토리 숨김
+      } // end else
     }).catch(()=>{});
   }
-
-  if (!mgr) return; // 멤버는 히스토리/통계 표시 안 함
 
   db.ref('jmt/betHistory').orderByChild('createdAt').once('value').then(snap => {
     const el = document.getElementById('bet-history-list');
@@ -8227,6 +8274,8 @@ function betRenderHome() {
         : '';
       const gameTypeBadge = r.gameType === 'bomb'
         ? `<span style="font-size:0.65rem;background:#fee2e2;color:#dc2626;border-radius:6px;padding:2px 7px;font-weight:700;margin-right:6px">💣 시한폭탄</span>`
+        : r.gameType === 'ladder'
+        ? `<span style="font-size:0.65rem;background:#dcfce7;color:#16a34a;border-radius:6px;padding:2px 7px;font-weight:700;margin-right:6px">🪜 사다리</span>`
         : `<span style="font-size:0.65rem;background:#ede9fe;color:#7c3aed;border-radius:6px;padding:2px 7px;font-weight:700;margin-right:6px">🎈 릴레이</span>`;
       const hostBadge = r.hostName
         ? `<span style="font-size:0.65rem;background:#fef9c3;color:#92400e;border-radius:6px;padding:2px 7px;font-weight:700">👑 ${r.hostName}</span>`
@@ -8259,6 +8308,467 @@ function betRenderHome() {
       </div>`;
     }).join('');
   }).catch(() => {});
+}
+
+// ══════════════════════════════════════════════════════════
+// 🪜 사다리 타기
+// ══════════════════════════════════════════════════════════
+
+const _ladderState = {
+  title: '', participants: [], items: [],
+  rungs: [], shuffledItems: [], assignment: {},
+  revealed: {}, revealedDest: new Set(),
+  animating: false, allRevealed: false, _layout: null,
+};
+const _LPAD = { top: 48, bottom: 36, left: 34, right: 34 };
+const _LADDER_TITLES = ['코트비 정하기','음료수 내기','대진표 정하기','서브권 정하기','꽝 정하기','벌칙 정하기'];
+const _LADDER_COLORS = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#8b5cf6','#ec4899','#14b8a6','#f43f5e','#84cc16'];
+
+function ladderShowSetup() {
+  betShowScreen('ladder-setup');
+  _ladderState.participants = [];
+  _ladderState.items = [];
+  document.getElementById('ladder-title-input').value = '';
+  _ladderRenderMemberChips();
+  _ladderRenderItems();
+  _ladderUpdateHint();
+}
+
+function _ladderRenderMemberChips() {
+  const wrap = document.getElementById('ladder-member-chips');
+  if (!wrap) return;
+  const members = (state.members || []).filter(m => m.name);
+  const males = members.filter(m => m.gender === 'male');
+  const females = members.filter(m => m.gender !== 'male');
+  const chipHtml = (list) => list.map(m =>
+    `<div class="bet-member-chip" id="lchip-${m.name}" onclick="ladderToggleMember('${m.name}')">${m.name}</div>`
+  ).join('');
+  wrap.innerHTML = (males.length ? `<div style="font-size:0.7rem;color:#1d4ed8;font-weight:700;width:100%;padding:4px 0 2px">👨 남성</div>${chipHtml(males)}` : '')
+    + (females.length ? `<div style="font-size:0.7rem;color:#be185d;font-weight:700;width:100%;padding:4px 0 2px">👩 여성</div>${chipHtml(females)}` : '');
+  _ladderUpdateCount();
+}
+function ladderToggleMember(name) {
+  const idx = _ladderState.participants.indexOf(name);
+  if (idx === -1) _ladderState.participants.push(name);
+  else _ladderState.participants.splice(idx, 1);
+  const chip = document.getElementById(`lchip-${name}`);
+  if (chip) chip.classList.toggle('selected', _ladderState.participants.includes(name));
+  _ladderUpdateCount(); _ladderUpdateHint();
+  // 멤버 피커 열려있으면 새로고침 (참가자 제외 반영)
+  const pp = document.getElementById('ladder-member-picker-popup');
+  if (pp && pp.style.display !== 'none') _ladderBuildMemberPicker();
+}
+function _ladderUpdateCount() {
+  const el = document.getElementById('ladder-participant-count');
+  if (el) el.textContent = `(${_ladderState.participants.length}명)`;
+}
+function ladderSelectAll() {
+  (state.members || []).filter(m => m.name).forEach(m => {
+    if (!_ladderState.participants.includes(m.name)) _ladderState.participants.push(m.name);
+    const c = document.getElementById(`lchip-${m.name}`); if (c) c.classList.add('selected');
+  });
+  _ladderUpdateCount(); _ladderUpdateHint();
+}
+function ladderDeselectAll() {
+  _ladderState.participants = [];
+  document.querySelectorAll('#ladder-member-chips .bet-member-chip').forEach(c => c.classList.remove('selected'));
+  _ladderUpdateCount(); _ladderUpdateHint();
+}
+
+// 결과 항목
+function ladderAddItemFromTemplate(label) {
+  _ladderState.items.push(label);
+  _ladderRenderItems(); _ladderUpdateHint();
+}
+function ladderAddItemManual() {
+  const inp = document.getElementById('ladder-item-input');
+  const label = (inp.value || '').trim();
+  if (!label) return;
+  _ladderState.items.push(label);
+  inp.value = '';
+  _ladderRenderItems(); _ladderUpdateHint();
+}
+function ladderRemoveItem(idx) {
+  _ladderState.items.splice(idx, 1);
+  _ladderRenderItems(); _ladderUpdateHint();
+}
+function _ladderRenderItems() {
+  const el = document.getElementById('ladder-items-list');
+  if (!el) return;
+  if (!_ladderState.items.length) { el.innerHTML = ''; return; }
+  el.innerHTML = _ladderState.items.map((label, i) => {
+    const isBad = label.includes('꽝');
+    return `<div class="bet-member-chip selected" style="${isBad?'background:#fee2e2;border-color:#fca5a5;color:#dc2626;':''}">${label}<span onclick="ladderRemoveItem(${i})" style="margin-left:5px;cursor:pointer;opacity:0.6">✕</span></div>`;
+  }).join('');
+}
+function _ladderUpdateHint() {
+  const el = document.getElementById('ladder-item-hint');
+  if (!el) return;
+  const p = _ladderState.participants.length, r = _ladderState.items.length;
+  if (!p) { el.textContent = ''; return; }
+  if (r < p) { el.textContent = `(${p-r}개 더 필요)`; el.style.color = '#f59e0b'; }
+  else if (r > p) { el.textContent = `(${r-p}개 초과)`; el.style.color = '#ef4444'; }
+  else { el.textContent = `(${r}/${p} ✓)`; el.style.color = '#16a34a'; }
+}
+
+// 멤버 피커 (참가자 제외, 멀티 선택)
+const _ladderPickerSel = new Set();
+function ladderToggleMemberPicker() {
+  const popup = document.getElementById('ladder-member-picker-popup');
+  if (!popup) return;
+  if (popup.style.display !== 'none') { popup.style.display = 'none'; _ladderPickerSel.clear(); return; }
+  _ladderPickerSel.clear();
+  _ladderBuildMemberPicker();
+  popup.style.display = 'block';
+}
+function _ladderBuildMemberPicker() {
+  const popup = document.getElementById('ladder-member-picker-popup');
+  if (!popup) return;
+  const excluded = new Set(_ladderState.participants);
+  const members = (state.members || []).filter(m => m.name && !excluded.has(m.name));
+  if (!members.length) { popup.innerHTML = '<div style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:4px">참가자 외 멤버가 없습니다</div>'; return; }
+  popup.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px" id="lmp-chips">`
+    + members.map(m => `<div class="bet-member-chip" id="lmp-${m.name}" onclick="ladderPickerToggle('${m.name}')">${m.name}</div>`).join('')
+    + `</div><button onclick="ladderConfirmMemberPick()" style="width:100%;font-size:0.8rem;padding:7px;border-radius:8px;border:none;background:#0284c7;color:#fff;cursor:pointer;font-weight:700">선택 완료</button>`;
+}
+function ladderPickerToggle(name) {
+  if (_ladderPickerSel.has(name)) _ladderPickerSel.delete(name);
+  else _ladderPickerSel.add(name);
+  const chip = document.getElementById(`lmp-${name}`);
+  if (chip) chip.classList.toggle('selected', _ladderPickerSel.has(name));
+}
+function ladderConfirmMemberPick() {
+  _ladderPickerSel.forEach(name => _ladderState.items.push(name));
+  _ladderPickerSel.clear();
+  document.getElementById('ladder-member-picker-popup').style.display = 'none';
+  _ladderRenderItems(); _ladderUpdateHint();
+}
+
+function ladderStartGame() {
+  let title = (document.getElementById('ladder-title-input').value || '').trim();
+  if (!title) title = _LADDER_TITLES[Math.floor(Math.random() * _LADDER_TITLES.length)];
+  const p = _ladderState.participants;
+  const items = _ladderState.items;
+  if (p.length < 2) { alert('참가자를 2명 이상 선택해주세요'); return; }
+  if (items.length !== p.length) { alert(`결과 항목이 ${p.length}개 필요합니다 (현재 ${items.length}개)`); return; }
+
+  _ladderState.title = title;
+  _ladderState.revealed = {};
+  _ladderState.revealedDest = new Set();
+  _ladderState.assignment = {};
+  _ladderState.animating = false;
+  _ladderState.allRevealed = false;
+
+  const cols = p.length;
+  // 화면 높이에 맞게 rows 계산 (스크롤 없이)
+  const rows = Math.max(8, Math.min(14, cols * 3));
+  const shuffled = [...items].sort(() => Math.random() - 0.5);
+  _ladderState.rungs = _ladderMakeRungs(cols, rows);
+  _ladderState.shuffledItems = shuffled;
+
+  for (let c = 0; c < cols; c++) {
+    const dest = _ladderTrace(c, cols, rows, _ladderState.rungs);
+    _ladderState.assignment[p[c]] = shuffled[dest];
+  }
+
+  betShowScreen('ladder-game');
+  document.getElementById('ladder-game-title').textContent = title;
+  const actEl = document.getElementById('ladder-game-actions');
+  if (actEl) actEl.style.display = 'none';
+  setTimeout(_ladderDraw, 60);
+}
+
+function _ladderMakeRungs(cols, rows) {
+  const g = Array.from({length: rows}, () => new Array(cols - 1).fill(false));
+  for (let r = 0; r < rows; r++) {
+    let c = 0;
+    while (c < cols - 1) {
+      if (Math.random() < 0.55) { g[r][c] = true; c += 2; } // 가로선 밀도 증가
+      else c++;
+    }
+  }
+  return g;
+}
+function _ladderTrace(startCol, cols, rows, rungs) {
+  let col = startCol;
+  for (let r = 0; r < rows; r++) {
+    if (col < cols-1 && rungs[r][col]) col++;
+    else if (col > 0 && rungs[r][col-1]) col--;
+  }
+  return col;
+}
+
+// ── Canvas 그리기 ──────────────────────────────────────────
+function _ladderDraw() {
+  const canvas = document.getElementById('ladder-canvas');
+  if (!canvas) return;
+  const p = _ladderState.participants;
+  const shuffled = _ladderState.shuffledItems;
+  const rungs = _ladderState.rungs;
+  const cols = p.length, rows = rungs.length;
+  const W = canvas.parentElement.clientWidth;
+  // 화면 높이 기준으로 canvas 높이 계산 (스크롤 방지)
+  const availH = Math.min(window.innerHeight - 160, 480);
+  const rowH = Math.floor((availH - _LPAD.top - _LPAD.bottom) / rows);
+  const H = _LPAD.top + rows * rowH + _LPAD.bottom;
+  canvas.width = W; canvas.height = H;
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+
+  const colW = cols > 1 ? (W - _LPAD.left - _LPAD.right) / (cols - 1) : 0;
+  _ladderState._layout = { colW, rowH, W, H, cols, rows };
+
+  // 목적지 → 참가자 색상 매핑 계산
+  const destColor = {}; // destCol → color
+  p.forEach((name, c) => {
+    const dest = _ladderTrace(c, cols, rows, rungs);
+    destColor[dest] = _LADDER_COLORS[c % _LADDER_COLORS.length];
+  });
+
+  // 세로선
+  ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  for (let c = 0; c < cols; c++) {
+    const x = _LPAD.left + c * colW;
+    ctx.beginPath(); ctx.moveTo(x, _LPAD.top); ctx.lineTo(x, _LPAD.top + rows * rowH); ctx.stroke();
+  }
+  // 가로선
+  ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2.5;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols-1; c++) {
+      if (rungs[r][c]) {
+        const x1 = _LPAD.left + c * colW, x2 = _LPAD.left + (c+1) * colW;
+        const y = _LPAD.top + (r + 0.5) * rowH;
+        ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+      }
+    }
+  }
+  // 공개된 경로 — 해당 참가자 색상
+  p.forEach((name, c) => {
+    if (_ladderState.revealed[name]) {
+      const color = _LADDER_COLORS[c % _LADDER_COLORS.length];
+      _ladderDrawPath(ctx, _ladderGetPath(c, cols, rows, rungs, colW, rowH), color, 4.5);
+    }
+  });
+  // 이름 버튼 (위) — 참가자 색상
+  p.forEach((name, c) => {
+    const x = _LPAD.left + c * colW;
+    const color = _LADDER_COLORS[c % _LADDER_COLORS.length];
+    _ladderDrawNameBtn(ctx, x, _LPAD.top - 4, name, !!_ladderState.revealed[name], color);
+  });
+  // 결과 라벨 (아래) — 공개된 목적지는 같은 색상으로 즉시 표시
+  const rd = _ladderState.revealedDest;
+  shuffled.forEach((item, c) => {
+    const x = _LPAD.left + c * colW;
+    const y = _LPAD.top + rows * rowH + 6;
+    const visible = rd.has(c);
+    ctx.save();
+    ctx.font = `bold ${visible ? 12 : 11}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillStyle = visible ? (destColor[c] || '#1e293b') : '#cbd5e1';
+    const lbl = visible ? (item.length > 5 ? item.slice(0,5)+'…' : item) : '?';
+    ctx.fillText(lbl, x, y); ctx.restore();
+  });
+}
+function _ladderDrawNameBtn(ctx, x, y, name, revealed, color) {
+  const col = color || '#16a34a';
+  const BW = Math.min(58, 14 + name.length * 10), BH = 26, R = 7;
+  const bx = x - BW/2, by = y - BH;
+  ctx.save();
+  ctx.fillStyle = revealed ? col : col + 'dd';
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = revealed ? 1 : 0.85;
+  ctx.beginPath(); ctx.roundRect(bx, by, BW, BH, R); ctx.fill(); ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const disp = name.length > 4 ? name.slice(0,4) : name;
+  ctx.fillText(disp, x, by + BH/2); ctx.restore();
+}
+function _ladderGetPath(startCol, cols, rows, rungs, colW, rowH) {
+  const pts = [];
+  let col = startCol;
+  pts.push({ x: _LPAD.left + col * colW, y: _LPAD.top });
+  for (let r = 0; r < rows; r++) {
+    const midY = _LPAD.top + (r + 0.5) * rowH;
+    const botY = _LPAD.top + (r + 1) * rowH;
+    pts.push({ x: _LPAD.left + col * colW, y: midY });
+    if (col < cols-1 && rungs[r][col]) {
+      col++;
+      pts.push({ x: _LPAD.left + col * colW, y: midY });
+    } else if (col > 0 && rungs[r][col-1]) {
+      col--;
+      pts.push({ x: _LPAD.left + col * colW, y: midY });
+    }
+    pts.push({ x: _LPAD.left + col * colW, y: botY });
+  }
+  return pts;
+}
+function _ladderDrawPath(ctx, pts, color, lw) {
+  if (pts.length < 2) return;
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = lw;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+  pts.slice(1).forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.stroke(); ctx.restore();
+}
+
+// ── Canvas 클릭 ──────────────────────────────────────────
+function ladderCanvasClick(e) {
+  if (_ladderState.animating) return;
+  const canvas = document.getElementById('ladder-canvas');
+  if (!canvas || !_ladderState._layout) return;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const cx = (e.clientX - rect.left) * scaleX;
+  const cy = (e.clientY - rect.top) * scaleY;
+  const { colW, cols } = _ladderState._layout;
+  const p = _ladderState.participants;
+  for (let c = 0; c < cols; c++) {
+    const x = _LPAD.left + c * colW;
+    const BW = Math.min(58, 14 + (p[c]||'').length * 10), BH = 28;
+    const bx = x - BW/2, by = _LPAD.top - 4 - BH;
+    if (cx >= bx && cx <= bx + BW && cy >= by && cy <= by + BH) {
+      if (!_ladderState.revealed[p[c]]) _ladderAnimate(c);
+      return;
+    }
+  }
+}
+
+// ── 애니메이션 ────────────────────────────────────────────
+function _ladderAnimate(colIdx) {
+  const canvas = document.getElementById('ladder-canvas');
+  const ctx = canvas.getContext('2d');
+  const { cols, rows, colW, rowH } = _ladderState._layout;
+  const rungs = _ladderState.rungs;
+  const p = _ladderState.participants;
+  const items = _ladderState.shuffledItems;
+  const fullPath = _ladderGetPath(colIdx, cols, rows, rungs, colW, rowH);
+  const totalSeg = fullPath.length - 1;
+  let prog = 0;
+  const totalDur = 1200; // ms
+  let last = null;
+  _ladderState.animating = true;
+  document.getElementById('ladder-game-hint').textContent = `${p[colIdx]} 내려가는 중...`;
+  _ladderPlayTension();
+
+  function step(ts) {
+    if (!last) last = ts;
+    prog = Math.min((ts - last) / totalDur, 1);
+    _ladderDraw();
+    // 현재까지의 부분 경로 — 해당 참가자 색상
+    const ptCount = Math.floor(prog * totalSeg) + 1;
+    const animColor = _LADDER_COLORS[colIdx % _LADDER_COLORS.length];
+    _ladderDrawPath(ctx, fullPath.slice(0, ptCount + 1), animColor, 5.5);
+
+    if (prog < 1) { requestAnimationFrame(step); return; }
+
+    // 완료
+    _ladderState.revealed[p[colIdx]] = true;
+    _ladderState.animating = false;
+    const destCol = _ladderTrace(colIdx, cols, rows, rungs);
+    _ladderState.revealedDest.add(destCol);
+    const resultLabel = items[destCol];
+    _ladderPlayResult(resultLabel);
+    const remaining = p.filter(n => !_ladderState.revealed[n]);
+    if (remaining.length === 0) {
+      _ladderState.allRevealed = true;
+      document.getElementById('ladder-game-hint').textContent = '모두 완료! 결과를 확인하세요.';
+      setTimeout(_ladderShowResult, 1400);
+    } else {
+      document.getElementById('ladder-game-hint').textContent = `남은 인원: ${remaining.join(', ')}`;
+    }
+    _ladderDraw();
+  }
+  requestAnimationFrame(step);
+}
+
+// ── 음향 ──────────────────────────────────────────────────
+function _ladderPlayTension() {
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    // 고조되는 소리
+    const osc = ac.createOscillator(), g = ac.createGain();
+    osc.connect(g); g.connect(ac.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(180, ac.currentTime);
+    osc.frequency.linearRampToValueAtTime(920, ac.currentTime + 2.0);
+    g.gain.setValueAtTime(0.05, ac.currentTime);
+    g.gain.linearRampToValueAtTime(0.13, ac.currentTime + 1.8);
+    g.gain.linearRampToValueAtTime(0, ac.currentTime + 2.3);
+    osc.start(ac.currentTime); osc.stop(ac.currentTime + 2.3);
+    // 드럼 비트
+    [0, 0.18, 0.36, 0.5, 0.62, 0.72, 0.80, 0.87, 0.93, 0.98].forEach((t, i) => {
+      const buf = ac.createBuffer(1, 1024, ac.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let j = 0; j < 1024; j++) data[j] = (Math.random()*2-1) * Math.exp(-j/80);
+      const src = ac.createBufferSource(), bg = ac.createGain();
+      src.buffer = buf; src.connect(bg); bg.connect(ac.destination);
+      bg.gain.value = 0.12 + i * 0.012;
+      src.start(ac.currentTime + t * 2.0);
+    });
+  } catch(e) {}
+}
+function _ladderPlayResult(item) {
+  try {
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const lbl = item || '';
+    const bad = lbl.includes('꽝') || lbl.includes('코트비') || lbl.includes('음료수');
+    const freqs = bad ? [440, 392, 349, 294] : [523, 659, 784, 1047];
+    const dur = bad ? 0.22 : 0.14;
+    freqs.forEach((f, i) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.type = bad ? 'sine' : 'triangle';
+      o.frequency.value = f;
+      g.gain.setValueAtTime(0.18, ac.currentTime + i * dur);
+      g.gain.linearRampToValueAtTime(0, ac.currentTime + i * dur + dur);
+      o.start(ac.currentTime + i * dur); o.stop(ac.currentTime + i * dur + dur);
+    });
+  } catch(e) {}
+}
+
+function ladderBackToSetup() {
+  _ladderState.animating = false;
+  ladderShowSetup();
+}
+
+// ── 결과 화면 ─────────────────────────────────────────────
+function _ladderShowResult() {
+  // 화면 전환 없이 현재 사다리 화면에 버튼만 표시
+  const el = document.getElementById('ladder-game-actions');
+  if (el) { el.style.display = 'flex'; }
+  document.getElementById('ladder-game-hint').textContent = '모두 완료! 결과를 공유하거나 나가세요.';
+}
+
+function ladderShare() {
+  const title = _ladderState.title;
+  const canvas = document.getElementById('ladder-canvas');
+  if (!canvas) return;
+  canvas.toBlob(blob => {
+    if (!blob) return;
+    const file = new File([blob], 'ladder-result.png', { type: 'image/png' });
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ title: `🪜 ${title}`, files: [file] }).catch(() => {
+        navigator.share({ title: `🪜 ${title}`, text: `사다리 타기 결과: ${title}` }).catch(() => {});
+      });
+    } else if (navigator.share) {
+      navigator.share({ title: `🪜 ${title}`, text: `사다리 타기 결과: ${title}` }).catch(() => {});
+    } else {
+      // 다운로드 fallback
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'ladder-result.png';
+      a.click();
+    }
+  }, 'image/png');
+}
+
+
+function ladderSaveAndHome() {
+  betShowHome();
 }
 
 // ══════════════════════════════════════════════════════════
