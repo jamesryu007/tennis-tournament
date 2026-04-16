@@ -1255,11 +1255,11 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
         <button onclick="ladderBackToSetup()" style="border:none;background:none;font-size:1.4rem;cursor:pointer;padding:0;color:#64748b">←</button>
         <div id="ladder-game-title" style="font-size:0.9rem;font-weight:800;color:#1e293b;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+        <button id="ladder-share-btn" onclick="ladderShare()" style="display:none;align-items:center;gap:4px;padding:5px 11px;border-radius:20px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;font-size:0.78rem;font-weight:700;cursor:pointer"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> 공유</button>
       </div>
       <div id="ladder-game-hint" style="text-align:center;font-size:0.78rem;color:#64748b;margin-bottom:6px;font-weight:600">이름을 눌러 사다리를 타세요!</div>
       <canvas id="ladder-canvas" onclick="ladderCanvasClick(event)" style="width:100%;border-radius:12px;background:#f0fdf4;display:block;cursor:pointer"></canvas>
       <div id="ladder-game-actions" style="display:none;margin-top:12px;gap:8px">
-        <button onclick="ladderShare()" style="flex:1;padding:13px;border-radius:13px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;font-size:0.9rem;font-weight:700;cursor:pointer">📤 공유</button>
         <button onclick="betShowHome()" style="flex:1;padding:13px;border-radius:13px;border:none;background:#f1f5f9;color:#1e293b;font-size:0.9rem;font-weight:700;cursor:pointer">나가기</button>
       </div>
     </div>
@@ -8745,7 +8745,9 @@ function _ladderShowResult() {
   // 화면 전환 없이 현재 사다리 화면에 버튼만 표시
   const el = document.getElementById('ladder-game-actions');
   if (el) { el.style.display = 'flex'; }
-  document.getElementById('ladder-game-hint').textContent = '모두 완료! 결과를 공유하거나 나가세요.';
+  const shareBtn = document.getElementById('ladder-share-btn');
+  if (shareBtn) { shareBtn.style.display = 'inline-flex'; }
+  document.getElementById('ladder-game-hint').textContent = '모두 완료! 나가기 전에 공유해보세요.';
 }
 
 // ── 카드 HTML 캡처 → Web Share API 공유 ──────────────────────────
