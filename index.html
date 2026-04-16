@@ -1222,7 +1222,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#e2e8f0'">
       </div>
       <div class="card" style="margin-bottom:10px;padding:10px 12px">
-        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:6px">👥 참가자 <span id="ladder-participant-count" style="color:#16a34a">(0명)</span></div>
+        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:6px">👥 상단 참가자 <span id="ladder-participant-count" style="color:#16a34a">(0명)</span></div>
         <div id="ladder-member-chips" style="display:flex;flex-wrap:wrap;gap:0"></div>
         <div style="display:flex;gap:6px;margin-top:6px">
           <button onclick="ladderSelectAll()" style="flex:1;font-size:0.68rem;padding:4px;border-radius:7px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#475569;cursor:pointer">전체 선택</button>
@@ -1230,7 +1230,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         </div>
       </div>
       <div class="card" style="margin-bottom:16px;padding:10px 12px">
-        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:6px">🎯 결과 항목 <span id="ladder-item-hint" style="font-weight:400"></span></div>
+        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:6px">🎯 하단 항목(참가자) <span id="ladder-item-hint" style="font-weight:400"></span></div>
         <div style="display:flex;gap:8px;align-items:flex-start">
           <!-- 왼쪽: 컨트롤 (50%) -->
           <div style="flex:1;min-width:0">
@@ -1248,7 +1248,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
               <button onclick="ladderAddItemManual()" style="font-size:0.68rem;padding:5px 8px;border-radius:7px;border:none;background:#16a34a;color:#fff;cursor:pointer;font-weight:700;white-space:nowrap">추가</button>
             </div>
             <!-- 멤버 불러오기 -->
-            <button onclick="ladderToggleMemberPicker()" style="width:100%;font-size:0.68rem;padding:5px;border-radius:7px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;font-weight:600">👤 멤버 불러오기</button>
+            <button onclick="ladderToggleMemberPicker()" style="width:100%;font-size:0.68rem;padding:5px;border-radius:7px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;font-weight:600">👤 참가자</button>
             <div id="ladder-member-picker-popup" style="display:none;margin-top:6px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px"></div>
           </div>
           <!-- 오른쪽: 선택된 항목 (50%) -->
@@ -8365,7 +8365,7 @@ const _ladderState = {
   revealed: {}, revealedDest: new Set(),
   animating: false, allRevealed: false, _layout: null,
 };
-const _LPAD = { top: 48, bottom: 36, left: 34, right: 34 };
+const _LPAD = { top: 48, bottom: 52, left: 34, right: 34 };
 const _LADDER_TITLES = ['코트비 정하기','음료수 내기','대진표 정하기','서브권 정하기','꽝 정하기','벌칙 정하기'];
 const _LADDER_COLORS = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#8b5cf6','#ec4899','#14b8a6','#f43f5e','#84cc16'];
 
@@ -8374,6 +8374,8 @@ function ladderShowSetup() {
   _ladderState.participants = [];
   _ladderState.items = [];
   document.getElementById('ladder-title-input').value = '';
+  const pp = document.getElementById('ladder-member-picker-popup');
+  if (pp) { pp.style.display = 'none'; pp.innerHTML = ''; }
   _ladderRenderMemberChips();
   _ladderRenderItems();
   _ladderUpdateHint();
@@ -8686,18 +8688,30 @@ function _ladderDraw() {
     const color = _LADDER_COLORS[c % _LADDER_COLORS.length];
     _ladderDrawNameBtn(ctx, x, _LPAD.top - 4, name, !!_ladderState.revealed[name], color);
   });
-  // 결과 라벨 (아래) — 공개된 목적지는 같은 색상으로 즉시 표시
+  // 결과 라벨 (아래) — 공개된 목적지는 참가자 이름 + 결과 2줄 표시
   const rd = _ladderState.revealedDest;
+  const destParticipant = {}; // destCol → participant name
+  p.forEach((name, c) => { destParticipant[_ladderTrace(c, cols, rows, rungs)] = name; });
   shuffled.forEach((item, c) => {
     const x = _LPAD.left + c * colW;
     const y = _LPAD.top + rows * rowH + 6;
     const visible = rd.has(c);
     ctx.save();
-    ctx.font = `bold ${visible ? 12 : 11}px sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    ctx.fillStyle = visible ? (destColor[c] || '#1e293b') : '#cbd5e1';
-    const lbl = visible ? (item.length > 5 ? item.slice(0,5)+'…' : item) : '?';
-    ctx.fillText(lbl, x, y); ctx.restore();
+    if (visible) {
+      const color = destColor[c] || '#1e293b';
+      const pName = destParticipant[c] || '';
+      const pDisp = pName.length > 4 ? pName.slice(0,4) : pName;
+      ctx.font = 'bold 10px sans-serif'; ctx.fillStyle = color;
+      ctx.fillText(pDisp, x, y);
+      ctx.font = 'bold 12px sans-serif'; ctx.fillStyle = color;
+      const lbl = item.length > 5 ? item.slice(0,5)+'…' : item;
+      ctx.fillText(lbl, x, y + 14);
+    } else {
+      ctx.font = 'bold 11px sans-serif'; ctx.fillStyle = '#cbd5e1';
+      ctx.fillText('?', x, y);
+    }
+    ctx.restore();
   });
 }
 function _ladderDrawNameBtn(ctx, x, y, name, revealed, color) {
@@ -8778,7 +8792,7 @@ function _ladderAnimate(colIdx) {
   const fullPath = _ladderGetPath(colIdx, cols, rows, rungs, colW, rowH);
   const totalSeg = fullPath.length - 1;
   let prog = 0;
-  const totalDur = 1200; // ms
+  const totalDur = 2800; // ms
   let last = null;
   _ladderState.animating = true;
   document.getElementById('ladder-game-hint').textContent = `${p[colIdx]} 내려가는 중...`;
@@ -8799,6 +8813,17 @@ function _ladderAnimate(colIdx) {
     const ballX = pt0.x + (pt1.x - pt0.x) * segProg;
     const ballY = pt0.y + (pt1.y - pt0.y) * segProg;
     _ladderDrawTennisBall(ctx, ballX, ballY, 9);
+    // 볼 위에 참가자 이름 라벨
+    const nameDisp = (p[colIdx]||'').length > 4 ? (p[colIdx]||'').slice(0,4) : (p[colIdx]||'');
+    ctx.save();
+    ctx.font = 'bold 11px sans-serif';
+    const nw = ctx.measureText(nameDisp).width + 12;
+    ctx.fillStyle = animColor; ctx.globalAlpha = 0.92;
+    ctx.beginPath(); ctx.roundRect(ballX - nw/2, ballY - 26, nw, 16, 4); ctx.fill();
+    ctx.globalAlpha = 1; ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(nameDisp, ballX, ballY - 18);
+    ctx.restore();
 
     if (prog < 1) { requestAnimationFrame(step); return; }
 
