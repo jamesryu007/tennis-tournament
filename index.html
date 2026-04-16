@@ -8374,6 +8374,8 @@ function ladderShowSetup() {
   _ladderState.participants = [];
   _ladderState.items = [];
   document.getElementById('ladder-title-input').value = '';
+  const pp = document.getElementById('ladder-member-picker-popup');
+  if (pp) { pp.style.display = 'none'; pp.innerHTML = ''; }
   _ladderRenderMemberChips();
   _ladderRenderItems();
   _ladderUpdateHint();
