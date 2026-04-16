@@ -563,6 +563,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .bet-history-item{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;margin-bottom:10px}
 </style>
 <!-- Firebase SDK (compat) -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
@@ -6197,9 +6198,12 @@ function renderBetCard(betId, bet, myName) {
     : renderMatchBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAll);
 
   return `
-    <div class="bet-card" style="position:relative">
+    <div class="bet-card" id="bet-card-${betId}" style="position:relative">
+      <div style="position:absolute;top:8px;left:10px">
+        <button onclick="shareBetCard('${betId}')" style="background:none;border:none;padding:4px;cursor:pointer;font-size:1.1rem;line-height:1;color:#94a3b8" title="공유">📤</button>
+      </div>
       ${deleteBtn ? `<div style="position:absolute;top:8px;right:10px">${deleteBtn}</div>` : ''}
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;${deleteBtn ? 'padding-right:72px' : ''}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding-left:28px;${deleteBtn ? 'padding-right:72px' : ''}">
         <div>${typeLabel}${statusLabel}</div>
         ${closeBtn}
       </div>
@@ -8743,6 +8747,46 @@ function _ladderShowResult() {
   document.getElementById('ladder-game-hint').textContent = '모두 완료! 결과를 공유하거나 나가세요.';
 }
 
+// ── 카드 HTML 캡처 → Web Share API 공유 ──────────────────────────
+async function shareElementAsImage(elementId, title, filename) {
+  const el = document.getElementById(elementId);
+  if (!el || typeof html2canvas === 'undefined') return;
+  try {
+    // 공유 버튼 자체는 캡처에서 숨김
+    const shareBtn = el.querySelector('[data-share-btn]');
+    if (shareBtn) shareBtn.style.visibility = 'hidden';
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false });
+    if (shareBtn) shareBtn.style.visibility = '';
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      const file = new File([blob], filename, { type: 'image/png' });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ title, files: [file] }).catch(() => {
+          navigator.share({ title }).catch(() => {});
+        });
+      } else if (navigator.share) {
+        navigator.share({ title }).catch(() => {});
+      } else {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+      }
+    }, 'image/png');
+  } catch(e) {
+    console.error('shareElementAsImage error', e);
+  }
+}
+
+function shareBetCard(betId) {
+  shareElementAsImage(`bet-card-${betId}`, '🎲 JAMITE 베팅', 'bet-card.png');
+}
+
+function shareMpVoteCard() {
+  const title = (_mpData && _mpData.title) ? `📅 ${_mpData.title}` : '📅 모임 정하기';
+  shareElementAsImage('mp-vote-card', title, 'meeting-poll.png');
+}
+
 function ladderShare() {
   const title = _ladderState.title;
   const canvas = document.getElementById('ladder-canvas');
@@ -9337,7 +9381,7 @@ function _mpVoteSection(poll, me) {
     ? `<button onclick="mpToggleSetting('${field}',${!isPublic})" style="font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:10px;cursor:pointer;line-height:1.4;border:1.5px solid ${isPublic?'#86efac':'#fca5a5'};background:${isPublic?'#f0fdf4':'#fff5f5'};color:${isPublic?'#16a34a':'#ef4444'}">${isPublic?'🔓 공개':'🔒 비공개'}</button>`
     : `<span style="font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:10px;border:1.5px solid ${isPublic?'#86efac':'#fca5a5'};background:${isPublic?'#f0fdf4':'#fff5f5'};color:${isPublic?'#16a34a':'#ef4444'}">${isPublic?'🔓 공개':'🔒 비공개'}</span>`;
 
-  let html = `<div class="card" style="padding:0;overflow:hidden;border:1.5px solid #e2e8f0;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
+  let html = `<div class="card" id="mp-vote-card" style="padding:0;overflow:hidden;border:1.5px solid #e2e8f0;box-shadow:0 4px 20px rgba(0,0,0,0.08)">
     <!-- 투표 헤더 배너 -->
     <div style="position:relative;background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 55%,#6d28d9 100%);padding:22px 16px 20px;overflow:hidden;text-align:center">
       <!-- shimmer -->
@@ -9348,6 +9392,8 @@ function _mpVoteSection(poll, me) {
       <div style="position:absolute;top:-16px;right:50px;font-size:5.5rem;opacity:0.06;line-height:1;transform:rotate(12deg);pointer-events:none">📅</div>
       <div style="position:absolute;bottom:-18px;left:20px;font-size:4.5rem;opacity:0.05;line-height:1;transform:rotate(-8deg);pointer-events:none">🗓️</div>
       <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(255,255,255,0.10) 0%,transparent 65%);pointer-events:none"></div>
+      <!-- 공유 버튼 -->
+      <div style="position:absolute;top:10px;left:12px"><button onclick="shareMpVoteCard()" style="font-size:0.72rem;padding:3px 9px;border-radius:8px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);cursor:pointer;font-weight:700;backdrop-filter:blur(4px)" title="공유">📤 공유</button></div>
       <!-- 삭제 버튼 (관리자) -->
       ${_isAdm ? `<div style="position:absolute;top:10px;right:12px"><button onclick="mpDeletePoll()" style="font-size:0.72rem;padding:3px 9px;border-radius:8px;border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.12);color:rgba(255,255,255,0.85);cursor:pointer;font-weight:700;backdrop-filter:blur(4px)" title="투표 삭제">🗑️ 삭제</button></div>` : ''}
       <!-- 메인 콘텐츠 -->
