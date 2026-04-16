@@ -1232,7 +1232,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div class="card" style="margin-bottom:16px;padding:10px 12px">
         <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:6px">🎯 결과 항목 <span id="ladder-item-hint" style="font-weight:400"></span></div>
         <div style="display:flex;gap:8px;align-items:flex-start">
-          <!-- 왼쪽: 컨트롤 -->
+          <!-- 왼쪽: 컨트롤 (50%) -->
           <div style="flex:1;min-width:0">
             <!-- 꽝 / Winner 빠른추가 -->
             <div style="display:flex;gap:4px;margin-bottom:6px">
@@ -1251,10 +1251,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
             <button onclick="ladderToggleMemberPicker()" style="width:100%;font-size:0.68rem;padding:5px;border-radius:7px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;font-weight:600">👤 멤버 불러오기</button>
             <div id="ladder-member-picker-popup" style="display:none;margin-top:6px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px"></div>
           </div>
-          <!-- 오른쪽: 선택된 항목 -->
-          <div style="width:88px;flex-shrink:0">
-            <div style="font-size:0.62rem;color:#94a3b8;font-weight:600;margin-bottom:4px;text-align:center">선택됨</div>
-            <div id="ladder-items-list" style="display:flex;flex-direction:column;gap:2px;max-height:160px;overflow-y:auto"></div>
+          <!-- 오른쪽: 선택된 항목 (50%) -->
+          <div style="flex:1;min-width:0;border:1.5px solid #bbf7d0;border-radius:8px;background:#f0fdf4;padding:6px">
+            <div style="font-size:0.62rem;color:#16a34a;font-weight:700;margin-bottom:4px;text-align:center">✔ 선택됨</div>
+            <div id="ladder-items-list" style="display:flex;flex-wrap:wrap;gap:2px;max-height:140px;overflow-y:auto"></div>
           </div>
         </div>
       </div>
@@ -8446,8 +8446,8 @@ function _ladderRenderItems() {
     const isWin = label.includes('Winner');
     const style = (isBad ? 'background:#fee2e2;border-color:#fca5a5;color:#dc2626;'
                 : isWin ? 'background:#fffbeb;border-color:#fde68a;color:#b45309;'
-                : '') + 'padding:3px 6px;font-size:0.66rem;margin:0;border-width:1.5px;border-radius:7px;width:100%;justify-content:space-between;box-sizing:border-box;';
-    return `<div class="bet-member-chip selected" style="${style}"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span><span onclick="ladderRemoveItem(${i})" style="margin-left:3px;cursor:pointer;opacity:0.5;flex-shrink:0">✕</span></div>`;
+                : '') + 'padding:3px 6px;font-size:0.66rem;margin:0;border-width:1.5px;border-radius:7px;';
+    return `<div class="bet-member-chip selected" style="${style}">${label.length>5?label.slice(0,5)+'…':label}<span onclick="ladderRemoveItem(${i})" style="margin-left:3px;cursor:pointer;opacity:0.5">✕</span></div>`;
   }).join('');
 }
 function _ladderUpdateHint() {
