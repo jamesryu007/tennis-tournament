@@ -3186,7 +3186,7 @@ async function renderRecentMatchesCarousel(){
   const dotsEl=document.getElementById('carousel-dots');
   if(!track||!dotsEl||!db) return;
 
-  const cutoff=new Date(Date.now()-8*24*60*60*1000).toISOString().split('T')[0];
+  const cutoff=new Date(Date.now()-30*24*60*60*1000).toISOString().split('T')[0];
   const snap=await db.ref('jmt/matches').orderByChild('date').startAt(cutoff).once('value').catch(()=>null);
   if(!snap) return;
   const raw=snap.val()||{};
