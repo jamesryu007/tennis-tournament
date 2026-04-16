@@ -10121,7 +10121,7 @@ function mpToggleDateVote(dateStr) {
       // 단일 선택: 관리자 후보 + 멤버 제안 후보 모두 초기화 후 선택
       ref.update({ dates: { [dateStr]: true }, memberDates: null, cannotAttend: null }).catch(fbErr);
     } else {
-      ref.update({ 'dates/'+dateStr: true, cannotAttend: null }).catch(fbErr);
+      ref.update({ [`dates/${dateStr}`]: true, cannotAttend: null }).catch(fbErr);
     }
     ref.child('name').set(me).catch(fbErr);
   });
