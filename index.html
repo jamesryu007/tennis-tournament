@@ -5618,7 +5618,8 @@ function initAtpListeners() {
   });
 
   // ATP 뉴스 구독 — Cloud Function이 12시간마다 업데이트, 앱은 읽기만
-  db.ref('jmt/atpNews').on('value', snap => {
+  const _newsRef = db.ref('jmt/atpNews');
+  const _onNewsSnap = snap => {
     const d = snap.val();
     atpState.news = (d && d.articles) ? d.articles : [];
     atpState.newsLoaded = true;
@@ -5626,7 +5627,18 @@ function initAtpListeners() {
     if (atpState.currentTab === 'news' && document.getElementById('page-atp').classList.contains('active')) {
       renderAtpNewsPanel();
     }
-  });
+  };
+  _newsRef.on('value', _onNewsSnap);
+
+  // 8초 내 응답 없으면 once()로 강제 1회 읽기 (Firebase 연결 지연 대비)
+  setTimeout(() => {
+    if (!atpState.newsLoaded) {
+      _newsRef.once('value').then(_onNewsSnap).catch(() => {
+        atpState.newsLoaded = true; // 오류 시 "없음"으로 처리
+        if (atpState.currentTab === 'news') renderAtpNewsPanel();
+      });
+    }
+  }, 8000);
 
   // 개인 관심선수 구독
   const myName = state.identity && state.identity.name;
@@ -5650,6 +5662,23 @@ function initAtpListeners() {
 
 // ── ATP 뉴스 NEW 배지 ────────────────────────────────────────────
 const _LS_NEWS_READ = 'jamite_news_read_at';
+function retryLoadNews() {
+  if (!db) return;
+  atpState.newsLoaded = false;
+  const el = document.getElementById('atp-news-content');
+  if (el) el.innerHTML = '<div style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.85rem">📰 뉴스를 불러오는 중...</div>';
+  db.ref('jmt/atpNews').once('value').then(snap => {
+    const d = snap.val();
+    atpState.news = (d && d.articles) ? d.articles : [];
+    atpState.newsLoaded = true;
+    updateNewsBadge();
+    renderAtpNewsPanel();
+  }).catch(() => {
+    atpState.newsLoaded = true;
+    renderAtpNewsPanel();
+  });
+}
+
 function updateNewsBadge() {
   const badge = document.getElementById('news-new-badge');
   if (!badge) return;
@@ -5674,7 +5703,7 @@ function renderAtpNewsPanel() {
   if (!articles.length) {
     el.innerHTML = atpState.newsLoaded
       ? '<div style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.85rem">뉴스가 없습니다.</div>'
-      : '<div style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.85rem">📰 뉴스를 불러오는 중...</div>';
+      : '<div style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.85rem">📰 뉴스를 불러오는 중...<br><button onclick="retryLoadNews()" style="margin-top:12px;font-size:0.78rem;padding:6px 16px;border-radius:8px;border:1.5px solid #bfdbfe;background:#eff6ff;color:#2563eb;cursor:pointer;font-weight:600">🔄 다시 시도</button></div>';
     return;
   }
   el.innerHTML = articles.map((a, i) => {
