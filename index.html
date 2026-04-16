@@ -8434,7 +8434,11 @@ function ladderAddItemManual() {
   _ladderRenderItems(); _ladderUpdateHint();
 }
 function ladderRemoveItem(idx) {
+  const removed = _ladderState.items[idx];
   _ladderState.items.splice(idx, 1);
+  // 멤버 피커에 해당 칩이 있으면 selected 해제
+  const pickerChip = document.getElementById(`lmp-${removed}`);
+  if (pickerChip) pickerChip.classList.remove('selected');
   _ladderRenderItems(); _ladderUpdateHint();
 }
 function _ladderRenderItems() {
