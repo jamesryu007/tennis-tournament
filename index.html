@@ -1258,7 +1258,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <button id="ladder-share-btn" onclick="ladderShare()" style="display:none;align-items:center;gap:4px;padding:5px 11px;border-radius:20px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;font-size:0.78rem;font-weight:700;cursor:pointer"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> 공유</button>
       </div>
       <div id="ladder-game-hint" style="text-align:center;font-size:0.78rem;color:#64748b;margin-bottom:6px;font-weight:600">이름을 눌러 사다리를 타세요!</div>
-      <canvas id="ladder-canvas" onclick="ladderCanvasClick(event)" style="width:100%;border-radius:12px;background:#f0fdf4;display:block;cursor:pointer"></canvas>
+      <canvas id="ladder-canvas" onclick="ladderCanvasClick(event)" style="width:100%;border-radius:12px;background:#d1fae5;display:block;cursor:pointer"></canvas>
       <div id="ladder-game-actions" style="display:none;margin-top:12px;gap:8px">
         <button onclick="betShowHome()" style="flex:1;padding:13px;border-radius:13px;border:none;background:#f1f5f9;color:#1e293b;font-size:0.9rem;font-weight:700;cursor:pointer">나가기</button>
       </div>
@@ -8532,6 +8532,43 @@ function _ladderTrace(startCol, cols, rows, rungs) {
   return col;
 }
 
+// ── 테니스 볼 그리기 ──────────────────────────────────────
+function _ladderDrawTennisBall(ctx, x, y, r) {
+  ctx.save();
+  const grad = ctx.createRadialGradient(x - r*0.3, y - r*0.35, r*0.05, x, y, r);
+  grad.addColorStop(0, '#eef045'); grad.addColorStop(0.6, '#ccd533'); grad.addColorStop(1, '#a8b820');
+  ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 5;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = grad; ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = 'rgba(255,255,255,0.88)'; ctx.lineWidth = r * 0.23; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(x - r*0.18, y, r * 0.72, Math.PI * 0.55, Math.PI * 1.45); ctx.stroke();
+  ctx.beginPath(); ctx.arc(x + r*0.18, y, r * 0.72, -Math.PI * 0.45, Math.PI * 0.45); ctx.stroke();
+  ctx.restore();
+}
+
+// ── 라켓 워터마크 그리기 ──────────────────────────────────
+function _ladderDrawRacket(ctx, cx, cy, size, angle) {
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(angle); ctx.globalAlpha = 0.09;
+  // 헤드 (타원)
+  ctx.strokeStyle = '#166534'; ctx.lineWidth = size * 0.06;
+  ctx.beginPath(); ctx.ellipse(0, 0, size * 0.28, size * 0.38, 0, 0, Math.PI * 2); ctx.stroke();
+  // 스트링
+  ctx.lineWidth = size * 0.025;
+  for (let i = -3; i <= 3; i++) {
+    const xv = i * size * 0.08;
+    ctx.beginPath(); ctx.moveTo(xv, -size*0.36); ctx.lineTo(xv, size*0.36); ctx.stroke();
+  }
+  for (let i = -4; i <= 4; i++) {
+    const yh = i * size * 0.08;
+    ctx.beginPath(); ctx.moveTo(-size*0.26, yh); ctx.lineTo(size*0.26, yh); ctx.stroke();
+  }
+  // 손잡이
+  ctx.lineWidth = size * 0.07; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0, size*0.38); ctx.lineTo(0, size*0.72); ctx.stroke();
+  ctx.restore();
+}
+
 // ── Canvas 그리기 ──────────────────────────────────────────
 function _ladderDraw() {
   const canvas = document.getElementById('ladder-canvas');
@@ -8553,6 +8590,44 @@ function _ladderDraw() {
   const colW = cols > 1 ? (W - _LPAD.left - _LPAD.right) / (cols - 1) : 0;
   _ladderState._layout = { colW, rowH, W, H, cols, rows };
 
+  // ── 테니스 코트 배경 ──
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, '#d1fae5'); bgGrad.addColorStop(1, '#bbf7d0');
+  ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, W, H);
+
+  // 코트 외곽선 + 가로 코트라인
+  ctx.save(); ctx.globalAlpha = 0.18; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.8;
+  ctx.strokeRect(10, _LPAD.top, W - 20, rows * rowH);
+  // 서비스라인 (위1/3, 아래1/3)
+  [Math.floor(rows/3), Math.floor(2*rows/3)].forEach(rr => {
+    const ly = _LPAD.top + rr * rowH;
+    ctx.beginPath(); ctx.moveTo(10, ly); ctx.lineTo(W - 10, ly); ctx.stroke();
+  });
+  // 센터라인 (세로)
+  const mid = W / 2;
+  ctx.beginPath(); ctx.moveTo(mid, _LPAD.top + Math.floor(rows/3)*rowH); ctx.lineTo(mid, _LPAD.top + Math.floor(2*rows/3)*rowH); ctx.stroke();
+  ctx.restore();
+
+  // 라켓 워터마크 (좌상단, 우하단)
+  _ladderDrawRacket(ctx, W * 0.15, H * 0.18, Math.min(W, H) * 0.35, -Math.PI * 0.2);
+  _ladderDrawRacket(ctx, W * 0.85, H * 0.78, Math.min(W, H) * 0.35, Math.PI * 0.8);
+
+  // 네트 (사다리 중간)
+  const netY = _LPAD.top + Math.floor(rows / 2) * rowH;
+  ctx.save(); ctx.globalAlpha = 0.28;
+  // 네트 줄기
+  ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2.5;
+  ctx.setLineDash([5, 4]);
+  ctx.beginPath(); ctx.moveTo(10, netY); ctx.lineTo(W - 10, netY); ctx.stroke();
+  ctx.setLineDash([]);
+  // 네트 기둥
+  ctx.fillStyle = '#64748b';
+  ctx.fillRect(7, netY - 8, 6, 16); ctx.fillRect(W - 13, netY - 8, 6, 16);
+  // 네트 상단 흰 테이프
+  ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.5;
+  ctx.fillRect(10, netY - 2, W - 20, 3);
+  ctx.restore();
+
   // 목적지 → 참가자 색상 매핑 계산
   const destColor = {}; // destCol → color
   p.forEach((name, c) => {
@@ -8561,13 +8636,13 @@ function _ladderDraw() {
   });
 
   // 세로선
-  ctx.strokeStyle = '#cbd5e1'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(100,116,139,0.5)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
   for (let c = 0; c < cols; c++) {
     const x = _LPAD.left + c * colW;
     ctx.beginPath(); ctx.moveTo(x, _LPAD.top); ctx.lineTo(x, _LPAD.top + rows * rowH); ctx.stroke();
   }
   // 가로선
-  ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 2.5;
+  ctx.strokeStyle = 'rgba(100,116,139,0.55)'; ctx.lineWidth = 2.5;
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols-1; c++) {
       if (rungs[r][c]) {
@@ -8696,6 +8771,13 @@ function _ladderAnimate(colIdx) {
     const ptCount = Math.floor(prog * totalSeg) + 1;
     const animColor = _LADDER_COLORS[colIdx % _LADDER_COLORS.length];
     _ladderDrawPath(ctx, fullPath.slice(0, ptCount + 1), animColor, 5.5);
+    // 테니스볼 마커 — 현재 위치
+    const segIdx = Math.min(Math.floor(prog * totalSeg), totalSeg - 1);
+    const segProg = (prog * totalSeg) - segIdx;
+    const pt0 = fullPath[segIdx], pt1 = fullPath[segIdx + 1] || pt0;
+    const ballX = pt0.x + (pt1.x - pt0.x) * segProg;
+    const ballY = pt0.y + (pt1.y - pt0.y) * segProg;
+    _ladderDrawTennisBall(ctx, ballX, ballY, 9);
 
     if (prog < 1) { requestAnimationFrame(step); return; }
 
