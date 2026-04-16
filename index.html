@@ -5996,11 +5996,11 @@ function renderRoundDrawPanel(el, matches, tier) {
     return false;
   }
 
-  // 현재 라운드 자동 선택 — 실질적으로 진행중인 경기가 있는 첫 라운드, 없으면 마지막
+  // 현재 라운드 자동 선택 — 완료된 경기가 있는 마지막 라운드 (진행 가장 앞선 라운드)
   if (!atpState.gsRoundTab || !availRounds.includes(atpState.gsRoundTab)) {
-    let autoRound = availRounds[availRounds.length - 1];
+    let autoRound = availRounds[0];
     for (const r of availRounds) {
-      if ((roundGroups[r] || []).some(m => !isEffectivelyDone(m))) { autoRound = r; break; }
+      if ((roundGroups[r] || []).some(m => isEffectivelyDone(m))) { autoRound = r; }
     }
     atpState.gsRoundTab = autoRound;
   }
