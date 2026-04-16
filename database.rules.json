@@ -1,0 +1,20 @@
+{
+  "rules": {
+    "jmt": {
+      ".read": true,
+      "$key": {
+        ".write": "$key !== 'atpNews'"
+      },
+      "lastGrandSlam": {
+        ".indexOn": "savedAt"
+      },
+      "matches": {
+        ".indexOn": "date"
+      }
+    },
+    "$other": {
+      ".read": false,
+      ".write": false
+    }
+  }
+}
