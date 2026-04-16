@@ -1221,34 +1221,42 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           style="width:100%;font-size:0.9rem;padding:9px 11px;border-radius:10px;border:1.5px solid #e2e8f0;box-sizing:border-box;outline:none;color:#1e293b"
           onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#e2e8f0'">
       </div>
-      <div class="card" style="margin-bottom:10px">
-        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:8px">👥 참가자 <span id="ladder-participant-count" style="color:#16a34a">(0명)</span></div>
+      <div class="card" style="margin-bottom:10px;padding:10px 12px">
+        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:6px">👥 참가자 <span id="ladder-participant-count" style="color:#16a34a">(0명)</span></div>
         <div id="ladder-member-chips" style="display:flex;flex-wrap:wrap;gap:0"></div>
-        <div style="display:flex;gap:8px;margin-top:10px">
-          <button onclick="ladderSelectAll()" style="flex:1;font-size:0.75rem;padding:6px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#475569;cursor:pointer">전체 선택</button>
-          <button onclick="ladderDeselectAll()" style="flex:1;font-size:0.75rem;padding:6px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#475569;cursor:pointer">전체 해제</button>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button onclick="ladderSelectAll()" style="flex:1;font-size:0.68rem;padding:4px;border-radius:7px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#475569;cursor:pointer">전체 선택</button>
+          <button onclick="ladderDeselectAll()" style="flex:1;font-size:0.68rem;padding:4px;border-radius:7px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#475569;cursor:pointer">전체 해제</button>
         </div>
       </div>
-      <div class="card" style="margin-bottom:16px">
-        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:8px">🎯 결과 항목 <span id="ladder-item-hint" style="font-weight:400"></span></div>
-        <!-- 꽝 / Winner 빠른추가 -->
-        <div style="display:flex;gap:6px;margin-bottom:10px">
-          <button onclick="ladderAddItemFromTemplate('💀 꽝')" style="font-size:0.75rem;padding:6px 12px;border-radius:8px;border:1.5px solid #fecaca;background:#fff5f5;color:#dc2626;cursor:pointer;font-weight:600">+ 💀 꽝</button>
-          <button onclick="ladderAddItemFromTemplate('🏆 Winner')" style="font-size:0.75rem;padding:6px 12px;border-radius:8px;border:1.5px solid #fde68a;background:#fffbeb;color:#b45309;cursor:pointer;font-weight:600">+ 🏆 Winner</button>
+      <div class="card" style="margin-bottom:16px;padding:10px 12px">
+        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:6px">🎯 결과 항목 <span id="ladder-item-hint" style="font-weight:400"></span></div>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <!-- 왼쪽: 컨트롤 -->
+          <div style="flex:1;min-width:0">
+            <!-- 꽝 / Winner 빠른추가 -->
+            <div style="display:flex;gap:4px;margin-bottom:6px">
+              <button onclick="ladderAddItemFromTemplate('💀 꽝')" style="flex:1;font-size:0.68rem;padding:4px 6px;border-radius:7px;border:1.5px solid #fecaca;background:#fff5f5;color:#dc2626;cursor:pointer;font-weight:600">+ 💀 꽝</button>
+              <button onclick="ladderAddItemFromTemplate('🏆 Winner')" style="flex:1;font-size:0.68rem;padding:4px 6px;border-radius:7px;border:1.5px solid #fde68a;background:#fffbeb;color:#b45309;cursor:pointer;font-weight:600">+ 🏆 W</button>
+            </div>
+            <!-- 직접 입력 -->
+            <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px">
+              <input id="ladder-item-input" type="text" placeholder="직접 입력..." maxlength="15"
+                style="flex:1;font-size:0.72rem;padding:5px 7px;border-radius:7px;border:1.5px solid #e2e8f0;outline:none;min-width:0"
+                onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#e2e8f0'"
+                onkeydown="if(event.key==='Enter')ladderAddItemManual()">
+              <button onclick="ladderAddItemManual()" style="font-size:0.68rem;padding:5px 8px;border-radius:7px;border:none;background:#16a34a;color:#fff;cursor:pointer;font-weight:700;white-space:nowrap">추가</button>
+            </div>
+            <!-- 멤버 불러오기 -->
+            <button onclick="ladderToggleMemberPicker()" style="width:100%;font-size:0.68rem;padding:5px;border-radius:7px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;font-weight:600">👤 멤버 불러오기</button>
+            <div id="ladder-member-picker-popup" style="display:none;margin-top:6px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px"></div>
+          </div>
+          <!-- 오른쪽: 선택된 항목 -->
+          <div style="width:88px;flex-shrink:0">
+            <div style="font-size:0.62rem;color:#94a3b8;font-weight:600;margin-bottom:4px;text-align:center">선택됨</div>
+            <div id="ladder-items-list" style="display:flex;flex-direction:column;gap:2px;max-height:160px;overflow-y:auto"></div>
+          </div>
         </div>
-        <!-- 선택된 결과 항목 칩 -->
-        <div id="ladder-items-list" style="display:flex;flex-wrap:wrap;gap:0;margin-bottom:10px"></div>
-        <!-- 직접 입력 -->
-        <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
-          <input id="ladder-item-input" type="text" placeholder="직접 입력 후 추가..." maxlength="15"
-            style="flex:1;font-size:0.85rem;padding:7px 10px;border-radius:8px;border:1.5px solid #e2e8f0;outline:none"
-            onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#e2e8f0'"
-            onkeydown="if(event.key==='Enter')ladderAddItemManual()">
-          <button onclick="ladderAddItemManual()" style="font-size:0.78rem;padding:7px 12px;border-radius:8px;border:none;background:#16a34a;color:#fff;cursor:pointer;font-weight:700">추가</button>
-        </div>
-        <!-- 멤버 불러오기 -->
-        <button onclick="ladderToggleMemberPicker()" style="width:100%;font-size:0.78rem;padding:7px;border-radius:8px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;font-weight:600">👤 멤버에서 불러오기 (다중 선택)</button>
-        <div id="ladder-member-picker-popup" style="display:none;margin-top:8px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px"></div>
       </div>
       <button onclick="ladderStartGame()" style="width:100%;padding:14px;border-radius:14px;border:none;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-size:1rem;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(22,163,74,0.4)">🪜 사다리 시작!</button>
     </div>
@@ -8378,7 +8386,7 @@ function _ladderRenderMemberChips() {
   const males = members.filter(m => m.gender === 'male');
   const females = members.filter(m => m.gender !== 'male');
   const chipHtml = (list) => list.map(m =>
-    `<div class="bet-member-chip" id="lchip-${m.name}" onclick="ladderToggleMember('${m.name}')">${m.name}</div>`
+    `<div class="bet-member-chip" id="lchip-${m.name}" onclick="ladderToggleMember('${m.name}')" style="padding:3px 8px;font-size:0.68rem;margin:2px;border-width:1.5px">${m.name}</div>`
   ).join('');
   wrap.innerHTML = (males.length ? `<div style="font-size:0.7rem;color:#1d4ed8;font-weight:700;width:100%;padding:4px 0 2px">👨 남성</div>${chipHtml(males)}` : '')
     + (females.length ? `<div style="font-size:0.7rem;color:#be185d;font-weight:700;width:100%;padding:4px 0 2px">👩 여성</div>${chipHtml(females)}` : '');
@@ -8436,10 +8444,10 @@ function _ladderRenderItems() {
   el.innerHTML = _ladderState.items.map((label, i) => {
     const isBad = label.includes('꽝');
     const isWin = label.includes('Winner');
-    const style = isBad ? 'background:#fee2e2;border-color:#fca5a5;color:#dc2626;'
+    const style = (isBad ? 'background:#fee2e2;border-color:#fca5a5;color:#dc2626;'
                 : isWin ? 'background:#fffbeb;border-color:#fde68a;color:#b45309;'
-                : '';
-    return `<div class="bet-member-chip selected" style="${style}">${label}<span onclick="ladderRemoveItem(${i})" style="margin-left:5px;cursor:pointer;opacity:0.6">✕</span></div>`;
+                : '') + 'padding:3px 6px;font-size:0.66rem;margin:0;border-width:1.5px;border-radius:7px;width:100%;justify-content:space-between;box-sizing:border-box;';
+    return `<div class="bet-member-chip selected" style="${style}"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label}</span><span onclick="ladderRemoveItem(${i})" style="margin-left:3px;cursor:pointer;opacity:0.5;flex-shrink:0">✕</span></div>`;
   }).join('');
 }
 function _ladderUpdateHint() {
@@ -8468,9 +8476,9 @@ function _ladderBuildMemberPicker() {
   const excluded = new Set(_ladderState.participants);
   const members = (state.members || []).filter(m => m.name && !excluded.has(m.name));
   if (!members.length) { popup.innerHTML = '<div style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:4px">참가자 외 멤버가 없습니다</div>'; return; }
-  popup.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px" id="lmp-chips">`
-    + members.map(m => `<div class="bet-member-chip" id="lmp-${m.name}" onclick="ladderPickerToggle('${m.name}')">${m.name}</div>`).join('')
-    + `</div><button onclick="ladderConfirmMemberPick()" style="width:100%;font-size:0.8rem;padding:7px;border-radius:8px;border:none;background:#0284c7;color:#fff;cursor:pointer;font-weight:700">선택 완료</button>`;
+  popup.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px" id="lmp-chips">`
+    + members.map(m => `<div class="bet-member-chip" id="lmp-${m.name}" onclick="ladderPickerToggle('${m.name}')" style="padding:3px 7px;font-size:0.66rem;margin:0;border-width:1.5px">${m.name}</div>`).join('')
+    + `</div><button onclick="ladderConfirmMemberPick()" style="width:100%;font-size:0.68rem;padding:5px;border-radius:7px;border:none;background:#0284c7;color:#fff;cursor:pointer;font-weight:700">선택 완료</button>`;
 }
 function ladderPickerToggle(name) {
   if (_ladderPickerSel.has(name)) _ladderPickerSel.delete(name);
