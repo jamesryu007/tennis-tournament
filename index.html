@@ -1222,7 +1222,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#e2e8f0'">
       </div>
       <div class="card" style="margin-bottom:10px;padding:10px 12px">
-        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:6px">👥 참가자 <span id="ladder-participant-count" style="color:#16a34a">(0명)</span></div>
+        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:6px">👥 상단 참가자 <span id="ladder-participant-count" style="color:#16a34a">(0명)</span></div>
         <div id="ladder-member-chips" style="display:flex;flex-wrap:wrap;gap:0"></div>
         <div style="display:flex;gap:6px;margin-top:6px">
           <button onclick="ladderSelectAll()" style="flex:1;font-size:0.68rem;padding:4px;border-radius:7px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#475569;cursor:pointer">전체 선택</button>
@@ -1230,7 +1230,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         </div>
       </div>
       <div class="card" style="margin-bottom:16px;padding:10px 12px">
-        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:6px">🎯 결과 항목 <span id="ladder-item-hint" style="font-weight:400"></span></div>
+        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:6px">🎯 하단 항목(참가자) <span id="ladder-item-hint" style="font-weight:400"></span></div>
         <div style="display:flex;gap:8px;align-items:flex-start">
           <!-- 왼쪽: 컨트롤 (50%) -->
           <div style="flex:1;min-width:0">
@@ -1248,7 +1248,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
               <button onclick="ladderAddItemManual()" style="font-size:0.68rem;padding:5px 8px;border-radius:7px;border:none;background:#16a34a;color:#fff;cursor:pointer;font-weight:700;white-space:nowrap">추가</button>
             </div>
             <!-- 멤버 불러오기 -->
-            <button onclick="ladderToggleMemberPicker()" style="width:100%;font-size:0.68rem;padding:5px;border-radius:7px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;font-weight:600">👤 멤버 불러오기</button>
+            <button onclick="ladderToggleMemberPicker()" style="width:100%;font-size:0.68rem;padding:5px;border-radius:7px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;font-weight:600">👤 참가자</button>
             <div id="ladder-member-picker-popup" style="display:none;margin-top:6px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px"></div>
           </div>
           <!-- 오른쪽: 선택된 항목 (50%) -->
