@@ -8792,7 +8792,7 @@ function _ladderAnimate(colIdx) {
   const fullPath = _ladderGetPath(colIdx, cols, rows, rungs, colW, rowH);
   const totalSeg = fullPath.length - 1;
   let prog = 0;
-  const totalDur = 1500; // ms
+  const totalDur = 2800; // ms
   let last = null;
   _ladderState.animating = true;
   document.getElementById('ladder-game-hint').textContent = `${p[colIdx]} 내려가는 중...`;
