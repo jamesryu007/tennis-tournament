@@ -10119,9 +10119,9 @@ function mpToggleDateVote(dateStr) {
       ref.child('dates/'+dateStr).remove().catch(fbErr);
     } else if (!multiSelect) {
       // 단일 선택: 관리자 후보 + 멤버 제안 후보 모두 초기화 후 선택
-      ref.update({ dates: { [dateStr]: true }, memberDates: null }).catch(fbErr);
+      ref.update({ dates: { [dateStr]: true }, memberDates: null, cannotAttend: null }).catch(fbErr);
     } else {
-      ref.child('dates/'+dateStr).set(true).catch(fbErr);
+      ref.update({ 'dates/'+dateStr: true, cannotAttend: null }).catch(fbErr);
     }
     ref.child('name').set(me).catch(fbErr);
   });
@@ -10137,13 +10137,12 @@ function mpToggleCannotAttend() {
   ref.once('value').then(snap => {
     const cur = snap.val()||{};
     const already = cur.cannotAttend === true;
-    const updates = { name: me };
     if (already) {
-      updates.cannotAttend = null;
+      ref.update({ cannotAttend: null, name: me }).catch(fbErr);
     } else {
-      updates.cannotAttend = true;
+      // 날짜/멤버날짜 선택 모두 초기화 후 참석불가 선택
+      ref.update({ cannotAttend: true, dates: null, memberDates: null, name: me }).catch(fbErr);
     }
-    ref.update(updates).catch(fbErr);
   });
 }
 
@@ -10284,9 +10283,9 @@ function mpToggleMemberDateVote(key) {
       ref.child('memberDates/' + key).remove().catch(fbErr);
     } else if (!multiSelect) {
       // 단일 선택: 관리자 후보 + 멤버 제안 후보 모두 초기화 후 선택
-      ref.update({ dates: null, memberDates: { [key]: true } }).catch(fbErr);
+      ref.update({ dates: null, memberDates: { [key]: true }, cannotAttend: null }).catch(fbErr);
     } else {
-      ref.child('memberDates/' + key).set(true).catch(fbErr);
+      ref.update({ ['memberDates/'+key]: true, cannotAttend: null }).catch(fbErr);
     }
     ref.child('name').set(me).catch(fbErr);
   });
