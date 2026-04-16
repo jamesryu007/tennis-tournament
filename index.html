@@ -1231,8 +1231,11 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       </div>
       <div class="card" style="margin-bottom:16px">
         <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:8px">🎯 결과 항목 <span id="ladder-item-hint" style="font-weight:400"></span></div>
-        <!-- 꽝 빠른추가 -->
-        <button onclick="ladderAddItemFromTemplate('💀 꽝')" style="font-size:0.75rem;padding:6px 12px;border-radius:8px;border:1.5px solid #fecaca;background:#fff5f5;color:#dc2626;cursor:pointer;margin-bottom:10px">+ 💀 꽝 추가</button>
+        <!-- 꽝 / Winner 빠른추가 -->
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <button onclick="ladderAddItemFromTemplate('💀 꽝')" style="font-size:0.75rem;padding:6px 12px;border-radius:8px;border:1.5px solid #fecaca;background:#fff5f5;color:#dc2626;cursor:pointer;font-weight:600">+ 💀 꽝</button>
+          <button onclick="ladderAddItemFromTemplate('🏆 Winner')" style="font-size:0.75rem;padding:6px 12px;border-radius:8px;border:1.5px solid #fde68a;background:#fffbeb;color:#b45309;cursor:pointer;font-weight:600">+ 🏆 Winner</button>
+        </div>
         <!-- 선택된 결과 항목 칩 -->
         <div id="ladder-items-list" style="display:flex;flex-wrap:wrap;gap:0;margin-bottom:10px"></div>
         <!-- 직접 입력 -->
@@ -8432,7 +8435,11 @@ function _ladderRenderItems() {
   if (!_ladderState.items.length) { el.innerHTML = ''; return; }
   el.innerHTML = _ladderState.items.map((label, i) => {
     const isBad = label.includes('꽝');
-    return `<div class="bet-member-chip selected" style="${isBad?'background:#fee2e2;border-color:#fca5a5;color:#dc2626;':''}">${label}<span onclick="ladderRemoveItem(${i})" style="margin-left:5px;cursor:pointer;opacity:0.6">✕</span></div>`;
+    const isWin = label.includes('Winner');
+    const style = isBad ? 'background:#fee2e2;border-color:#fca5a5;color:#dc2626;'
+                : isWin ? 'background:#fffbeb;border-color:#fde68a;color:#b45309;'
+                : '';
+    return `<div class="bet-member-chip selected" style="${style}">${label}<span onclick="ladderRemoveItem(${i})" style="margin-left:5px;cursor:pointer;opacity:0.6">✕</span></div>`;
   }).join('');
 }
 function _ladderUpdateHint() {
