@@ -9443,6 +9443,23 @@ function _mpVoteSection(poll, me) {
         </div>
       </div>`;
     });
+    // 참석하기 어려움 고정 옵션
+    {
+      const cannotAttend = myVotes.cannotAttend === true;
+      const cannotVoters = Object.values(votes).filter(v => v.cannotAttend).map(v => v.name).filter(Boolean);
+      const cannotCount = cannotVoters.length;
+      const cannotVotersRow = dateIsPublic && cannotCount
+        ? `<div style="margin-top:4px">${cannotVoters.map(n=>`<span class="mp-chip">${n}</span>`).join('')}</div>` : '';
+      const cannotBtn = me ? `<button onclick="mpToggleCannotAttend()" style="flex-shrink:0;font-size:0.75rem;padding:4px 10px;border-radius:8px;border:1.5px solid ${cannotAttend?'#dc2626':'#e2e8f0'};background:${cannotAttend?'#dc2626':'#fff'};color:${cannotAttend?'#fff':'#64748b'};cursor:pointer;font-weight:600">${cannotAttend?'✓ 선택됨':'선택'}</button>` : '';
+      html += `<div class="mp-option${cannotAttend?' voted':''}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:0.85rem;font-weight:700;color:#dc2626">😔 참석하기 어려움</div>
+            <div style="font-size:0.72rem;color:#64748b;margin-top:2px">${cannotCount}명</div>${cannotVotersRow}
+          </div>${cannotBtn}
+        </div>
+      </div>`;
+    }
     if (me) {
       html += `<div style="margin-top:10px">
         <div id="mp-suggest-date-btn-wrap">
@@ -10107,6 +10124,26 @@ function mpToggleDateVote(dateStr) {
       ref.child('dates/'+dateStr).set(true).catch(fbErr);
     }
     ref.child('name').set(me).catch(fbErr);
+  });
+}
+
+function mpToggleCannotAttend() {
+  const me = state.identity&&state.identity.name;
+  if (!me) { alert('먼저 접속자를 선택하세요.'); return; }
+  if (!_mpData||_mpData.status!=='open') { alert('투표가 마감되었습니다.'); return; }
+  if (_mpData.closesAt && new Date(_mpData.closesAt) <= new Date()) { alert('마감 시간이 지났습니다.'); return; }
+  const key = me.replace(/[.#$[\]]/g,'_');
+  const ref = db.ref(`jmt/meetingPoll/votes/${key}`);
+  ref.once('value').then(snap => {
+    const cur = snap.val()||{};
+    const already = cur.cannotAttend === true;
+    const updates = { name: me };
+    if (already) {
+      updates.cannotAttend = null;
+    } else {
+      updates.cannotAttend = true;
+    }
+    ref.update(updates).catch(fbErr);
   });
 }
 
