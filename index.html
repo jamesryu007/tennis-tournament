@@ -8476,20 +8476,22 @@ function _ladderBuildMemberPicker() {
   const excluded = new Set(_ladderState.participants);
   const members = (state.members || []).filter(m => m.name && !excluded.has(m.name));
   if (!members.length) { popup.innerHTML = '<div style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:4px">참가자 외 멤버가 없습니다</div>'; return; }
-  popup.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px" id="lmp-chips">`
-    + members.map(m => `<div class="bet-member-chip" id="lmp-${m.name}" onclick="ladderPickerToggle('${m.name}')" style="padding:3px 7px;font-size:0.66rem;margin:0;border-width:1.5px">${m.name}</div>`).join('')
-    + `</div><button onclick="ladderConfirmMemberPick()" style="width:100%;font-size:0.68rem;padding:5px;border-radius:7px;border:none;background:#0284c7;color:#fff;cursor:pointer;font-weight:700">선택 완료</button>`;
+  popup.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:3px" id="lmp-chips">`
+    + members.map(m => {
+        const alreadyIn = _ladderState.items.includes(m.name);
+        return `<div class="bet-member-chip${alreadyIn?' selected':''}" id="lmp-${m.name}" onclick="ladderPickerToggle('${m.name}')" style="padding:3px 7px;font-size:0.66rem;margin:0;border-width:1.5px">${m.name}</div>`;
+      }).join('')
+    + `</div>`;
 }
 function ladderPickerToggle(name) {
-  if (_ladderPickerSel.has(name)) _ladderPickerSel.delete(name);
-  else _ladderPickerSel.add(name);
+  const idx = _ladderState.items.indexOf(name);
+  if (idx !== -1) {
+    _ladderState.items.splice(idx, 1);
+  } else {
+    _ladderState.items.push(name);
+  }
   const chip = document.getElementById(`lmp-${name}`);
-  if (chip) chip.classList.toggle('selected', _ladderPickerSel.has(name));
-}
-function ladderConfirmMemberPick() {
-  _ladderPickerSel.forEach(name => _ladderState.items.push(name));
-  _ladderPickerSel.clear();
-  document.getElementById('ladder-member-picker-popup').style.display = 'none';
+  if (chip) chip.classList.toggle('selected', _ladderState.items.includes(name));
   _ladderRenderItems(); _ladderUpdateHint();
 }
 
