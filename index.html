@@ -7228,29 +7228,52 @@ function _renderHistoryList(el) {
       const isWinner = bet.type === 'winner';
       const typeIcon = isWinner ? '🏆' : '⚔️';
       const title = isWinner ? (bet.tournamentName || '우승자 베팅') : (bet.matchName || '경기 베팅');
-      const resultLabel = hasResult ? `🏆 ${bet.result.winnerName}` : '미확정';
+      const winner = hasResult ? bet.result.winnerName : '';
       const myName = state.identity && state.identity.name;
       const myKey = myName ? myName.replace(/[.#$[\]]/g, '_') : null;
       const myBet = myKey && bet.bets ? bet.bets[myKey] : null;
-      const myWon = hasResult && myBet && (myBet.playerName === bet.result.winnerName || myBet.playerId === bet.result.winnerId);
-      const myBadge = myBet ? (hasResult ? (myWon ? ' 🎉' : ' 😔') : ' ✅') : '';
+      const myWon = hasResult && myBet && (myBet.playerName === winner || myBet.playerId === bet.result.winnerId);
+      const myBadge = myBet ? (hasResult ? (myWon ? '🎉' : '😔') : '✅') : '';
+      const dateStr = bet.openedAt ? new Date(bet.openedAt).toLocaleDateString('ko-KR', {month:'numeric', day:'numeric'}) : '';
       const delBtn = isAdmin()
         ? `<button onclick="deleteAtpBetHistory(event,'${tId.replace(/'/g,"\\'")}','${betId.replace(/'/g,"\\'")}');" style="border:none;background:none;color:#fca5a5;font-size:1rem;cursor:pointer;padding:2px 4px;line-height:1;flex-shrink:0" title="삭제">🗑</button>`
         : '';
-      return `<div style="padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:6px;background:#fff">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-          <span onclick="showAtpHistoryDetail('${tId.replace(/'/g,"\\'")}_SEP_${betId.replace(/'/g,"\\'")}');" style="flex:1;font-size:0.82rem;font-weight:700;color:#1e293b;cursor:pointer">${typeIcon} ${title}</span>
-          <span style="font-size:0.68rem;background:${hasResult?'#f0fdf4':'#f8fafc'};color:${hasResult?'#166534':'#64748b'};border:1px solid ${hasResult?'#86efac':'#e2e8f0'};border-radius:20px;padding:2px 8px;flex-shrink:0">${hasResult?'결과확정':'대기중'}</span>
+      const key = `'${tId.replace(/'/g,"\\'")}_SEP_${betId.replace(/'/g,"\\'")}'`;
+      return `<div onclick="showAtpHistoryDetail(${key});" style="padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:6px;background:#fff;cursor:pointer">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <span style="flex:1;font-size:0.82rem;font-weight:800;color:#1e293b">${typeIcon} ${title}</span>
+          <span style="font-size:0.65rem;background:${hasResult?'#f0fdf4':'#f8fafc'};color:${hasResult?'#166534':'#64748b'};border:1px solid ${hasResult?'#86efac':'#e2e8f0'};border-radius:20px;padding:2px 7px;flex-shrink:0">${hasResult?'결과확정':'대기중'}</span>
           ${delBtn}
         </div>
-        <div onclick="showAtpHistoryDetail('${tId.replace(/'/g,"\\'")}_SEP_${betId.replace(/'/g,"\\'")}');" style="font-size:0.73rem;color:#64748b;cursor:pointer">${allBetsArr.length}명 참여 · ${resultLabel}${myBadge}</div>
+        ${bet.stake ? `<div style="font-size:0.7rem;color:#7c3aed;font-weight:600;margin-bottom:3px">🎯 ${bet.stake}</div>` : ''}
+        <div style="display:flex;align-items:center;gap:8px;font-size:0.7rem;color:#64748b;flex-wrap:wrap">
+          ${dateStr ? `<span>${dateStr}</span>` : ''}
+          ${winner ? `<span style="color:#166534;font-weight:700">🏆 ${winner}</span>` : ''}
+          <span>${allBetsArr.length}명 참여 ${myBadge}</span>
+        </div>
       </div>`;
     }).join('');
+    const groupDelBtn = isAdmin()
+      ? `<button onclick="deleteAtpBetHistoryGroup(event,'${tId.replace(/'/g,"\\'")}');" style="border:none;background:none;color:#fca5a5;font-size:0.85rem;cursor:pointer;padding:2px 6px;font-weight:700" title="그룹 삭제">🗑</button>`
+      : '';
     return `<div style="margin-bottom:16px">
-      <div style="font-size:0.78rem;font-weight:700;color:#475569;margin-bottom:6px;padding:5px 10px;background:#f1f5f9;border-radius:8px">📁 ${tId}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding:5px 10px;background:#f1f5f9;border-radius:8px">
+        <span style="font-size:0.78rem;font-weight:700;color:#475569">📁 ${tId}</span>
+        ${groupDelBtn}
+      </div>
       ${betCards}
     </div>`;
   }).join('');
+}
+
+function deleteAtpBetHistoryGroup(event, tId) {
+  event.stopPropagation();
+  if (!isAdmin()) return;
+  if (!confirm(`'${tId}' 전체 베팅 기록을 삭제하시겠습니까?`)) return;
+  db.ref(`jmt/atpBetsHistory/${tId}`).remove().then(() => {
+    delete _atpBetsHistory[tId];
+    renderAtpBetsHistoryModal();
+  }).catch(fbErr);
 }
 
 function deleteAtpBetHistory(event, tId, betId) {
