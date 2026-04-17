@@ -967,20 +967,18 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
     <!-- 화면1: 홈 -->
     <div id="bet-screen-home">
-      <div id="bet-home-header" style="margin-bottom:12px">
-        <div style="text-align:right">
-          <button onclick="toggleBetGamePicker()" id="bet-new-btn" style="font-size:0.85rem;font-weight:700;padding:9px 18px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;cursor:pointer;box-shadow:0 4px 14px rgba(124,58,237,0.35)">+ 새 내기</button>
-        </div>
-        <div id="bet-game-picker" style="display:none;background:#fff;border-radius:14px;border:1.5px solid #e2e8f0;padding:8px;margin-top:6px;box-shadow:0 4px 16px rgba(0,0,0,0.10)">
-          <button onclick="closeBetGamePicker();betShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #ede9fe;background:linear-gradient(135deg,#f5f3ff,#ede9fe);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
+      <div id="bet-home-header" style="margin-bottom:20px">
+        <div style="background:#fff;border-radius:14px;border:1.5px solid #e2e8f0;padding:8px;box-shadow:0 2px 10px rgba(0,0,0,0.06)">
+          <div style="font-size:0.65rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;text-align:center;padding:2px 0 7px;border-bottom:1px solid #f1f5f9;margin-bottom:7px">🎲 내기 게임 선택</div>
+          <button onclick="betShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #ede9fe;background:linear-gradient(135deg,#f5f3ff,#ede9fe);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
             <span style="font-size:1.4rem">🎈</span>
             <div><div style="font-weight:800">릴레이 풍선 터치</div><div style="font-size:0.68rem;color:#7c3aed;font-weight:600">순서대로 터치 — 끝까지 살아남아라!</div></div>
           </button>
-          <button onclick="closeBetGamePicker();ladderShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #bbf7d0;background:linear-gradient(135deg,#f0fdf4,#dcfce7);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
+          <button onclick="ladderShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #bbf7d0;background:linear-gradient(135deg,#f0fdf4,#dcfce7);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
             <span style="font-size:1.4rem">🪜</span>
             <div><div style="font-weight:800">사다리 타기</div><div style="font-size:0.68rem;color:#16a34a;font-weight:600">이름 클릭 → 사다리 따라 결과 공개!</div></div>
           </button>
-          <button onclick="closeBetGamePicker();bombShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #fee2e2;background:linear-gradient(135deg,#fff5f5,#fee2e2);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px">
+          <button onclick="bombShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #fee2e2;background:linear-gradient(135deg,#fff5f5,#fee2e2);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px">
             <span style="font-size:1.4rem">💣</span>
             <div><div style="font-weight:800">시한폭탄 피하기</div><div style="font-size:0.68rem;color:#dc2626;font-weight:600">방장이 시작 — 동시에 폭탄방 공개!</div></div>
           </button>
@@ -1230,31 +1228,32 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         </div>
       </div>
       <div class="card" style="margin-bottom:16px;padding:10px 12px">
-        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:6px">🎯 하단 항목(참가자) <span id="ladder-item-hint" style="font-weight:400"></span></div>
-        <div style="display:flex;gap:8px;align-items:flex-start">
-          <!-- 왼쪽: 컨트롤 (50%) -->
-          <div style="flex:1;min-width:0">
-            <!-- 꽝 / Winner 빠른추가 -->
-            <div style="display:flex;gap:4px;margin-bottom:6px">
-              <button onclick="ladderAddItemFromTemplate('💀 꽝')" style="flex:1;font-size:0.68rem;padding:4px 6px;border-radius:7px;border:1.5px solid #fecaca;background:#fff5f5;color:#dc2626;cursor:pointer;font-weight:600">+ 💀 꽝</button>
-              <button onclick="ladderAddItemFromTemplate('🏆 Winner')" style="flex:1;font-size:0.68rem;padding:4px 6px;border-radius:7px;border:1.5px solid #fde68a;background:#fffbeb;color:#b45309;cursor:pointer;font-weight:600">+ 🏆 W</button>
+        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:8px">🎯 하단 항목(참가자) <span id="ladder-item-hint" style="font-weight:400"></span></div>
+        <div style="display:flex;gap:8px;align-items:stretch">
+          <!-- 왼쪽: 입력 컨트롤 -->
+          <div style="flex:1;min-width:0;border:1.5px solid #e2e8f0;border-radius:10px;background:#fafafa;padding:8px;display:flex;flex-direction:column;gap:6px">
+            <div style="font-size:0.65rem;font-weight:700;color:#475569;text-align:center;padding-bottom:4px;border-bottom:1px solid #e2e8f0">👤 참가자</div>
+            <!-- 꽝 / Winner -->
+            <div style="display:flex;gap:4px">
+              <button onclick="ladderAddItemFromTemplate('💀 꽝')" style="flex:1;font-size:0.68rem;padding:5px 4px;border-radius:7px;border:1.5px solid #fecaca;background:#fff5f5;color:#dc2626;cursor:pointer;font-weight:700">💀 꽝</button>
+              <button onclick="ladderAddItemFromTemplate('🏆 Winner')" style="flex:1;font-size:0.68rem;padding:5px 4px;border-radius:7px;border:1.5px solid #fde68a;background:#fffbeb;color:#b45309;cursor:pointer;font-weight:700">🏆 W</button>
             </div>
             <!-- 직접 입력 -->
-            <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px">
+            <div style="display:flex;gap:4px;align-items:center">
               <input id="ladder-item-input" type="text" placeholder="직접 입력..." maxlength="15"
-                style="flex:1;font-size:0.72rem;padding:5px 7px;border-radius:7px;border:1.5px solid #e2e8f0;outline:none;min-width:0"
-                onfocus="this.style.borderColor='#16a34a'" onblur="this.style.borderColor='#e2e8f0'"
+                style="flex:1;font-size:0.7rem;padding:5px 6px;border-radius:7px;border:1.5px solid #e2e8f0;outline:none;min-width:0;background:#fff"
+                onfocus="this.style.borderColor='#22c55e'" onblur="this.style.borderColor='#e2e8f0'"
                 onkeydown="if(event.key==='Enter')ladderAddItemManual()">
-              <button onclick="ladderAddItemManual()" style="font-size:0.68rem;padding:5px 8px;border-radius:7px;border:none;background:#16a34a;color:#fff;cursor:pointer;font-weight:700;white-space:nowrap">추가</button>
+              <button onclick="ladderAddItemManual()" style="font-size:0.68rem;padding:5px 8px;border-radius:7px;border:none;background:#16a34a;color:#fff;cursor:pointer;font-weight:700;white-space:nowrap">+</button>
             </div>
             <!-- 멤버 불러오기 -->
-            <button onclick="ladderToggleMemberPicker()" style="width:100%;font-size:0.68rem;padding:5px;border-radius:7px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;font-weight:600">👤 참가자</button>
-            <div id="ladder-member-picker-popup" style="display:none;margin-top:6px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px"></div>
+            <button onclick="ladderToggleMemberPicker()" style="width:100%;font-size:0.67rem;padding:5px;border-radius:7px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;cursor:pointer;font-weight:700">👥 멤버에서 불러오기</button>
+            <div id="ladder-member-picker-popup" style="display:none;margin-top:2px;background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:8px;padding:7px"></div>
           </div>
-          <!-- 오른쪽: 선택된 항목 (50%) -->
-          <div style="flex:1;min-width:0;border:1.5px solid #bbf7d0;border-radius:8px;background:#f0fdf4;padding:6px">
-            <div style="font-size:0.62rem;color:#16a34a;font-weight:700;margin-bottom:4px;text-align:center">✔ 선택됨</div>
-            <div id="ladder-items-list" style="display:flex;flex-wrap:wrap;gap:2px;max-height:140px;overflow-y:auto"></div>
+          <!-- 오른쪽: 선택된 항목 -->
+          <div style="flex:1;min-width:0;border:1.5px solid #86efac;border-radius:10px;background:linear-gradient(160deg,#f0fdf4,#dcfce7);padding:8px;display:flex;flex-direction:column">
+            <div style="font-size:0.65rem;font-weight:700;color:#16a34a;text-align:center;padding-bottom:4px;border-bottom:1px solid #bbf7d0;margin-bottom:5px">✔ 선택됨</div>
+            <div id="ladder-items-list" style="display:flex;flex-wrap:wrap;gap:3px;flex:1;max-height:140px;overflow-y:auto;align-content:flex-start"></div>
           </div>
         </div>
       </div>
@@ -8153,22 +8152,22 @@ function _betStatsHtml(data) {
   if (!allLosers.length && !allCost.length) return '';
 
   function barRows(entries, unit, color, offset, globalMax) {
-    if (!entries.length) return '<div style="font-size:0.78rem;color:#94a3b8;padding:6px 0">데이터 없음</div>';
+    if (!entries.length) return '<div style="font-size:0.7rem;color:#94a3b8;padding:4px 0">데이터 없음</div>';
     const off = offset || 0;
     const max = globalMax || entries[0][1] || 1;
     return entries.map(([name, val], i) => {
       const pos = i + off;
       const pct = Math.round((val / max) * 100);
       const label = unit === '회' ? `${val}회` : `${val.toLocaleString('ko-KR')}원`;
-      return `<div style="margin-bottom:9px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
-          <div style="display:flex;align-items:center;gap:5px">
-            <span style="font-size:0.8rem;line-height:1">${medals[pos]||String(pos+1)}</span>
-            <span style="font-size:0.8rem;font-weight:700;color:#1e293b">${name}</span>
+      return `<div style="margin-bottom:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+          <div style="display:flex;align-items:center;gap:4px">
+            <span style="font-size:0.72rem;line-height:1">${medals[pos]||String(pos+1)}</span>
+            <span style="font-size:0.7rem;font-weight:700;color:#1e293b">${name}</span>
           </div>
-          <span style="font-size:0.75rem;font-weight:700;color:${color}">${label}</span>
+          <span style="font-size:0.65rem;font-weight:700;color:${color}">${label}</span>
         </div>
-        <div style="height:7px;border-radius:4px;background:#f1f5f9;overflow:hidden">
+        <div style="height:5px;border-radius:4px;background:#f1f5f9;overflow:hidden">
           <div style="height:100%;width:${pct}%;border-radius:4px;background:${color};transition:width .4s ease"></div>
         </div>
       </div>`;
@@ -8176,24 +8175,24 @@ function _betStatsHtml(data) {
   }
 
   function statsCard(allEntries, unit, color, title, idPrefix) {
-    const top5 = allEntries.slice(0,5);
-    const rest  = allEntries.slice(5);
+    const top3 = allEntries.slice(0,3);
+    const rest  = allEntries.slice(3);
     const globalMax = allEntries.length ? allEntries[0][1] : 1;
     const moreBtn = rest.length ? `<button onclick="
       var el=document.getElementById('${idPrefix}-more');
       var btn=this;
       if(el.style.display==='none'){el.style.display='block';btn.textContent='접기 ▲';}
       else{el.style.display='none';btn.textContent='더보기 ▼';}
-    " style="width:100%;margin-top:6px;padding:5px;border:none;background:none;color:#94a3b8;font-size:0.72rem;cursor:pointer;font-weight:600">더보기 ▼</button>
-    <div id="${idPrefix}-more" style="display:none">${barRows(rest, unit, color, 5, globalMax)}</div>` : '';
-    return `<div class="card" style="padding:14px 12px">
-      <div style="font-size:0.7rem;font-weight:800;color:${color==='#f87171'?'#dc2626':'#7c3aed'};letter-spacing:0.06em;margin-bottom:10px">${title} TOP 5</div>
-      ${barRows(top5, unit, color, 0, globalMax)}
+    " style="width:100%;margin-top:4px;padding:4px;border:none;background:none;color:#94a3b8;font-size:0.65rem;cursor:pointer;font-weight:600">더보기 ▼</button>
+    <div id="${idPrefix}-more" style="display:none">${barRows(rest, unit, color, 3, globalMax)}</div>` : '';
+    return `<div class="card" style="padding:10px 10px">
+      <div style="font-size:0.62rem;font-weight:800;color:${color==='#f87171'?'#dc2626':'#7c3aed'};letter-spacing:0.06em;margin-bottom:7px">${title} TOP 3</div>
+      ${barRows(top3, unit, color, 0, globalMax)}
       ${moreBtn}
     </div>`;
   }
 
-  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px;padding-top:4px;border-top:1px solid #f1f5f9">
     ${statsCard(allLosers,'회','#f87171','💀 최다 탈락','stat-loser')}
     ${statsCard(allCost,'원','#a78bfa','💸 최다 스폰','stat-cost')}
   </div>`;
@@ -8292,10 +8291,10 @@ function betRenderHome() {
       const displayTitle = r.betTitle || r.title || '';
       const totalCost = Object.values(r.costs||{}).reduce((s,v)=>s+(v||0),0);
       const loserChips = (r.losers||[]).map(n =>
-        `<span style="display:inline-block;padding:4px 12px;border-radius:12px;background:#fee2e2;color:#dc2626;font-size:0.78rem;font-weight:700;margin:2px">💀 ${n}</span>`
+        `<span style="display:inline-block;padding:3px 9px;border-radius:10px;background:#fee2e2;color:#dc2626;font-size:0.68rem;font-weight:700;margin:2px">💀 ${n}</span>`
       ).join('');
       const winnerChips = (r.winners||[]).map(n =>
-        `<span style="display:inline-block;padding:4px 12px;border-radius:12px;background:#dcfce7;color:#16a34a;font-size:0.78rem;font-weight:700;margin:2px">🎉 ${n}</span>`
+        `<span style="display:inline-block;padding:3px 9px;border-radius:10px;background:#dcfce7;color:#16a34a;font-size:0.68rem;font-weight:700;margin:2px">🎉 ${n}</span>`
       ).join('');
       const losersJson = encodeURIComponent(JSON.stringify(r.losers||[]));
       const costsJson  = encodeURIComponent(JSON.stringify(r.costs||{}));
@@ -8326,30 +8325,30 @@ function betRenderHome() {
         ? `<span style="font-size:0.65rem;background:#fef9c3;color:#92400e;border-radius:6px;padding:2px 7px;font-weight:700">👑 ${r.hostName}</span>`
         : '';
       return `<div class="bet-history-item">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <div style="flex:1">
-            <div style="margin-bottom:4px;display:flex;align-items:center;gap:4px;flex-wrap:wrap">${gameTypeBadge}${hostBadge}</div>
-            <div style="font-size:0.95rem;font-weight:800;color:#1e293b">${displayTitle}</div>
+            <div style="margin-bottom:3px;display:flex;align-items:center;gap:3px;flex-wrap:wrap">${gameTypeBadge}${hostBadge}</div>
+            <div style="font-size:0.85rem;font-weight:800;color:#1e293b">${displayTitle}</div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;margin-left:8px">
-            <div style="font-size:0.7rem;color:#94a3b8;white-space:nowrap">${date}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-left:8px">
+            <div style="font-size:0.65rem;color:#94a3b8;white-space:nowrap">${date}</div>
             ${delBtn}
           </div>
         </div>
-        <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${loserChips}</div>
-        <div style="display:flex;flex-wrap:wrap;margin-bottom:6px">${winnerChips}</div>
-        <div id="bet-cost-view-${id}" style="display:flex;align-items:center;gap:10px">
-          ${totalCost ? `<div style="font-size:0.8rem;color:#7c3aed;font-weight:700">💸 총 ${totalCost.toLocaleString()}원</div>` : `<div style="font-size:0.75rem;color:#94a3b8">비용 미입력</div>`}
+        <div style="display:flex;flex-wrap:wrap;margin-bottom:3px">${loserChips}</div>
+        <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${winnerChips}</div>
+        <div id="bet-cost-view-${id}" style="display:flex;align-items:center;gap:8px">
+          ${totalCost ? `<div style="font-size:0.72rem;color:#7c3aed;font-weight:700">💸 총 ${totalCost.toLocaleString()}원</div>` : `<div style="font-size:0.68rem;color:#94a3b8">비용 미입력</div>`}
           ${editBtn}
         </div>
-        <div id="bet-cost-edit-${id}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9" data-losers="${losersJson}">
+        <div id="bet-cost-edit-${id}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #f1f5f9" data-losers="${losersJson}">
           ${costInputs}
           <div style="display:flex;gap:8px;margin-top:4px">
-            <button onclick="betCancelCostEdit('${id}')" style="flex:1;padding:8px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:0.82rem;cursor:pointer">취소</button>
-            <button onclick="betSaveCostEdit('${id}')" style="flex:2;padding:8px;border-radius:8px;border:none;background:#7c3aed;color:#fff;font-size:0.82rem;font-weight:700;cursor:pointer">저장</button>
+            <button onclick="betCancelCostEdit('${id}')" style="flex:1;padding:7px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:0.78rem;cursor:pointer">취소</button>
+            <button onclick="betSaveCostEdit('${id}')" style="flex:2;padding:7px;border-radius:8px;border:none;background:#7c3aed;color:#fff;font-size:0.78rem;font-weight:700;cursor:pointer">저장</button>
           </div>
         </div>
-        <div style="font-size:0.7rem;color:#94a3b8;margin-top:6px">${(r.participants||[]).length}명 참여</div>
+        <div style="font-size:0.62rem;color:#94a3b8;margin-top:4px">${(r.participants||[]).length}명 참여</div>
       </div>`;
     }).join('');
   }).catch(() => {});
