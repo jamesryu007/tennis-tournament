@@ -6248,8 +6248,9 @@ function renderBetCard(betId, bet, myName) {
     : renderMatchBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAll);
 
   const _shareIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>`;
+  const cardBorderColor = isOpen ? '#22c55e' : (hasResult ? '#f59e0b' : '#94a3b8');
   return `
-    <div class="bet-card" id="bet-card-${betId}" style="position:relative">
+    <div class="bet-card" id="bet-card-${betId}" style="position:relative;border-color:${cardBorderColor}">
       <div style="position:absolute;top:8px;right:10px;display:flex;gap:5px;align-items:center">
         ${deleteBtn || ''}
         <button onclick="shareBetCard('${betId}')" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;font-size:0.75rem;font-weight:600;cursor:pointer;line-height:1" title="공유">${_shareIconSvg} 공유</button>
@@ -7262,13 +7263,10 @@ function _renderHistoryList(el) {
       </div>`;
     }).join('');
     const groupDelBtn = isAdmin()
-      ? `<button onclick="deleteAtpBetHistoryGroup(event,'${tId.replace(/'/g,"\\'")}');" style="border:none;background:none;color:#fca5a5;font-size:0.85rem;cursor:pointer;padding:2px 6px;font-weight:700" title="그룹 삭제">🗑</button>`
+      ? `<div style="text-align:right;margin-bottom:2px"><button onclick="deleteAtpBetHistoryGroup(event,'${tId.replace(/'/g,"\\'")}');" style="border:none;background:none;color:#fca5a5;font-size:0.72rem;cursor:pointer;padding:2px 4px" title="그룹 전체 삭제">🗑 전체삭제</button></div>`
       : '';
     return `<div style="margin-bottom:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding:5px 10px;background:#f1f5f9;border-radius:8px">
-        <span style="font-size:0.78rem;font-weight:700;color:#475569">📁 ${tId}</span>
-        ${groupDelBtn}
-      </div>
+      ${groupDelBtn}
       ${betCards}
     </div>`;
   }).join('');
@@ -7395,14 +7393,20 @@ function _renderHistoryDetail(el) {
 
   const openedAt = bet.openedAt ? new Date(bet.openedAt).toLocaleDateString('ko-KR') : '';
 
+  const _shareIconSvg2 = `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>`;
   el.innerHTML = `
-    <button onclick="_historyView='list';renderAtpBetsHistoryModal()" style="background:none;border:none;font-size:0.82rem;color:#2563eb;font-weight:700;cursor:pointer;padding:0 0 10px;display:flex;align-items:center;gap:4px">← 목록으로</button>
-    <div style="font-size:0.9rem;font-weight:800;color:#1e293b;margin-bottom:3px">${isWinner?'🏆':'⚔️'} ${bet.tournamentName||bet.matchName||'베팅'}</div>
-    <div style="font-size:0.72rem;color:#64748b;margin-bottom:10px">${openedAt?`${openedAt} · `:''}${bet.openedBy||''} 개설 · ${allBetsArr.length}명 참여</div>
-    ${bet.stake ? `<div style="background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:6px 10px;font-size:0.75rem;color:#92400e;margin-bottom:10px">🎯 ${bet.stake}</div>` : ''}
-    ${resultSection}
-    ${votesSection}
-    ${commentsSection}
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <button onclick="_historyView='list';renderAtpBetsHistoryModal()" style="background:none;border:none;font-size:0.82rem;color:#2563eb;font-weight:700;cursor:pointer;padding:0;display:flex;align-items:center;gap:4px">← 목록으로</button>
+      <button onclick="shareAtpHistoryDetail()" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;font-size:0.75rem;font-weight:600;cursor:pointer;line-height:1">${_shareIconSvg2} 공유</button>
+    </div>
+    <div id="atp-history-detail-card">
+      <div style="font-size:0.9rem;font-weight:800;color:#1e293b;margin-bottom:3px">${isWinner?'🏆':'⚔️'} ${bet.tournamentName||bet.matchName||'베팅'}</div>
+      <div style="font-size:0.72rem;color:#64748b;margin-bottom:10px">${openedAt?`${openedAt} · `:''}${bet.openedBy||''} 개설 · ${allBetsArr.length}명 참여</div>
+      ${bet.stake ? `<div style="background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:6px 10px;font-size:0.75rem;color:#92400e;margin-bottom:10px">🎯 ${bet.stake}</div>` : ''}
+      ${resultSection}
+      ${votesSection}
+      ${commentsSection}
+    </div>
   `;
 }
 
@@ -9025,6 +9029,10 @@ async function shareElementAsImage(elementId, title, filename) {
 
 function shareBetCard(betId) {
   shareElementAsImage(`bet-card-${betId}`, '🎲 JAMITE 베팅', 'bet-card.png');
+}
+
+function shareAtpHistoryDetail() {
+  shareElementAsImage('atp-history-detail-card', '🎲 JAMITE 베팅 히스토리', 'bet-history.png');
 }
 
 function shareMpVoteCard() {
