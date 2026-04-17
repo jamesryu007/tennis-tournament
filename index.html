@@ -752,8 +752,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   </div>
 </div>
 
-<!-- 베팅 히스토리 모달 (관리자용) -->
-<div id="atp-history-modal" class="modal-overlay">
+<!-- 베팅 히스토리 모달 -->
+<div id="atp-history-modal" class="modal-overlay" onclick="if(event.target===this)closeAtpBetsHistoryModal()">
   <div class="modal-sheet" style="height:80vh;display:flex;flex-direction:column">
     <div class="modal-handle"></div>
     <div style="padding:14px 18px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
@@ -767,6 +767,17 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 </div>
 
 <!-- ══ 모임정하기 히스토리 모달 ══ -->
+<div id="bet-history-modal" class="modal-overlay" onclick="if(event.target===this)closeBetHistoryModal()">
+  <div class="modal-sheet" style="height:85vh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <div style="padding:14px 18px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div id="bet-history-modal-title" style="font-size:1rem;font-weight:800;color:#1e293b">🎲 내기 이력</div>
+      <button onclick="closeBetHistoryModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8">✕</button>
+    </div>
+    <div id="bet-history-modal-content" style="flex:1;overflow-y:auto;padding:14px 18px 24px"></div>
+  </div>
+</div>
+
 <div id="mp-history-modal" class="modal-overlay" onclick="if(event.target===this)closeMpHistoryModal()">
   <div class="modal-sheet" style="height:85vh;display:flex;flex-direction:column">
     <div class="modal-handle"></div>
@@ -6178,9 +6189,9 @@ function getTournamentPlayersSorted() {
 function renderAtpBetPanel() {
   const el = document.getElementById('atp-bet-content');
   if (!el) return;
-  // 관리자용 히스토리 버튼 표시
+  // 전체 멤버 히스토리 버튼 표시
   const histBtn = document.getElementById('atp-bet-history-btn');
-  if (histBtn) histBtn.style.display = isAdmin() ? '' : 'none';
+  if (histBtn) histBtn.style.display = '';
   const allBets = Object.entries(atpState.bets)
     .sort((a, b) => (b[1].openedAt || '').localeCompare(a[1].openedAt || ''));
 
@@ -8132,13 +8143,13 @@ function betSaveCostEdit(id) {
     const el = document.getElementById(`bce-${id}-${i}`);
     if (el) costs[name] = parseInt(el.value.replace(/[^0-9]/g,'')) || 0;
   });
-  db.ref('jmt/betHistory/'+id+'/costs').set(costs).then(() => betRenderHome()).catch(fbErr);
+  db.ref('jmt/betHistory/'+id+'/costs').set(costs).then(() => { _loadBetHistory(); betRenderHome(); }).catch(fbErr);
 }
 function betDeleteRecord(id) {
   if (!isManager()) return;
   if (!confirm('이 내기 기록을 삭제하시겠습니까?')) return;
   if (!db) return;
-  db.ref('jmt/betHistory/' + id).remove().then(() => betRenderHome()).catch(fbErr);
+  db.ref('jmt/betHistory/' + id).remove().then(() => { _loadBetHistory(); betRenderHome(); }).catch(fbErr);
 }
 function _betStatsHtml(data) {
   const loserCount = {}, costTotal = {};
@@ -8279,14 +8290,40 @@ function betRenderHome() {
     const el = document.getElementById('bet-history-list');
     if (!el) return;
     const data = snap.val();
+    const statsHtml = data ? _betStatsHtml(data) : '';
+    const count = data ? Object.keys(data).length : 0;
+    const histBtn = `<button onclick="openBetHistoryModal()" style="width:100%;margin-top:8px;padding:10px;border-radius:12px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#475569;font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+      📋 내기 이력 보기${count ? ` (${count}건)` : ''}
+    </button>`;
     if (!data) {
-      el.innerHTML = '<div class="card" style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.9rem">아직 내기 기록이 없습니다</div>';
+      el.innerHTML = histBtn;
       return;
     }
+    el.innerHTML = statsHtml + histBtn;
+  }).catch(() => {});
+}
+
+function openBetHistoryModal() {
+  document.getElementById('bet-history-modal').classList.add('open');
+  _loadBetHistory();
+}
+function closeBetHistoryModal() {
+  document.getElementById('bet-history-modal').classList.remove('open');
+}
+function _loadBetHistory() {
+  const el = document.getElementById('bet-history-modal-content');
+  if (!el) return;
+  el.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:0.85rem">불러오는 중...</div>';
+  if (!db) return;
+  db.ref('jmt/betHistory').orderByChild('createdAt').once('value').then(snap => {
+    const data = snap.val();
+    if (!data) {
+      el.innerHTML = '<div style="text-align:center;padding:32px;color:#94a3b8;font-size:0.85rem">아직 내기 기록이 없습니다.</div>';
+      return;
+    }
+    const mgr = isManager();
     const allItems = Object.entries(data).reverse();
-    const items = allItems.slice(0, 20);
-    const statsHtml = _betStatsHtml(data);
-    el.innerHTML = statsHtml + items.map(([id, r]) => {
+    el.innerHTML = allItems.map(([id, r]) => {
       const date = r.date || (r.createdAt ? r.createdAt.slice(0,10) : '');
       const displayTitle = r.betTitle || r.title || '';
       const totalCost = Object.values(r.costs||{}).reduce((s,v)=>s+(v||0),0);
@@ -8351,7 +8388,9 @@ function betRenderHome() {
         <div style="font-size:0.62rem;color:#94a3b8;margin-top:4px">${(r.participants||[]).length}명 참여</div>
       </div>`;
     }).join('');
-  }).catch(() => {});
+  }).catch(() => {
+    el.innerHTML = '<div style="text-align:center;padding:24px;color:#ef4444;font-size:0.85rem">불러오기 실패</div>';
+  });
 }
 
 // ══════════════════════════════════════════════════════════
