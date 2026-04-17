@@ -7235,15 +7235,15 @@ function _renderHistoryList(el) {
       const myWon = hasResult && myBet && (myBet.playerName === bet.result.winnerName || myBet.playerId === bet.result.winnerId);
       const myBadge = myBet ? (hasResult ? (myWon ? ' 🎉' : ' 😔') : ' ✅') : '';
       const delBtn = isAdmin()
-        ? `<button onclick="deleteAtpBetHistory(event,'${tId.replace(/'/g,"\\'")}','${betId.replace(/'/g,"\\'")}')}" style="border:none;background:none;color:#fca5a5;font-size:1rem;cursor:pointer;padding:2px 4px;line-height:1;flex-shrink:0" title="삭제">🗑</button>`
+        ? `<button onclick="deleteAtpBetHistory(event,'${tId.replace(/'/g,"\\'")}','${betId.replace(/'/g,"\\'")}');" style="border:none;background:none;color:#fca5a5;font-size:1rem;cursor:pointer;padding:2px 4px;line-height:1;flex-shrink:0" title="삭제">🗑</button>`
         : '';
       return `<div style="padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:6px;background:#fff">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
-          <span onclick="showAtpHistoryDetail('${tId.replace(/'/g,"\\'")}_SEP_${betId.replace(/'/g,"\\'")}')}" style="flex:1;font-size:0.82rem;font-weight:700;color:#1e293b;cursor:pointer">${typeIcon} ${title}</span>
+          <span onclick="showAtpHistoryDetail('${tId.replace(/'/g,"\\'")}_SEP_${betId.replace(/'/g,"\\'")}');" style="flex:1;font-size:0.82rem;font-weight:700;color:#1e293b;cursor:pointer">${typeIcon} ${title}</span>
           <span style="font-size:0.68rem;background:${hasResult?'#f0fdf4':'#f8fafc'};color:${hasResult?'#166534':'#64748b'};border:1px solid ${hasResult?'#86efac':'#e2e8f0'};border-radius:20px;padding:2px 8px;flex-shrink:0">${hasResult?'결과확정':'대기중'}</span>
           ${delBtn}
         </div>
-        <div onclick="showAtpHistoryDetail('${tId.replace(/'/g,"\\'")}_SEP_${betId.replace(/'/g,"\\'")}')}" style="font-size:0.73rem;color:#64748b;cursor:pointer">${allBetsArr.length}명 참여 · ${resultLabel}${myBadge}</div>
+        <div onclick="showAtpHistoryDetail('${tId.replace(/'/g,"\\'")}_SEP_${betId.replace(/'/g,"\\'")}');" style="font-size:0.73rem;color:#64748b;cursor:pointer">${allBetsArr.length}명 참여 · ${resultLabel}${myBadge}</div>
       </div>`;
     }).join('');
     return `<div style="margin-bottom:16px">
