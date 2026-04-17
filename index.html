@@ -8387,7 +8387,7 @@ function _ladderRenderMemberChips() {
   const males = members.filter(m => m.gender === 'male');
   const females = members.filter(m => m.gender !== 'male');
   const chipHtml = (list) => list.map(m =>
-    `<div class="bet-member-chip" id="lchip-${m.name}" onclick="ladderToggleMember('${m.name}')" style="padding:3px 8px;font-size:0.68rem;margin:2px;border-width:1.5px">${m.name}</div>`
+    `<div class="bet-member-chip" id="lchip-${m.name}" onclick="ladderToggleMember('${m.name}')">${m.name}</div>`
   ).join('');
   wrap.innerHTML = (males.length ? `<div style="font-size:0.7rem;color:#1d4ed8;font-weight:700;width:100%;padding:4px 0 2px">👨 남성</div>${chipHtml(males)}` : '')
     + (females.length ? `<div style="font-size:0.7rem;color:#be185d;font-weight:700;width:100%;padding:4px 0 2px">👩 여성</div>${chipHtml(females)}` : '');
