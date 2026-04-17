@@ -9032,7 +9032,12 @@ function shareBetCard(betId) {
 }
 
 function shareAtpHistoryDetail() {
-  shareElementAsImage('atp-history-detail-card', '🎲 JAMITE 베팅 히스토리', 'bet-history.png');
+  const el = document.getElementById('atp-history-detail-card');
+  if (!el) return;
+  const prev = el.style.padding;
+  el.style.padding = '16px';
+  shareElementAsImage('atp-history-detail-card', '🎲 JAMITE 베팅 히스토리', 'bet-history.png')
+    .finally(() => { el.style.padding = prev; });
 }
 
 function shareMpVoteCard() {
