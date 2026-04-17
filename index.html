@@ -6607,12 +6607,22 @@ function editBetMatch(betId) {
 // ── 베팅 Close (관리자) ───────────────────────────────────────────
 function closeBet(betId) {
   if (!confirm('베팅을 마감하시겠습니까? 마감 후에는 멤버들의 베팅/수정이 불가합니다.')) return;
-  db.ref(`jmt/atpBets/${betId}`).update({ open: false, closedAt: new Date().toISOString() }).catch(fbErr);
+  const closedAt = new Date().toISOString();
+  db.ref(`jmt/atpBets/${betId}`).update({ open: false, closedAt }).then(() => {
+    _archiveBetToHistory(betId, { open: false, closedAt });
+  }).catch(fbErr);
 }
 
 function deleteBet(betId) {
   if (!confirm('이 베팅 카드를 삭제하시겠습니까? 복구할 수 없습니다.')) return;
   db.ref(`jmt/atpBets/${betId}`).remove().catch(fbErr);
+}
+
+function _archiveBetToHistory(betId, extra) {
+  const tId = atpState.tournamentInfo && atpState.tournamentInfo.id;
+  if (!tId || !db) return;
+  const bet = Object.assign({}, atpState.bets[betId] || {}, extra);
+  db.ref(`jmt/atpBetsHistory/${tId}/${betId}`).set(bet).catch(fbErr);
 }
 
 // ── 결과 자동 감지 (ESPN 데이터) ─────────────────────────────────
@@ -6636,10 +6646,10 @@ function tryAutoSettleBet(betId, bet) {
       const winId   = match.player1Winner ? match.player1Id   : (match.player2Winner ? match.player2Id   : null);
       winnerName    = match.player1Winner ? match.player1Name : (match.player2Winner ? match.player2Name : null);
       if (winnerName && db) {
-        db.ref(`jmt/atpBets/${betId}`).update({
-          open: false,
-          result: { winnerId: winId, winnerName, settledAt: new Date().toISOString(), source: 'auto' },
-          closedAt: new Date().toISOString(),
+        const closedAt = new Date().toISOString();
+        const result = { winnerId: winId, winnerName, settledAt: closedAt, source: 'auto' };
+        db.ref(`jmt/atpBets/${betId}`).update({ open: false, result, closedAt }).then(() => {
+          _archiveBetToHistory(betId, { open: false, result, closedAt });
         }).catch(fbErr);
         return;
       }
@@ -6647,10 +6657,10 @@ function tryAutoSettleBet(betId, bet) {
   }
 
   if (winnerName && db) {
-    db.ref(`jmt/atpBets/${betId}`).update({
-      open: false,
-      result: { winnerName, settledAt: new Date().toISOString(), source: 'auto' },
-      closedAt: new Date().toISOString(),
+    const closedAt = new Date().toISOString();
+    const result = { winnerName, settledAt: closedAt, source: 'auto' };
+    db.ref(`jmt/atpBets/${betId}`).update({ open: false, result, closedAt }).then(() => {
+      _archiveBetToHistory(betId, { open: false, result, closedAt });
     }).catch(fbErr);
   }
 }
@@ -6744,11 +6754,10 @@ function submitBetSettle() {
 
   const winnerName = selected.value;
   const winnerId   = selected.dataset.id || '';
-  db.ref(`jmt/atpBets/${_settlingBetId}`).update({
-    open: false,
-    result: { winnerId, winnerName, settledAt: new Date().toISOString(), source: 'manual' },
-    closedAt: bet.closedAt || new Date().toISOString(),
-  }).then(() => {
+  const closedAt   = bet.closedAt || new Date().toISOString();
+  const result     = { winnerId, winnerName, settledAt: new Date().toISOString(), source: 'manual' };
+  db.ref(`jmt/atpBets/${_settlingBetId}`).update({ open: false, result, closedAt }).then(() => {
+    _archiveBetToHistory(_settlingBetId, { open: false, result, closedAt });
     document.getElementById('bet-settle-modal').classList.remove('open');
     _settlingBetId = null;
   }).catch(e => { fbErr(e); alert('저장 실패: ' + (e.message || e)); });
