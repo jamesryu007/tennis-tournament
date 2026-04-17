@@ -752,8 +752,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   </div>
 </div>
 
-<!-- 베팅 히스토리 모달 (관리자용) -->
-<div id="atp-history-modal" class="modal-overlay">
+<!-- 베팅 히스토리 모달 -->
+<div id="atp-history-modal" class="modal-overlay" onclick="if(event.target===this)closeAtpBetsHistoryModal()">
   <div class="modal-sheet" style="height:80vh;display:flex;flex-direction:column">
     <div class="modal-handle"></div>
     <div style="padding:14px 18px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
@@ -6189,9 +6189,9 @@ function getTournamentPlayersSorted() {
 function renderAtpBetPanel() {
   const el = document.getElementById('atp-bet-content');
   if (!el) return;
-  // 관리자용 히스토리 버튼 표시
+  // 전체 멤버 히스토리 버튼 표시
   const histBtn = document.getElementById('atp-bet-history-btn');
-  if (histBtn) histBtn.style.display = isAdmin() ? '' : 'none';
+  if (histBtn) histBtn.style.display = '';
   const allBets = Object.entries(atpState.bets)
     .sort((a, b) => (b[1].openedAt || '').localeCompare(a[1].openedAt || ''));
 
