@@ -7241,13 +7241,12 @@ function _renderHistoryList(el) {
       const key = `'${tId.replace(/'/g,"\\'")}_SEP_${betId.replace(/'/g,"\\'")}'`;
       return `<div onclick="showAtpHistoryDetail(${key});" style="padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:6px;background:#fff;cursor:pointer">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-          <span style="flex:1;font-size:0.82rem;font-weight:800;color:#1e293b">${typeIcon} ${title}</span>
+          <span style="flex:1;font-size:0.82rem;font-weight:800;color:#1e293b">${typeIcon} ${title}${dateStr ? `<span style="font-size:0.82rem;font-weight:400;color:#94a3b8;margin-left:6px">${dateStr}</span>` : ''}</span>
           <span style="font-size:0.65rem;background:${hasResult?'#f0fdf4':'#f8fafc'};color:${hasResult?'#166534':'#64748b'};border:1px solid ${hasResult?'#86efac':'#e2e8f0'};border-radius:20px;padding:2px 7px;flex-shrink:0">${hasResult?'결과확정':'대기중'}</span>
           ${delBtn}
         </div>
         ${bet.stake ? `<div style="font-size:0.7rem;color:#7c3aed;font-weight:600;margin-bottom:3px">🎯 ${bet.stake}</div>` : ''}
         <div style="display:flex;align-items:center;gap:8px;font-size:0.7rem;color:#64748b;flex-wrap:wrap">
-          ${dateStr ? `<span>${dateStr}</span>` : ''}
           ${winner ? `<span style="color:#166534;font-weight:700">🏆 ${winner}</span>` : ''}
           <span>${allBetsArr.length}명 참여 ${myBadge}</span>
         </div>
