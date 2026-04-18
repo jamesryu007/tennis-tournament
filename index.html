@@ -855,10 +855,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <!-- 대진표 섹션 (대진 생성 후 표시) -->
   <div id="bracket-section" style="display:none">
     <div class="sub-tabs" style="margin-bottom:0">
+      <div class="sub-tab" id="btab-ladder" onclick="switchBracketTab('ladder')" style="display:none">🪜 사다리 복식</div>
       <div class="sub-tab active" id="btab-mixed" onclick="switchBracketTab('mixed')">🔀 혼합복식</div>
       <div class="sub-tab" id="btab-mens" onclick="switchBracketTab('mens')">👨 남자복식</div>
       <div class="sub-tab" id="btab-womens" onclick="switchBracketTab('womens')">👩 여자복식</div>
-      <div class="sub-tab" id="btab-ladder" onclick="switchBracketTab('ladder')" style="display:none">🪜 사다리 복식</div>
     </div>
 
     <!-- 혼합복식 -->
@@ -954,7 +954,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <div class="card">
           <div class="flex-row" style="justify-content:space-between;margin-bottom:11px">
             <div class="card-title" style="margin-bottom:0">🪜 사다리 복식</div>
-            <span id="ladder-status" class="status-badge badge-active">진행중</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span id="ladder-status" class="status-badge badge-active">진행중</span>
+              <button id="ladder-end-btn" onclick="endLadderTournament()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #ef4444;background:#fff;color:#ef4444;font-size:0.72rem;font-weight:700;cursor:pointer">대회 종료</button>
+            </div>
           </div>
           <div class="bracket-container"><div class="bracket-svg-wrap" id="ladder-bracket"></div></div>
           <div class="scroll-hint" id="ladder-hint"></div>
@@ -1891,7 +1894,9 @@ function hideFinishedBanner() {
 function applyLastFinished(data) {
   if(!data || !data.tournaments) return false;
   state.lastFinished = data;
+  const _savedLadder = state.tournaments.ladder; // jmt/ladderState가 단독 관리 — lastFinished 값 무조건 무시
   state.tournaments = data.tournaments;
+  state.tournaments.ladder = _savedLadder; // 항상 jmt/ladderState 값 우선 (old lastFinished 데이터 덮어쓰기 방지)
   showFinishedBanner(data);
   ['mixed','mens','womens','ladder'].forEach(type => {
     if(state.tournaments[type]) {
@@ -1914,7 +1919,7 @@ function saveActiveState() {
   const payload = state.currentHistoryId ? JSON.stringify({
     currentHistoryId: state.currentHistoryId,
     creatorName: state.identity ? state.identity.name : null,
-    tournaments: state.tournaments,
+    tournaments: {...state.tournaments, ladder: null}, // ladder는 jmt/ladderState가 단독 관리
     guests: state.guests,
     selectedIds: [...state.selectedIds],
     setupInfo: {
@@ -1938,8 +1943,10 @@ function saveActiveState() {
 function applyActiveState(saved) {
   if(!saved || !saved.currentHistoryId) return false;
   state.currentHistoryId = saved.currentHistoryId;
+  const prevLadder = state.tournaments.ladder; // jmt/ladderState가 먼저 로드됐을 수 있으므로 보존
   state.tournaments = saved.tournaments || { mixed: null, mens: null, womens: null, ladder: null };
-  if (!state.tournaments.ladder) state.tournaments.ladder = null; // ensure ladder key exists
+  // ladder 브래킷은 jmt/ladderState가 단독 관리 — activeState가 덮어쓰지 않도록 복원
+  state.tournaments.ladder = prevLadder || null;
   state.guests = saved.guests || [];
   state.selectedIds = new Set(toArr(saved.selectedIds));
   state._creatorName = saved.creatorName || null;
@@ -2083,7 +2090,8 @@ function setupFirebaseListeners() {
         if(state.lastFinished && state.lastFinished.tournaments) {
           applyLastFinished(state.lastFinished);
         } else {
-          state.tournaments = { mixed: null, mens: null, womens: null, ladder: null };
+          const _savedLadder = state.tournaments.ladder; // jmt/ladderState가 먼저 로드됐을 수 있으므로 보존
+          state.tournaments = { mixed: null, mens: null, womens: null, ladder: _savedLadder };
           hideFinishedBanner();
           ['mixed','mens','womens','ladder'].forEach(type => {
             const emptyEl = document.getElementById(type === 'ladder' ? 'ladder-panel-empty' : `${type}-empty`);
@@ -2106,22 +2114,57 @@ function setupFirebaseListeners() {
   // 사다리 복식 대진표 실시간 동기화 (독립 경로 — currentHistoryId 없어도 공유됨)
   db.ref('jmt/ladderState').on('value', snap => {
     const raw = snap.val();
-    if (!raw) return;
+    if (!raw) {
+      // ladderState 삭제됨 → 대회 종료 처리
+      if (state.tournaments.ladder) {
+        state.tournaments.ladder = null;
+        state._ladderNonce = null;
+        const ladderTab = document.getElementById('btab-ladder');
+        if (ladderTab) ladderTab.style.display = 'none';
+        document.getElementById('ladder-panel-empty').style.display = '';
+        document.getElementById('ladder-panel-content').style.display = 'none';
+        updateSetupPageUI();
+      }
+      return;
+    }
     try {
       const data = JSON.parse(raw);
       if (!data.tournaments_ladder) return;
-      if (data.ts <= (state._ladderStateTs || 0)) return; // 본인이 저장한 것은 무시
-      state._ladderStateTs = data.ts;
+      // 자신이 방금 저장한 데이터는 스킵 (nonce로 구분), 다른 멤버 업데이트는 항상 반영
+      if (data.nonce && data.nonce === state._ladderNonce) return;
+      const wasNull = !state.tournaments.ladder;
       state.tournaments.ladder = data.tournaments_ladder;
-      if (data.ladderPairs) state._ladderPairs = data.ladderPairs;
       if (data.ladderUnpaired) state._ladderUnpaired = data.ladderUnpaired;
-      const ladderTab = document.getElementById('btab-ladder');
-      if (ladderTab) ladderTab.style.display = '';
+      // 사다리 캔버스 결과 복원
+      if (data.ladderGameSnapshot) {
+        const s = data.ladderGameSnapshot;
+        state._ladderGameSnapshot = s;
+        _ladderState.participants = s.participants || [];
+        _ladderState.shuffledItems = s.shuffledItems || [];
+        _ladderState.rungs = s.rungs || [];
+        _ladderState.assignment = s.assignment || {};
+        _ladderState.numRevealed = _ladderState.participants.length;
+        // assignment에서 올바른 페어 재계산 (method A: 참가자+할당아이템=1팀)
+        // Firebase의 ladderPairs가 잘못됐을 수 있으므로 항상 assignment 기준으로 재생성
+        const fixedPairs = [];
+        _ladderState.participants.forEach(name => {
+          const item = _ladderState.assignment[name];
+          if (item) fixedPairs.push([name, item]);
+        });
+        if (fixedPairs.length >= 2) state._ladderPairs = fixedPairs;
+        else if (data.ladderPairs) state._ladderPairs = data.ladderPairs;
+      } else if (data.ladderPairs) {
+        state._ladderPairs = data.ladderPairs;
+      }
       document.getElementById('ladder-panel-empty').style.display = 'none';
       document.getElementById('ladder-panel-content').style.display = 'block';
-      const bracketSec = document.getElementById('bracket-section');
-      if (bracketSec) bracketSec.style.display = 'block';
       renderTournament('ladder');
+      updateSetupPageUI();
+      // 대진표 최초 생성 시 모든 멤버 자동으로 모임만들기/사다리 복식 탭으로 이동
+      if (wasNull && !state.tournaments.ladder.champion) {
+        switchPage('setup');
+        switchSetupTab('create');
+      }
     } catch(e) {}
   });
 
@@ -3915,8 +3958,18 @@ function reshuffleTournament(type) {
   // exit edit mode if active
   if (_bracketEditMode === type) { _bracketEditMode = null; updateBracketEditUI(type); }
   if (type === 'ladder') {
-    if (!state._ladderPairs || state._ladderPairs.length < 2) { alert('사다리 페어 데이터가 없습니다. 사다리 게임을 다시 실행해 주세요.'); return; }
-    _initLadderTournament(state._ladderPairs, state._ladderUnpaired || []);
+    // assignment에서 올바른 페어 재계산 (method A 우선)
+    let pairs = [];
+    if (_ladderState.assignment && _ladderState.participants && _ladderState.participants.length >= 4) {
+      _ladderState.participants.forEach(name => {
+        const item = _ladderState.assignment[name];
+        if (item) pairs.push([name, item]);
+      });
+    }
+    if (pairs.length < 2) pairs = state._ladderPairs || [];
+    if (pairs.length < 2) { alert('사다리 페어 데이터가 없습니다. 사다리 게임을 다시 실행해 주세요.'); return; }
+    state._ladderPairs = pairs;
+    _initLadderTournament(pairs, state._ladderUnpaired || []);
     return;
   }
   initTournamentSilent(type);
@@ -4213,7 +4266,8 @@ function renderTournament(type, opts) {
       const cy=mcy(ri,mi), my=cy-MH/2;
       const div=document.createElement('div');
       const editMode = _bracketEditMode===type && !readOnly && ri===0;
-      const canClick = !editMode && match.team0 && match.team1 && state.isCreator && !readOnly;
+      const canClick = !editMode && match.team0 && match.team1 && !readOnly &&
+        (type==='ladder' ? isManager() : state.isCreator);
       div.className='match'+(canClick?' clickable':'')+(editMode?' edit-active':'');
       div.style.cssText=`left:${mx}px;top:${my}px;width:${MW}px;height:${MH}px;`;
       if(canClick) div.onclick=()=>openModal(type,ri,mi);
@@ -4264,6 +4318,11 @@ function renderTournament(type, opts) {
 
   const stEl=document.getElementById(`${prefix}-status`);
   if(stEl){ stEl.className='status-badge '+(t.champion?'badge-done':'badge-active'); stEl.textContent=t.champion?'완료':'진행중'; }
+  // 사다리 복식 대회 종료 버튼: 관리자에게만, 진행중일 때만 표시
+  if(type==='ladder') {
+    const endBtn=document.getElementById('ladder-end-btn');
+    if(endBtn) endBtn.style.display=(isManager()&&!t.champion)?'':'none';
+  }
 
   renderAwards(type,opts);
   renderUnpaired(type,opts);
@@ -4390,6 +4449,17 @@ function submitScore() {
   advanceWinner(t.rounds,ri,mi);
   checkComplete(type);
   saveActiveState();
+  // 사다리 복식 점수는 jmt/ladderState에 별도 저장 (실시간 동기화)
+  if (type === 'ladder' && db) {
+    state._ladderNonce = Math.random().toString(36).slice(2);
+    db.ref('jmt/ladderState').set(JSON.stringify({
+      tournaments_ladder: state.tournaments.ladder,
+      ladderPairs: state._ladderPairs || [],
+      ladderUnpaired: state._ladderUnpaired || [],
+      ladderGameSnapshot: state._ladderGameSnapshot || null,
+      nonce: state._ladderNonce
+    })).catch(fbErr);
+  }
   closeModal();
   renderTournament(type);
   // 통계 테이블 업데이트 (팀 구성이 있는 경우만)
@@ -4417,6 +4487,9 @@ function switchBracketTab(type) {
   });
   const sec = document.getElementById('bracket-section');
   if(sec) sec.style.display = 'block';
+  // 사다리 복식 탭에서는 모임정보 이하 폼 숨김
+  const formSec = document.getElementById('setup-form-section');
+  if(formSec) formSec.style.display = type==='ladder' ? 'none' : '';
   if(state.tournaments[type]) renderTournament(type);
 }
 
@@ -5567,10 +5640,20 @@ function updatePermissionUI() {
 // ══ SETUP PAGE UI (lock/unlock) ══
 function updateSetupPageUI() {
   const hasActive = !!state.currentHistoryId;
-  document.getElementById('setup-form-section').style.display = hasActive ? 'none' : 'block';
+  const hasLadder = !!state.tournaments.ladder;
+
+  // 모임정보 폼: 활성 대회나 사다리 대진 있으면 숨김
+  document.getElementById('setup-form-section').style.display = (hasActive || hasLadder) ? 'none' : 'block';
   document.getElementById('active-tournament-banner').style.display = hasActive ? 'block' : 'none';
+
+  // 브래킷 섹션: 활성 대회나 사다리 대진 있으면 표시
   const bracketSec = document.getElementById('bracket-section');
-  if(bracketSec) bracketSec.style.display = hasActive ? 'block' : 'none';
+  if(bracketSec) bracketSec.style.display = (hasActive || hasLadder) ? 'block' : 'none';
+
+  // 사다리 서브탭: 사다리 대진 있으면 항상 표시
+  const ladderTab = document.getElementById('btab-ladder');
+  if(ladderTab) ladderTab.style.display = hasLadder ? '' : 'none';
+
   if (hasActive) {
     const rec = state.history.find(r => String(r.id) === String(state.currentHistoryId));
     const name = rec ? rec.name : (document.getElementById('t-name').value || '대회 진행중');
@@ -5587,8 +5670,10 @@ function updateSetupPageUI() {
       endWrap.style.display = 'none';
     }
     // Show first available bracket tab
-    const firstType = ['mixed','mens','womens','ladder'].find(t => state.tournaments[t]);
+    const firstType = ['ladder','mixed','mens','womens'].find(t => state.tournaments[t]);
     if(firstType) switchBracketTab(firstType);
+  } else if (hasLadder) {
+    switchBracketTab('ladder');
   }
 }
 
@@ -9299,18 +9384,29 @@ function ladderBuildBracket() {
   const participantSet = new Set(p);
   let pairs = [], unpaired = [];
 
-  // 방법1: 동일 아이템 라벨을 받은 2인 쌍 (예: "1페어" × 2명)
-  const groups = {};
-  Object.entries(assignment).forEach(([name, item]) => {
-    if (!groups[item]) groups[item] = [];
-    groups[item].push(name);
-  });
-  Object.entries(groups).forEach(([, names]) => {
-    if (names.length === 2) pairs.push([...names]);
-    else names.forEach(n => unpaired.push(n));
+  // 방법A (우선): 참가자 + 할당된 아이템 = 1팀 (사다리 복식 기본 방식)
+  // 상단 참가자와 사다리로 배정된 하단 파트너가 한 팀
+  p.forEach(name => {
+    const item = assignment[name];
+    if (item) pairs.push([name, item]);
+    else unpaired.push(name);
   });
 
-  // 방법2: 참가자 이름을 아이템으로 사용한 상호 쌍 (A→B이고 B→A)
+  // 방법B: 동일 아이템 라벨을 받은 2인 쌍 (fallback: 아이템이 공유 라벨인 경우)
+  if (pairs.length < 2) {
+    pairs = []; unpaired = [];
+    const groups = {};
+    Object.entries(assignment).forEach(([name, item]) => {
+      if (!groups[item]) groups[item] = [];
+      groups[item].push(name);
+    });
+    Object.entries(groups).forEach(([, names]) => {
+      if (names.length === 2) pairs.push([...names]);
+      else names.forEach(n => unpaired.push(n));
+    });
+  }
+
+  // 방법C: 참가자 이름을 아이템으로 사용한 상호 쌍 (A→B이고 B→A)
   if (pairs.length < 2) {
     pairs = []; unpaired = [];
     const paired = new Set();
@@ -9323,23 +9419,6 @@ function ladderBuildBracket() {
       }
     });
     unpaired = p.filter(n => !paired.has(n));
-  }
-
-  // 방법3: 하단 도착 컬럼 인접 쌍 (fallback)
-  if (pairs.length < 2) {
-    pairs = []; unpaired = [];
-    const rows = _ladderState.rungs.length;
-    const colMap = {};
-    for (let c = 0; c < numCols; c++) {
-      const dest = _ladderTrace(c, numCols, rows, _ladderState.rungs);
-      colMap[dest] = p[c];
-    }
-    for (let i = 0; i + 1 < numCols; i += 2) {
-      const p1 = colMap[i], p2 = colMap[i + 1];
-      if (p1 && p2) pairs.push([p1, p2]);
-      else { if (p1) unpaired.push(p1); if (p2) unpaired.push(p2); }
-    }
-    if (numCols % 2 === 1 && colMap[numCols - 1]) unpaired.push(colMap[numCols - 1]);
   }
 
   if (pairs.length < 2) { alert('대진표를 만들려면 2쌍 이상 필요합니다.'); return; }
@@ -9378,18 +9457,50 @@ function _initLadderTournament(pairs, unpaired) {
   checkComplete('ladder');
   document.getElementById('ladder-panel-empty').style.display = 'none';
   document.getElementById('ladder-panel-content').style.display = 'block';
-  // 이슈3: ladderState에 독립 저장 → 다른 기기 실시간 반영 (currentHistoryId 없어도 공유)
-  state._ladderStateTs = Date.now();
+  // ladderState에 독립 저장 → 다른 기기 실시간 반영 (currentHistoryId 없어도 공유)
+  state._ladderNonce = Math.random().toString(36).slice(2);
+  state._ladderGameSnapshot = {
+    participants: _ladderState.participants,
+    shuffledItems: _ladderState.shuffledItems,
+    rungs: _ladderState.rungs,
+    assignment: _ladderState.assignment
+  };
   if (db) {
     db.ref('jmt/ladderState').set(JSON.stringify({
       tournaments_ladder: state.tournaments.ladder,
       ladderPairs: pairs,
       ladderUnpaired: unpaired,
-      ts: state._ladderStateTs
-    })).catch(fbErr);
+      ladderGameSnapshot: state._ladderGameSnapshot,
+      nonce: state._ladderNonce
+    })).then(() => {
+      console.log('[ladderState] Firebase 저장 성공, nonce=' + state._ladderNonce);
+    }).catch(e => {
+      fbErr(e);
+      alert('⚠️ 사다리 대진표 Firebase 저장 실패: ' + e.message + '\n\n관리자에게 문의하거나 페이지를 새로고침 해주세요.');
+    });
   }
   saveActiveState();
   renderTournament('ladder');
+}
+
+function endLadderTournament() {
+  if (!confirm('사다리 복식 대회를 종료하시겠습니까?\n대진표가 모든 멤버에게서 사라집니다.')) return;
+  state.tournaments.ladder = null;
+  state._ladderStateTs = 0;
+  state._ladderPairs = [];
+  state._ladderUnpaired = [];
+  // 사다리 캔버스 초기화
+  _ladderState.participants = []; _ladderState.items = [];
+  _ladderState.rungs = []; _ladderState.shuffledItems = [];
+  _ladderState.assignment = {}; _ladderState.numRevealed = 0;
+  // Firebase 삭제 → 모든 멤버 리스너가 null 수신 → 자동 정리
+  if (db) db.ref('jmt/ladderState').remove().catch(fbErr);
+  // UI 정리
+  const ladderTab = document.getElementById('btab-ladder');
+  if (ladderTab) ladderTab.style.display = 'none';
+  document.getElementById('ladder-panel-empty').style.display = '';
+  document.getElementById('ladder-panel-content').style.display = 'none';
+  switchBracketTab('mixed');
 }
 
 // ══════════════════════════════════════════════════════════
