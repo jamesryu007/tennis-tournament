@@ -3417,7 +3417,7 @@ async function renderRankingTab(){
         <span class="rank-stat">${wdl}</span>
         <div class="rank-wr-col">
           ${isUnqualified
-            ? `<span style="font-size:0.62rem;color:#94a3b8;font-weight:600">미달</span>`
+            ? ``
             : `<span class="rank-winrate" style="color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span>
           <div class="rank-wr-bar"><div class="rank-wr-bar-fill ${wr>=50?'hot':'cold'}" style="width:${wr}%"></div></div>`}
         </div>
@@ -9098,7 +9098,7 @@ async function shareRanking(mode) {
           ${qualified
             ? `<div style="width:36px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;flex-shrink:0"><div style="height:100%;width:${Math.min(w,100)}%;background:${w>=50?'#22c55e':'#f87171'};border-radius:2px"></div></div>
                <span style="font-size:0.7rem;font-weight:800;color:${w>=50?'#4ade80':'#f87171'};min-width:28px;text-align:right">${w}%</span>`
-            : `<span style="font-size:0.6rem;color:#475569;min-width:28px;text-align:right">미달</span>`}
+            : ``}
         </div>`;
       }).join('')}
     </div>` : '';
