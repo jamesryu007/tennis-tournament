@@ -3416,7 +3416,9 @@ async function renderRankingTab(){
         <span class="rank-name">${name}</span>
         <span class="rank-stat">${wdl}</span>
         <div class="rank-wr-col">
-          ${isUnqualified?'':` <span class="rank-winrate" style="color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span>
+          ${isUnqualified
+            ? `<span style="font-size:0.62rem;color:#94a3b8;font-weight:600">미달</span>`
+            : `<span class="rank-winrate" style="color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span>
           <div class="rank-wr-bar"><div class="rank-wr-bar-fill ${wr>=50?'hot':'cold'}" style="width:${wr}%"></div></div>`}
         </div>
       </div>
@@ -9087,12 +9089,16 @@ async function shareRanking(mode) {
       <div style="font-size:0.65rem;font-weight:700;color:#475569;letter-spacing:1px;margin-bottom:6px">── 4위 이하 ──</div>
       ${rest.map(p => {
         const w=wr(p.wins,p.draws,p.losses);
-        const barW = Math.min(w,100);
-        return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
-          <span style="font-size:0.65rem;color:#64748b;font-weight:700;min-width:26px">${p.rank}위</span>
+        const qualified = p.qualified !== false;
+        const wdl = p.draws ? `${p.wins}승 ${p.draws}무 ${p.losses}패` : `${p.wins}승 ${p.losses}패`;
+        return `<div style="display:flex;align-items:center;gap:5px;margin-bottom:6px">
+          <span style="font-size:0.65rem;color:#64748b;font-weight:700;min-width:24px">${p.rank}위</span>
           <span style="flex:1;font-size:0.72rem;font-weight:700;color:#e2e8f0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${getName(p)}</span>
-          <div style="width:52px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:${barW}%;background:${w>=50?'#22c55e':'#f87171'};border-radius:2px"></div></div>
-          <span style="font-size:0.7rem;font-weight:800;color:${w>=50?'#4ade80':'#f87171'};min-width:32px;text-align:right">${w}%</span>
+          <span style="font-size:0.6rem;color:#94a3b8;white-space:nowrap">${wdl}</span>
+          ${qualified
+            ? `<div style="width:36px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;flex-shrink:0"><div style="height:100%;width:${Math.min(w,100)}%;background:${w>=50?'#22c55e':'#f87171'};border-radius:2px"></div></div>
+               <span style="font-size:0.7rem;font-weight:800;color:${w>=50?'#4ade80':'#f87171'};min-width:28px;text-align:right">${w}%</span>`
+            : `<span style="font-size:0.6rem;color:#475569;min-width:28px;text-align:right">미달</span>`}
         </div>`;
       }).join('')}
     </div>` : '';
