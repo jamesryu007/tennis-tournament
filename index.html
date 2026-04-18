@@ -2103,6 +2103,28 @@ function setupFirebaseListeners() {
     }, 300);
   }, fbErr);
 
+  // 사다리 복식 대진표 실시간 동기화 (독립 경로 — currentHistoryId 없어도 공유됨)
+  db.ref('jmt/ladderState').on('value', snap => {
+    const raw = snap.val();
+    if (!raw) return;
+    try {
+      const data = JSON.parse(raw);
+      if (!data.tournaments_ladder) return;
+      if (data.ts <= (state._ladderStateTs || 0)) return; // 본인이 저장한 것은 무시
+      state._ladderStateTs = data.ts;
+      state.tournaments.ladder = data.tournaments_ladder;
+      if (data.ladderPairs) state._ladderPairs = data.ladderPairs;
+      if (data.ladderUnpaired) state._ladderUnpaired = data.ladderUnpaired;
+      const ladderTab = document.getElementById('btab-ladder');
+      if (ladderTab) ladderTab.style.display = '';
+      document.getElementById('ladder-panel-empty').style.display = 'none';
+      document.getElementById('ladder-panel-content').style.display = 'block';
+      const bracketSec = document.getElementById('bracket-section');
+      if (bracketSec) bracketSec.style.display = 'block';
+      renderTournament('ladder');
+    } catch(e) {}
+  });
+
   // 직전 종료 대회 동기화
   db.ref('jmt/lastFinished').on('value', snap => {
     try {
@@ -9272,35 +9294,62 @@ function ladderSaveAndHome() {
 function ladderBuildBracket() {
   const p = _ladderState.participants;
   const numCols = p.length;
-  if (numCols < 4) {
-    alert('대진표를 만들려면 4명 이상의 참가자가 필요합니다.');
-    return;
-  }
-  const rows = _ladderState.rungs.length;
-  // 하단 도착 컬럼 기준으로 참가자 배치 (0+1 → 1페어, 2+3 → 2페어 ...)
-  const colMap = {}; // destCol → participantName
-  for (let c = 0; c < numCols; c++) {
-    const dest = _ladderTrace(c, numCols, rows, _ladderState.rungs);
-    colMap[dest] = p[c];
-  }
-  const pairs = [], unpaired = [];
-  for (let i = 0; i + 1 < numCols; i += 2) {
-    const p1 = colMap[i], p2 = colMap[i + 1];
-    if (p1 && p2) pairs.push([p1, p2]);
-    else { if (p1) unpaired.push(p1); if (p2) unpaired.push(p2); }
-  }
-  if (numCols % 2 === 1 && colMap[numCols - 1]) unpaired.push(colMap[numCols - 1]);
+  if (numCols < 4) { alert('대진표를 만들려면 4명 이상의 참가자가 필요합니다.'); return; }
+  const assignment = _ladderState.assignment; // participant → item
+  const participantSet = new Set(p);
+  let pairs = [], unpaired = [];
+
+  // 방법1: 동일 아이템 라벨을 받은 2인 쌍 (예: "1페어" × 2명)
+  const groups = {};
+  Object.entries(assignment).forEach(([name, item]) => {
+    if (!groups[item]) groups[item] = [];
+    groups[item].push(name);
+  });
+  Object.entries(groups).forEach(([, names]) => {
+    if (names.length === 2) pairs.push([...names]);
+    else names.forEach(n => unpaired.push(n));
+  });
+
+  // 방법2: 참가자 이름을 아이템으로 사용한 상호 쌍 (A→B이고 B→A)
   if (pairs.length < 2) {
-    alert('대진표를 만들려면 2쌍 이상 필요합니다.');
-    return;
+    pairs = []; unpaired = [];
+    const paired = new Set();
+    p.forEach(name => {
+      if (paired.has(name)) return;
+      const item = assignment[name];
+      if (participantSet.has(item) && !paired.has(item) && assignment[item] === name) {
+        pairs.push([name, item]);
+        paired.add(name); paired.add(item);
+      }
+    });
+    unpaired = p.filter(n => !paired.has(n));
   }
-  // 페어 저장 (다시추첨 시 재사용)
+
+  // 방법3: 하단 도착 컬럼 인접 쌍 (fallback)
+  if (pairs.length < 2) {
+    pairs = []; unpaired = [];
+    const rows = _ladderState.rungs.length;
+    const colMap = {};
+    for (let c = 0; c < numCols; c++) {
+      const dest = _ladderTrace(c, numCols, rows, _ladderState.rungs);
+      colMap[dest] = p[c];
+    }
+    for (let i = 0; i + 1 < numCols; i += 2) {
+      const p1 = colMap[i], p2 = colMap[i + 1];
+      if (p1 && p2) pairs.push([p1, p2]);
+      else { if (p1) unpaired.push(p1); if (p2) unpaired.push(p2); }
+    }
+    if (numCols % 2 === 1 && colMap[numCols - 1]) unpaired.push(colMap[numCols - 1]);
+  }
+
+  if (pairs.length < 2) { alert('대진표를 만들려면 2쌍 이상 필요합니다.'); return; }
   state._ladderPairs = pairs;
   state._ladderUnpaired = unpaired;
   _initLadderTournament(pairs, unpaired);
-  // 대진표 탭으로 이동
-  betShowHome();
+  // 이슈1: 사다리 화면 그대로 유지 (betShowHome 제거)
+  // 이슈2: 모임만들기 > 사다리 복식 탭으로 전환
   switchPage('setup');
+  switchSetupTab('create');
   const ladderTab = document.getElementById('btab-ladder');
   if (ladderTab) ladderTab.style.display = '';
   switchBracketTab('ladder');
@@ -9329,6 +9378,16 @@ function _initLadderTournament(pairs, unpaired) {
   checkComplete('ladder');
   document.getElementById('ladder-panel-empty').style.display = 'none';
   document.getElementById('ladder-panel-content').style.display = 'block';
+  // 이슈3: ladderState에 독립 저장 → 다른 기기 실시간 반영 (currentHistoryId 없어도 공유)
+  state._ladderStateTs = Date.now();
+  if (db) {
+    db.ref('jmt/ladderState').set(JSON.stringify({
+      tournaments_ladder: state.tournaments.ladder,
+      ladderPairs: pairs,
+      ladderUnpaired: unpaired,
+      ts: state._ladderStateTs
+    })).catch(fbErr);
+  }
   saveActiveState();
   renderTournament('ladder');
 }
