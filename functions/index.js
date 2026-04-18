@@ -1062,6 +1062,47 @@ exports.notifyMeetingPollReply = onValueCreated(
   }
 );
 
+// ══ 모임 최종결정 알림 ════════════════════════════════════════════
+exports.notifyMeetingPollFinalDecision = onValueWritten(
+  { ref: 'jmt/meetingPoll/finalDecision', region: 'asia-southeast1' },
+  async (event) => {
+    const fd = event.data.after.val();
+    if (!fd) return;
+
+    const pollSnap = await db.ref('jmt/meetingPoll').once('value');
+    const poll = pollSnap.val();
+    if (!poll) return;
+
+    const weekDays = ['일','월','화','수','목','금','토'];
+    const parts = [];
+
+    // 날짜 결정
+    if (fd.memberDateKey && poll.memberDates && poll.memberDates[fd.memberDateKey]) {
+      const md = poll.memberDates[fd.memberDateKey];
+      const o = new Date(md.date + 'T00:00:00');
+      parts.push(`${o.getMonth()+1}월 ${o.getDate()}일(${weekDays[o.getDay()]})`);
+    } else if (fd.date) {
+      const o = new Date(fd.date + 'T00:00:00');
+      parts.push(`${o.getMonth()+1}월 ${o.getDate()}일(${weekDays[o.getDay()]})`);
+    }
+
+    // 내용 결정
+    if (fd.memberContentKey && poll.memberContents && poll.memberContents[fd.memberContentKey]) {
+      parts.push(poll.memberContents[fd.memberContentKey].text || '');
+    } else if (fd.contentIdx !== undefined && fd.contentIdx !== null) {
+      parts.push((poll.contents || [])[fd.contentIdx] || '');
+    }
+
+    const detail = parts.filter(Boolean).join(' · ');
+    const body = detail
+      ? `${detail}로 확정되었습니다! 🎉`
+      : `"${poll.title || '모임 정하기'}"가 확정되었습니다! 🎉`;
+
+    const tokens = await getAllTokens();
+    await sendPush(tokens, '📅 모임 날짜/내용 확정!', body, 'setup');
+  }
+);
+
 // ══ ATP 뉴스 자동 수집 (12시간마다) ═══════════════════════════════
 exports.fetchAtpNews = onSchedule(
   { schedule: '0 */12 * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
