@@ -1619,9 +1619,11 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       </div>
       <div id="score-tb-row" style="display:none;flex-direction:row;align-items:center;justify-content:center;gap:8px;margin-top:6px;margin-bottom:2px">
         <span style="font-size:0.72rem;color:#d97706;font-weight:700;min-width:24px;text-align:right">TB</span>
-        <input type="text" id="score-tb0" class="score-field" placeholder="0" maxlength="2" inputmode="numeric" style="width:54px">
+        <input type="text" id="score-tb0" class="score-field" placeholder="0" maxlength="2" inputmode="numeric" style="width:54px"
+          oninput="autoNextScore(this,'score-tb1')">
         <span class="score-colon">:</span>
-        <input type="text" id="score-tb1" class="score-field" placeholder="0" maxlength="2" inputmode="numeric" style="width:54px">
+        <input type="text" id="score-tb1" class="score-field" placeholder="0" maxlength="2" inputmode="numeric" style="width:54px"
+          onkeydown="if(event.key==='Enter')submitScore()">
       </div>
       <button class="confirm-btn" onclick="submitScore()">확인</button>
     </div>
@@ -3953,7 +3955,7 @@ function initTournament(type) {
 }
 
 function reshuffleTournament(type) {
-  if (!isManager()) { alert('다시 추첨은 관리자만 가능합니다.'); return; }
+  if (type !== 'ladder' && !isManager()) { alert('다시 추첨은 관리자만 가능합니다.'); return; }
   if (!confirm('기존 결과가 초기화됩니다. 계속하시겠습니까?')) return;
   // exit edit mode if active
   if (_bracketEditMode === type) { _bracketEditMode = null; updateBracketEditUI(type); }
@@ -3999,7 +4001,7 @@ function getPlayerGender(name) {
 }
 
 function toggleBracketEdit(type) {
-  if (!isManager()) { alert('대진표 수정은 관리자만 가능합니다.'); return; }
+  if (type !== 'ladder' && !isManager()) { alert('대진표 수정은 관리자만 가능합니다.'); return; }
 
   if (_bracketEditMode === type) {
     // 수정 완료 → 부전승 처리 후 일반 모드 복귀
@@ -4267,7 +4269,7 @@ function renderTournament(type, opts) {
       const div=document.createElement('div');
       const editMode = _bracketEditMode===type && !readOnly && ri===0;
       const canClick = !editMode && match.team0 && match.team1 && !readOnly &&
-        (type==='ladder' ? isManager() : state.isCreator);
+        (type==='ladder' ? !!state.identity : state.isCreator);
       div.className='match'+(canClick?' clickable':'')+(editMode?' edit-active':'');
       div.style.cssText=`left:${mx}px;top:${my}px;width:${MW}px;height:${MH}px;`;
       if(canClick) div.onclick=()=>openModal(type,ri,mi);
@@ -4418,10 +4420,17 @@ function _checkTournamentTB() {
   const tbRow = document.getElementById('score-tb-row');
   if (!tbRow) return;
   const needs = _isTBScore(s0, s1);
+  const wasVisible = tbRow.style.display === 'flex';
   tbRow.style.display = needs ? 'flex' : 'none';
   if (!needs) {
     document.getElementById('score-tb0').value = '';
     document.getElementById('score-tb1').value = '';
+  } else if (!wasVisible) {
+    // TB 행이 새로 나타남 → 자동으로 TB0에 포커스
+    setTimeout(() => {
+      const tb0 = document.getElementById('score-tb0');
+      if (tb0) { tb0.focus(); tb0.select(); }
+    }, 80);
   }
 }
 
@@ -5612,19 +5621,20 @@ function updatePermissionUI() {
     btnInit.title = manager ? '' : '관리자(유지원·천지은·김승수)만 생성할 수 있습니다';
   }
 
-  // 다시 추첨 + 대진표 수정 (매니저만)
+  // 다시 추첨 + 대진표 수정 (매니저만, ladder는 모든 멤버 허용)
   ['mixed','mens','womens','ladder'].forEach(t => {
+    const allow = manager || t === 'ladder';
     const reshuffleEl = document.querySelector(`button[onclick="reshuffleTournament('${t}')"]`);
     if (reshuffleEl) {
-      reshuffleEl.disabled = !manager;
-      reshuffleEl.style.opacity = manager ? '' : '0.38';
-      reshuffleEl.style.cursor  = manager ? '' : 'not-allowed';
+      reshuffleEl.disabled = !allow;
+      reshuffleEl.style.opacity = allow ? '' : '0.38';
+      reshuffleEl.style.cursor  = allow ? '' : 'not-allowed';
     }
     const editEl = document.getElementById(`bracket-edit-btn-${t}`);
     if (editEl) {
-      editEl.disabled = !manager;
-      editEl.style.opacity = manager ? '' : '0.38';
-      editEl.style.cursor  = manager ? '' : 'not-allowed';
+      editEl.disabled = !allow;
+      editEl.style.opacity = allow ? '' : '0.38';
+      editEl.style.cursor  = allow ? '' : 'not-allowed';
     }
   });
 
