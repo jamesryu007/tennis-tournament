@@ -8903,13 +8903,10 @@ function _ladderDraw() {
       const lbl = item.length > 5 ? item.slice(0,5)+'…' : item;
       ctx.fillText(lbl, x, y + 14);
     } else {
-      // 미공개 — 참가자 이름은 표시, 결과 항목은 숨김
-      const pName = destParticipant[c] || '';
-      const pDisp = pName.length > 4 ? pName.slice(0,4) : pName;
-      ctx.font = 'bold 10px sans-serif'; ctx.fillStyle = '#94a3b8';
-      ctx.fillText(pDisp, x, y);
-      ctx.font = 'bold 11px sans-serif'; ctx.fillStyle = '#cbd5e1';
-      ctx.fillText('?', x, y + 14);
+      // 미공개 — 아이템(이름) 표시, 경로(연결)는 숨김
+      const lbl = item.length > 5 ? item.slice(0,5)+'…' : item;
+      ctx.font = 'bold 11px sans-serif'; ctx.fillStyle = '#94a3b8';
+      ctx.fillText(lbl, x, y);
     }
     ctx.restore();
   });
@@ -9105,14 +9102,9 @@ function _ladderShowResult() {
   const shareBtn = document.getElementById('ladder-share-btn');
   if (shareBtn) { shareBtn.style.display = 'inline-flex'; }
   document.getElementById('ladder-game-hint').textContent = '모두 완료! 나가기 전에 공유해보세요.';
-  // 대진표 구성 버튼: 아이템이 2명씩 묶인 쌍이 2개 이상인 경우 표시
+  // 대진표 구성 버튼: 사다리 완료 시 항상 표시
   const bracketBtn = document.getElementById('ladder-bracket-btn');
-  if (bracketBtn) {
-    const groups = {};
-    Object.values(_ladderState.assignment).forEach(item => { groups[item] = (groups[item] || 0) + 1; });
-    const pairCount = Object.values(groups).filter(c => c === 2).length;
-    bracketBtn.style.display = pairCount >= 2 ? 'block' : 'none';
-  }
+  if (bracketBtn) bracketBtn.style.display = 'block';
 }
 
 // ── 카드 HTML 캡처 → Web Share API 공유 ──────────────────────────
