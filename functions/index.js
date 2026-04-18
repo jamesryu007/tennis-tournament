@@ -919,6 +919,13 @@ exports.notifyMeetingPollOpen = onValueCreated(
   }
 );
 
+// 날짜 포맷 헬퍼
+function fmtDate(dateStr) {
+  const weekDays = ['일','월','화','수','목','금','토'];
+  const o = new Date(dateStr + 'T00:00:00');
+  return `${o.getMonth()+1}월 ${o.getDate()}일(${weekDays[o.getDay()]})`;
+}
+
 // 투표 마감 시 전체 알림
 exports.notifyMeetingPollClosed = onValueWritten(
   { ref: 'jmt/meetingPoll/status', region: 'asia-southeast1' },
@@ -928,9 +935,10 @@ exports.notifyMeetingPollClosed = onValueWritten(
     const poll = pollSnap.val();
     if (!poll) return;
 
-    // 날짜 투표 결과 계산
-    let resultMsg = '';
+    const title = poll.title || '모임 정하기';
     const votes = poll.votes || {};
+    const parts = [];
+
     if (poll.type === 'date' || poll.type === 'both') {
       const dateCounts = {};
       (poll.dates || []).forEach(d => { dateCounts[d] = 0; });
@@ -940,15 +948,9 @@ exports.notifyMeetingPollClosed = onValueWritten(
       });
       const mx = Math.max(...Object.values(dateCounts), 0);
       const winners = Object.entries(dateCounts).filter(([,c]) => c === mx && mx > 0).map(([d]) => d).sort();
-      if (winners.length) {
-        const weekDays = ['일','월','화','수','목','금','토'];
-        const labels = winners.map(d => {
-          const o = new Date(d + 'T00:00:00');
-          return `${o.getMonth()+1}월 ${o.getDate()}일(${weekDays[o.getDay()]})`;
-        }).join(', ');
-        resultMsg = `${poll.title||'모임'}이 ${labels}로 결정되었습니다! 🎉`;
-      }
-    } else if (poll.type === 'content') {
+      if (winners.length) parts.push(winners.map(fmtDate).join(', '));
+    }
+    if (poll.type === 'content' || poll.type === 'both') {
       const contentCounts = {};
       (poll.contents || []).forEach((_, i) => { contentCounts[i] = 0; });
       Object.values(votes).forEach(v => {
@@ -957,11 +959,16 @@ exports.notifyMeetingPollClosed = onValueWritten(
       });
       const mx = Math.max(...Object.values(contentCounts), 0);
       const winners = Object.entries(contentCounts).filter(([,c]) => c === mx && mx > 0).map(([i]) => (poll.contents||[])[Number(i)]).filter(Boolean);
-      if (winners.length) resultMsg = `최다 선택: ${winners.join(', ')} 🎉`;
+      if (winners.length) parts.push(winners.join(', '));
     }
 
+    const detail = parts.filter(Boolean).join(' · ');
+    const body = detail
+      ? `"${title}"가 ${detail}로 결정되었습니다. 일정표에 표기해 주세요!`
+      : `"${title}" 투표가 마감되었습니다.`;
+
     const tokens = await getAllTokens();
-    await sendPush(tokens, '🏆 모임 정하기 투표 결과!', resultMsg || `"${poll.title||'모임 정하기'}" 투표가 마감되었습니다.`, 'setup');
+    await sendPush(tokens, '📅 모임 날짜/내용 확정!', body, 'setup');
   }
 );
 
@@ -1073,17 +1080,14 @@ exports.notifyMeetingPollFinalDecision = onValueWritten(
     const poll = pollSnap.val();
     if (!poll) return;
 
-    const weekDays = ['일','월','화','수','목','금','토'];
+    const pollTitle = poll.title || '모임 정하기';
     const parts = [];
 
     // 날짜 결정
     if (fd.memberDateKey && poll.memberDates && poll.memberDates[fd.memberDateKey]) {
-      const md = poll.memberDates[fd.memberDateKey];
-      const o = new Date(md.date + 'T00:00:00');
-      parts.push(`${o.getMonth()+1}월 ${o.getDate()}일(${weekDays[o.getDay()]})`);
+      parts.push(fmtDate(poll.memberDates[fd.memberDateKey].date));
     } else if (fd.date) {
-      const o = new Date(fd.date + 'T00:00:00');
-      parts.push(`${o.getMonth()+1}월 ${o.getDate()}일(${weekDays[o.getDay()]})`);
+      parts.push(fmtDate(fd.date));
     }
 
     // 내용 결정
@@ -1095,8 +1099,8 @@ exports.notifyMeetingPollFinalDecision = onValueWritten(
 
     const detail = parts.filter(Boolean).join(' · ');
     const body = detail
-      ? `${detail}로 확정되었습니다! 🎉`
-      : `"${poll.title || '모임 정하기'}"가 확정되었습니다! 🎉`;
+      ? `"${pollTitle}"가 ${detail}로 결정되었습니다. 일정표에 표기해 주세요!`
+      : `"${pollTitle}"가 확정되었습니다. 일정표에 표기해 주세요!`;
 
     const tokens = await getAllTokens();
     await sendPush(tokens, '📅 모임 날짜/내용 확정!', body, 'setup');
