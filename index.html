@@ -956,6 +956,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
             <div class="card-title" style="margin-bottom:0">🪜 사다리 복식</div>
             <div style="display:flex;align-items:center;gap:8px">
               <span id="ladder-status" class="status-badge badge-active">진행중</span>
+              <button onclick="shareLadderBracket()" style="padding:4px 10px;border-radius:8px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;font-size:0.72rem;font-weight:700;cursor:pointer">📤 공유</button>
               <button id="ladder-end-btn" onclick="endLadderTournament()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #ef4444;background:#fff;color:#ef4444;font-size:0.72rem;font-weight:700;cursor:pointer">대회 종료</button>
             </div>
           </div>
@@ -9292,6 +9293,76 @@ async function shareElementAsImage(elementId, title, filename) {
 
 function shareBetCard(betId) {
   shareElementAsImage(`bet-card-${betId}`, '🎲 JAMITE 베팅', 'bet-card.png');
+}
+
+async function shareLadderBracket() {
+  const t = state.tournaments.ladder;
+  if (!t || typeof html2canvas === 'undefined') return;
+  const bracketEl = document.getElementById('ladder-bracket');
+  if (!bracketEl) return;
+
+  const awardsEl  = document.getElementById('ladder-awards');
+  const today     = new Date().toISOString().slice(0, 10);
+  const isDone    = !!t.champion;
+
+  // ── 임시 캡처 컨테이너 ──────────────────────────────────
+  const bw = parseInt(bracketEl.style.width)  || bracketEl.offsetWidth  || 320;
+  const bh = parseInt(bracketEl.style.height) || bracketEl.offsetHeight || 200;
+  const wrapW = Math.max(360, bw + 40);
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = `position:fixed;left:-9999px;top:0;width:${wrapW}px;background:#f8fafc;padding:16px;font-family:-apple-system,sans-serif;box-sizing:border-box;`;
+
+  // 헤더
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid #e2e8f0';
+  hdr.innerHTML = `<div style="font-size:1rem;font-weight:800;color:#1e293b">🪜 사다리 복식 대진표</div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:0.65rem;padding:2px 8px;border-radius:6px;font-weight:700;background:${isDone?'#dcfce7':'#dbeafe'};color:${isDone?'#16a34a':'#1d4ed8'}">${isDone?'완료':'진행중'}</span>
+      <span style="font-size:0.65rem;color:#94a3b8">${today}</span>
+    </div>`;
+  wrap.appendChild(hdr);
+
+  // 우승/준우승 (있을 때만)
+  if (awardsEl && awardsEl.classList.contains('visible')) {
+    const ac = awardsEl.cloneNode(true);
+    ac.style.cssText = 'display:block;margin-bottom:10px';
+    wrap.appendChild(ac);
+  }
+
+  // 대진표 클론 — 전체 TW×TH 크기 그대로 캡처 (스크롤 클리핑 없음)
+  const bracketClone = bracketEl.cloneNode(true);
+  const bracketBox = document.createElement('div');
+  bracketBox.style.cssText = `background:#fff;border-radius:12px;padding:10px;border:1px solid #e2e8f0;width:${bw}px;height:${bh}px;position:relative;overflow:hidden;`;
+  bracketBox.appendChild(bracketClone);
+  wrap.appendChild(bracketBox);
+
+  // 푸터
+  const ftr = document.createElement('div');
+  ftr.style.cssText = 'text-align:center;font-size:0.62rem;color:#94a3b8;margin-top:10px';
+  ftr.textContent = '🎾 JAMITE 테니스';
+  wrap.appendChild(ftr);
+
+  document.body.appendChild(wrap);
+  try {
+    const canvas = await html2canvas(wrap, {
+      scale: 2, useCORS: true, backgroundColor: '#f8fafc', logging: false,
+      width: wrapW, height: wrap.scrollHeight,
+    });
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      const file  = new File([blob], 'ladder-bracket.png', { type: 'image/png' });
+      const title = `🪜 사다리 복식 대진표${isDone && t.champion ? ' · 우승: ' + pairName(t.champion) : ''}`;
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        navigator.share({ title, files: [file] }).catch(() => navigator.share({ title }).catch(() => {}));
+      } else if (navigator.share) {
+        navigator.share({ title }).catch(() => {});
+      } else {
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ladder-bracket.png'; a.click();
+      }
+    }, 'image/png');
+  } catch(e) { console.error('shareLadderBracket error', e); }
+  finally { document.body.removeChild(wrap); }
 }
 
 function shareAtpHistoryDetail() {
