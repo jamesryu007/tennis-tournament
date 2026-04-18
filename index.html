@@ -9960,8 +9960,9 @@ function _mpVoteSection(poll, me) {
 function _mpResultCard(poll, allowAdminDecision=false) {
   const votes    = poll.votes||{};
   const members  = state.members.map(m=>m.name);
-  const voterNames = Object.values(votes).map(v=>v.name).filter(Boolean);
-  const nonVoters  = members.filter(n=>!voterNames.includes(n));
+  const voterNames    = Object.values(votes).map(v=>v.name).filter(Boolean);
+  const cannotVoters  = Object.values(votes).filter(v=>v.cannotAttend).map(v=>v.name).filter(Boolean);
+  const nonVoters     = members.filter(n=>!voterNames.includes(n));
   const weekDays   = ['일','월','화','수','목','금','토'];
   const fd         = poll.finalDecision || {};
   const canDecide  = allowAdminDecision && typeof isAdmin==='function' && isAdmin() && poll.status!=='open';
@@ -10260,11 +10261,21 @@ function _mpResultCard(poll, allowAdminDecision=false) {
     html += `</div>`;
   }
 
-  if (nonVoters.length) {
-    html += `<div style="border-top:1px solid #f1f5f9;padding-top:12px;margin-top:4px">
-      <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;margin-bottom:6px">미참여 (${nonVoters.length}명)</div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px">${nonVoters.map(n=>`<span class="mp-absent-chip">${n}</span>`).join('')}</div>
-    </div>`;
+  if (cannotVoters.length || nonVoters.length) {
+    html += `<div style="border-top:1px solid #f1f5f9;padding-top:12px;margin-top:4px;display:flex;flex-direction:column;gap:8px">`;
+    if (cannotVoters.length) {
+      html += `<div>
+        <div style="font-size:0.7rem;font-weight:700;color:#f87171;margin-bottom:6px">🚫 불참 (${cannotVoters.length}명)</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">${cannotVoters.map(n=>`<span class="mp-absent-chip" style="background:#fee2e2;color:#b91c1c">${n}</span>`).join('')}</div>
+      </div>`;
+    }
+    if (nonVoters.length) {
+      html += `<div>
+        <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;margin-bottom:6px">미투표 (${nonVoters.length}명)</div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">${nonVoters.map(n=>`<span class="mp-absent-chip">${n}</span>`).join('')}</div>
+      </div>`;
+    }
+    html += `</div>`;
   }
   html += `</div></div>`;
   return html;
