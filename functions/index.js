@@ -728,12 +728,20 @@ exports.sendCheckinPressure = onCall(
   }
 );
 
+// ── 유틸: 정회원 이름 목록 ────────────────────────────────────────
+async function getMemberNames() {
+  const snap = await db.ref('jmt/members').once('value');
+  const data = snap.val();
+  if (!data) return [];
+  return Object.values(data).map(m => m.name).filter(Boolean);
+}
+
 // ══ 13. 개인 랭킹 1~3위 변동 감지 ════════════════════════════════
-function computePlayerTop3(stats) {
+function computePlayerTop3(stats, memberNames) {
   const effWr = (w, d, l) => { const t = w+(d||0)+l; return t ? ((w+(d||0)*0.5)/t*100) : 0; };
   const players = Object.entries(stats || {})
     .map(([name, v]) => ({ name, wins: v.wins||0, draws: v.draws||0, losses: v.losses||0 }))
-    .filter(p => p.wins+p.draws+p.losses >= 1);
+    .filter(p => p.wins+p.draws+p.losses >= 1 && memberNames.includes(p.name));
   const avg = players.reduce((s, p) => s+p.wins+p.draws+p.losses, 0) / (players.length||1);
   const thresh = avg * 0.5;
   return players
@@ -747,8 +755,9 @@ exports.notifyPlayerRankingChange = onValueWritten(
   async (event) => {
     const year = event.params.year;
     if (year !== new Date().getFullYear().toString()) return;
-    const before = computePlayerTop3(event.data.before.val());
-    const after  = computePlayerTop3(event.data.after.val());
+    const memberNames = await getMemberNames();
+    const before = computePlayerTop3(event.data.before.val(), memberNames);
+    const after  = computePlayerTop3(event.data.after.val(), memberNames);
     const medals = ['🥇','🥈','🥉'];
     const changes = [];
     for (let i = 0; i < 3; i++) {
@@ -764,11 +773,11 @@ exports.notifyPlayerRankingChange = onValueWritten(
 );
 
 // ══ 14. 팀페어 랭킹 1~3위 변동 감지 ══════════════════════════════
-function computePairTop3(stats) {
+function computePairTop3(stats, memberNames) {
   const effWr = (w, d, l) => { const t = w+(d||0)+l; return t ? ((w+(d||0)*0.5)/t*100) : 0; };
   const pairs = Object.entries(stats || {})
     .map(([key, v]) => ({ key, wins: v.wins||0, draws: v.draws||0, losses: v.losses||0, nickname: v.nickname, players: v.players||key.split('_') }))
-    .filter(p => p.wins+p.draws+p.losses >= 1);
+    .filter(p => p.wins+p.draws+p.losses >= 1 && p.players.every(n => memberNames.includes(n)));
   const avg = pairs.reduce((s, p) => s+p.wins+p.draws+p.losses, 0) / (pairs.length||1);
   const thresh = avg * 0.5;
   return pairs
@@ -783,8 +792,9 @@ exports.notifyPairRankingChange = onValueWritten(
   async (event) => {
     const year = event.params.year;
     if (year !== new Date().getFullYear().toString()) return;
-    const before = computePairTop3(event.data.before.val());
-    const after  = computePairTop3(event.data.after.val());
+    const memberNames = await getMemberNames();
+    const before = computePairTop3(event.data.before.val(), memberNames);
+    const after  = computePairTop3(event.data.after.val(), memberNames);
     const medals = ['🥇','🥈','🥉'];
     const changes = [];
     for (let i = 0; i < 3; i++) {
