@@ -858,6 +858,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div class="sub-tab active" id="btab-mixed" onclick="switchBracketTab('mixed')">🔀 혼합복식</div>
       <div class="sub-tab" id="btab-mens" onclick="switchBracketTab('mens')">👨 남자복식</div>
       <div class="sub-tab" id="btab-womens" onclick="switchBracketTab('womens')">👩 여자복식</div>
+      <div class="sub-tab" id="btab-ladder" onclick="switchBracketTab('ladder')" style="display:none">🪜 사다리 복식</div>
     </div>
 
     <!-- 혼합복식 -->
@@ -936,6 +937,33 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <button class="btn btn-warning btn-full" onclick="reshuffleTournament('womens')">🔀 다시 추첨</button>
             <button class="btn btn-outline btn-full" id="bracket-edit-btn-womens" onclick="toggleBracketEdit('womens')">✏️ 대진표 수정</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 사다리 복식 -->
+    <div id="match-panel-ladder" style="display:none">
+      <div id="ladder-panel-empty" class="empty-state">
+        <div class="icon">🪜</div>
+        <p>사다리 복식 대진표 없음<br><span class="text-muted">사다리 게임에서 대진표를 구성하세요</span></p>
+      </div>
+      <div id="ladder-panel-content" style="display:none">
+        <div id="ladder-unpaired"></div>
+        <div id="ladder-awards" class="awards-screen"></div>
+        <div class="card">
+          <div class="flex-row" style="justify-content:space-between;margin-bottom:11px">
+            <div class="card-title" style="margin-bottom:0">🪜 사다리 복식</div>
+            <span id="ladder-status" class="status-badge badge-active">진행중</span>
+          </div>
+          <div class="bracket-container"><div class="bracket-svg-wrap" id="ladder-bracket"></div></div>
+          <div class="scroll-hint" id="ladder-hint"></div>
+        </div>
+        <div id="ladder-edit-notice" class="edit-mode-notice" style="display:none">✏️ 수정 모드 · 슬롯을 눌러 선수를 배정하세요</div>
+        <div class="card" style="padding:11px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <button class="btn btn-warning btn-full" onclick="reshuffleTournament('ladder')">🔀 다시 추첨</button>
+            <button class="btn btn-outline btn-full" id="bracket-edit-btn-ladder" onclick="toggleBracketEdit('ladder')">✏️ 대진표 수정</button>
           </div>
         </div>
       </div>
@@ -1301,6 +1329,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <canvas id="ladder-canvas" onclick="ladderCanvasClick(event)" style="width:100%;border-radius:12px;background:#d1fae5;display:block;cursor:pointer"></canvas>
       <div id="ladder-game-actions" style="display:none;margin-top:12px;gap:8px">
         <button onclick="betShowHome()" style="flex:1;padding:13px;border-radius:13px;border:none;background:#f1f5f9;color:#1e293b;font-size:0.9rem;font-weight:700;cursor:pointer">나가기</button>
+        <button id="ladder-bracket-btn" onclick="ladderBuildBracket()" style="display:none;flex:1;padding:13px;border-radius:13px;border:none;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer">🏆 대진표 구성</button>
       </div>
     </div>
 
@@ -1580,10 +1609,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       </div>
       <div class="score-inputs-row">
         <input type="text" id="score0-input" class="score-field" placeholder="0" maxlength="2" inputmode="numeric"
-          oninput="autoNextScore(this,'score1-input');previewWinner()">
+          oninput="autoNextScore(this,'score1-input');previewWinner();_checkTournamentTB()">
         <span class="score-colon">:</span>
         <input type="text" id="score1-input" class="score-field" placeholder="0" maxlength="2" inputmode="numeric"
-          oninput="previewWinner()" onkeydown="if(event.key==='Enter')submitScore()">
+          oninput="previewWinner();_checkTournamentTB()" onkeydown="if(event.key==='Enter')submitScore()">
+      </div>
+      <div id="score-tb-row" style="display:none;flex-direction:row;align-items:center;justify-content:center;gap:8px;margin-top:6px;margin-bottom:2px">
+        <span style="font-size:0.72rem;color:#d97706;font-weight:700;min-width:24px;text-align:right">TB</span>
+        <input type="text" id="score-tb0" class="score-field" placeholder="0" maxlength="2" inputmode="numeric" style="width:54px">
+        <span class="score-colon">:</span>
+        <input type="text" id="score-tb1" class="score-field" placeholder="0" maxlength="2" inputmode="numeric" style="width:54px">
       </div>
       <button class="confirm-btn" onclick="submitScore()">확인</button>
     </div>
@@ -1712,7 +1747,7 @@ const state = {
   members: [],
   guests: [],
   selectedIds: new Set(),
-  tournaments: { mixed: null, mens: null, womens: null },
+  tournaments: { mixed: null, mens: null, womens: null, ladder: null },
   history: [],
   currentHistoryId: null,
   isCreator: false,
@@ -1858,10 +1893,12 @@ function applyLastFinished(data) {
   state.lastFinished = data;
   state.tournaments = data.tournaments;
   showFinishedBanner(data);
-  ['mixed','mens','womens'].forEach(type => {
+  ['mixed','mens','womens','ladder'].forEach(type => {
     if(state.tournaments[type]) {
-      document.getElementById(`${type}-empty`).style.display = 'none';
-      document.getElementById(`${type}-content`).style.display = 'block';
+      const emptyEl = document.getElementById(`${type === 'ladder' ? 'ladder-panel-empty' : type + '-empty'}`);
+      const contentEl = document.getElementById(`${type === 'ladder' ? 'ladder-panel-content' : type + '-content'}`);
+      if(emptyEl) emptyEl.style.display = 'none';
+      if(contentEl) contentEl.style.display = 'block';
       renderTournament(type);
     }
   });
@@ -1901,7 +1938,8 @@ function saveActiveState() {
 function applyActiveState(saved) {
   if(!saved || !saved.currentHistoryId) return false;
   state.currentHistoryId = saved.currentHistoryId;
-  state.tournaments = saved.tournaments || { mixed: null, mens: null, womens: null };
+  state.tournaments = saved.tournaments || { mixed: null, mens: null, womens: null, ladder: null };
+  if (!state.tournaments.ladder) state.tournaments.ladder = null; // ensure ladder key exists
   state.guests = saved.guests || [];
   state.selectedIds = new Set(toArr(saved.selectedIds));
   state._creatorName = saved.creatorName || null;
@@ -1941,17 +1979,21 @@ function visibleMatchTab() {
 function applyTournamentUI(onlyVisible) {
   const matchPageActive = document.getElementById('page-matches').classList.contains('active');
   const visible = visibleMatchTab();
-  ['mixed','mens','womens'].forEach(type => {
+  ['mixed','mens','womens','ladder'].forEach(type => {
     if(state.tournaments[type]) {
-      document.getElementById(`${type}-empty`).style.display = 'none';
-      document.getElementById(`${type}-content`).style.display = 'block';
+      const emptyEl = document.getElementById(type === 'ladder' ? 'ladder-panel-empty' : `${type}-empty`);
+      const contentEl = document.getElementById(type === 'ladder' ? 'ladder-panel-content' : `${type}-content`);
+      if(emptyEl) emptyEl.style.display = 'none';
+      if(contentEl) contentEl.style.display = 'block';
       // 경기진행 페이지가 열려 있을 때만, 현재 보이는 탭만 렌더링
       if(!onlyVisible || (matchPageActive && type === visible)) {
         renderTournament(type);
       }
     } else {
-      document.getElementById(`${type}-empty`).style.display = '';
-      document.getElementById(`${type}-content`).style.display = 'none';
+      const emptyEl = document.getElementById(type === 'ladder' ? 'ladder-panel-empty' : `${type}-empty`);
+      const contentEl = document.getElementById(type === 'ladder' ? 'ladder-panel-content' : `${type}-content`);
+      if(emptyEl) emptyEl.style.display = '';
+      if(contentEl) contentEl.style.display = 'none';
     }
   });
 }
@@ -2041,14 +2083,19 @@ function setupFirebaseListeners() {
         if(state.lastFinished && state.lastFinished.tournaments) {
           applyLastFinished(state.lastFinished);
         } else {
-          state.tournaments = { mixed: null, mens: null, womens: null };
+          state.tournaments = { mixed: null, mens: null, womens: null, ladder: null };
           hideFinishedBanner();
-          ['mixed','mens','womens'].forEach(type => {
-            document.getElementById(`${type}-empty`).style.display = '';
-            document.getElementById(`${type}-content`).style.display = 'none';
-            document.getElementById(`${type}-awards`).classList.remove('visible');
-            document.getElementById(`${type}-unpaired`).innerHTML = '';
-            document.getElementById(`${type}-bracket`).innerHTML = '';
+          ['mixed','mens','womens','ladder'].forEach(type => {
+            const emptyEl = document.getElementById(type === 'ladder' ? 'ladder-panel-empty' : `${type}-empty`);
+            const contentEl = document.getElementById(type === 'ladder' ? 'ladder-panel-content' : `${type}-content`);
+            if(emptyEl) emptyEl.style.display = '';
+            if(contentEl) contentEl.style.display = 'none';
+            const awardsEl = document.getElementById(`${type}-awards`);
+            if(awardsEl) awardsEl.classList.remove('visible');
+            const unpairedEl = document.getElementById(`${type}-unpaired`);
+            if(unpairedEl) unpairedEl.innerHTML = '';
+            const bracketEl = document.getElementById(`${type}-bracket`);
+            if(bracketEl) bracketEl.innerHTML = '';
           });
         }
         updateSetupPageUI();
@@ -3845,6 +3892,11 @@ function reshuffleTournament(type) {
   if (!confirm('기존 결과가 초기화됩니다. 계속하시겠습니까?')) return;
   // exit edit mode if active
   if (_bracketEditMode === type) { _bracketEditMode = null; updateBracketEditUI(type); }
+  if (type === 'ladder') {
+    if (!state._ladderPairs || state._ladderPairs.length < 2) { alert('사다리 페어 데이터가 없습니다. 사다리 게임을 다시 실행해 주세요.'); return; }
+    _initLadderTournament(state._ladderPairs, state._ladderUnpaired || []);
+    return;
+  }
   initTournamentSilent(type);
   document.getElementById(`${type}-empty`).style.display = 'none';
   document.getElementById(`${type}-content`).style.display = 'block';
@@ -4201,7 +4253,7 @@ function renderAwards(type,opts) {
   const noConfetti=!!(opts&&opts.noConfetti);
   const el=document.getElementById(`${prefix}-awards`);
   if(!t||!t.champion){if(el)el.classList.remove('visible');return;}
-  const tn=type==='mixed'?'혼합복식':type==='mens'?'남자복식':'여자복식';
+  const tn=type==='mixed'?'혼합복식':type==='mens'?'남자복식':type==='ladder'?'사다리 복식':'여자복식';
   el.innerHTML=`<div class="card" style="border-color:#fcd34d;background:linear-gradient(135deg,#fffbeb,#fefce8);margin-bottom:10px">
     <div class="award-podium">
       <span class="award-trophy">🏆</span>
@@ -4233,11 +4285,16 @@ function openModal(type,ri,mi) {
   const t=state.tournaments[type], match=t.rounds[ri][mi];
   modalCtx={type,ri,mi};
   const rn=roundNames(t.rounds.length);
-  document.getElementById('modal-round').textContent=`${type==='mixed'?'혼합복식':type==='mens'?'남자복식':'여자복식'} — ${rn[ri]}`;
+  document.getElementById('modal-round').textContent=`${type==='mixed'?'혼합복식':type==='mens'?'남자복식':type==='ladder'?'사다리 복식':'여자복식'} — ${rn[ri]}`;
   document.getElementById('team0-name').textContent=pairName(match.team0);
   document.getElementById('team1-name').textContent=pairName(match.team1);
   document.getElementById('score0-input').value=match.score0||'';
   document.getElementById('score1-input').value=match.score1||'';
+  const tbRow = document.getElementById('score-tb-row');
+  if (tbRow) tbRow.style.display = 'none';
+  document.getElementById('score-tb0').value = match.tb0 != null ? String(match.tb0) : '';
+  document.getElementById('score-tb1').value = match.tb1 != null ? String(match.tb1) : '';
+  if (match.tb0 != null) _checkTournamentTB();
   document.getElementById('score-side-0').className='score-side'+(match.winner===0?' winner-row':'');
   document.getElementById('score-side-1').className='score-side'+(match.winner===1?' winner-row':'');
   document.getElementById('score-modal').classList.add('open');
@@ -4274,6 +4331,19 @@ function previewWinner() {
   } else { r0.className='score-side'; r1.className='score-side'; }
 }
 
+function _checkTournamentTB() {
+  const s0 = parseInt(document.getElementById('score0-input').value);
+  const s1 = parseInt(document.getElementById('score1-input').value);
+  const tbRow = document.getElementById('score-tb-row');
+  if (!tbRow) return;
+  const needs = _isTBScore(s0, s1);
+  tbRow.style.display = needs ? 'flex' : 'none';
+  if (!needs) {
+    document.getElementById('score-tb0').value = '';
+    document.getElementById('score-tb1').value = '';
+  }
+}
+
 function submitScore() {
   if(!modalCtx)return;
   const s0=document.getElementById('score0-input').value.trim();
@@ -4284,8 +4354,17 @@ function submitScore() {
   if(n0===n1){alert('동점은 승자를 결정할 수 없습니다.');return;}
   const {type,ri,mi}=modalCtx;
   const t=state.tournaments[type], match=t.rounds[ri][mi];
+  // TB 점수 수집
+  const tbRow = document.getElementById('score-tb-row');
+  let tb0 = null, tb1 = null;
+  if (tbRow && tbRow.style.display !== 'none') {
+    const tv0 = parseInt(document.getElementById('score-tb0').value);
+    const tv1 = parseInt(document.getElementById('score-tb1').value);
+    if (!isNaN(tv0) && !isNaN(tv1)) { tb0 = tv0; tb1 = tv1; }
+  }
   clearDown(t.rounds,ri,mi);
   match.score0=s0; match.score1=s1; match.winner=n0>n1?0:1;
+  if (tb0 !== null) { match.tb0=tb0; match.tb1=tb1; } else { delete match.tb0; delete match.tb1; }
   advanceWinner(t.rounds,ri,mi);
   checkComplete(type);
   saveActiveState();
@@ -4308,7 +4387,7 @@ function switchMatchTab(type) {
 }
 
 function switchBracketTab(type) {
-  ['mixed','mens','womens'].forEach(t => {
+  ['mixed','mens','womens','ladder'].forEach(t => {
     const panel = document.getElementById(`match-panel-${t}`);
     const tab = document.getElementById(`btab-${t}`);
     if(panel) panel.style.display = t===type?'block':'none';
@@ -4322,7 +4401,7 @@ function switchBracketTab(type) {
 function showBracketSection(type) {
   const sec = document.getElementById('bracket-section');
   if(sec) sec.style.display = 'block';
-  const first = ['mixed','mens','womens'].find(t => state.tournaments[t]);
+  const first = ['mixed','mens','womens','ladder'].find(t => state.tournaments[t]);
   if(first) switchBracketTab(type||first);
 }
 
@@ -5347,7 +5426,7 @@ function selectIdentity(name) {
     const pageId = activePage.id.replace('page-', '');
     if (pageId === 'setup') updateSetupPageUI();
     if (pageId === 'matches') {
-      ['mixed','mens','womens'].forEach(t => { if(state.tournaments[t]) renderTournament(t); });
+      ['mixed','mens','womens','ladder'].forEach(t => { if(state.tournaments[t]) renderTournament(t); });
     }
     if (pageId === 'checkin') renderCheckinPage();
     if (pageId === 'atp') { renderAtpPage(); renderAtpBetPanel(); }
@@ -5439,7 +5518,7 @@ function updatePermissionUI() {
   }
 
   // 다시 추첨 + 대진표 수정 (매니저만)
-  ['mixed','mens','womens'].forEach(t => {
+  ['mixed','mens','womens','ladder'].forEach(t => {
     const reshuffleEl = document.querySelector(`button[onclick="reshuffleTournament('${t}')"]`);
     if (reshuffleEl) {
       reshuffleEl.disabled = !manager;
@@ -5486,7 +5565,7 @@ function updateSetupPageUI() {
       endWrap.style.display = 'none';
     }
     // Show first available bracket tab
-    const firstType = ['mixed','mens','womens'].find(t => state.tournaments[t]);
+    const firstType = ['mixed','mens','womens','ladder'].find(t => state.tournaments[t]);
     if(firstType) switchBracketTab(firstType);
   }
 }
@@ -5542,10 +5621,12 @@ changeTeamPhotoRandom();
       updateSummary();
       const hasActive = loadActiveStateLocal();
       if(hasActive) {
-        ['mixed','mens','womens'].forEach(type => {
+        ['mixed','mens','womens','ladder'].forEach(type => {
           if(state.tournaments[type]) {
-            document.getElementById(`${type}-empty`).style.display = 'none';
-            document.getElementById(`${type}-content`).style.display = 'block';
+            const emptyEl = document.getElementById(type === 'ladder' ? 'ladder-panel-empty' : `${type}-empty`);
+            const contentEl = document.getElementById(type === 'ladder' ? 'ladder-panel-content' : `${type}-content`);
+            if(emptyEl) emptyEl.style.display = 'none';
+            if(contentEl) contentEl.style.display = 'block';
             renderTournament(type);
           }
         });
@@ -8822,8 +8903,13 @@ function _ladderDraw() {
       const lbl = item.length > 5 ? item.slice(0,5)+'…' : item;
       ctx.fillText(lbl, x, y + 14);
     } else {
+      // 미공개 — 참가자 이름은 표시, 결과 항목은 숨김
+      const pName = destParticipant[c] || '';
+      const pDisp = pName.length > 4 ? pName.slice(0,4) : pName;
+      ctx.font = 'bold 10px sans-serif'; ctx.fillStyle = '#94a3b8';
+      ctx.fillText(pDisp, x, y);
       ctx.font = 'bold 11px sans-serif'; ctx.fillStyle = '#cbd5e1';
-      ctx.fillText('?', x, y);
+      ctx.fillText('?', x, y + 14);
     }
     ctx.restore();
   });
@@ -9019,6 +9105,14 @@ function _ladderShowResult() {
   const shareBtn = document.getElementById('ladder-share-btn');
   if (shareBtn) { shareBtn.style.display = 'inline-flex'; }
   document.getElementById('ladder-game-hint').textContent = '모두 완료! 나가기 전에 공유해보세요.';
+  // 대진표 구성 버튼: 아이템이 2명씩 묶인 쌍이 2개 이상인 경우 표시
+  const bracketBtn = document.getElementById('ladder-bracket-btn');
+  if (bracketBtn) {
+    const groups = {};
+    Object.values(_ladderState.assignment).forEach(item => { groups[item] = (groups[item] || 0) + 1; });
+    const pairCount = Object.values(groups).filter(c => c === 2).length;
+    bracketBtn.style.display = pairCount >= 2 ? 'block' : 'none';
+  }
 }
 
 // ── 카드 HTML 캡처 → Web Share API 공유 ──────────────────────────
@@ -9180,6 +9274,67 @@ function ladderShare() {
 
 function ladderSaveAndHome() {
   betShowHome();
+}
+
+// 사다리 결과 → 모임만들기 대진표 구성
+function ladderBuildBracket() {
+  const assignment = _ladderState.assignment;
+  if (!assignment || !Object.keys(assignment).length) {
+    alert('사다리 결과가 없습니다.');
+    return;
+  }
+  // 아이템별로 참가자 그룹핑
+  const groups = {};
+  Object.entries(assignment).forEach(([name, item]) => {
+    if (!groups[item]) groups[item] = [];
+    groups[item].push(name);
+  });
+  const pairs = [], unpaired = [];
+  Object.entries(groups).forEach(([, names]) => {
+    if (names.length === 2) pairs.push(names);
+    else names.forEach(n => unpaired.push(n));
+  });
+  if (pairs.length < 2) {
+    alert('대진표를 만들려면 같은 결과를 받은 2인 쌍이 2개 이상 필요합니다.\n현재 페어 수: ' + pairs.length);
+    return;
+  }
+  // 페어 저장 (다시추첨 시 재사용)
+  state._ladderPairs = pairs;
+  state._ladderUnpaired = unpaired;
+  _initLadderTournament(pairs, unpaired);
+  // 대진표 탭으로 이동
+  betShowHome();
+  switchPage('setup');
+  const ladderTab = document.getElementById('btab-ladder');
+  if (ladderTab) ladderTab.style.display = '';
+  switchBracketTab('ladder');
+}
+
+function _initLadderTournament(pairs, unpaired) {
+  const size = pow2(pairs.length);
+  const slots = shuffle([...pairs, ...Array(size - pairs.length).fill(null)]);
+  const r0 = [];
+  for (let i = 0; i < slots.length; i += 2)
+    r0.push({team0: slots[i], team1: slots[i+1], winner: null, score0: '', score1: ''});
+  const rounds = [r0];
+  let prev = r0.length;
+  while (prev > 1) {
+    rounds.push(Array.from({length: prev/2}, () => ({team0:null, team1:null, winner:null, score0:'', score1:''})));
+    prev = prev / 2;
+  }
+  for (let mi = 0; mi < r0.length; mi++) {
+    const m = r0[mi];
+    if (!m.team0 && m.team1) { m.winner = 1; advanceWinner(rounds, 0, mi); }
+    else if (m.team0 && !m.team1) { m.winner = 0; advanceWinner(rounds, 0, mi); }
+    else if (!m.team0 && !m.team1) m.winner = -1;
+  }
+  cascadeByes(rounds);
+  state.tournaments.ladder = {rounds, champion: null, runnerUp: null, unpaired};
+  checkComplete('ladder');
+  document.getElementById('ladder-panel-empty').style.display = 'none';
+  document.getElementById('ladder-panel-content').style.display = 'block';
+  saveActiveState();
+  renderTournament('ladder');
 }
 
 // ══════════════════════════════════════════════════════════
