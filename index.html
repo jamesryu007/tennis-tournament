@@ -8657,7 +8657,7 @@ function _loadBetHistory() {
         </div>
         <div style="display:flex;flex-wrap:wrap;margin-bottom:3px">${loserChips}</div>
         <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${winnerChips}</div>
-        ${r.gameType === 'ladder' && r.ladderPairs ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">${(r.ladderPairs||[]).map(p=>`<span style="font-size:0.68rem;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:8px;padding:2px 8px;font-weight:700">🪜 ${p.participant} → ${p.item}</span>`).join('')}</div>` : ''}
+        ${r.gameType === 'ladder' && r.ladderPairs ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">${(Array.isArray(r.ladderPairs)?r.ladderPairs:Object.values(r.ladderPairs||{})).map(p=>`<span style="font-size:0.68rem;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:8px;padding:2px 8px;font-weight:700">🪜 ${p.participant} → ${p.item}</span>`).join('')}</div>` : ''}
         <div id="bet-cost-view-${id}" style="display:flex;align-items:center;gap:8px">
           ${totalCost ? `<div style="font-size:0.72rem;color:#7c3aed;font-weight:700">💸 총 ${totalCost.toLocaleString()}원</div>` : r.gameType === 'ladder' ? '' : `<div style="font-size:0.68rem;color:#94a3b8">비용 미입력</div>`}
           ${r.gameType !== 'ladder' ? editBtn : ''}
@@ -9254,7 +9254,9 @@ function _saveLadderHistory() {
     createdAt: now.toISOString(),
     hostName: (state.identity && state.identity.name) || '',
     ladderPairs: pairs,
-  }).catch(fbErr);
+  }).then(() => {
+    betRenderHome(); // 내기 홈 히스토리 목록 갱신
+  }).catch(e => { fbErr(e); alert('사다리 히스토리 저장 실패: ' + e.message); });
 }
 
 // ── 카드 HTML 캡처 → Web Share API 공유 ──────────────────────────
