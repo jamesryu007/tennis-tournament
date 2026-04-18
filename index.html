@@ -2141,11 +2141,16 @@ function setupFirebaseListeners() {
       if (data.ladderGameSnapshot) {
         const s = data.ladderGameSnapshot;
         state._ladderGameSnapshot = s;
-        _ladderState.participants = s.participants || [];
-        _ladderState.shuffledItems = s.shuffledItems || [];
-        _ladderState.rungs = s.rungs || [];
-        _ladderState.assignment = s.assignment || {};
-        _ladderState.numRevealed = _ladderState.participants.length;
+        // 사다리 설정 화면이 열려있으면 참가자 선택 상태 방해하지 않음
+        const onSetup = document.getElementById('bet-screen-ladder-setup') &&
+                        document.getElementById('bet-screen-ladder-setup').style.display !== 'none';
+        if (!onSetup) {
+          _ladderState.participants = s.participants || [];
+          _ladderState.shuffledItems = s.shuffledItems || [];
+          _ladderState.rungs = s.rungs || [];
+          _ladderState.assignment = s.assignment || {};
+          _ladderState.numRevealed = _ladderState.participants.length;
+        }
         // assignment에서 올바른 페어 재계산 (method A: 참가자+할당아이템=1팀)
         // Firebase의 ladderPairs가 잘못됐을 수 있으므로 항상 assignment 기준으로 재생성
         const fixedPairs = [];
@@ -2162,10 +2167,14 @@ function setupFirebaseListeners() {
       document.getElementById('ladder-panel-content').style.display = 'block';
       renderTournament('ladder');
       updateSetupPageUI();
-      // 대진표 최초 생성 시 모든 멤버 자동으로 모임만들기/사다리 복식 탭으로 이동
+      // 대진표 최초 생성 시 — 사다리 게임 화면에 있지 않은 멤버만 모임만들기로 이동
       if (wasNull && !state.tournaments.ladder.champion) {
-        switchPage('setup');
-        switchSetupTab('create');
+        const onLadderGame = document.getElementById('bet-screen-ladder-game') &&
+                             document.getElementById('bet-screen-ladder-game').style.display !== 'none';
+        if (!onLadderGame) {
+          switchPage('setup');
+          switchSetupTab('create');
+        }
       }
     } catch(e) {}
   });
@@ -8648,9 +8657,10 @@ function _loadBetHistory() {
         </div>
         <div style="display:flex;flex-wrap:wrap;margin-bottom:3px">${loserChips}</div>
         <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${winnerChips}</div>
+        ${r.gameType === 'ladder' && r.ladderPairs ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">${(r.ladderPairs||[]).map(p=>`<span style="font-size:0.68rem;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:8px;padding:2px 8px;font-weight:700">🪜 ${p.participant} → ${p.item}</span>`).join('')}</div>` : ''}
         <div id="bet-cost-view-${id}" style="display:flex;align-items:center;gap:8px">
-          ${totalCost ? `<div style="font-size:0.72rem;color:#7c3aed;font-weight:700">💸 총 ${totalCost.toLocaleString()}원</div>` : `<div style="font-size:0.68rem;color:#94a3b8">비용 미입력</div>`}
-          ${editBtn}
+          ${totalCost ? `<div style="font-size:0.72rem;color:#7c3aed;font-weight:700">💸 총 ${totalCost.toLocaleString()}원</div>` : r.gameType === 'ladder' ? '' : `<div style="font-size:0.68rem;color:#94a3b8">비용 미입력</div>`}
+          ${r.gameType !== 'ladder' ? editBtn : ''}
         </div>
         <div id="bet-cost-edit-${id}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid #f1f5f9" data-losers="${losersJson}">
           ${costInputs}
@@ -8699,9 +8709,10 @@ function _ladderRenderMemberChips() {
   const members = (state.members || []).filter(m => m.name);
   const males = members.filter(m => m.gender === 'male');
   const females = members.filter(m => m.gender !== 'male');
-  const chipHtml = (list) => list.map(m =>
-    `<div class="bet-member-chip" id="lchip-${m.name}" onclick="ladderToggleMember('${m.name}')">${m.name}</div>`
-  ).join('');
+  const chipHtml = (list) => list.map(m => {
+    const sel = _ladderState.participants.includes(m.name) ? ' selected' : '';
+    return `<div class="bet-member-chip${sel}" id="lchip-${m.name}" onclick="ladderToggleMember('${m.name}')">${m.name}</div>`;
+  }).join('');
   wrap.innerHTML = (males.length ? `<div style="font-size:0.7rem;color:#1d4ed8;font-weight:700;width:100%;padding:4px 0 2px">👨 남성</div>${chipHtml(males)}` : '')
     + (females.length ? `<div style="font-size:0.7rem;color:#be185d;font-weight:700;width:100%;padding:4px 0 2px">👩 여성</div>${chipHtml(females)}` : '');
   _ladderUpdateCount();
@@ -9222,6 +9233,28 @@ function _ladderShowResult() {
   // 대진표 구성 버튼: 사다리 완료 시 항상 표시
   const bracketBtn = document.getElementById('ladder-bracket-btn');
   if (bracketBtn) bracketBtn.style.display = 'block';
+  // 내기 히스토리에 사다리 결과 자동 저장
+  _saveLadderHistory();
+}
+
+function _saveLadderHistory() {
+  if (!db) return;
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10);
+  const title = _ladderState.title || '사다리 게임';
+  const pairs = _ladderState.participants.map(name => ({
+    participant: name,
+    item: _ladderState.assignment[name] || '?'
+  }));
+  db.ref('jmt/betHistory').push({
+    gameType: 'ladder',
+    title: `[${dateStr}] ${title}`,
+    betTitle: title,
+    date: dateStr,
+    createdAt: now.toISOString(),
+    hostName: (state.identity && state.identity.name) || '',
+    ladderPairs: pairs,
+  }).catch(fbErr);
 }
 
 // ── 카드 HTML 캡처 → Web Share API 공유 ──────────────────────────
@@ -9435,13 +9468,10 @@ function ladderBuildBracket() {
   state._ladderPairs = pairs;
   state._ladderUnpaired = unpaired;
   _initLadderTournament(pairs, unpaired);
-  // 이슈1: 사다리 화면 그대로 유지 (betShowHome 제거)
-  // 이슈2: 모임만들기 > 사다리 복식 탭으로 전환
-  switchPage('setup');
-  switchSetupTab('create');
+  // 사다리 결과 화면 유지 — 대회 종료 전까지 ladder-game 화면 계속 보여줌
+  // (모임만들기 탭 이동 없음, 사용자가 직접 탭 이동)
   const ladderTab = document.getElementById('btab-ladder');
   if (ladderTab) ladderTab.style.display = '';
-  switchBracketTab('ladder');
 }
 
 function _initLadderTournament(pairs, unpaired) {
