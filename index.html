@@ -9270,24 +9270,28 @@ function ladderSaveAndHome() {
 
 // 사다리 결과 → 모임만들기 대진표 구성
 function ladderBuildBracket() {
-  const assignment = _ladderState.assignment;
-  if (!assignment || !Object.keys(assignment).length) {
-    alert('사다리 결과가 없습니다.');
+  const p = _ladderState.participants;
+  const numCols = p.length;
+  if (numCols < 4) {
+    alert('대진표를 만들려면 4명 이상의 참가자가 필요합니다.');
     return;
   }
-  // 아이템별로 참가자 그룹핑
-  const groups = {};
-  Object.entries(assignment).forEach(([name, item]) => {
-    if (!groups[item]) groups[item] = [];
-    groups[item].push(name);
-  });
+  const rows = _ladderState.rungs.length;
+  // 하단 도착 컬럼 기준으로 참가자 배치 (0+1 → 1페어, 2+3 → 2페어 ...)
+  const colMap = {}; // destCol → participantName
+  for (let c = 0; c < numCols; c++) {
+    const dest = _ladderTrace(c, numCols, rows, _ladderState.rungs);
+    colMap[dest] = p[c];
+  }
   const pairs = [], unpaired = [];
-  Object.entries(groups).forEach(([, names]) => {
-    if (names.length === 2) pairs.push(names);
-    else names.forEach(n => unpaired.push(n));
-  });
+  for (let i = 0; i + 1 < numCols; i += 2) {
+    const p1 = colMap[i], p2 = colMap[i + 1];
+    if (p1 && p2) pairs.push([p1, p2]);
+    else { if (p1) unpaired.push(p1); if (p2) unpaired.push(p2); }
+  }
+  if (numCols % 2 === 1 && colMap[numCols - 1]) unpaired.push(colMap[numCols - 1]);
   if (pairs.length < 2) {
-    alert('대진표를 만들려면 같은 결과를 받은 2인 쌍이 2개 이상 필요합니다.\n현재 페어 수: ' + pairs.length);
+    alert('대진표를 만들려면 2쌍 이상 필요합니다.');
     return;
   }
   // 페어 저장 (다시추첨 시 재사용)
