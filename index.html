@@ -4517,32 +4517,29 @@ function submitScore() {
       const bgImage = winner === 0 ? 'images/ca.png' : 'images/right_1.png';
       const existingKey = match._dailyCardKey;
       if (isNewScore || !existingKey) {
-        // 첫 입력: 신규 생성
-        db.ref('jmt/matches').push({ date: today, team0: t0, team1: t1, sets, winner, source: type + '-bracket' })
-          .then(ref => {
-            // 현재 state에서 live match 참조 재확인 (리스너 경쟁 조건 대비)
-            const lm = state.tournaments[type] && state.tournaments[type].rounds &&
-                       state.tournaments[type].rounds[ri] && state.tournaments[type].rounds[ri][mi];
-            if (lm) lm._dailyCardKey = ref.key;
-            const num = Object.keys(_dailyCards).length + 1;
-            db.ref(`jmt/dailyCards/${ref.key}`).set({
-              phase: 'done', team0: t0, team1: t1, sets, winner, bgImage, num,
-              matchKey: ref.key, source: type + '-bracket', scoredAt: Date.now()
-            }).catch(fbErr);
-            // 키 유지: ladder는 ladderState 재저장, 나머지는 activeState 재저장
-            if (type === 'ladder') {
-              state._ladderNonce = Math.random().toString(36).slice(2);
-              db.ref('jmt/ladderState').set(JSON.stringify({
-                tournaments_ladder: state.tournaments.ladder,
-                ladderPairs: state._ladderPairs || [],
-                ladderUnpaired: state._ladderUnpaired || [],
-                ladderGameSnapshot: state._ladderGameSnapshot || null,
-                nonce: state._ladderNonce
-              })).catch(fbErr);
-            } else {
-              saveActiveState();
-            }
-          }).catch(fbErr);
+        // 첫 입력: push().key로 키를 즉시 확보 후 matches·dailyCards 동시 쓰기 (비동기 체인 제거)
+        const newMatchRef = db.ref('jmt/matches').push();
+        const newKey = newMatchRef.key;
+        match._dailyCardKey = newKey; // 즉시 동기적으로 키 저장
+        newMatchRef.set({ date: today, team0: t0, team1: t1, sets, winner, source: type + '-bracket' }).catch(fbErr);
+        const num = Object.keys(_dailyCards).length + 1;
+        db.ref(`jmt/dailyCards/${newKey}`).set({
+          phase: 'done', team0: t0, team1: t1, sets, winner, bgImage, num,
+          matchKey: newKey, source: type + '-bracket', scoredAt: Date.now()
+        }).catch(fbErr);
+        // 키 포함 상태 저장 (ladder는 ladderState, 나머지는 activeState)
+        if (type === 'ladder') {
+          state._ladderNonce = Math.random().toString(36).slice(2);
+          db.ref('jmt/ladderState').set(JSON.stringify({
+            tournaments_ladder: state.tournaments.ladder,
+            ladderPairs: state._ladderPairs || [],
+            ladderUnpaired: state._ladderUnpaired || [],
+            ladderGameSnapshot: state._ladderGameSnapshot || null,
+            nonce: state._ladderNonce
+          })).catch(fbErr);
+        } else {
+          saveActiveState();
+        }
       } else {
         // 스코어 변경: 기존 기록 업데이트
         db.ref('jmt/matches/' + existingKey).update({ sets, winner, date: today }).catch(fbErr);
