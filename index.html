@@ -5679,13 +5679,13 @@ function updateSetupPageUI() {
   document.getElementById('setup-form-section').style.display = (hasActive || hasLadder) ? 'none' : 'block';
   document.getElementById('active-tournament-banner').style.display = hasActive ? 'block' : 'none';
 
-  // 브래킷 섹션: 항상 표시 (빈 상태는 empty-state로 표현)
+  // 브래킷 섹션: 대회 데이터 있을 때만 표시
   const bracketSec = document.getElementById('bracket-section');
-  if(bracketSec) bracketSec.style.display = 'block';
+  if(bracketSec) bracketSec.style.display = (hasActive || hasLadder) ? 'block' : 'none';
 
-  // 사다리 서브탭: 항상 표시
+  // 사다리 서브탭: 사다리 데이터 있을 때만 표시
   const ladderTab = document.getElementById('btab-ladder');
-  if(ladderTab) ladderTab.style.display = '';
+  if(ladderTab) ladderTab.style.display = hasLadder ? '' : 'none';
 
   if (hasActive) {
     const rec = state.history.find(r => String(r.id) === String(state.currentHistoryId));
@@ -7967,13 +7967,6 @@ function switchSetupTab(tab) {
   });
   if (tab === 'meeting') renderMeetingPoll();
   if (tab === 'bet') betRenderHome();
-  // 경기 진행 탭: 브래킷 섹션 항상 표시
-  if (tab === 'create') {
-    const bs = document.getElementById('bracket-section');
-    if (bs) bs.style.display = 'block';
-    const lt = document.getElementById('btab-ladder');
-    if (lt) lt.style.display = '';
-  }
 }
 
 // ══════════════════════════════════════════════════════════
