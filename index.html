@@ -8917,7 +8917,7 @@ function _ladderBuildMemberPicker() {
   popup.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:3px" id="lmp-chips">`
     + members.map(m => {
         const alreadyIn = _ladderState.items.includes(m.name);
-        return `<div class="bet-member-chip${alreadyIn?' selected':''}" id="lmp-${m.name}" onclick="ladderPickerToggle('${m.name}')" style="padding:3px 7px;font-size:0.66rem;margin:0;border-width:1.5px">${m.name}</div>`;
+        return `<div class="bet-member-chip${alreadyIn?' selected':''}" id="lmp-${m.name}" onclick="ladderPickerToggle('${m.name}')" style="padding:4px 9px;font-size:0.74rem;margin:2px;border-width:1.5px">${m.name}</div>`;
       }).join('')
     + `</div>`;
 }
