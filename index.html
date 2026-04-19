@@ -8678,8 +8678,7 @@ function _loadBetHistory() {
         </div>
         <div style="display:flex;flex-wrap:wrap;margin-bottom:3px">${loserChips}</div>
         <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${winnerChips}</div>
-        ${r.gameType === 'ladder' && r.canvasImage ? `<img src="${r.canvasImage}" style="width:100%;border-radius:10px;margin:4px 0 6px;display:block;cursor:pointer" onclick="this.style.borderRadius=this.style.borderRadius?'':'';this.closest('.bet-history-item').querySelector('[data-ladder-pairs]') && (this.closest('.bet-history-item').querySelector('[data-ladder-pairs]').style.display=this.closest('.bet-history-item').querySelector('[data-ladder-pairs]').style.display==='none'?'flex':'none')" loading="lazy">` : ''}
-        ${r.gameType === 'ladder' && r.ladderPairs ? `<div data-ladder-pairs style="display:${r.canvasImage?'none':'flex'};flex-wrap:wrap;gap:4px;margin-bottom:6px">${(Array.isArray(r.ladderPairs)?r.ladderPairs:Object.values(r.ladderPairs||{})).map(p=>`<span style="font-size:0.68rem;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:8px;padding:2px 8px;font-weight:700">🪜 ${p.participant} → ${p.item}</span>`).join('')}</div>` : ''}
+        ${r.gameType === 'ladder' && r.canvasImage ? `<img src="${r.canvasImage}" style="width:100%;border-radius:10px;margin:4px 0 6px;display:block" loading="lazy">` : (r.gameType === 'ladder' && r.ladderPairs ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">${(Array.isArray(r.ladderPairs)?r.ladderPairs:Object.values(r.ladderPairs||{})).map(p=>`<span style="font-size:0.68rem;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:8px;padding:2px 8px;font-weight:700">🪜 ${p.participant} → ${p.item}</span>`).join('')}</div>` : '')}
         <div id="bet-cost-view-${id}" style="display:flex;align-items:center;gap:8px">
           ${totalCost ? `<div style="font-size:0.72rem;color:#7c3aed;font-weight:700">💸 총 ${totalCost.toLocaleString()}원</div>` : r.gameType === 'ladder' ? '' : `<div style="font-size:0.68rem;color:#94a3b8">비용 미입력</div>`}
           ${r.gameType !== 'ladder' ? editBtn : ''}
@@ -9268,16 +9267,12 @@ function _saveLadderHistory() {
     participant: name,
     item: _ladderState.assignment[name] || '?'
   }));
-  // 사다리 캔버스 이미지 캡처 (50% 축소 JPEG → 절약)
+  // 사다리 캔버스 이미지 캡처 (ladderShare와 동일 품질 — 이력 표시용)
   let canvasImage = null;
   try {
     const srcCanvas = document.getElementById('ladder-canvas');
     if (srcCanvas && srcCanvas.width > 0 && srcCanvas.height > 0) {
-      const tmp = document.createElement('canvas');
-      tmp.width = Math.round(srcCanvas.width * 0.5);
-      tmp.height = Math.round(srcCanvas.height * 0.5);
-      tmp.getContext('2d').drawImage(srcCanvas, 0, 0, tmp.width, tmp.height);
-      canvasImage = tmp.toDataURL('image/jpeg', 0.55);
+      canvasImage = srcCanvas.toDataURL('image/jpeg', 0.65);
     }
   } catch(e) {}
   db.ref('jmt/betHistory').push({
@@ -9710,6 +9705,10 @@ function _initLadderTournament(pairs, unpaired) {
   }
   saveActiveState();
   renderTournament('ladder');
+  // 대진표 구성 완료 → 경기 진행 탭 사다리복식으로 이동
+  switchPage('setup');
+  switchSetupTab('create');
+  switchBracketTab('ladder');
 }
 
 function _applyLadderLastResult() {
