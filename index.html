@@ -431,6 +431,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
 /* ── MODALS ── */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 100; align-items: flex-end; justify-content: center; }
+#participant-modal { z-index: 110; }
 .modal-overlay.open { display: flex; }
 .modal { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
 .modal-sheet { background: #ffffff; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
@@ -4480,6 +4481,7 @@ function submitScore() {
     const tv1 = parseInt(document.getElementById('score-tb1').value);
     if (!isNaN(tv0) && !isNaN(tv1)) { tb0 = tv0; tb1 = tv1; }
   }
+  const isNewScore = !match.score0; // 첫 입력 여부 (오늘의 경기 중복 방지)
   clearDown(t.rounds,ri,mi);
   match.score0=s0; match.score1=s1; match.winner=n0>n1?0:1;
   if (tb0 !== null) { match.tb0=tb0; match.tb1=tb1; } else { delete match.tb0; delete match.tb1; }
@@ -4496,6 +4498,24 @@ function submitScore() {
       ladderGameSnapshot: state._ladderGameSnapshot || null,
       nonce: state._ladderNonce
     })).catch(fbErr);
+    // 첫 입력 시 오늘의 경기 탭에 경기 기록 자동 생성 (랭킹은 updateMatchStats에서 이미 적용)
+    if (isNewScore && match.team0 && match.team0.length === 2 && match.team1 && match.team1.length === 2) {
+      const today = new Date().toISOString().split('T')[0];
+      const t0 = [...match.team0].sort();
+      const t1 = [...match.team1].sort();
+      const winner = match.winner;
+      const sets = [{ s0: n0, s1: n1 }];
+      db.ref('jmt/matches').push({ date: today, team0: t0, team1: t1, sets, winner, source: 'ladder-bracket' })
+        .then(ref => {
+          const num = Object.keys(_dailyCards).length + 1;
+          const bgImage = winner === 0 ? 'images/ca.png' : 'images/right_1.png';
+          const cardData = {
+            phase: 'done', team0: t0, team1: t1, sets, winner, bgImage, num,
+            matchKey: ref.key, source: 'ladder-bracket', scoredAt: Date.now()
+          };
+          db.ref(`jmt/dailyCards/${ref.key}`).set(cardData).catch(fbErr);
+        }).catch(fbErr);
+    }
   }
   closeModal();
   renderTournament(type);
@@ -8750,7 +8770,7 @@ function _ladderRenderMemberChips() {
   const females = members.filter(m => m.gender !== 'male');
   const chipHtml = (list) => list.map(m => {
     const sel = _ladderState.participants.includes(m.name) ? ' selected' : '';
-    return `<div class="bet-member-chip${sel}" id="lchip-${m.name}" onclick="ladderToggleMember('${m.name}')">${m.name}</div>`;
+    return `<div class="bet-member-chip${sel}" id="lchip-${m.name}" onclick="ladderToggleMember('${m.name}')" style="padding:4px 9px;font-size:0.74rem;margin:2px">${m.name}</div>`;
   }).join('');
   wrap.innerHTML = (males.length ? `<div style="font-size:0.7rem;color:#1d4ed8;font-weight:700;width:100%;padding:4px 0 2px">👨 남성</div>${chipHtml(males)}` : '')
     + (females.length ? `<div style="font-size:0.7rem;color:#be185d;font-weight:700;width:100%;padding:4px 0 2px">👩 여성</div>${chipHtml(females)}` : '');
@@ -8814,7 +8834,7 @@ function _ladderRenderItems() {
     const isWin = label.includes('Winner');
     const style = (isBad ? 'background:#fee2e2;border-color:#fca5a5;color:#dc2626;'
                 : isWin ? 'background:#fffbeb;border-color:#fde68a;color:#b45309;'
-                : '') + 'padding:3px 6px;font-size:0.66rem;margin:0;border-width:1.5px;border-radius:7px;';
+                : '') + 'padding:4px 9px;font-size:0.74rem;margin:2px;border-width:1.5px;border-radius:7px;';
     return `<div class="bet-member-chip selected" style="${style}">${label.length>5?label.slice(0,5)+'…':label}<span onclick="ladderRemoveItem(${i})" style="margin-left:3px;cursor:pointer;opacity:0.5">✕</span></div>`;
   }).join('');
 }
