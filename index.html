@@ -828,7 +828,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <div class="sub-tabs" style="margin-bottom:10px">
     <div class="sub-tab active" id="stab-meeting" onclick="switchSetupTab('meeting')">📅 모임 정하기</div>
     <div class="sub-tab" id="stab-bet" onclick="switchSetupTab('bet')">🎲 무조건 내기</div>
-    <div class="sub-tab" id="stab-create" onclick="switchSetupTab('create')">🏆 모임만들기</div>
+    <div class="sub-tab" id="stab-create" onclick="switchSetupTab('create')">🏆 경기 진행</div>
   </div>
 
   <!-- 모임만들기 패널 -->
@@ -1036,13 +1036,17 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
             <span style="font-size:1.4rem">🎈</span>
             <div><div style="font-weight:800">릴레이 풍선 터치</div><div style="font-size:0.68rem;color:#7c3aed;font-weight:600">순서대로 터치 — 끝까지 살아남아라!</div></div>
           </button>
+          <button onclick="bombShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #fee2e2;background:linear-gradient(135deg,#fff5f5,#fee2e2);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
+            <span style="font-size:1.4rem">💣</span>
+            <div><div style="font-weight:800">시한폭탄 피하기</div><div style="font-size:0.68rem;color:#dc2626;font-weight:600">방장이 시작 — 동시에 폭탄방 공개!</div></div>
+          </button>
           <button onclick="ladderShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #bbf7d0;background:linear-gradient(135deg,#f0fdf4,#dcfce7);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
             <span style="font-size:1.4rem">🪜</span>
             <div><div style="font-weight:800">사다리 타기</div><div style="font-size:0.68rem;color:#16a34a;font-weight:600">이름 클릭 → 사다리 따라 결과 공개!</div></div>
           </button>
-          <button onclick="bombShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #fee2e2;background:linear-gradient(135deg,#fff5f5,#fee2e2);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px">
-            <span style="font-size:1.4rem">💣</span>
-            <div><div style="font-weight:800">시한폭탄 피하기</div><div style="font-size:0.68rem;color:#dc2626;font-weight:600">방장이 시작 — 동시에 폭탄방 공개!</div></div>
+          <button onclick="switchPage('setup');switchSetupTab('create')" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #bfdbfe;background:linear-gradient(135deg,#eff6ff,#dbeafe);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px">
+            <span style="font-size:1.4rem">🏆</span>
+            <div><div style="font-weight:800">대회 만들기</div><div style="font-size:0.68rem;color:#1d4ed8;font-weight:600">참가자 선택 후 대진표 자동 생성!</div></div>
           </button>
         </div>
       </div>
@@ -5675,13 +5679,13 @@ function updateSetupPageUI() {
   document.getElementById('setup-form-section').style.display = (hasActive || hasLadder) ? 'none' : 'block';
   document.getElementById('active-tournament-banner').style.display = hasActive ? 'block' : 'none';
 
-  // 브래킷 섹션: 활성 대회나 사다리 대진 있으면 표시
+  // 브래킷 섹션: 항상 표시 (빈 상태는 empty-state로 표현)
   const bracketSec = document.getElementById('bracket-section');
-  if(bracketSec) bracketSec.style.display = (hasActive || hasLadder) ? 'block' : 'none';
+  if(bracketSec) bracketSec.style.display = 'block';
 
-  // 사다리 서브탭: 사다리 대진 있으면 항상 표시
+  // 사다리 서브탭: 항상 표시
   const ladderTab = document.getElementById('btab-ladder');
-  if(ladderTab) ladderTab.style.display = hasLadder ? '' : 'none';
+  if(ladderTab) ladderTab.style.display = '';
 
   if (hasActive) {
     const rec = state.history.find(r => String(r.id) === String(state.currentHistoryId));
@@ -7953,6 +7957,13 @@ function switchSetupTab(tab) {
   });
   if (tab === 'meeting') renderMeetingPoll();
   if (tab === 'bet') betRenderHome();
+  // 경기 진행 탭: 브래킷 섹션 항상 표시
+  if (tab === 'create') {
+    const bs = document.getElementById('bracket-section');
+    if (bs) bs.style.display = 'block';
+    const lt = document.getElementById('btab-ladder');
+    if (lt) lt.style.display = '';
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -8667,7 +8678,8 @@ function _loadBetHistory() {
         </div>
         <div style="display:flex;flex-wrap:wrap;margin-bottom:3px">${loserChips}</div>
         <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${winnerChips}</div>
-        ${r.gameType === 'ladder' && r.ladderPairs ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">${(Array.isArray(r.ladderPairs)?r.ladderPairs:Object.values(r.ladderPairs||{})).map(p=>`<span style="font-size:0.68rem;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:8px;padding:2px 8px;font-weight:700">🪜 ${p.participant} → ${p.item}</span>`).join('')}</div>` : ''}
+        ${r.gameType === 'ladder' && r.canvasImage ? `<img src="${r.canvasImage}" style="width:100%;border-radius:10px;margin:4px 0 6px;display:block;cursor:pointer" onclick="this.style.borderRadius=this.style.borderRadius?'':'';this.closest('.bet-history-item').querySelector('[data-ladder-pairs]') && (this.closest('.bet-history-item').querySelector('[data-ladder-pairs]').style.display=this.closest('.bet-history-item').querySelector('[data-ladder-pairs]').style.display==='none'?'flex':'none')" loading="lazy">` : ''}
+        ${r.gameType === 'ladder' && r.ladderPairs ? `<div data-ladder-pairs style="display:${r.canvasImage?'none':'flex'};flex-wrap:wrap;gap:4px;margin-bottom:6px">${(Array.isArray(r.ladderPairs)?r.ladderPairs:Object.values(r.ladderPairs||{})).map(p=>`<span style="font-size:0.68rem;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0;border-radius:8px;padding:2px 8px;font-weight:700">🪜 ${p.participant} → ${p.item}</span>`).join('')}</div>` : ''}
         <div id="bet-cost-view-${id}" style="display:flex;align-items:center;gap:8px">
           ${totalCost ? `<div style="font-size:0.72rem;color:#7c3aed;font-weight:700">💸 총 ${totalCost.toLocaleString()}원</div>` : r.gameType === 'ladder' ? '' : `<div style="font-size:0.68rem;color:#94a3b8">비용 미입력</div>`}
           ${r.gameType !== 'ladder' ? editBtn : ''}
@@ -9256,6 +9268,18 @@ function _saveLadderHistory() {
     participant: name,
     item: _ladderState.assignment[name] || '?'
   }));
+  // 사다리 캔버스 이미지 캡처 (50% 축소 JPEG → 절약)
+  let canvasImage = null;
+  try {
+    const srcCanvas = document.getElementById('ladder-canvas');
+    if (srcCanvas && srcCanvas.width > 0 && srcCanvas.height > 0) {
+      const tmp = document.createElement('canvas');
+      tmp.width = Math.round(srcCanvas.width * 0.5);
+      tmp.height = Math.round(srcCanvas.height * 0.5);
+      tmp.getContext('2d').drawImage(srcCanvas, 0, 0, tmp.width, tmp.height);
+      canvasImage = tmp.toDataURL('image/jpeg', 0.55);
+    }
+  } catch(e) {}
   db.ref('jmt/betHistory').push({
     gameType: 'ladder',
     title: `[${dateStr}] ${title}`,
@@ -9264,8 +9288,9 @@ function _saveLadderHistory() {
     createdAt: now.toISOString(),
     hostName: (state.identity && state.identity.name) || '',
     ladderPairs: pairs,
+    canvasImage,
   }).then(() => {
-    betRenderHome(); // 내기 홈 히스토리 목록 갱신
+    betRenderHome();
   }).catch(e => { fbErr(e); alert('사다리 히스토리 저장 실패: ' + e.message); });
 }
 
@@ -9317,7 +9342,12 @@ async function shareLadderBracket() {
   // ── 임시 캡처 컨테이너 ──────────────────────────────────
   const bw = parseInt(bracketEl.style.width)  || bracketEl.offsetWidth  || 320;
   const bh = parseInt(bracketEl.style.height) || bracketEl.offsetHeight || 200;
-  const wrapW = Math.max(360, bw + 40);
+  // 최대 너비 500px — 넘으면 축소
+  const MAX_CONTENT_W = 468; // 500 - padding 32
+  const scale = bw > MAX_CONTENT_W ? MAX_CONTENT_W / bw : 1;
+  const scaledBw = Math.round(bw * scale);
+  const scaledBh = Math.round(bh * scale);
+  const wrapW = scaledBw + 32;
 
   const wrap = document.createElement('div');
   wrap.style.cssText = `position:fixed;left:-9999px;top:0;width:${wrapW}px;background:#f8fafc;padding:16px;font-family:-apple-system,sans-serif;box-sizing:border-box;`;
@@ -9339,10 +9369,14 @@ async function shareLadderBracket() {
     wrap.appendChild(ac);
   }
 
-  // 대진표 클론 — 전체 TW×TH 크기 그대로 캡처 (스크롤 클리핑 없음)
+  // 대진표 클론 — 필요시 축소해서 테두리 안에 맞춤
   const bracketClone = bracketEl.cloneNode(true);
   const bracketBox = document.createElement('div');
-  bracketBox.style.cssText = `background:#fff;border-radius:12px;padding:10px;border:1px solid #e2e8f0;width:${bw}px;height:${bh}px;position:relative;overflow:hidden;`;
+  bracketBox.style.cssText = `background:#fff;border-radius:12px;padding:10px;border:1px solid #e2e8f0;width:${scaledBw}px;height:${scaledBh}px;position:relative;overflow:hidden;box-sizing:border-box;`;
+  if (scale < 1) {
+    bracketClone.style.transform = `scale(${scale})`;
+    bracketClone.style.transformOrigin = 'top left';
+  }
   bracketBox.appendChild(bracketClone);
   wrap.appendChild(bracketBox);
 
@@ -9413,9 +9447,19 @@ async function shareHistBracket(histId, type) {
   try {
     renderTournament(type, { prefix:'hist-temp', data:tData, readOnly:true, noConfetti:true });
     const inner = document.getElementById('hist-temp-bracket');
-    if (inner) {
-      const bw = parseInt(inner.style.width) || inner.offsetWidth || 320;
-      tmpWrap.style.width = Math.max(360, bw + 32) + 'px';
+    if (inner && inner.firstChild) {
+      const bw = parseInt(inner.firstChild.style.width) || inner.offsetWidth || 320;
+      const bh = parseInt(inner.firstChild.style.height) || inner.offsetHeight || 200;
+      const MAX_W = 450;
+      const sc = bw > MAX_W ? MAX_W / bw : 1;
+      if (sc < 1) {
+        inner.firstChild.style.transform = `scale(${sc})`;
+        inner.firstChild.style.transformOrigin = 'top left';
+        inner.style.width = Math.round(bw * sc) + 'px';
+        inner.style.height = Math.round(bh * sc) + 'px';
+        inner.style.overflow = 'hidden';
+      }
+      tmpWrap.style.width = Math.max(320, Math.round(bw * sc) + 32) + 'px';
     }
     const canvas = await html2canvas(tmpWrap, { scale:2, useCORS:true, backgroundColor:'#f8fafc', logging:false });
     canvas.toBlob(blob => {
