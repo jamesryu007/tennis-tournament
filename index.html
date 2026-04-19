@@ -2122,10 +2122,7 @@ function setupFirebaseListeners() {
       if (state.tournaments.ladder) {
         state.tournaments.ladder = null;
         state._ladderNonce = null;
-        const ladderTab = document.getElementById('btab-ladder');
-        if (ladderTab) ladderTab.style.display = 'none';
-        document.getElementById('ladder-panel-empty').style.display = '';
-        document.getElementById('ladder-panel-content').style.display = 'none';
+        _applyLadderLastResult();
         updateSetupPageUI();
       }
       return;
@@ -2179,6 +2176,15 @@ function setupFirebaseListeners() {
       }
     } catch(e) {}
   });
+
+  // 사다리 복식 최근 결과 동기화 (다음 대회 시작 전까지 표시)
+  db.ref('jmt/ladderLastResult').on('value', snap => {
+    try {
+      const data = snap.val() ? JSON.parse(snap.val()) : null;
+      state._ladderLastResult = data;
+      if (!state.tournaments.ladder) _applyLadderLastResult();
+    } catch(e) {}
+  }, fbErr);
 
   // 직전 종료 대회 동기화
   db.ref('jmt/lastFinished').on('value', snap => {
@@ -2325,7 +2331,7 @@ function deleteMember(id) {
 function getMemberStats(name) {
   let wins = 0, runnerUps = 0;
   state.history.forEach(r => {
-    ['mixed','mens','womens'].forEach(t => {
+    ['mixed','mens','womens','ladder'].forEach(t => {
       const res = r.results && r.results[t];
       if (!res) return;
       if (res.champion && res.champion.includes(name)) wins++;
@@ -5278,16 +5284,19 @@ function renderHistoryList() {
   try {
   el.innerHTML = filtered.map(r => {
     const results = r.results || {};
-    const resultBlocks = ['mixed','mens','womens'].filter(t => results[t] && results[t].champion).map(t => {
-      const tn = t==='mixed'?'🔀 혼합복식':t==='mens'?'👨 남자복식':'👩 여자복식';
+    const resultBlocks = ['mixed','mens','womens','ladder'].filter(t => results[t] && results[t].champion).map(t => {
+      const tn = t==='mixed'?'🔀 혼합복식':t==='mens'?'👨 남자복식':t==='womens'?'👩 여자복식':'🪜 사다리 복식';
       const champ = pairName(results[t].champion);
       const runner = results[t].runnerUp ? pairName(results[t].runnerUp) : '-';
       const hasBracket = !!(r.tournaments && r.tournaments[t]);
       const clickAttr = hasBracket ? `onclick="openHistoryDetail('${r.id}','${t}')"` : '';
-      return `<button class="hist-result-btn${hasBracket?' clickable':''}" ${clickAttr}>
-        <div class="hist-result-type">${tn}${hasBracket?' <span style="font-size:0.6rem;color:#3b82f6">대진표 보기 ▶</span>':''}</div>
-        <div class="hist-champion-row">🥇 <span class="hist-champion">${champ}</span> &nbsp;🥈 <span class="hist-runner">${runner}</span></div>
-      </button>`;
+      const shareBtn = hasBracket ? `<button onclick="event.stopPropagation();shareHistBracket('${r.id}','${t}')" style="padding:2px 8px;border-radius:6px;border:1px solid #bae6fd;background:#f0f9ff;color:#0284c7;font-size:0.65rem;font-weight:700;cursor:pointer;margin-left:6px">📤</button>` : '';
+      return `<div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+        <button class="hist-result-btn${hasBracket?' clickable':''}" ${clickAttr} style="flex:1;min-width:0">
+          <div class="hist-result-type">${tn}${hasBracket?' <span style="font-size:0.6rem;color:#3b82f6">대진표 보기 ▶</span>':''}</div>
+          <div class="hist-champion-row">🥇 <span class="hist-champion">${champ}</span> &nbsp;🥈 <span class="hist-runner">${runner}</span></div>
+        </button>${shareBtn}
+      </div>`;
     }).join('');
     const meta = [r.venue?'📍 '+r.venue:'', r.date?'📅 '+r.date:'', r.notes?'📝 '+r.notes:''].filter(Boolean).join(' · ');
     return `<div class="hist-item">
@@ -5320,11 +5329,11 @@ function openHistoryDetail(histId, type) {
   if (!rec || !rec.tournaments) return;
   _histDetailRec = rec;
   document.getElementById('hist-detail-title').textContent = '🏆 ' + (rec.name || '무제 대회');
-  const types = ['mixed','mens','womens'].filter(t => rec.tournaments[t]);
+  const types = ['mixed','mens','womens','ladder'].filter(t => rec.tournaments && rec.tournaments[t]);
   const subtabsEl = document.getElementById('hist-detail-subtabs');
   if (types.length > 1) {
     subtabsEl.innerHTML = types.map(t => {
-      const label = t==='mixed'?'혼합복식':t==='mens'?'남자복식':'여자복식';
+      const label = t==='mixed'?'혼합복식':t==='mens'?'남자복식':t==='womens'?'여자복식':'사다리 복식';
       return `<button class="sub-tab" id="hist-stab-${t}" onclick="switchHistDetailTab('${t}')">${label}</button>`;
     }).join('');
     subtabsEl.style.display = 'flex';
@@ -5332,7 +5341,7 @@ function openHistoryDetail(histId, type) {
     subtabsEl.innerHTML = '';
     subtabsEl.style.display = 'none';
   }
-  const firstType = (type && rec.tournaments[type]) ? type : types[0];
+  const firstType = (type && rec.tournaments && rec.tournaments[type]) ? type : types[0];
   switchHistDetailTab(firstType);
   document.getElementById('hist-detail-modal').classList.add('open');
 }
@@ -5343,8 +5352,8 @@ function closeHistoryDetail() {
 }
 
 function switchHistDetailTab(type) {
-  if (!_histDetailRec || !_histDetailRec.tournaments[type]) return;
-  ['mixed','mens','womens'].forEach(t => {
+  if (!_histDetailRec || !_histDetailRec.tournaments || !_histDetailRec.tournaments[type]) return;
+  ['mixed','mens','womens','ladder'].forEach(t => {
     const el = document.getElementById(`hist-stab-${t}`);
     if (el) el.className = 'sub-tab' + (t === type ? ' active' : '');
   });
@@ -9365,6 +9374,66 @@ async function shareLadderBracket() {
   finally { document.body.removeChild(wrap); }
 }
 
+async function shareHistBracket(histId, type) {
+  const rec = state.history.find(r => String(r.id) === String(histId));
+  if (!rec || !rec.tournaments || !rec.tournaments[type] || typeof html2canvas === 'undefined') return;
+  const tData = rec.tournaments[type];
+  const tn = type==='mixed'?'혼합복식':type==='mens'?'남자복식':type==='womens'?'여자복식':'사다리 복식';
+  const res = rec.results && rec.results[type];
+
+  // 임시 렌더링 컨테이너
+  const tmpId = 'hist-temp-bracket-' + Date.now();
+  const tmpWrap = document.createElement('div');
+  tmpWrap.id = tmpId;
+  tmpWrap.style.cssText = 'position:fixed;left:-9999px;top:0;background:#f8fafc;padding:16px;font-family:-apple-system,sans-serif;box-sizing:border-box;min-width:360px';
+
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #e2e8f0';
+  hdr.innerHTML = `<div style="font-size:0.95rem;font-weight:800;color:#1e293b">🏆 ${tn}</div>
+    <div style="font-size:0.65rem;color:#94a3b8">${rec.date || rec.name || ''}</div>`;
+  tmpWrap.appendChild(hdr);
+
+  if (res && res.champion) {
+    const award = document.createElement('div');
+    award.style.cssText = 'background:linear-gradient(135deg,#fffbeb,#fefce8);border:1.5px solid #fcd34d;border-radius:10px;padding:8px 12px;margin-bottom:10px;text-align:center';
+    award.innerHTML = `<div style="font-size:0.8rem;font-weight:800;color:#d97706">🥇 우승: ${pairName(res.champion)}</div>${res.runnerUp?`<div style="font-size:0.72rem;color:#475569">🥈 준우승: ${pairName(res.runnerUp)}</div>`:''}`;
+    tmpWrap.appendChild(award);
+  }
+
+  const bracketHolder = document.createElement('div');
+  bracketHolder.id = 'hist-temp-bracket';
+  tmpWrap.appendChild(bracketHolder);
+
+  const ftr = document.createElement('div');
+  ftr.style.cssText = 'text-align:center;font-size:0.62rem;color:#94a3b8;margin-top:10px';
+  ftr.textContent = '🎾 JAMITE 테니스';
+  tmpWrap.appendChild(ftr);
+
+  document.body.appendChild(tmpWrap);
+  try {
+    renderTournament(type, { prefix:'hist-temp', data:tData, readOnly:true, noConfetti:true });
+    const inner = document.getElementById('hist-temp-bracket');
+    if (inner) {
+      const bw = parseInt(inner.style.width) || inner.offsetWidth || 320;
+      tmpWrap.style.width = Math.max(360, bw + 32) + 'px';
+    }
+    const canvas = await html2canvas(tmpWrap, { scale:2, useCORS:true, backgroundColor:'#f8fafc', logging:false });
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      const file = new File([blob], 'bracket.png', { type:'image/png' });
+      const title = `🏆 ${rec.name || tn}`;
+      if (navigator.share && navigator.canShare && navigator.canShare({ files:[file] })) {
+        navigator.share({ title, files:[file] }).catch(() => navigator.share({ title }).catch(() => {}));
+      } else if (navigator.share) {
+        navigator.share({ title }).catch(() => {});
+      } else {
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'bracket.png'; a.click();
+      }
+    }, 'image/png');
+  } catch(e) { console.error('shareHistBracket error', e); }
+  finally { document.body.removeChild(tmpWrap); }
+}
+
 function shareAtpHistoryDetail() {
   const el = document.getElementById('atp-history-detail-card');
   if (!el) return;
@@ -9579,6 +9648,9 @@ function _initLadderTournament(pairs, unpaired) {
     assignment: _ladderState.assignment
   };
   if (db) {
+    // 새 대회 시작 → 최근 결과 삭제
+    db.ref('jmt/ladderLastResult').remove().catch(fbErr);
+    state._ladderLastResult = null;
     db.ref('jmt/ladderState').set(JSON.stringify({
       tournaments_ladder: state.tournaments.ladder,
       ladderPairs: pairs,
@@ -9596,8 +9668,53 @@ function _initLadderTournament(pairs, unpaired) {
   renderTournament('ladder');
 }
 
+function _applyLadderLastResult() {
+  const last = state._ladderLastResult;
+  const ladderTab = document.getElementById('btab-ladder');
+  if (!last || !last.tournaments_ladder) {
+    if (ladderTab) ladderTab.style.display = 'none';
+    document.getElementById('ladder-panel-empty').style.display = '';
+    document.getElementById('ladder-panel-content').style.display = 'none';
+    return;
+  }
+  // 최근 결과 읽기 전용으로 표시
+  state.tournaments.ladder = last.tournaments_ladder;
+  if (last.ladderPairs) state._ladderPairs = last.ladderPairs;
+  document.getElementById('ladder-panel-empty').style.display = 'none';
+  document.getElementById('ladder-panel-content').style.display = 'block';
+  const badge = document.getElementById('ladder-status');
+  if (badge) { badge.textContent = '최근 결과'; badge.className = 'status-badge badge-done'; }
+  renderTournament('ladder');
+  updateSetupPageUI();
+}
+
 function endLadderTournament() {
   if (!confirm('사다리 복식 대회를 종료하시겠습니까?\n대진표가 모든 멤버에게서 사라집니다.')) return;
+  const t = state.tournaments.ladder;
+  const champion = t && t.champion;
+  // Feature C: 최근 결과 저장 → 다음 사다리 대회 전까지 표시
+  if (champion && db) {
+    db.ref('jmt/ladderLastResult').set(JSON.stringify({
+      tournaments_ladder: t,
+      ladderPairs: state._ladderPairs,
+      date: new Date().toISOString().slice(0, 10)
+    })).catch(fbErr);
+  }
+  // Feature A: jmt/history에 저장 → 랭킹 반영
+  if (champion) {
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10);
+    const rec = {
+      id: 'ladder_' + now.getTime(),
+      name: `사다리 복식 (${dateStr})`,
+      type: 'ladder',
+      date: dateStr,
+      results: { ladder: { champion: [...champion], runnerUp: t.runnerUp ? [...t.runnerUp] : null } },
+      tournaments: { ladder: JSON.parse(JSON.stringify(t)) }
+    };
+    state.history.unshift(rec);
+    saveHistory();
+  }
   state.tournaments.ladder = null;
   state._ladderStateTs = 0;
   state._ladderPairs = [];
@@ -9608,11 +9725,8 @@ function endLadderTournament() {
   _ladderState.assignment = {}; _ladderState.numRevealed = 0;
   // Firebase 삭제 → 모든 멤버 리스너가 null 수신 → 자동 정리
   if (db) db.ref('jmt/ladderState').remove().catch(fbErr);
-  // UI 정리
-  const ladderTab = document.getElementById('btab-ladder');
-  if (ladderTab) ladderTab.style.display = 'none';
-  document.getElementById('ladder-panel-empty').style.display = '';
-  document.getElementById('ladder-panel-content').style.display = 'none';
+  // 최근 결과 있으면 표시, 없으면 패널 숨김
+  _applyLadderLastResult();
   switchBracketTab('mixed');
 }
 
