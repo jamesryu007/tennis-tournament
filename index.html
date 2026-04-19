@@ -1044,7 +1044,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
             <span style="font-size:1.4rem">🪜</span>
             <div><div style="font-weight:800">사다리 타기</div><div style="font-size:0.68rem;color:#16a34a;font-weight:600">이름 클릭 → 사다리 따라 결과 공개!</div></div>
           </button>
-          <button onclick="switchPage('setup');switchSetupTab('create')" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #bfdbfe;background:linear-gradient(135deg,#eff6ff,#dbeafe);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px">
+          <button onclick="openTournamentManager()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #bfdbfe;background:linear-gradient(135deg,#eff6ff,#dbeafe);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:10px">
             <span style="font-size:1.4rem">🏆</span>
             <div><div style="font-weight:800">대회 만들기</div><div style="font-size:0.68rem;color:#1d4ed8;font-weight:600">참가자 선택 후 대진표 자동 생성!</div></div>
           </button>
@@ -7947,6 +7947,16 @@ let _mpData = null;
 let _mpCal = { year: 0, month: 0, selected: [] };
 let _mpCreateDates = [];
 let _mpCreateContents = [];
+
+// 내기탭 "대회 만들기" 버튼 — 진행중이면 배너(경기종료) 표시, 없으면 설정폼 표시
+function openTournamentManager() {
+  switchPage('setup');
+  switchSetupTab('create');
+  updateSetupPageUI();
+  // 페이지 최상단으로 스크롤 → 배너 or 설정폼이 바로 보이도록
+  const page = document.getElementById('page-setup');
+  if (page) page.scrollTop = 0;
+}
 
 function switchSetupTab(tab) {
   ['create','meeting','bet'].forEach(t => {
