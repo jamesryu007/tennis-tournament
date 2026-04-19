@@ -431,6 +431,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
 /* ── MODALS ── */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 100; align-items: flex-end; justify-content: center; }
+#participant-modal { z-index: 110; }
 .modal-overlay.open { display: flex; }
 .modal { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
 .modal-sheet { background: #ffffff; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
@@ -974,47 +975,6 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     </div>
   </div>
 
-  <!-- 대회 설정 폼 (대진 생성 전) -->
-  <div id="setup-form-section">
-    <div style="margin-bottom:10px">
-      <div class="rank-banner" style="border-radius:16px 16px 0 0;margin-bottom:0;padding:11px 16px">
-        <div style="font-size:0.98rem;font-weight:900;color:#fff">🏆 모임정보</div>
-      </div>
-      <div class="card" style="border-radius:0 0 14px 14px;border-top:none;margin-bottom:0">
-      <div class="field-label" style="margin-top:0">제목</div>
-      <input type="text" id="t-name" placeholder="예) 제5회 자미터 정기전">
-      <div class="field-label">장소</div>
-      <input type="text" id="t-venue" placeholder="장소 입력">
-      <div class="field-label">날짜</div>
-      <input type="date" id="t-date" style="text-align:left;display:block;width:100%">
-      <div class="field-label">비고</div>
-      <input type="text" id="t-notes" placeholder="(선택사항)">
-      </div><!-- card -->
-    </div><!-- banner+card wrapper -->
-
-    <div class="card">
-      <div class="card-title" style="justify-content:space-between;margin-bottom:0">
-        <span>👥 참가자</span>
-        <button class="btn btn-outline btn-sm" onclick="openParticipantModal()">참가자 선택</button>
-      </div>
-      <div class="divider"></div>
-      <div id="participant-summary">
-        <p class="text-muted" style="font-size:0.8rem;padding:2px 0">참가자를 선택하세요</p>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">📊 참가 현황</div>
-      <div class="summary-grid">
-        <div class="summary-item"><div class="val" id="cnt-male">0</div><div class="lbl">남자</div></div>
-        <div class="summary-item"><div class="val" id="cnt-female">0</div><div class="lbl">여자</div></div>
-        <div class="summary-item"><div class="val" id="cnt-mixed">0</div><div class="lbl">혼합 페어</div></div>
-        <div class="summary-item"><div class="val" id="cnt-total">0</div><div class="lbl">총 참가</div></div>
-      </div>
-      <div class="divider"></div>
-      <button class="btn btn-success btn-full" id="btn-init-tournaments" onclick="initAllTournaments()">🎾 대진 생성 (혼합 · 남자 · 여자)</button>
-    </div>
-  </div>
   </div><!-- /setup-panel-create -->
 
   <!-- 모임 정하기 패널 -->
@@ -1592,6 +1552,55 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div style="display:flex;gap:8px">
         <button class="btn btn-warning btn-full" onclick="closePwModal()">취소</button>
         <button class="btn btn-primary btn-full" onclick="confirmPassword()">확인</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOURNAMENT SETUP MODAL ══ -->
+<div class="modal-overlay" id="tournament-setup-modal">
+  <div class="modal" style="max-height:90vh;display:flex;flex-direction:column;">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-round">🏆 대회 만들기</span>
+      <button class="modal-close" onclick="closeTournamentSetupModal()">✕</button>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding:12px 14px 20px">
+      <div style="margin-bottom:10px">
+        <div class="rank-banner" style="border-radius:16px 16px 0 0;margin-bottom:0;padding:11px 16px">
+          <div style="font-size:0.98rem;font-weight:900;color:#fff">🏆 모임정보</div>
+        </div>
+        <div class="card" style="border-radius:0 0 14px 14px;border-top:none;margin-bottom:0">
+        <div class="field-label" style="margin-top:0">제목</div>
+        <input type="text" id="t-name" placeholder="예) 제5회 자미터 정기전">
+        <div class="field-label">장소</div>
+        <input type="text" id="t-venue" placeholder="장소 입력">
+        <div class="field-label">날짜</div>
+        <input type="date" id="t-date" style="text-align:left;display:block;width:100%">
+        <div class="field-label">비고</div>
+        <input type="text" id="t-notes" placeholder="(선택사항)">
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between;margin-bottom:0">
+          <span>👥 참가자</span>
+          <button class="btn btn-outline btn-sm" onclick="openParticipantModal()">참가자 선택</button>
+        </div>
+        <div class="divider"></div>
+        <div id="participant-summary">
+          <p class="text-muted" style="font-size:0.8rem;padding:2px 0">참가자를 선택하세요</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📊 참가 현황</div>
+        <div class="summary-grid">
+          <div class="summary-item"><div class="val" id="cnt-male">0</div><div class="lbl">남자</div></div>
+          <div class="summary-item"><div class="val" id="cnt-female">0</div><div class="lbl">여자</div></div>
+          <div class="summary-item"><div class="val" id="cnt-mixed">0</div><div class="lbl">혼합 페어</div></div>
+          <div class="summary-item"><div class="val" id="cnt-total">0</div><div class="lbl">총 참가</div></div>
+        </div>
+        <div class="divider"></div>
+        <button class="btn btn-success btn-full" id="btn-init-tournaments" onclick="initAllTournaments()">🎾 대진 생성 (혼합 · 남자 · 여자)</button>
       </div>
     </div>
   </div>
@@ -2873,7 +2882,7 @@ function _renderDailyCard(id){
       </button>
     </div>`;
     const mid=`<button class="dc-start-btn" onclick="startDailyMatch(${id})"${t0f&&t1f?'':' disabled'}>시작</button>`;
-    el.innerHTML=mkCard(`경기${d.num}`, left, mid, right);
+    el.innerHTML=mkCard(d.label||`경기${d.num}`, left, mid, right);
 
   } else if(d.phase==='playing'){
     const t0=_getTeamDisplay(d.team0),t1=_getTeamDisplay(d.team1);
@@ -2886,7 +2895,7 @@ function _renderDailyCard(id){
       <div class="dc-tmembers">${t1.memberStr}</div>
     </div>`;
     const mid=`<button class="dc-score-reg-btn" onclick="openDailyScore('${id}')">🎾<br>점수<br>등록</button>`;
-    el.innerHTML=mkCard(`경기${d.num} <span style="font-size:0.72rem;font-weight:600;color:#a78bfa">(경기진행 중)</span>`, left, mid, right);
+    el.innerHTML=mkCard(`${d.label||`경기${d.num}`} <span style="font-size:0.72rem;font-weight:600;color:#a78bfa">(경기진행 중)</span>`, left, mid, right);
 
   } else {
     const isDraw=d.winner===-1;
@@ -2926,7 +2935,7 @@ function _renderDailyCard(id){
       <div class="dc-tmembers">${t1.memberStr}</div>
       ${r1Badge}
     </div>`;
-    el.innerHTML=mkCard(`✅ 경기${d.num}`, left, mid, right, _winnerBg(d.winner, id));
+    el.innerHTML=mkCard(`✅ ${d.label||`경기${d.num}`}`, left, mid, right, _winnerBg(d.winner, id));
   }
 }
 
@@ -3389,7 +3398,8 @@ async function renderRecentMatchesCarousel(){
       const ws=isW0?s.s0:s.s1, ls=isW0?s.s1:s.s0;
       const ws0=isDraw?s.s0:ws, ls0=isDraw?s.s1:ls;
       const s0cls=isDraw?'d':'w', s1cls=isDraw?'d':'l';
-      return `<div class="cc-set"><span class="cc-set-num">${i+1}세트</span><div class="cc-set-score"><span class="cc-sc ${s0cls}">${ws0}</span><span class="cc-sc-sep">:</span><span class="cc-sc ${s1cls}">${ls0}</span></div></div>`;
+      const tbHtml = s.tb0!=null ? `<div style="font-size:0.62rem;color:#fbbf24;font-weight:700;line-height:1">(${isW0?s.tb0:s.tb1}:${isW0?s.tb1:s.tb0})</div>` : '';
+      return `<div class="cc-set"><span class="cc-set-num">${i+1}세트</span><div class="cc-set-score"><span class="cc-sc ${s0cls}">${ws0}</span><span class="cc-sc-sep">:</span><span class="cc-sc ${s1cls}">${ls0}</span></div>${tbHtml}</div>`;
     }).join('<div class="cc-divider"></div>');
     const [,mo,d]=(m.date||'').split('-');
     const dateStr=m.date?`${parseInt(mo)}월 ${parseInt(d)}일`:'';
@@ -3975,7 +3985,10 @@ function initTournament(type) {
 }
 
 function reshuffleTournament(type) {
-  if (type !== 'ladder' && !isManager()) { alert('다시 추첨은 관리자만 가능합니다.'); return; }
+  if (type === 'ladder') {
+    const myName = state.identity && state.identity.name;
+    if (!isManager() && myName !== _ladderState.creator) { alert('다시 추첨은 생성자 또는 관리자만 가능합니다.'); return; }
+  } else if (!isManager()) { alert('다시 추첨은 관리자만 가능합니다.'); return; }
   if (!confirm('기존 결과가 초기화됩니다. 계속하시겠습니까?')) return;
   // exit edit mode if active
   if (_bracketEditMode === type) { _bracketEditMode = null; updateBracketEditUI(type); }
@@ -4021,7 +4034,10 @@ function getPlayerGender(name) {
 }
 
 function toggleBracketEdit(type) {
-  if (type !== 'ladder' && !isManager()) { alert('대진표 수정은 관리자만 가능합니다.'); return; }
+  if (type === 'ladder') {
+    const myName = state.identity && state.identity.name;
+    if (!isManager() && myName !== _ladderState.creator) { alert('대진표 수정은 생성자 또는 관리자만 가능합니다.'); return; }
+  } else if (!isManager()) { alert('대진표 수정은 관리자만 가능합니다.'); return; }
 
   if (_bracketEditMode === type) {
     // 수정 완료 → 부전승 처리 후 일반 모드 복귀
@@ -4075,6 +4091,21 @@ function updateBracketEditUI(type) {
     btn.className = isEdit ? 'btn btn-success btn-full' : 'btn btn-outline btn-full';
   }
   if (notice) notice.style.display = isEdit ? 'block' : 'none';
+}
+
+function _updateLadderEditBtnState() {
+  // 사다리 경기 진행 중: 생성자+관리자만 다시추첨/대진표수정 가능 → 나머지 비활성화
+  const myName = state.identity && state.identity.name;
+  const canEdit = isManager() || myName === _ladderState.creator;
+  const reshuffleBtn = document.querySelector('#match-panel-ladder .btn-warning');
+  const editBtn = document.getElementById('bracket-edit-btn-ladder');
+  [reshuffleBtn, editBtn].forEach(btn => {
+    if (!btn) return;
+    btn.disabled = !canEdit;
+    btn.style.opacity = canEdit ? '' : '0.4';
+    btn.style.cursor = canEdit ? '' : 'not-allowed';
+    btn.title = canEdit ? '' : '생성자 또는 관리자만 수정할 수 있습니다';
+  });
 }
 
 function getUnassignedPlayers(type, excludeMi, excludeSide) {
@@ -4289,7 +4320,7 @@ function renderTournament(type, opts) {
       const div=document.createElement('div');
       const editMode = _bracketEditMode===type && !readOnly && ri===0;
       const canClick = !editMode && match.team0 && match.team1 && !readOnly &&
-        (type==='ladder' ? !!state.identity : state.isCreator);
+        (type==='ladder' ? !!state.identity : (state.isCreator || isManager()));
       div.className='match'+(canClick?' clickable':'')+(editMode?' edit-active':'');
       div.style.cssText=`left:${mx}px;top:${my}px;width:${MW}px;height:${MH}px;`;
       if(canClick) div.onclick=()=>openModal(type,ri,mi);
@@ -4303,7 +4334,9 @@ function renderTournament(type, opts) {
         const cls=match.winner===side?'winner':match.winner!==null&&match.winner!==-1?'loser':(!team?(ri===0?'bye-team':'tbd-team'):'');
         const nm=!team?(ri===0?'부전승':'TBD'):pairName(team);
         const sc=side===0?match.score0:match.score1;
-        return `<div class="team ${cls}"><span class="team-name">${nm}</span>${sc?`<span class="team-score">${sc}</span>`:''}</div>`;
+        const tb=match.tb0!=null?(side===0?match.tb0:match.tb1):null;
+        const scText=sc?(tb!=null?`${sc}(${tb})`:sc):'';
+        return `<div class="team ${cls}"><span class="team-name">${nm}</span>${scText?`<span class="team-score">${scText}</span>`:''}</div>`;
       };
       div.innerHTML=row(match.team0,0)+row(match.team1,1);
       // edit mode: attach slot click handlers after innerHTML set
@@ -4341,9 +4374,10 @@ function renderTournament(type, opts) {
   const stEl=document.getElementById(`${prefix}-status`);
   if(stEl){ stEl.className='status-badge '+(t.champion?'badge-done':'badge-active'); stEl.textContent=t.champion?'완료':'진행중'; }
   // 사다리 복식 대회 종료 버튼: 관리자에게만, 진행중일 때만 표시
-  if(type==='ladder') {
+  if(type==='ladder' && !opts) {
     const endBtn=document.getElementById('ladder-end-btn');
     if(endBtn) endBtn.style.display=(isManager()&&!t.champion)?'':'none';
+    _updateLadderEditBtnState();
   }
 
   renderAwards(type,opts);
@@ -4472,6 +4506,8 @@ function submitScore() {
     const tv1 = parseInt(document.getElementById('score-tb1').value);
     if (!isNaN(tv0) && !isNaN(tv1)) { tb0 = tv0; tb1 = tv1; }
   }
+  const isNewScore = !match.score0; // 첫 입력 여부
+  const oldWinner = match.winner;   // 이전 승자 (스코어 변경 시 통계 취소용)
   clearDown(t.rounds,ri,mi);
   match.score0=s0; match.score1=s1; match.winner=n0>n1?0:1;
   if (tb0 !== null) { match.tb0=tb0; match.tb1=tb1; } else { delete match.tb0; delete match.tb1; }
@@ -4489,10 +4525,63 @@ function submitScore() {
       nonce: state._ladderNonce
     })).catch(fbErr);
   }
+  // 모든 복식 타입: 오늘의 경기 자동 기록/수정 (랭킹은 updateMatchStats에서 별도 적용)
+  // team0/team1은 배열([name1,name2]) 또는 null(부전승) → 2명인 경우만 처리
+  if (db) {
+    const _t0arr = Array.isArray(match.team0) ? match.team0 : null;
+    const _t1arr = Array.isArray(match.team1) ? match.team1 : null;
+    if (_t0arr && _t0arr.length === 2 && _t1arr && _t1arr.length === 2) {
+      const today = new Date().toISOString().split('T')[0];
+      const t0 = [..._t0arr].sort();
+      const t1 = [..._t1arr].sort();
+      const winner = match.winner;
+      const sets = tb0 !== null ? [{ s0: n0, s1: n1, tb0, tb1 }] : [{ s0: n0, s1: n1 }];
+      const bgImage = winner === 0 ? 'images/ca.png' : 'images/right_1.png';
+      const existingKey = match._dailyCardKey;
+      if (isNewScore || !existingKey) {
+        // 첫 입력: push().key로 키를 즉시 확보 후 matches·dailyCards 동시 쓰기 (비동기 체인 제거)
+        const newMatchRef = db.ref('jmt/matches').push();
+        const newKey = newMatchRef.key;
+        match._dailyCardKey = newKey; // 즉시 동기적으로 키 저장
+        newMatchRef.set({ date: today, team0: t0, team1: t1, sets, winner, source: type + '-bracket' }).catch(fbErr);
+        const num = Object.keys(_dailyCards).length + 1;
+        const _tLabel = {mixed:'혼합복식', mens:'남자복식', womens:'여자복식', ladder:'사다리 복식'};
+        const _rLabel = roundNames(t.rounds.length)[ri] || '';
+        const cardLabel = (_tLabel[type] || type) + (_rLabel ? ' ' + _rLabel : '');
+        db.ref(`jmt/dailyCards/${newKey}`).set({
+          phase: 'done', team0: t0, team1: t1, sets, winner, bgImage, num,
+          matchKey: newKey, source: type + '-bracket', scoredAt: Date.now(), label: cardLabel
+        }).catch(fbErr);
+        // 키 포함 상태 저장 (ladder는 ladderState, 나머지는 activeState)
+        if (type === 'ladder') {
+          state._ladderNonce = Math.random().toString(36).slice(2);
+          db.ref('jmt/ladderState').set(JSON.stringify({
+            tournaments_ladder: state.tournaments.ladder,
+            ladderPairs: state._ladderPairs || [],
+            ladderUnpaired: state._ladderUnpaired || [],
+            ladderGameSnapshot: state._ladderGameSnapshot || null,
+            nonce: state._ladderNonce
+          })).catch(fbErr);
+        } else {
+          saveActiveState();
+        }
+      } else {
+        // 스코어 변경: 기존 기록 업데이트
+        db.ref('jmt/matches/' + existingKey).update({ sets, winner, date: today }).catch(fbErr);
+        const existing = _dailyCards[existingKey];
+        const cardUpdate = { sets, winner, bgImage };
+        if (existing) Object.assign(existing, cardUpdate);
+        db.ref(`jmt/dailyCards/${existingKey}`).update(cardUpdate).catch(fbErr);
+      }
+    }
+  }
   closeModal();
   renderTournament(type);
   // 통계 테이블 업데이트 (팀 구성이 있는 경우만)
   if(match.team0&&match.team0.length===2&&match.team1&&match.team1.length===2) {
+    if (!isNewScore && oldWinner !== null && oldWinner !== undefined) {
+      reverseMatchStats(match.team0, match.team1, oldWinner);
+    }
     updateMatchStats(match.team0,match.team1,match.winner,'','');
   }
   const wTeam = match.winner === 0 ? match.team0 : match.team1;
@@ -4516,9 +4605,6 @@ function switchBracketTab(type) {
   });
   const sec = document.getElementById('bracket-section');
   if(sec) sec.style.display = 'block';
-  // 사다리 복식 탭에서는 모임정보 이하 폼 숨김
-  const formSec = document.getElementById('setup-form-section');
-  if(formSec) formSec.style.display = type==='ladder' ? 'none' : '';
   if(state.tournaments[type]) renderTournament(type);
 }
 
@@ -4771,8 +4857,10 @@ function initAllTournaments() {
 
   saveActiveState();
   _settingUpBracket = false; // 새 activeState 저장 완료 — 리스너가 다시 정상 동작
+  closeTournamentSetupModal();
   updateSetupPageUI();
   switchPage('setup');
+  switchSetupTab('create');
   switchBracketTab(generated.includes('mixed') ? 'mixed' : generated[0]);
 }
 
@@ -5675,17 +5763,15 @@ function updateSetupPageUI() {
   const hasActive = !!state.currentHistoryId;
   const hasLadder = !!state.tournaments.ladder;
 
-  // 모임정보 폼: 활성 대회나 사다리 대진 있으면 숨김
-  document.getElementById('setup-form-section').style.display = (hasActive || hasLadder) ? 'none' : 'block';
   document.getElementById('active-tournament-banner').style.display = hasActive ? 'block' : 'none';
 
-  // 브래킷 섹션: 항상 표시 (빈 상태는 empty-state로 표현)
+  // 브래킷 섹션: 대회 데이터 있을 때만 표시
   const bracketSec = document.getElementById('bracket-section');
-  if(bracketSec) bracketSec.style.display = 'block';
+  if(bracketSec) bracketSec.style.display = (hasActive || hasLadder) ? 'block' : 'none';
 
-  // 사다리 서브탭: 항상 표시
+  // 사다리 서브탭: 사다리 데이터 있을 때만 표시
   const ladderTab = document.getElementById('btab-ladder');
-  if(ladderTab) ladderTab.style.display = '';
+  if(ladderTab) ladderTab.style.display = hasLadder ? '' : 'none';
 
   if (hasActive) {
     const rec = state.history.find(r => String(r.id) === String(state.currentHistoryId));
@@ -5702,16 +5788,24 @@ function updateSetupPageUI() {
       notice.style.display = 'block';
       endWrap.style.display = 'none';
     }
-    // Show first available bracket tab
-    const firstType = ['ladder','mixed','mens','womens'].find(t => state.tournaments[t]);
-    if(firstType) switchBracketTab(firstType);
+    // 활성 대회 중: 현재 탭이 유효하면 유지, 그렇지 않을 때만 첫 번째 유효 탭으로 이동
+    const curTab = ['mixed','mens','womens'].find(t => {
+      const el = document.getElementById(`btab-${t}`);
+      return el && el.classList.contains('active');
+    });
+    if (!curTab || !state.tournaments[curTab]) {
+      const firstType = ['mixed','mens','womens'].find(t => state.tournaments[t]);
+      if(firstType) switchBracketTab(firstType);
+    }
   } else if (hasLadder) {
-    switchBracketTab('ladder');
+    // 사다리만 있을 때: 현재 탭이 사다리가 아닌 경우만 전환
+    const curTab2 = document.getElementById('btab-ladder');
+    if (!curTab2 || !curTab2.classList.contains('active')) switchBracketTab('ladder');
   }
 }
 
 // ══ MODAL OVERLAY CLOSE ══
-['score-modal','participant-modal','add-member-modal','edit-modal','hist-detail-modal','slot-edit-modal','pw-modal','mp-cal-modal'].forEach(id => {
+['score-modal','participant-modal','add-member-modal','edit-modal','hist-detail-modal','slot-edit-modal','pw-modal','mp-cal-modal','tournament-setup-modal'].forEach(id => {
   document.getElementById(id).addEventListener('click', function(e) {
     if (e.target === this) {
       if (id==='score-modal') closeModal();
@@ -5721,6 +5815,7 @@ function updateSetupPageUI() {
       else if (id==='hist-detail-modal') closeHistoryDetail();
       else if (id==='slot-edit-modal') closeSlotEditModal();
       else if (id==='pw-modal') closePwModal();
+      else if (id==='tournament-setup-modal') closeTournamentSetupModal();
     }
   });
 });
@@ -7948,14 +8043,26 @@ let _mpCal = { year: 0, month: 0, selected: [] };
 let _mpCreateDates = [];
 let _mpCreateContents = [];
 
-// 내기탭 "대회 만들기" 버튼 — 진행중이면 배너(경기종료) 표시, 없으면 설정폼 표시
+function openTournamentSetupModal() {
+  document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('tournament-setup-modal').classList.add('open');
+}
+function closeTournamentSetupModal() {
+  document.getElementById('tournament-setup-modal').classList.remove('open');
+}
+// 내기탭 "대회 만들기" 버튼 — 진행중이면 경기진행 탭으로, 없으면 설정 모달 표시
 function openTournamentManager() {
-  switchPage('setup');
-  switchSetupTab('create');
-  updateSetupPageUI();
-  // 페이지 최상단으로 스크롤 → 배너 or 설정폼이 바로 보이도록
-  const page = document.getElementById('page-setup');
-  if (page) page.scrollTop = 0;
+  if (state.currentHistoryId) {
+    switchPage('setup');
+    switchSetupTab('create');
+    // 혼합복식 우선 표시 (사다리 탭이 아닌 일반 대진표로)
+    const firstType = ['mixed','mens','womens'].find(t => state.tournaments[t]);
+    if (firstType) switchBracketTab(firstType);
+    const page = document.getElementById('page-setup');
+    if (page) page.scrollTop = 0;
+  } else {
+    openTournamentSetupModal();
+  }
 }
 
 function switchSetupTab(tab) {
@@ -7967,13 +8074,6 @@ function switchSetupTab(tab) {
   });
   if (tab === 'meeting') renderMeetingPoll();
   if (tab === 'bet') betRenderHome();
-  // 경기 진행 탭: 브래킷 섹션 항상 표시
-  if (tab === 'create') {
-    const bs = document.getElementById('bracket-section');
-    if (bs) bs.style.display = 'block';
-    const lt = document.getElementById('btab-ladder');
-    if (lt) lt.style.display = '';
-  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -8526,6 +8626,12 @@ function _betStatsHtml(data) {
 function betRenderHome() {
   if (!db) return;
 
+  // 사다리 대진표 진행 중 → 사다리 결과 화면 강제 유지
+  if (_ladderState.allRevealed && state.tournaments.ladder && !state.tournaments.ladder.champion) {
+    betShowScreen('ladder-game');
+    return;
+  }
+
   // 활성 방에 참여 중이면 해당 화면으로 바로 복귀 (room 데이터 로딩 전이어도)
   if (_bombState.roomId && !_bombState.revealed) {
     if (_bombState.isHost) {
@@ -8742,7 +8848,7 @@ function _ladderRenderMemberChips() {
   const females = members.filter(m => m.gender !== 'male');
   const chipHtml = (list) => list.map(m => {
     const sel = _ladderState.participants.includes(m.name) ? ' selected' : '';
-    return `<div class="bet-member-chip${sel}" id="lchip-${m.name}" onclick="ladderToggleMember('${m.name}')">${m.name}</div>`;
+    return `<div class="bet-member-chip${sel}" id="lchip-${m.name}" onclick="ladderToggleMember('${m.name}')" style="padding:4px 9px;font-size:0.74rem;margin:2px">${m.name}</div>`;
   }).join('');
   wrap.innerHTML = (males.length ? `<div style="font-size:0.7rem;color:#1d4ed8;font-weight:700;width:100%;padding:4px 0 2px">👨 남성</div>${chipHtml(males)}` : '')
     + (females.length ? `<div style="font-size:0.7rem;color:#be185d;font-weight:700;width:100%;padding:4px 0 2px">👩 여성</div>${chipHtml(females)}` : '');
@@ -8806,7 +8912,7 @@ function _ladderRenderItems() {
     const isWin = label.includes('Winner');
     const style = (isBad ? 'background:#fee2e2;border-color:#fca5a5;color:#dc2626;'
                 : isWin ? 'background:#fffbeb;border-color:#fde68a;color:#b45309;'
-                : '') + 'padding:3px 6px;font-size:0.66rem;margin:0;border-width:1.5px;border-radius:7px;';
+                : '') + 'padding:4px 9px;font-size:0.74rem;margin:2px;border-width:1.5px;border-radius:7px;';
     return `<div class="bet-member-chip selected" style="${style}">${label.length>5?label.slice(0,5)+'…':label}<span onclick="ladderRemoveItem(${i})" style="margin-left:3px;cursor:pointer;opacity:0.5">✕</span></div>`;
   }).join('');
 }
@@ -8829,6 +8935,11 @@ function ladderToggleMemberPicker() {
   _ladderPickerSel.clear();
   _ladderBuildMemberPicker();
   popup.style.display = 'block';
+  // 멤버 목록 펼쳐지면 사다리 시작 버튼이 보이도록 스크롤
+  setTimeout(() => {
+    const btn = document.querySelector('[onclick="ladderStartGame()"]');
+    if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 80);
 }
 function _ladderBuildMemberPicker() {
   const popup = document.getElementById('ladder-member-picker-popup');
@@ -8839,7 +8950,7 @@ function _ladderBuildMemberPicker() {
   popup.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:3px" id="lmp-chips">`
     + members.map(m => {
         const alreadyIn = _ladderState.items.includes(m.name);
-        return `<div class="bet-member-chip${alreadyIn?' selected':''}" id="lmp-${m.name}" onclick="ladderPickerToggle('${m.name}')" style="padding:3px 7px;font-size:0.66rem;margin:0;border-width:1.5px">${m.name}</div>`;
+        return `<div class="bet-member-chip${alreadyIn?' selected':''}" id="lmp-${m.name}" onclick="ladderPickerToggle('${m.name}')" style="padding:4px 9px;font-size:0.74rem;margin:2px;border-width:1.5px">${m.name}</div>`;
       }).join('')
     + `</div>`;
 }
@@ -8864,6 +8975,7 @@ function ladderStartGame() {
   if (items.length !== p.length) { alert(`결과 항목이 ${p.length}개 필요합니다 (현재 ${items.length}개)`); return; }
 
   _ladderState.title = title;
+  _ladderState.creator = state.identity ? state.identity.name : null;
   _ladderState.revealed = {};
   _ladderState.revealedDest = new Set();
   _ladderState.assignment = {};
@@ -9249,6 +9361,11 @@ function _ladderPlayResult(item) {
 }
 
 function ladderBackToSetup() {
+  // 대진표 진행 중에는 설정화면으로 돌아갈 수 없음
+  if (state.tournaments.ladder && !state.tournaments.ladder.champion) {
+    alert('대진표 경기가 진행 중입니다.\n경기가 완료되거나 관리자가 종료할 때까지 사다리 결과 화면에 머물러야 합니다.');
+    return;
+  }
   _ladderState.animating = false;
   ladderShowSetup();
 }
@@ -9261,9 +9378,16 @@ function _ladderShowResult() {
   const shareBtn = document.getElementById('ladder-share-btn');
   if (shareBtn) { shareBtn.style.display = 'inline-flex'; }
   document.getElementById('ladder-game-hint').textContent = '모두 완료! 나가기 전에 공유해보세요.';
-  // 대진표 구성 버튼: 사다리 완료 시 항상 표시
+  // 대진표 구성 버튼: 대진표가 이미 활성 중이면 비활성화
   const bracketBtn = document.getElementById('ladder-bracket-btn');
-  if (bracketBtn) bracketBtn.style.display = 'block';
+  if (bracketBtn) {
+    bracketBtn.style.display = 'block';
+    const bracketActive = !!(state.tournaments.ladder && !state.tournaments.ladder.champion);
+    bracketBtn.disabled = bracketActive;
+    bracketBtn.style.opacity = bracketActive ? '0.45' : '1';
+    bracketBtn.style.cursor = bracketActive ? 'not-allowed' : 'pointer';
+    bracketBtn.title = bracketActive ? '대진표가 이미 진행 중입니다' : '';
+  }
   // 내기 히스토리에 사다리 결과 자동 저장
   _saveLadderHistory();
 }
@@ -9277,19 +9401,20 @@ function _saveLadderHistory() {
     participant: name,
     item: _ladderState.assignment[name] || '?'
   }));
-  // 사다리 캔버스 이미지 캡처 (65% 크기, 고화질 JPEG — 이력 표시용)
+  // 사다리 캔버스 이미지 캡처 (고해상도 PNG — 이력 표시용)
   let canvasImage = null;
   try {
     const srcCanvas = document.getElementById('ladder-canvas');
     if (srcCanvas && srcCanvas.width > 0 && srcCanvas.height > 0) {
+      const scale = Math.min(2, 800 / srcCanvas.width);
       const tmp = document.createElement('canvas');
-      tmp.width  = Math.round(srcCanvas.width  * 0.65);
-      tmp.height = Math.round(srcCanvas.height * 0.65);
+      tmp.width  = Math.round(srcCanvas.width  * scale);
+      tmp.height = Math.round(srcCanvas.height * scale);
       const ctx = tmp.getContext('2d');
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(srcCanvas, 0, 0, tmp.width, tmp.height);
-      canvasImage = tmp.toDataURL('image/jpeg', 0.88);
+      canvasImage = tmp.toDataURL('image/jpeg', 0.92);
     }
   } catch(e) {}
   db.ref('jmt/betHistory').push({
