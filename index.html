@@ -4312,7 +4312,9 @@ function renderTournament(type, opts) {
         const cls=match.winner===side?'winner':match.winner!==null&&match.winner!==-1?'loser':(!team?(ri===0?'bye-team':'tbd-team'):'');
         const nm=!team?(ri===0?'부전승':'TBD'):pairName(team);
         const sc=side===0?match.score0:match.score1;
-        return `<div class="team ${cls}"><span class="team-name">${nm}</span>${sc?`<span class="team-score">${sc}</span>`:''}</div>`;
+        const tb=match.tb0!=null?(side===0?match.tb0:match.tb1):null;
+        const scText=sc?(tb!=null?`${sc}(${tb})`:sc):'';
+        return `<div class="team ${cls}"><span class="team-name">${nm}</span>${scText?`<span class="team-score">${scText}</span>`:''}</div>`;
       };
       div.innerHTML=row(match.team0,0)+row(match.team1,1);
       // edit mode: attach slot click handlers after innerHTML set
@@ -4498,35 +4500,46 @@ function submitScore() {
       ladderGameSnapshot: state._ladderGameSnapshot || null,
       nonce: state._ladderNonce
     })).catch(fbErr);
-    // 오늘의 경기 탭에 경기 기록 자동 생성/수정 (랭킹은 updateMatchStats에서 별도 적용)
-    if (match.team0 && match.team0.length === 2 && match.team1 && match.team1.length === 2) {
+  }
+  // 모든 복식 타입: 오늘의 경기 자동 기록/수정 (랭킹은 updateMatchStats에서 별도 적용)
+  // team0/team1은 배열([name1,name2]) 또는 null(부전승) → 2명인 경우만 처리
+  if (db) {
+    const _t0arr = Array.isArray(match.team0) ? match.team0 : null;
+    const _t1arr = Array.isArray(match.team1) ? match.team1 : null;
+    if (_t0arr && _t0arr.length === 2 && _t1arr && _t1arr.length === 2) {
       const today = new Date().toISOString().split('T')[0];
-      const t0 = [...match.team0].sort();
-      const t1 = [...match.team1].sort();
+      const t0 = [..._t0arr].sort();
+      const t1 = [..._t1arr].sort();
       const winner = match.winner;
       const sets = [{ s0: n0, s1: n1 }];
       const bgImage = winner === 0 ? 'images/ca.png' : 'images/right_1.png';
       const existingKey = match._dailyCardKey;
       if (isNewScore || !existingKey) {
-        // 첫 입력: jmt/matches + jmt/dailyCards 신규 생성, matchKey를 match 객체에 저장
-        db.ref('jmt/matches').push({ date: today, team0: t0, team1: t1, sets, winner, source: 'ladder-bracket' })
+        // 첫 입력: 신규 생성
+        db.ref('jmt/matches').push({ date: today, team0: t0, team1: t1, sets, winner, source: type + '-bracket' })
           .then(ref => {
-            match._dailyCardKey = ref.key;
+            // 현재 state에서 live match 참조 재확인 (리스너 경쟁 조건 대비)
+            const lm = state.tournaments[type] && state.tournaments[type].rounds &&
+                       state.tournaments[type].rounds[ri] && state.tournaments[type].rounds[ri][mi];
+            if (lm) lm._dailyCardKey = ref.key;
             const num = Object.keys(_dailyCards).length + 1;
-            const cardData = {
+            db.ref(`jmt/dailyCards/${ref.key}`).set({
               phase: 'done', team0: t0, team1: t1, sets, winner, bgImage, num,
-              matchKey: ref.key, source: 'ladder-bracket', scoredAt: Date.now()
-            };
-            db.ref(`jmt/dailyCards/${ref.key}`).set(cardData).catch(fbErr);
-            // ladderState 재저장 (match._dailyCardKey 포함)
-            state._ladderNonce = Math.random().toString(36).slice(2);
-            db.ref('jmt/ladderState').set(JSON.stringify({
-              tournaments_ladder: state.tournaments.ladder,
-              ladderPairs: state._ladderPairs || [],
-              ladderUnpaired: state._ladderUnpaired || [],
-              ladderGameSnapshot: state._ladderGameSnapshot || null,
-              nonce: state._ladderNonce
-            })).catch(fbErr);
+              matchKey: ref.key, source: type + '-bracket', scoredAt: Date.now()
+            }).catch(fbErr);
+            // 키 유지: ladder는 ladderState 재저장, 나머지는 activeState 재저장
+            if (type === 'ladder') {
+              state._ladderNonce = Math.random().toString(36).slice(2);
+              db.ref('jmt/ladderState').set(JSON.stringify({
+                tournaments_ladder: state.tournaments.ladder,
+                ladderPairs: state._ladderPairs || [],
+                ladderUnpaired: state._ladderUnpaired || [],
+                ladderGameSnapshot: state._ladderGameSnapshot || null,
+                nonce: state._ladderNonce
+              })).catch(fbErr);
+            } else {
+              saveActiveState();
+            }
           }).catch(fbErr);
       } else {
         // 스코어 변경: 기존 기록 업데이트
@@ -5748,8 +5761,8 @@ function updateSetupPageUI() {
       notice.style.display = 'block';
       endWrap.style.display = 'none';
     }
-    // Show first available bracket tab
-    const firstType = ['ladder','mixed','mens','womens'].find(t => state.tournaments[t]);
+    // 활성 대회 중에는 혼합/남자/여자 복식 우선 (사다리는 사용자가 직접 탭 선택)
+    const firstType = ['mixed','mens','womens'].find(t => state.tournaments[t]);
     if(firstType) switchBracketTab(firstType);
   } else if (hasLadder) {
     switchBracketTab('ladder');
@@ -8007,6 +8020,9 @@ function openTournamentManager() {
   if (state.currentHistoryId) {
     switchPage('setup');
     switchSetupTab('create');
+    // 혼합복식 우선 표시 (사다리 탭이 아닌 일반 대진표로)
+    const firstType = ['mixed','mens','womens'].find(t => state.tournaments[t]);
+    if (firstType) switchBracketTab(firstType);
     const page = document.getElementById('page-setup');
     if (page) page.scrollTop = 0;
   } else {
