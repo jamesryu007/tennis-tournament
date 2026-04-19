@@ -2882,7 +2882,7 @@ function _renderDailyCard(id){
       </button>
     </div>`;
     const mid=`<button class="dc-start-btn" onclick="startDailyMatch(${id})"${t0f&&t1f?'':' disabled'}>시작</button>`;
-    el.innerHTML=mkCard(`경기${d.num}`, left, mid, right);
+    el.innerHTML=mkCard(d.label||`경기${d.num}`, left, mid, right);
 
   } else if(d.phase==='playing'){
     const t0=_getTeamDisplay(d.team0),t1=_getTeamDisplay(d.team1);
@@ -2895,7 +2895,7 @@ function _renderDailyCard(id){
       <div class="dc-tmembers">${t1.memberStr}</div>
     </div>`;
     const mid=`<button class="dc-score-reg-btn" onclick="openDailyScore('${id}')">🎾<br>점수<br>등록</button>`;
-    el.innerHTML=mkCard(`경기${d.num} <span style="font-size:0.72rem;font-weight:600;color:#a78bfa">(경기진행 중)</span>`, left, mid, right);
+    el.innerHTML=mkCard(`${d.label||`경기${d.num}`} <span style="font-size:0.72rem;font-weight:600;color:#a78bfa">(경기진행 중)</span>`, left, mid, right);
 
   } else {
     const isDraw=d.winner===-1;
@@ -2935,7 +2935,7 @@ function _renderDailyCard(id){
       <div class="dc-tmembers">${t1.memberStr}</div>
       ${r1Badge}
     </div>`;
-    el.innerHTML=mkCard(`✅ 경기${d.num}`, left, mid, right, _winnerBg(d.winner, id));
+    el.innerHTML=mkCard(`✅ ${d.label||`경기${d.num}`}`, left, mid, right, _winnerBg(d.winner, id));
   }
 }
 
@@ -4523,9 +4523,12 @@ function submitScore() {
         match._dailyCardKey = newKey; // 즉시 동기적으로 키 저장
         newMatchRef.set({ date: today, team0: t0, team1: t1, sets, winner, source: type + '-bracket' }).catch(fbErr);
         const num = Object.keys(_dailyCards).length + 1;
+        const _tLabel = {mixed:'혼합복식', mens:'남자복식', womens:'여자복식', ladder:'사다리 복식'};
+        const _rLabel = roundNames(t.rounds.length)[ri] || '';
+        const cardLabel = (_tLabel[type] || type) + (_rLabel ? ' ' + _rLabel : '');
         db.ref(`jmt/dailyCards/${newKey}`).set({
           phase: 'done', team0: t0, team1: t1, sets, winner, bgImage, num,
-          matchKey: newKey, source: type + '-bracket', scoredAt: Date.now()
+          matchKey: newKey, source: type + '-bracket', scoredAt: Date.now(), label: cardLabel
         }).catch(fbErr);
         // 키 포함 상태 저장 (ladder는 ladderState, 나머지는 activeState)
         if (type === 'ladder') {
@@ -8904,6 +8907,11 @@ function ladderToggleMemberPicker() {
   _ladderPickerSel.clear();
   _ladderBuildMemberPicker();
   popup.style.display = 'block';
+  // 멤버 목록 펼쳐지면 사다리 시작 버튼이 보이도록 스크롤
+  setTimeout(() => {
+    const btn = document.querySelector('[onclick="ladderStartGame()"]');
+    if (btn) btn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 80);
 }
 function _ladderBuildMemberPicker() {
   const popup = document.getElementById('ladder-member-picker-popup');
