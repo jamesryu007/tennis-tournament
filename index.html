@@ -3985,7 +3985,10 @@ function initTournament(type) {
 }
 
 function reshuffleTournament(type) {
-  if (type !== 'ladder' && !isManager()) { alert('다시 추첨은 관리자만 가능합니다.'); return; }
+  if (type === 'ladder') {
+    const myName = state.identity && state.identity.name;
+    if (!isManager() && myName !== _ladderState.creator) { alert('다시 추첨은 생성자 또는 관리자만 가능합니다.'); return; }
+  } else if (!isManager()) { alert('다시 추첨은 관리자만 가능합니다.'); return; }
   if (!confirm('기존 결과가 초기화됩니다. 계속하시겠습니까?')) return;
   // exit edit mode if active
   if (_bracketEditMode === type) { _bracketEditMode = null; updateBracketEditUI(type); }
@@ -4031,7 +4034,10 @@ function getPlayerGender(name) {
 }
 
 function toggleBracketEdit(type) {
-  if (type !== 'ladder' && !isManager()) { alert('대진표 수정은 관리자만 가능합니다.'); return; }
+  if (type === 'ladder') {
+    const myName = state.identity && state.identity.name;
+    if (!isManager() && myName !== _ladderState.creator) { alert('대진표 수정은 생성자 또는 관리자만 가능합니다.'); return; }
+  } else if (!isManager()) { alert('대진표 수정은 관리자만 가능합니다.'); return; }
 
   if (_bracketEditMode === type) {
     // 수정 완료 → 부전승 처리 후 일반 모드 복귀
@@ -4085,6 +4091,21 @@ function updateBracketEditUI(type) {
     btn.className = isEdit ? 'btn btn-success btn-full' : 'btn btn-outline btn-full';
   }
   if (notice) notice.style.display = isEdit ? 'block' : 'none';
+}
+
+function _updateLadderEditBtnState() {
+  // 사다리 경기 진행 중: 생성자+관리자만 다시추첨/대진표수정 가능 → 나머지 비활성화
+  const myName = state.identity && state.identity.name;
+  const canEdit = isManager() || myName === _ladderState.creator;
+  const reshuffleBtn = document.querySelector('#match-panel-ladder .btn-warning');
+  const editBtn = document.getElementById('bracket-edit-btn-ladder');
+  [reshuffleBtn, editBtn].forEach(btn => {
+    if (!btn) return;
+    btn.disabled = !canEdit;
+    btn.style.opacity = canEdit ? '' : '0.4';
+    btn.style.cursor = canEdit ? '' : 'not-allowed';
+    btn.title = canEdit ? '' : '생성자 또는 관리자만 수정할 수 있습니다';
+  });
 }
 
 function getUnassignedPlayers(type, excludeMi, excludeSide) {
@@ -4353,9 +4374,10 @@ function renderTournament(type, opts) {
   const stEl=document.getElementById(`${prefix}-status`);
   if(stEl){ stEl.className='status-badge '+(t.champion?'badge-done':'badge-active'); stEl.textContent=t.champion?'완료':'진행중'; }
   // 사다리 복식 대회 종료 버튼: 관리자에게만, 진행중일 때만 표시
-  if(type==='ladder') {
+  if(type==='ladder' && !opts) {
     const endBtn=document.getElementById('ladder-end-btn');
     if(endBtn) endBtn.style.display=(isManager()&&!t.champion)?'':'none';
+    _updateLadderEditBtnState();
   }
 
   renderAwards(type,opts);
@@ -8604,6 +8626,12 @@ function _betStatsHtml(data) {
 function betRenderHome() {
   if (!db) return;
 
+  // 사다리 대진표 진행 중 → 사다리 결과 화면 강제 유지
+  if (_ladderState.allRevealed && state.tournaments.ladder && !state.tournaments.ladder.champion) {
+    betShowScreen('ladder-game');
+    return;
+  }
+
   // 활성 방에 참여 중이면 해당 화면으로 바로 복귀 (room 데이터 로딩 전이어도)
   if (_bombState.roomId && !_bombState.revealed) {
     if (_bombState.isHost) {
@@ -8947,6 +8975,7 @@ function ladderStartGame() {
   if (items.length !== p.length) { alert(`결과 항목이 ${p.length}개 필요합니다 (현재 ${items.length}개)`); return; }
 
   _ladderState.title = title;
+  _ladderState.creator = state.identity ? state.identity.name : null;
   _ladderState.revealed = {};
   _ladderState.revealedDest = new Set();
   _ladderState.assignment = {};
@@ -9332,6 +9361,11 @@ function _ladderPlayResult(item) {
 }
 
 function ladderBackToSetup() {
+  // 대진표 진행 중에는 설정화면으로 돌아갈 수 없음
+  if (state.tournaments.ladder && !state.tournaments.ladder.champion) {
+    alert('대진표 경기가 진행 중입니다.\n경기가 완료되거나 관리자가 종료할 때까지 사다리 결과 화면에 머물러야 합니다.');
+    return;
+  }
   _ladderState.animating = false;
   ladderShowSetup();
 }
@@ -9344,9 +9378,16 @@ function _ladderShowResult() {
   const shareBtn = document.getElementById('ladder-share-btn');
   if (shareBtn) { shareBtn.style.display = 'inline-flex'; }
   document.getElementById('ladder-game-hint').textContent = '모두 완료! 나가기 전에 공유해보세요.';
-  // 대진표 구성 버튼: 사다리 완료 시 항상 표시
+  // 대진표 구성 버튼: 대진표가 이미 활성 중이면 비활성화
   const bracketBtn = document.getElementById('ladder-bracket-btn');
-  if (bracketBtn) bracketBtn.style.display = 'block';
+  if (bracketBtn) {
+    bracketBtn.style.display = 'block';
+    const bracketActive = !!(state.tournaments.ladder && !state.tournaments.ladder.champion);
+    bracketBtn.disabled = bracketActive;
+    bracketBtn.style.opacity = bracketActive ? '0.45' : '1';
+    bracketBtn.style.cursor = bracketActive ? 'not-allowed' : 'pointer';
+    bracketBtn.title = bracketActive ? '대진표가 이미 진행 중입니다' : '';
+  }
   // 내기 히스토리에 사다리 결과 자동 저장
   _saveLadderHistory();
 }
