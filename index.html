@@ -974,47 +974,6 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     </div>
   </div>
 
-  <!-- 대회 설정 폼 (대진 생성 전) -->
-  <div id="setup-form-section">
-    <div style="margin-bottom:10px">
-      <div class="rank-banner" style="border-radius:16px 16px 0 0;margin-bottom:0;padding:11px 16px">
-        <div style="font-size:0.98rem;font-weight:900;color:#fff">🏆 모임정보</div>
-      </div>
-      <div class="card" style="border-radius:0 0 14px 14px;border-top:none;margin-bottom:0">
-      <div class="field-label" style="margin-top:0">제목</div>
-      <input type="text" id="t-name" placeholder="예) 제5회 자미터 정기전">
-      <div class="field-label">장소</div>
-      <input type="text" id="t-venue" placeholder="장소 입력">
-      <div class="field-label">날짜</div>
-      <input type="date" id="t-date" style="text-align:left;display:block;width:100%">
-      <div class="field-label">비고</div>
-      <input type="text" id="t-notes" placeholder="(선택사항)">
-      </div><!-- card -->
-    </div><!-- banner+card wrapper -->
-
-    <div class="card">
-      <div class="card-title" style="justify-content:space-between;margin-bottom:0">
-        <span>👥 참가자</span>
-        <button class="btn btn-outline btn-sm" onclick="openParticipantModal()">참가자 선택</button>
-      </div>
-      <div class="divider"></div>
-      <div id="participant-summary">
-        <p class="text-muted" style="font-size:0.8rem;padding:2px 0">참가자를 선택하세요</p>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">📊 참가 현황</div>
-      <div class="summary-grid">
-        <div class="summary-item"><div class="val" id="cnt-male">0</div><div class="lbl">남자</div></div>
-        <div class="summary-item"><div class="val" id="cnt-female">0</div><div class="lbl">여자</div></div>
-        <div class="summary-item"><div class="val" id="cnt-mixed">0</div><div class="lbl">혼합 페어</div></div>
-        <div class="summary-item"><div class="val" id="cnt-total">0</div><div class="lbl">총 참가</div></div>
-      </div>
-      <div class="divider"></div>
-      <button class="btn btn-success btn-full" id="btn-init-tournaments" onclick="initAllTournaments()">🎾 대진 생성 (혼합 · 남자 · 여자)</button>
-    </div>
-  </div>
   </div><!-- /setup-panel-create -->
 
   <!-- 모임 정하기 패널 -->
@@ -1592,6 +1551,55 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div style="display:flex;gap:8px">
         <button class="btn btn-warning btn-full" onclick="closePwModal()">취소</button>
         <button class="btn btn-primary btn-full" onclick="confirmPassword()">확인</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOURNAMENT SETUP MODAL ══ -->
+<div class="modal-overlay" id="tournament-setup-modal">
+  <div class="modal" style="max-height:90vh;display:flex;flex-direction:column;">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-round">🏆 대회 만들기</span>
+      <button class="modal-close" onclick="closeTournamentSetupModal()">✕</button>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding:12px 14px 20px">
+      <div style="margin-bottom:10px">
+        <div class="rank-banner" style="border-radius:16px 16px 0 0;margin-bottom:0;padding:11px 16px">
+          <div style="font-size:0.98rem;font-weight:900;color:#fff">🏆 모임정보</div>
+        </div>
+        <div class="card" style="border-radius:0 0 14px 14px;border-top:none;margin-bottom:0">
+        <div class="field-label" style="margin-top:0">제목</div>
+        <input type="text" id="t-name" placeholder="예) 제5회 자미터 정기전">
+        <div class="field-label">장소</div>
+        <input type="text" id="t-venue" placeholder="장소 입력">
+        <div class="field-label">날짜</div>
+        <input type="date" id="t-date" style="text-align:left;display:block;width:100%">
+        <div class="field-label">비고</div>
+        <input type="text" id="t-notes" placeholder="(선택사항)">
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="justify-content:space-between;margin-bottom:0">
+          <span>👥 참가자</span>
+          <button class="btn btn-outline btn-sm" onclick="openParticipantModal()">참가자 선택</button>
+        </div>
+        <div class="divider"></div>
+        <div id="participant-summary">
+          <p class="text-muted" style="font-size:0.8rem;padding:2px 0">참가자를 선택하세요</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📊 참가 현황</div>
+        <div class="summary-grid">
+          <div class="summary-item"><div class="val" id="cnt-male">0</div><div class="lbl">남자</div></div>
+          <div class="summary-item"><div class="val" id="cnt-female">0</div><div class="lbl">여자</div></div>
+          <div class="summary-item"><div class="val" id="cnt-mixed">0</div><div class="lbl">혼합 페어</div></div>
+          <div class="summary-item"><div class="val" id="cnt-total">0</div><div class="lbl">총 참가</div></div>
+        </div>
+        <div class="divider"></div>
+        <button class="btn btn-success btn-full" id="btn-init-tournaments" onclick="initAllTournaments()">🎾 대진 생성 (혼합 · 남자 · 여자)</button>
       </div>
     </div>
   </div>
@@ -4289,7 +4297,7 @@ function renderTournament(type, opts) {
       const div=document.createElement('div');
       const editMode = _bracketEditMode===type && !readOnly && ri===0;
       const canClick = !editMode && match.team0 && match.team1 && !readOnly &&
-        (type==='ladder' ? !!state.identity : state.isCreator);
+        (type==='ladder' ? !!state.identity : (state.isCreator || isManager()));
       div.className='match'+(canClick?' clickable':'')+(editMode?' edit-active':'');
       div.style.cssText=`left:${mx}px;top:${my}px;width:${MW}px;height:${MH}px;`;
       if(canClick) div.onclick=()=>openModal(type,ri,mi);
@@ -4516,9 +4524,6 @@ function switchBracketTab(type) {
   });
   const sec = document.getElementById('bracket-section');
   if(sec) sec.style.display = 'block';
-  // 사다리 복식 탭에서는 모임정보 이하 폼 숨김
-  const formSec = document.getElementById('setup-form-section');
-  if(formSec) formSec.style.display = type==='ladder' ? 'none' : '';
   if(state.tournaments[type]) renderTournament(type);
 }
 
@@ -4771,8 +4776,10 @@ function initAllTournaments() {
 
   saveActiveState();
   _settingUpBracket = false; // 새 activeState 저장 완료 — 리스너가 다시 정상 동작
+  closeTournamentSetupModal();
   updateSetupPageUI();
   switchPage('setup');
+  switchSetupTab('create');
   switchBracketTab(generated.includes('mixed') ? 'mixed' : generated[0]);
 }
 
@@ -5675,8 +5682,6 @@ function updateSetupPageUI() {
   const hasActive = !!state.currentHistoryId;
   const hasLadder = !!state.tournaments.ladder;
 
-  // 모임정보 폼: 활성 대회나 사다리 대진 있으면 숨김
-  document.getElementById('setup-form-section').style.display = (hasActive || hasLadder) ? 'none' : 'block';
   document.getElementById('active-tournament-banner').style.display = hasActive ? 'block' : 'none';
 
   // 브래킷 섹션: 대회 데이터 있을 때만 표시
@@ -5711,7 +5716,7 @@ function updateSetupPageUI() {
 }
 
 // ══ MODAL OVERLAY CLOSE ══
-['score-modal','participant-modal','add-member-modal','edit-modal','hist-detail-modal','slot-edit-modal','pw-modal','mp-cal-modal'].forEach(id => {
+['score-modal','participant-modal','add-member-modal','edit-modal','hist-detail-modal','slot-edit-modal','pw-modal','mp-cal-modal','tournament-setup-modal'].forEach(id => {
   document.getElementById(id).addEventListener('click', function(e) {
     if (e.target === this) {
       if (id==='score-modal') closeModal();
@@ -5721,6 +5726,7 @@ function updateSetupPageUI() {
       else if (id==='hist-detail-modal') closeHistoryDetail();
       else if (id==='slot-edit-modal') closeSlotEditModal();
       else if (id==='pw-modal') closePwModal();
+      else if (id==='tournament-setup-modal') closeTournamentSetupModal();
     }
   });
 });
@@ -7948,14 +7954,23 @@ let _mpCal = { year: 0, month: 0, selected: [] };
 let _mpCreateDates = [];
 let _mpCreateContents = [];
 
-// 내기탭 "대회 만들기" 버튼 — 진행중이면 배너(경기종료) 표시, 없으면 설정폼 표시
+function openTournamentSetupModal() {
+  document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('tournament-setup-modal').classList.add('open');
+}
+function closeTournamentSetupModal() {
+  document.getElementById('tournament-setup-modal').classList.remove('open');
+}
+// 내기탭 "대회 만들기" 버튼 — 진행중이면 경기진행 탭으로, 없으면 설정 모달 표시
 function openTournamentManager() {
-  switchPage('setup');
-  switchSetupTab('create');
-  updateSetupPageUI();
-  // 페이지 최상단으로 스크롤 → 배너 or 설정폼이 바로 보이도록
-  const page = document.getElementById('page-setup');
-  if (page) page.scrollTop = 0;
+  if (state.currentHistoryId) {
+    switchPage('setup');
+    switchSetupTab('create');
+    const page = document.getElementById('page-setup');
+    if (page) page.scrollTop = 0;
+  } else {
+    openTournamentSetupModal();
+  }
 }
 
 function switchSetupTab(tab) {
@@ -9270,19 +9285,20 @@ function _saveLadderHistory() {
     participant: name,
     item: _ladderState.assignment[name] || '?'
   }));
-  // 사다리 캔버스 이미지 캡처 (65% 크기, 고화질 JPEG — 이력 표시용)
+  // 사다리 캔버스 이미지 캡처 (고해상도 PNG — 이력 표시용)
   let canvasImage = null;
   try {
     const srcCanvas = document.getElementById('ladder-canvas');
     if (srcCanvas && srcCanvas.width > 0 && srcCanvas.height > 0) {
+      const scale = Math.min(2, 800 / srcCanvas.width);
       const tmp = document.createElement('canvas');
-      tmp.width  = Math.round(srcCanvas.width  * 0.65);
-      tmp.height = Math.round(srcCanvas.height * 0.65);
+      tmp.width  = Math.round(srcCanvas.width  * scale);
+      tmp.height = Math.round(srcCanvas.height * scale);
       const ctx = tmp.getContext('2d');
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(srcCanvas, 0, 0, tmp.width, tmp.height);
-      canvasImage = tmp.toDataURL('image/jpeg', 0.88);
+      canvasImage = tmp.toDataURL('image/jpeg', 0.92);
     }
   } catch(e) {}
   db.ref('jmt/betHistory').push({
