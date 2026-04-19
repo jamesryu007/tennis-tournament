@@ -6,9 +6,11 @@
         ".write": "$key !== 'atpNews'"
       },
       "lastGrandSlam": {
+        ".write": true,
         ".indexOn": "savedAt"
       },
       "matches": {
+        ".write": true,
         ".indexOn": "date"
       }
     },
