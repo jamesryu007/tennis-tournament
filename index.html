@@ -9267,12 +9267,19 @@ function _saveLadderHistory() {
     participant: name,
     item: _ladderState.assignment[name] || '?'
   }));
-  // 사다리 캔버스 이미지 캡처 (ladderShare와 동일 품질 — 이력 표시용)
+  // 사다리 캔버스 이미지 캡처 (65% 크기, 고화질 JPEG — 이력 표시용)
   let canvasImage = null;
   try {
     const srcCanvas = document.getElementById('ladder-canvas');
     if (srcCanvas && srcCanvas.width > 0 && srcCanvas.height > 0) {
-      canvasImage = srcCanvas.toDataURL('image/jpeg', 0.65);
+      const tmp = document.createElement('canvas');
+      tmp.width  = Math.round(srcCanvas.width  * 0.65);
+      tmp.height = Math.round(srcCanvas.height * 0.65);
+      const ctx = tmp.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(srcCanvas, 0, 0, tmp.width, tmp.height);
+      canvasImage = tmp.toDataURL('image/jpeg', 0.88);
     }
   } catch(e) {}
   db.ref('jmt/betHistory').push({
