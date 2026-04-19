@@ -3398,7 +3398,8 @@ async function renderRecentMatchesCarousel(){
       const ws=isW0?s.s0:s.s1, ls=isW0?s.s1:s.s0;
       const ws0=isDraw?s.s0:ws, ls0=isDraw?s.s1:ls;
       const s0cls=isDraw?'d':'w', s1cls=isDraw?'d':'l';
-      return `<div class="cc-set"><span class="cc-set-num">${i+1}세트</span><div class="cc-set-score"><span class="cc-sc ${s0cls}">${ws0}</span><span class="cc-sc-sep">:</span><span class="cc-sc ${s1cls}">${ls0}</span></div></div>`;
+      const tbHtml = s.tb0!=null ? `<div style="font-size:0.62rem;color:#fbbf24;font-weight:700;line-height:1">(${isW0?s.tb0:s.tb1}:${isW0?s.tb1:s.tb0})</div>` : '';
+      return `<div class="cc-set"><span class="cc-set-num">${i+1}세트</span><div class="cc-set-score"><span class="cc-sc ${s0cls}">${ws0}</span><span class="cc-sc-sep">:</span><span class="cc-sc ${s1cls}">${ls0}</span></div>${tbHtml}</div>`;
     }).join('<div class="cc-divider"></div>');
     const [,mo,d]=(m.date||'').split('-');
     const dateStr=m.date?`${parseInt(mo)}월 ${parseInt(d)}일`:'';
@@ -4483,7 +4484,8 @@ function submitScore() {
     const tv1 = parseInt(document.getElementById('score-tb1').value);
     if (!isNaN(tv0) && !isNaN(tv1)) { tb0 = tv0; tb1 = tv1; }
   }
-  const isNewScore = !match.score0; // 첫 입력 여부 (오늘의 경기 중복 방지)
+  const isNewScore = !match.score0; // 첫 입력 여부
+  const oldWinner = match.winner;   // 이전 승자 (스코어 변경 시 통계 취소용)
   clearDown(t.rounds,ri,mi);
   match.score0=s0; match.score1=s1; match.winner=n0>n1?0:1;
   if (tb0 !== null) { match.tb0=tb0; match.tb1=tb1; } else { delete match.tb0; delete match.tb1; }
@@ -4511,7 +4513,7 @@ function submitScore() {
       const t0 = [..._t0arr].sort();
       const t1 = [..._t1arr].sort();
       const winner = match.winner;
-      const sets = [{ s0: n0, s1: n1 }];
+      const sets = tb0 !== null ? [{ s0: n0, s1: n1, tb0, tb1 }] : [{ s0: n0, s1: n1 }];
       const bgImage = winner === 0 ? 'images/ca.png' : 'images/right_1.png';
       const existingKey = match._dailyCardKey;
       if (isNewScore || !existingKey) {
@@ -4555,6 +4557,9 @@ function submitScore() {
   renderTournament(type);
   // 통계 테이블 업데이트 (팀 구성이 있는 경우만)
   if(match.team0&&match.team0.length===2&&match.team1&&match.team1.length===2) {
+    if (!isNewScore && oldWinner !== null && oldWinner !== undefined) {
+      reverseMatchStats(match.team0, match.team1, oldWinner);
+    }
     updateMatchStats(match.team0,match.team1,match.winner,'','');
   }
   const wTeam = match.winner === 0 ? match.team0 : match.team1;
