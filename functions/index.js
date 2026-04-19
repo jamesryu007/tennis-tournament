@@ -695,12 +695,56 @@ exports.notifyBracketUpdate = onValueWritten(
     const hadTournament = parsedBefore && parsedBefore.tournaments &&
       (parsedBefore.tournaments.mixed || parsedBefore.tournaments.mens || parsedBefore.tournaments.womens);
 
-    const tokens = await getAllTokens();
-    if (!hadTournament) {
-      await sendPush(tokens, '🎾 대진표가 생성되었습니다!', '앱에서 이번 주 대진표를 확인하세요.', 'matches');
-    } else {
-      await sendPush(tokens, '🔄 대진표가 수정되었습니다!', '앱에서 변경된 대진표를 확인하세요.', 'matches');
+    // 참가자 이름 추출 (selectedIds → 멤버이름 + guests)
+    const participantNames = [];
+    if (parsed.selectedIds && parsed.selectedIds.length) {
+      const membersSnap = await db.ref('jmt/members').once('value');
+      const members = Object.values(membersSnap.val() || {});
+      const selectedSet = new Set(parsed.selectedIds.map(String));
+      members.filter(m => selectedSet.has(String(m.id))).forEach(m => { if (m.name) participantNames.push(m.name); });
     }
+    if (parsed.guests && parsed.guests.length) {
+      parsed.guests.forEach(g => { if (g.name) participantNames.push(g.name); });
+    }
+    const tokens = participantNames.length ? await getTokensByNames(participantNames) : await getAllTokens();
+    if (!hadTournament) {
+      await sendPush(tokens, '🎾 대진표가 생성되었습니다!', '경기 진행 탭에서 이번 주 대진표를 확인하세요.', 'setup');
+    } else {
+      await sendPush(tokens, '🔄 대진표가 수정되었습니다!', '경기 진행 탭에서 변경된 대진표를 확인하세요.', 'setup');
+    }
+  }
+);
+
+// ══ 사다리 복식 대진표 생성 알림 ════════════════════════════════════
+exports.notifyLadderBracket = onValueWritten(
+  { ref: 'jmt/ladderState', region: 'asia-southeast1' },
+  async (event) => {
+    const after = event.data.after.val();
+    if (!after) return; // 대회 종료 — 알림 없음
+
+    let parsed;
+    try { parsed = typeof after === 'string' ? JSON.parse(after) : after; }
+    catch (e) { return; }
+
+    if (!parsed.tournaments_ladder) return; // 대진표 없는 상태 (사다리 게임만)
+
+    // 이미 대진표 있었으면 재구성 — 중복 알림 방지
+    const before = event.data.before.val();
+    if (before) {
+      try {
+        const pb = typeof before === 'string' ? JSON.parse(before) : before;
+        if (pb && pb.tournaments_ladder) return;
+      } catch (e) {}
+    }
+
+    // 참가자 이름 (사다리 게임 스냅샷)
+    const participants = parsed.ladderGameSnapshot && parsed.ladderGameSnapshot.participants;
+    if (!participants || !participants.length) return;
+
+    const tokens = await getTokensByNames(participants);
+    if (!tokens.length) return;
+    const nameStr = participants.length <= 6 ? participants.join(', ') : `${participants.slice(0, 6).join(', ')} 외 ${participants.length - 6}명`;
+    await sendPush(tokens, '🪜 사다리 복식 대진표 생성!', `${nameStr} — 경기 진행 탭에서 확인하세요.`, 'setup');
   }
 );
 
