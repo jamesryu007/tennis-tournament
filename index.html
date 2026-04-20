@@ -2913,19 +2913,25 @@ function addDailyMatchCard(){
   db.ref('jmt/dailyCards').once('value').then(snap=>{
     const all=snap.val()||{};
     const container=document.getElementById('daily-match-cards');
-    Object.entries(all)
-      .sort((a,b)=>((b[1].createdAt||b[1].num||0)-(a[1].createdAt||a[1].num||0)))
-      .forEach(([id,raw])=>{
-        const data=_normCard(raw);
-        _dailyCards[id]=data; // 로컬 상태 최신화 (진행중 선수 포함)
-        if(container&&!document.getElementById(`daily-card-${id}`)){
-          const el=document.createElement('div');
-          el.id=`daily-card-${id}`;
-          el.dataset.createdAt=data.createdAt||data.num||0;
-          container.appendChild(el);
-          _renderDailyCard(id);
-        }
-      });
+    // 로컬 상태 전체 최신화 (진행중 선수 반영)
+    Object.entries(all).forEach(([id,raw])=>{ _dailyCards[id]=_normCard(raw); });
+    // DOM에 없는 카드만 추려서 createdAt 내림차순으로 올바른 위치에 삽입
+    const newEntries=Object.entries(all)
+      .filter(([id])=>!document.getElementById(`daily-card-${id}`))
+      .sort((a,b)=>((b[1].createdAt||b[1].num||0)-(a[1].createdAt||a[1].num||0)));
+    newEntries.forEach(([id])=>{
+      const data=_dailyCards[id];
+      const el=document.createElement('div');
+      el.id=`daily-card-${id}`;
+      el.dataset.createdAt=data.createdAt||data.num||0;
+      // createdAt 기준으로 올바른 위치에 삽입
+      const ts=data.createdAt||data.num||0;
+      const siblings=[...container.children];
+      const after=siblings.find(s=>Number(s.dataset.createdAt||0)<ts);
+      if(after) container.insertBefore(el,after);
+      else container.appendChild(el);
+      _renderDailyCard(id);
+    });
     _doAdd();
   }).catch(()=>_doAdd());
 }
