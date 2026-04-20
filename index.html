@@ -1621,30 +1621,52 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <span id="modal-round" class="modal-round"></span>
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
-    <div class="score-entry">
+    <div style="padding:14px 16px">
       <div class="score-matchup">
-        <div id="score-side-0" class="score-side">
-          <div id="team0-name" class="score-team-label"></div>
-        </div>
+        <div id="score-side-0" class="score-side"><div id="team0-name" class="score-team-label"></div></div>
         <div class="score-vs-mid">VS</div>
-        <div id="score-side-1" class="score-side">
-          <div id="team1-name" class="score-team-label"></div>
+        <div id="score-side-1" class="score-side"><div id="team1-name" class="score-team-label"></div></div>
+      </div>
+      <div class="dc-score-set" style="margin:12px 0 0">
+        <div style="flex:1;display:flex;justify-content:center">
+          <div class="dc-score-btn" id="bscore-btn-a" onclick="selectTournamentField('bscore-a')">-</div>
+          <input type="hidden" id="bscore-a" value="">
+        </div>
+        <div style="display:flex;align-items:center;min-width:28px;justify-content:center">
+          <span style="font-weight:800;color:#cbd5e1;font-size:1.1rem">:</span>
+        </div>
+        <div style="flex:1;display:flex;justify-content:center">
+          <div class="dc-score-btn" id="bscore-btn-b" onclick="selectTournamentField('bscore-b')">-</div>
+          <input type="hidden" id="bscore-b" value="">
         </div>
       </div>
-      <div class="score-inputs-row">
-        <input type="text" id="score0-input" class="score-field" placeholder="0" maxlength="2" inputmode="numeric"
-          oninput="autoNextScore(this,'score1-input');previewWinner();_checkTournamentTB()">
-        <span class="score-colon">:</span>
-        <input type="text" id="score1-input" class="score-field" placeholder="0" maxlength="2" inputmode="numeric"
-          oninput="previewWinner();_checkTournamentTB()" onkeydown="if(event.key==='Enter')submitScore()">
+      <div id="bscore-tb-row" class="dc-score-set" style="display:none;margin-top:2px">
+        <div style="flex:1;display:flex;justify-content:center">
+          <div class="dc-score-btn" id="bscore-btn-tba" onclick="selectTournamentField('bscore-tba')" style="background:#fef9c3;border-color:#fcd34d;font-size:0.82rem;min-width:42px;height:42px">-</div>
+          <input type="hidden" id="bscore-tba" value="">
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:28px">
+          <span style="font-size:0.6rem;color:#d97706;font-weight:700">TB</span>
+          <span style="font-weight:800;color:#fcd34d;font-size:0.95rem">:</span>
+        </div>
+        <div style="flex:1;display:flex;justify-content:center">
+          <div class="dc-score-btn" id="bscore-btn-tbb" onclick="selectTournamentField('bscore-tbb')" style="background:#fef9c3;border-color:#fcd34d;font-size:0.82rem;min-width:42px;height:42px">-</div>
+          <input type="hidden" id="bscore-tbb" value="">
+        </div>
       </div>
-      <div id="score-tb-row" style="display:none;flex-direction:row;align-items:center;justify-content:center;gap:8px;margin-top:6px;margin-bottom:2px">
-        <span style="font-size:0.72rem;color:#d97706;font-weight:700;min-width:24px;text-align:right">TB</span>
-        <input type="text" id="score-tb0" class="score-field" placeholder="0" maxlength="2" inputmode="numeric" style="width:54px"
-          oninput="autoNextScore(this,'score-tb1')">
-        <span class="score-colon">:</span>
-        <input type="text" id="score-tb1" class="score-field" placeholder="0" maxlength="2" inputmode="numeric" style="width:54px"
-          onkeydown="if(event.key==='Enter')submitScore()">
+      <div class="dc-numpad">
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('1')">1</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('2')">2</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('3')">3</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('4')">4</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('5')">5</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('6')">6</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('7')">7</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('8')">8</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('9')">9</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('⌫')" style="font-size:1.4rem">⌫</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('0')">0</button>
+        <button class="dc-numpad-btn" style="background:#f1f5f9;border-color:#f1f5f9"></button>
       </div>
       <button class="confirm-btn" onclick="submitScore()">확인</button>
     </div>
@@ -3571,7 +3593,7 @@ async function renderRankingTab(){
   // ── 공통 헬퍼 ──
   function mkDetail(vsData,stats,mode,indent,bagelData){
     const style=indent?'margin-left:51px':'';
-    const showTabs=mode==='player'&&bagelData;
+    const showTabs=mode==='pair'&&bagelData;
     const tabsHtml=showTabs?`<div style="display:flex;gap:5px;margin-bottom:8px">
       <button class="rank-dtab${_rankDetailTab==='vs'?' active-vs':''}" onclick="switchRankDetailTab('vs')">📊 만만한 전적</button>
       <button class="rank-dtab${_rankDetailTab==='bagel'?' active-bagel':''}" onclick="switchRankDetailTab('bagel')">🥯 베이글 전적</button>
@@ -3580,8 +3602,8 @@ async function renderRankingTab(){
       const givenE=Object.entries(bagelData.given||{}).sort((a,b)=>b[1]-a[1]);
       const recvE=Object.entries(bagelData.received||{}).sort((a,b)=>b[1]-a[1]);
       const mkRankBagelRow=(entries,icon,color)=>entries.length
-        ?entries.map(([name,cnt])=>{const g=getGender(name),nc=g==='male'?'#2563eb':g==='female'?'#db2777':'#1e293b';
-          return `<div class="rank-detail-row"><span style="flex:1;color:${nc};font-weight:600">${icon} ${name}</span><span style="font-weight:800;color:${color}">×${cnt}</span></div>`;})
+        ?entries.map(([pk,cnt])=>{const op=stats[pk]||{};const nm=getPairDisplayName(op.players||pk.split('_'),op.nickname);
+          return `<div class="rank-detail-row"><span style="flex:1;font-weight:600">${icon} ${nm}</span><span style="font-weight:800;color:${color}">×${cnt}</span></div>`;})
           .join('')
         :`<p style="font-size:0.77rem;color:#94a3b8;text-align:center;margin:2px 0">기록 없음</p>`;
       const gt=givenE.reduce((s,[,c])=>s+c,0), rt=recvE.reduce((s,[,c])=>s+c,0);
@@ -3703,16 +3725,27 @@ async function renderRankingTab(){
     });
     html+=`</div>`;
 
+    // 베이글 탭 선택 시 페어 베이글 stats 로드
+    let bagelData=null;
+    if(_selectedRankKey && _rankDetailTab==='bagel'){
+      try{
+        const bs=await _getBagelStats(_selectedRankYear);
+        bagelData={given:bs.pairGiven[_selectedRankKey]||{},received:bs.pairReceived[_selectedRankKey]||{}};
+      }catch(e){console.error('_getBagelStats error',e);bagelData={given:{},received:{}};}
+    } else if(_selectedRankKey){
+      bagelData={};
+    }
+
     // 선택된 포디움 상세
     if(_selectedRankKey && pairs.slice(0,3).find(p=>p.key===_selectedRankKey))
-      html+=mkDetail(vsData,stats,'pair');
+      html+=mkDetail(vsData,stats,'pair',false,bagelData);
 
     // ── 4위 이하 ──
     if(pairs.length>3){
       html+=`<div class="rank-list-label">─ 4위 이하 ─</div>`;
       html+=pairs.slice(3).map((p,idx)=>{
         const isSel=p.key===_selectedRankKey;
-        const det=isSel?mkDetail(vsData,stats,'pair',true):'';
+        const det=isSel?mkDetail(vsData,stats,'pair',true,bagelData):'';
         const disp=`<span>${getPairDisplayName(p.players,p.nickname)}</span>`;
         return mkListItem(p.key,p.rank,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified);
       }).join('');
@@ -3781,17 +3814,6 @@ async function renderRankingTab(){
       return `<span style="font-size:0.68rem;color:#64748b;margin-left:4px">${mm}/${dd}</span>${isBirthMonth ? '<span class="birthday-pill" style="margin-left:4px">🎂 생일</span>' : ''}`;
     }
 
-    // 베이글 탭 선택 시 stats 미리 로드 (캐시 hit 시 즉시 반환)
-    let bagelData=null;
-    if(_selectedRankKey && _rankDetailTab==='bagel'){
-      try{
-        const bs=await _getBagelStats(_selectedRankYear);
-        bagelData={given:bs.given[_selectedRankKey]||{},received:bs.received[_selectedRankKey]||{}};
-      }catch(e){console.error('_getBagelStats error',e);bagelData={given:{},received:{}};}
-    } else if(_selectedRankKey){
-      bagelData={}; // 탭 버튼 표시를 위해 non-null 전달 (실제 데이터 없음)
-    }
-
     _playerRankShareData = players;
     let html=`<div class="rank-banner" style="position:relative"><div class="rank-banner-title">🏆 자미터 개인 랭킹</div><div class="rank-banner-sub">총 ${players.length}명 등록 · 클릭하면 상대 전적을 볼 수 있어요</div><div style="position:absolute;top:50%;right:10px;transform:translateY(-50%);display:flex;gap:6px;align-items:center"><button onclick="document.getElementById('rank-info-modal').classList.add('open')" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">i</button>${isAdmin()?`<button onclick="shareRanking('player')" style="display:inline-flex;align-items:center;gap:3px;padding:4px 9px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.4);background:rgba(255,255,255,0.15);color:#fff;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> 공유</button>`:''}</div></div>`;
 
@@ -3818,14 +3840,14 @@ async function renderRankingTab(){
     html+=`</div>`;
 
     if(_selectedRankKey && players.slice(0,3).find(p=>p.name===_selectedRankKey))
-      html+=mkDetail(vsData,stats,'player',false,bagelData);
+      html+=mkDetail(vsData,stats,'player',false);
 
     if(players.length>3){
       html+=`<div class="rank-list-label">─ 4위 이하 ─</div>`;
       html+=players.slice(3).map((p,idx)=>{
         const isSel=p.name===_selectedRankKey;
         const g=getGender(p.name),nc=g==='male'?'#2563eb':g==='female'?'#db2777':'#1e293b';
-        const det=isSel?mkDetail(vsData,stats,'player',true,bagelData):'';
+        const det=isSel?mkDetail(vsData,stats,'player',true):'';
         const disp=`<span style="color:${nc}">${p.name}</span>${bdayBadge(p.name)}`;
         return mkListItem(p.name,p.rank,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified);
       }).join('');
@@ -3862,17 +3884,17 @@ function _dailyBagelSides(sets){
 // 연도별 베이글 통계 계산 (캐시 사용)
 async function _getBagelStats(year){
   if(_bagelStatsCache[year]) return _bagelStatsCache[year];
-  if(!db) return {given:{},received:{}};
+  if(!db) return {pairGiven:{},pairReceived:{}};
   const snap=await db.ref('jmt/matches').once('value');
   const matches=snap.val()||{};
-  const given={}, received={};
+  const pairGiven={}, pairReceived={};
   const yr=String(year);
   const toArr=v=>Array.isArray(v)?v:(v&&typeof v==='object'?Object.values(v):[]);
   Object.values(matches).forEach(m=>{
     if(!m.team0||!m.team1) return;
     if(m.date&&!m.date.startsWith(yr)) return;
     const t0=toArr(m.team0), t1=toArr(m.team1);
-    if(!t0.length||!t1.length) return;
+    if(t0.length!==2||t1.length!==2) return;
     let b1=false, b0=false;
     if(m.sets&&(Array.isArray(m.sets)?m.sets.length:Object.keys(m.sets).length)>0){
       const arr=Array.isArray(m.sets)?m.sets:Object.values(m.sets);
@@ -3881,14 +3903,21 @@ async function _getBagelStats(year){
       if(parseInt(m.score0)===6&&parseInt(m.score1)===0) b1=true;
       if(parseInt(m.score0)===0&&parseInt(m.score1)===6) b0=true;
     }
-    const record=(givers,receivers)=>{
-      givers.forEach(p=>{ if(!given[p])given[p]={}; receivers.forEach(o=>{given[p][o]=(given[p][o]||0)+1;}); });
-      receivers.forEach(p=>{ if(!received[p])received[p]={}; givers.forEach(o=>{received[p][o]=(received[p][o]||0)+1;}); });
-    };
-    if(b1) record(t0,t1); // team0이 team1에게 베이글
-    if(b0) record(t1,t0); // team1이 team0에게 베이글
+    const pk0=getPairKey(t0[0],t0[1]), pk1=getPairKey(t1[0],t1[1]);
+    if(b1){ // team0이 team1에게 베이글
+      if(!pairGiven[pk0])pairGiven[pk0]={};
+      pairGiven[pk0][pk1]=(pairGiven[pk0][pk1]||0)+1;
+      if(!pairReceived[pk1])pairReceived[pk1]={};
+      pairReceived[pk1][pk0]=(pairReceived[pk1][pk0]||0)+1;
+    }
+    if(b0){ // team1이 team0에게 베이글
+      if(!pairGiven[pk1])pairGiven[pk1]={};
+      pairGiven[pk1][pk0]=(pairGiven[pk1][pk0]||0)+1;
+      if(!pairReceived[pk0])pairReceived[pk0]={};
+      pairReceived[pk0][pk1]=(pairReceived[pk0][pk1]||0)+1;
+    }
   });
-  _bagelStatsCache[year]={given,received};
+  _bagelStatsCache[year]={pairGiven,pairReceived};
   return _bagelStatsCache[year];
 }
 
@@ -4530,18 +4559,41 @@ function openModal(type,ri,mi) {
   document.getElementById('modal-round').textContent=`${type==='mixed'?'혼합복식':type==='mens'?'남자복식':type==='ladder'?'사다리 복식':'여자복식'} — ${rn[ri]}`;
   document.getElementById('team0-name').textContent=pairName(match.team0);
   document.getElementById('team1-name').textContent=pairName(match.team1);
-  document.getElementById('score0-input').value=match.score0||'';
-  document.getElementById('score1-input').value=match.score1||'';
-  const tbRow = document.getElementById('score-tb-row');
-  if (tbRow) tbRow.style.display = 'none';
-  document.getElementById('score-tb0').value = match.tb0 != null ? String(match.tb0) : '';
-  document.getElementById('score-tb1').value = match.tb1 != null ? String(match.tb1) : '';
-  if (match.tb0 != null) _checkTournamentTB();
+  // Reset all score buttons and inputs
+  ['a','b','tba','tbb'].forEach(s=>{
+    const btn=document.getElementById(`bscore-btn-${s}`);
+    const inp=document.getElementById(`bscore-${s}`);
+    if(btn){btn.textContent='-';btn.classList.remove('filled','active');}
+    if(inp) inp.value='';
+  });
+  const tbRow=document.getElementById('bscore-tb-row');
+  if(tbRow) tbRow.style.display='none';
+  // Pre-populate existing scores
+  if(match.score0!=null){
+    document.getElementById('bscore-a').value=String(match.score0);
+    const btnA=document.getElementById('bscore-btn-a');
+    if(btnA){btnA.textContent=match.score0;btnA.classList.add('filled');}
+  }
+  if(match.score1!=null){
+    document.getElementById('bscore-b').value=String(match.score1);
+    const btnB=document.getElementById('bscore-btn-b');
+    if(btnB){btnB.textContent=match.score1;btnB.classList.add('filled');}
+  }
+  if(match.tb0!=null){
+    document.getElementById('bscore-tba').value=String(match.tb0);
+    const btnTA=document.getElementById('bscore-btn-tba');
+    if(btnTA){btnTA.textContent=match.tb0;btnTA.classList.add('filled');}
+  }
+  if(match.tb1!=null){
+    document.getElementById('bscore-tbb').value=String(match.tb1);
+    const btnTB=document.getElementById('bscore-btn-tbb');
+    if(btnTB){btnTB.textContent=match.tb1;btnTB.classList.add('filled');}
+  }
+  if(match.tb0!=null) _checkTournamentTBNew();
   document.getElementById('score-side-0').className='score-side'+(match.winner===0?' winner-row':'');
   document.getElementById('score-side-1').className='score-side'+(match.winner===1?' winner-row':'');
   document.getElementById('score-modal').classList.add('open');
-  const f=match.score0?document.getElementById('score1-input'):document.getElementById('score0-input');
-  setTimeout(()=>f.focus(),80);
+  setTimeout(()=>selectTournamentField(match.score0!=null?'bscore-b':'bscore-a'),50);
 }
 
 function closeModal() {
@@ -4549,54 +4601,92 @@ function closeModal() {
   modalCtx=null;
 }
 
-let _autoNextTimer = null;
-function autoNextScore(el, nextId) {
-  clearTimeout(_autoNextTimer);
-  if (el.value.length >= el.maxLength) {
-    document.getElementById(nextId).focus();
-    document.getElementById(nextId).select();
-  } else if (el.value.length >= 1) {
-    _autoNextTimer = setTimeout(() => {
-      document.getElementById(nextId).focus();
-      document.getElementById(nextId).select();
-    }, 500);
+let _tScoreActive=null;
+let _tScoreAdvTimer=null;
+
+function _updateTScoreBtn(id,val){
+  const btn=document.getElementById('bscore-btn-'+id.replace('bscore-',''));
+  if(!btn) return;
+  btn.textContent=val||'-';
+  btn.classList.toggle('filled',!!val);
+}
+
+function selectTournamentField(id){
+  if(_tScoreAdvTimer){clearTimeout(_tScoreAdvTimer);_tScoreAdvTimer=null;}
+  if(_tScoreActive){
+    const prev=document.getElementById('bscore-btn-'+_tScoreActive.replace('bscore-',''));
+    if(prev) prev.classList.remove('active');
+  }
+  _tScoreActive=id;
+  const inp=document.getElementById(id);
+  if(inp) inp.value='';
+  const btn=document.getElementById('bscore-btn-'+id.replace('bscore-',''));
+  if(btn){btn.textContent='-';btn.classList.remove('filled');btn.classList.add('active');}
+}
+
+function _checkTournamentTBNew(){
+  const na=parseInt(document.getElementById('bscore-a')?.value);
+  const nb=parseInt(document.getElementById('bscore-b')?.value);
+  const tbRow=document.getElementById('bscore-tb-row');
+  if(!tbRow) return;
+  const needs=_isTBScore(na,nb);
+  tbRow.style.display=needs?'flex':'none';
+  if(!needs){
+    ['tba','tbb'].forEach(s=>{
+      const inp=document.getElementById(`bscore-${s}`);
+      const btn=document.getElementById(`bscore-btn-${s}`);
+      if(inp) inp.value='';
+      if(btn){btn.textContent='-';btn.classList.remove('filled');}
+    });
   }
 }
 
-function previewWinner() {
-  const s0=parseInt(document.getElementById('score0-input').value);
-  const s1=parseInt(document.getElementById('score1-input').value);
-  const r0=document.getElementById('score-side-0'), r1=document.getElementById('score-side-1');
-  if(!isNaN(s0)&&!isNaN(s1)&&s0!==s1){
-    r0.className='score-side'+(s0>s1?' winner-row':'');
-    r1.className='score-side'+(s1>s0?' winner-row':'');
-  } else { r0.className='score-side'; r1.className='score-side'; }
+function _tScoreAdvance(){
+  _tScoreAdvTimer=null;
+  if(!_tScoreActive) return;
+  if(_tScoreActive==='bscore-a'){
+    selectTournamentField('bscore-b');
+  } else if(_tScoreActive==='bscore-b'){
+    _checkTournamentTBNew();
+    const tbRow=document.getElementById('bscore-tb-row');
+    if(tbRow&&tbRow.style.display!=='none') selectTournamentField('bscore-tba');
+  } else if(_tScoreActive==='bscore-tba'){
+    selectTournamentField('bscore-tbb');
+  }
 }
 
-function _checkTournamentTB() {
-  const s0 = parseInt(document.getElementById('score0-input').value);
-  const s1 = parseInt(document.getElementById('score1-input').value);
-  const tbRow = document.getElementById('score-tb-row');
-  if (!tbRow) return;
-  const needs = _isTBScore(s0, s1);
-  const wasVisible = tbRow.style.display === 'flex';
-  tbRow.style.display = needs ? 'flex' : 'none';
-  if (!needs) {
-    document.getElementById('score-tb0').value = '';
-    document.getElementById('score-tb1').value = '';
-  } else if (!wasVisible) {
-    // TB 행이 새로 나타남 → 자동으로 TB0에 포커스
-    setTimeout(() => {
-      const tb0 = document.getElementById('score-tb0');
-      if (tb0) { tb0.focus(); tb0.select(); }
-    }, 80);
+function numpadTournamentInput(val){
+  if(!_tScoreActive) return;
+  const inp=document.getElementById(_tScoreActive);
+  if(!inp) return;
+  if(_tScoreAdvTimer){clearTimeout(_tScoreAdvTimer);_tScoreAdvTimer=null;}
+  if(val==='⌫'){
+    inp.value=inp.value.slice(0,-1);
+  } else {
+    if(inp.value.length>=2) inp.value=val;
+    else inp.value+=val;
+  }
+  _updateTScoreBtn(_tScoreActive,inp.value);
+  if(_tScoreActive==='bscore-a'||_tScoreActive==='bscore-b'){
+    const s0=parseInt(document.getElementById('bscore-a').value);
+    const s1=parseInt(document.getElementById('bscore-b').value);
+    const r0=document.getElementById('score-side-0'),r1=document.getElementById('score-side-1');
+    if(!isNaN(s0)&&!isNaN(s1)&&s0!==s1){
+      r0.className='score-side'+(s0>s1?' winner-row':'');
+      r1.className='score-side'+(s1>s0?' winner-row':'');
+    } else {r0.className='score-side';r1.className='score-side';}
+    if(_tScoreActive==='bscore-b') _checkTournamentTBNew();
+  }
+  if(val!=='⌫'&&inp.value.length>0){
+    if(inp.value.length>=2) _tScoreAdvance();
+    else _tScoreAdvTimer=setTimeout(_tScoreAdvance,800);
   }
 }
 
 function submitScore() {
   if(!modalCtx)return;
-  const s0=document.getElementById('score0-input').value.trim();
-  const s1=document.getElementById('score1-input').value.trim();
+  const s0=document.getElementById('bscore-a').value.trim();
+  const s1=document.getElementById('bscore-b').value.trim();
   if(!s0||!s1){alert('두 팀의 점수를 입력하세요.');return;}
   const n0=parseInt(s0),n1=parseInt(s1);
   if(isNaN(n0)||isNaN(n1)){alert('숫자를 입력하세요.');return;}
@@ -4604,11 +4694,11 @@ function submitScore() {
   const {type,ri,mi}=modalCtx;
   const t=state.tournaments[type], match=t.rounds[ri][mi];
   // TB 점수 수집
-  const tbRow = document.getElementById('score-tb-row');
+  const tbRow = document.getElementById('bscore-tb-row');
   let tb0 = null, tb1 = null;
   if (tbRow && tbRow.style.display !== 'none') {
-    const tv0 = parseInt(document.getElementById('score-tb0').value);
-    const tv1 = parseInt(document.getElementById('score-tb1').value);
+    const tv0 = parseInt(document.getElementById('bscore-tba').value);
+    const tv1 = parseInt(document.getElementById('bscore-tbb').value);
     if (!isNaN(tv0) && !isNaN(tv1)) { tb0 = tv0; tb1 = tv1; }
   }
   const isNewScore = !match.score0; // 첫 입력 여부
