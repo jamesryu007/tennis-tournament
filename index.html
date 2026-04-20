@@ -928,6 +928,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
             <div class="card-title" style="margin-bottom:0">🔀 혼합복식</div>
             <span id="mixed-status" class="status-badge badge-active">진행중</span>
           </div>
+          <div id="mixed-meta" style="font-size:0.72rem;color:#64748b;margin:-4px 0 8px;display:none"></div>
           <div class="bracket-container"><div class="bracket-svg-wrap" id="mixed-bracket"></div></div>
           <div class="scroll-hint" id="mixed-hint"></div>
         </div>
@@ -955,6 +956,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
             <div class="card-title" style="margin-bottom:0">👨 남자복식</div>
             <span id="mens-status" class="status-badge badge-active">진행중</span>
           </div>
+          <div id="mens-meta" style="font-size:0.72rem;color:#64748b;margin:-4px 0 8px;display:none"></div>
           <div class="bracket-container"><div class="bracket-svg-wrap" id="mens-bracket"></div></div>
           <div class="scroll-hint" id="mens-hint"></div>
         </div>
@@ -982,6 +984,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
             <div class="card-title" style="margin-bottom:0">👩 여자복식</div>
             <span id="womens-status" class="status-badge badge-active">진행중</span>
           </div>
+          <div id="womens-meta" style="font-size:0.72rem;color:#64748b;margin:-4px 0 8px;display:none"></div>
           <div class="bracket-container"><div class="bracket-svg-wrap" id="womens-bracket"></div></div>
           <div class="scroll-hint" id="womens-hint"></div>
         </div>
@@ -1009,10 +1012,12 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
             <div class="card-title" style="margin-bottom:0">🪜 사다리 복식</div>
             <div style="display:flex;align-items:center;gap:8px">
               <span id="ladder-status" class="status-badge badge-active">진행중</span>
+
               <button onclick="shareLadderBracket()" style="padding:4px 10px;border-radius:8px;border:1.5px solid #bae6fd;background:#f0f9ff;color:#0284c7;font-size:0.72rem;font-weight:700;cursor:pointer">📤 공유</button>
               <button id="ladder-end-btn" onclick="endLadderTournament()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #ef4444;background:#fff;color:#ef4444;font-size:0.72rem;font-weight:700;cursor:pointer">대회 종료</button>
             </div>
           </div>
+          <div id="ladder-meta" style="font-size:0.72rem;color:#64748b;margin:-4px 0 8px;display:none"></div>
           <div class="bracket-container"><div class="bracket-svg-wrap" id="ladder-bracket"></div></div>
           <div class="scroll-hint" id="ladder-hint"></div>
         </div>
@@ -4454,6 +4459,23 @@ function roundNames(n) {
   });
 }
 
+// 대진표 제목+날짜 메타 (Firebase 접근 없음 — 메모리 전용)
+function _getTournamentMeta(type) {
+  if (type === 'ladder') {
+    return {
+      title: (typeof _ladderState !== 'undefined' && _ladderState && _ladderState.title) || '',
+      date:  new Date().toISOString().slice(0, 10)
+    };
+  }
+  const rec = state.currentHistoryId
+    ? state.history.find(r => String(r.id) === String(state.currentHistoryId))
+    : null;
+  return {
+    title: rec ? (rec.name || '') : '',
+    date:  rec ? (rec.date  || '') : ''
+  };
+}
+
 function renderTournament(type, opts) {
   const prefix=(opts&&opts.prefix)||type;
   const t=(opts&&opts.data)||state.tournaments[type]; if(!t)return;
@@ -4540,6 +4562,8 @@ function renderTournament(type, opts) {
 
   const stEl=document.getElementById(`${prefix}-status`);
   if(stEl){ stEl.className='status-badge '+(t.champion?'badge-done':'badge-active'); stEl.textContent=t.champion?'완료':'진행중'; }
+  const metaEl=document.getElementById(`${prefix}-meta`);
+  if(metaEl){ const m=_getTournamentMeta(type); const parts=[m.title,m.date].filter(Boolean); if(parts.length){metaEl.textContent=parts.join(' · ');metaEl.style.display='';}else metaEl.style.display='none'; }
   // 사다리 복식 대회 종료 버튼: 관리자에게만, 진행중일 때만 표시
   if(type==='ladder' && !opts) {
     const endBtn=document.getElementById('ladder-end-btn');
@@ -4558,9 +4582,13 @@ function renderAwards(type,opts) {
   const el=document.getElementById(`${prefix}-awards`);
   if(!t||!t.champion){if(el)el.classList.remove('visible');return;}
   const tn=type==='mixed'?'혼합복식':type==='mens'?'남자복식':type==='ladder'?'사다리 복식':'여자복식';
+  const _am=_getTournamentMeta(type);
+  const _amParts=[_am.title,_am.date].filter(Boolean);
+  const _amLine=_amParts.length?`<div style="font-size:0.72rem;color:#92400e;margin-bottom:6px">${_amParts.join(' · ')}</div>`:'';
   el.innerHTML=`<div class="card" style="border-color:#fcd34d;background:linear-gradient(135deg,#fffbeb,#fefce8);margin-bottom:10px">
     <div class="award-podium">
       <span class="award-trophy">🏆</span>
+      ${_amLine}
       <div class="award-title">🥇 우승</div>
       <div class="award-names" style="color:#d97706;font-weight:700">${pairName(t.champion)}</div>
       ${t.runnerUp?`<div class="award-second">
@@ -4775,7 +4803,9 @@ function submitScore() {
         const num = Object.keys(_dailyCards).length + 1;
         const _tLabel = {mixed:'혼합복식', mens:'남자복식', womens:'여자복식', ladder:'사다리 복식'};
         const _rLabel = roundNames(t.rounds.length)[ri] || '';
-        const cardLabel = (_tLabel[type] || type) + (_rLabel ? ' ' + _rLabel : '');
+        const _lm = _getTournamentMeta(type);
+        const _lDate = _lm.date ? _lm.date.slice(5).replace('-','/') : '';
+        const cardLabel = [_tLabel[type]||type, _lm.title, _lDate, _rLabel].filter(Boolean).join(' ');
         db.ref(`jmt/dailyCards/${newKey}`).set({
           phase: 'done', team0: t0, team1: t1, sets, winner, bgImage, num,
           matchKey: newKey, source: type + '-bracket', scoredAt: Date.now(), label: cardLabel
