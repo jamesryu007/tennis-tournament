@@ -2,16 +2,79 @@
   "rules": {
     "jmt": {
       ".read": true,
-      "$key": {
-        ".write": "$key !== 'atpNews'"
+      "atpNews": {
+        ".write": false
+      },
+      "matches": {
+        ".write": true,
+        ".indexOn": "date"
+      },
+      "dailyCards": {
+        ".write": true
+      },
+      "pairStats": {
+        ".write": true
+      },
+      "playerStats": {
+        ".write": true
+      },
+      "pairMatchups": {
+        ".write": true
+      },
+      "playerMatchups": {
+        ".write": true
+      },
+      "activeState": {
+        ".write": true
+      },
+      "history": {
+        ".write": true
+      },
+      "members": {
+        ".write": true
+      },
+      "poll": {
+        ".write": true
+      },
+      "pollState": {
+        ".write": true
+      },
+      "fcmTokens": {
+        ".write": true
+      },
+      "lastFinished": {
+        ".write": true
       },
       "lastGrandSlam": {
         ".write": true,
         ".indexOn": "savedAt"
       },
-      "matches": {
-        ".write": true,
-        ".indexOn": "date"
+      "ladderState": {
+        ".write": true
+      },
+      "ladderLastResult": {
+        ".write": true
+      },
+      "bombRooms": {
+        ".write": true
+      },
+      "atpBets": {
+        ".write": true
+      },
+      "atpBetsHistory": {
+        ".write": true
+      },
+      "betHistory": {
+        ".write": true
+      },
+      "guests": {
+        ".write": true
+      },
+      "pairNicknames": {
+        ".write": true
+      },
+      "$other": {
+        ".write": "$other !== 'atpNews'"
       }
     },
     "$other": {

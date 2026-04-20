@@ -210,6 +210,13 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .dc-sc-l { color:#f87171; }
 .dc-sc-d { color:#fff; }
 .dc-sc-sep { color:rgba(255,255,255,0.4); font-size:0.65rem; }
+.bagel-char-img { width:52px; height:auto; display:block; margin:0 auto 2px; animation:bagelPop 0.45s cubic-bezier(.36,1.56,.64,1) both; }
+.bagel-badge { display:inline-block; font-size:0.62rem; font-weight:800; color:#b45309; background:linear-gradient(135deg,#fef3c7,#fde68a); border:1.5px solid #fcd34d; border-radius:20px; padding:1px 7px; margin-bottom:2px; animation:bagelPop 0.45s cubic-bezier(.36,1.56,.64,1) both; white-space:nowrap; }
+@keyframes bagelPop { 0%{transform:scale(0.5) rotate(-8deg);opacity:0} 80%{transform:scale(1.1) rotate(2deg)} 100%{transform:scale(1) rotate(0);opacity:1} }
+.bagel-badge-sm { font-size:0.75em; margin-left:2px; vertical-align:middle; }
+.rank-dtab { flex:1; padding:5px 4px; border-radius:8px; border:1.5px solid #e2e8f0; font-size:0.68rem; font-weight:700; cursor:pointer; background:#f8fafc; color:#94a3b8; transition:all 0.15s; }
+.rank-dtab.active-vs  { background:#eff6ff; border-color:#93c5fd; color:#2563eb; }
+.rank-dtab.active-bagel { background:#fef3c7; border-color:#fcd34d; color:#b45309; }
 .dc-set-divider { width:24px; height:1px; background:rgba(255,255,255,0.2); margin:1px 0; }
 /* WIN/LOSE 배지 - 캐러셀 cc-badge 동일 */
 .dc-win-badge  { background:#fff; color:#059669; font-size:0.7rem; font-weight:900; border-radius:20px; padding:4px 11px; box-shadow:0 2px 8px rgba(0,0,0,0.35); white-space:nowrap; }
@@ -228,6 +235,51 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .dc-numpad { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px 0; }
 .dc-numpad-btn { padding:14px 0; font-size:1.15rem; font-weight:700; border:1.5px solid #e2e8f0; border-radius:10px; background:#f8fafc; cursor:pointer; text-align:center; -webkit-tap-highlight-color:transparent; box-shadow:0 4px 0 #d1d5db; transition:transform 0.08s, box-shadow 0.08s, background 0.08s; }
 .dc-numpad-btn:active { transform:translateY(3px); box-shadow:0 1px 0 #d1d5db; background:#e2e8f0; }
+/* ── Pull-to-Refresh 공통 ── */
+#ptr-pill {
+  position: fixed;
+  top: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 20px 10px 14px;
+  background: rgba(255,255,255,0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 100px;
+  box-shadow: 0 6px 28px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+  z-index: 9998;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: top 0.32s cubic-bezier(0.34,1.28,0.64,1);
+  border: 1.5px solid rgba(59,130,246,0.15);
+}
+#ptr-pill.visible { top: calc(env(safe-area-inset-top, 0px) + 14px); }
+.ptr-icon-wrap {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(59,130,246,0.4);
+  font-size: 1rem;
+  transition: transform 0.25s;
+}
+.ptr-icon-wrap.rotate180 { transform: rotate(180deg); }
+@keyframes ptr-spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@keyframes ptr-pop { 0%{transform:scale(0.7)} 60%{transform:scale(1.15)} 100%{transform:scale(1)} }
+.ptr-icon-wrap.spinning { animation: ptr-spin 0.7s linear infinite; }
+.ptr-icon-wrap.done-pop {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  animation: ptr-pop 0.35s ease;
+  box-shadow: 0 2px 8px rgba(22,163,74,0.4);
+}
+#ptr-text { transition: opacity 0.15s; }
 /* ── RANKING 전면 리디자인 ── */
 /* 연도 선택 */
 .rank-year-row { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
@@ -1374,11 +1426,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <!-- ══ PAGE: 출첵 ══ -->
 <div class="page" id="page-checkin">
 
-  <!-- 모임 영상 프레임 -->
-  <div style="margin-bottom:14px;border-radius:18px;overflow:hidden;box-shadow:0 4px 20px rgba(37,99,235,0.13),0 1px 4px rgba(0,0,0,0.08);background:#000;border:1px solid #e2e8f0;position:relative;">
-    <video id="team-video" autoplay muted loop playsinline
+  <!-- 모임 사진 프레임 -->
+  <div onclick="changeCheckinPhotoRandom()" style="margin-bottom:14px;border-radius:18px;overflow:hidden;box-shadow:0 4px 20px rgba(37,99,235,0.13),0 1px 4px rgba(0,0,0,0.08);background:#000;border:1px solid #e2e8f0;position:relative;cursor:pointer;-webkit-tap-highlight-color:transparent">
+    <img id="checkin-photo" src=""
       style="width:100%;display:block;max-height:220px;object-fit:cover;object-position:center;">
-    </video>
     <!-- 하단 그라디언트 오버레이 -->
     <div style="position:absolute;bottom:0;left:0;right:0;height:72px;background:linear-gradient(to top,rgba(15,23,42,0.72),transparent);pointer-events:none;"></div>
     <!-- 텍스트 오버레이 -->
@@ -1614,30 +1665,52 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <span id="modal-round" class="modal-round"></span>
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
-    <div class="score-entry">
+    <div style="padding:14px 16px">
       <div class="score-matchup">
-        <div id="score-side-0" class="score-side">
-          <div id="team0-name" class="score-team-label"></div>
-        </div>
+        <div id="score-side-0" class="score-side"><div id="team0-name" class="score-team-label"></div></div>
         <div class="score-vs-mid">VS</div>
-        <div id="score-side-1" class="score-side">
-          <div id="team1-name" class="score-team-label"></div>
+        <div id="score-side-1" class="score-side"><div id="team1-name" class="score-team-label"></div></div>
+      </div>
+      <div class="dc-score-set" style="margin:12px 0 0">
+        <div style="flex:1;display:flex;justify-content:center">
+          <div class="dc-score-btn" id="bscore-btn-a" onclick="selectTournamentField('bscore-a')">-</div>
+          <input type="hidden" id="bscore-a" value="">
+        </div>
+        <div style="display:flex;align-items:center;min-width:28px;justify-content:center">
+          <span style="font-weight:800;color:#cbd5e1;font-size:1.1rem">:</span>
+        </div>
+        <div style="flex:1;display:flex;justify-content:center">
+          <div class="dc-score-btn" id="bscore-btn-b" onclick="selectTournamentField('bscore-b')">-</div>
+          <input type="hidden" id="bscore-b" value="">
         </div>
       </div>
-      <div class="score-inputs-row">
-        <input type="text" id="score0-input" class="score-field" placeholder="0" maxlength="2" inputmode="numeric"
-          oninput="autoNextScore(this,'score1-input');previewWinner();_checkTournamentTB()">
-        <span class="score-colon">:</span>
-        <input type="text" id="score1-input" class="score-field" placeholder="0" maxlength="2" inputmode="numeric"
-          oninput="previewWinner();_checkTournamentTB()" onkeydown="if(event.key==='Enter')submitScore()">
+      <div id="bscore-tb-row" class="dc-score-set" style="display:none;margin-top:2px">
+        <div style="flex:1;display:flex;justify-content:center">
+          <div class="dc-score-btn" id="bscore-btn-tba" onclick="selectTournamentField('bscore-tba')" style="background:#fef9c3;border-color:#fcd34d;font-size:0.82rem;min-width:42px;height:42px">-</div>
+          <input type="hidden" id="bscore-tba" value="">
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:28px">
+          <span style="font-size:0.6rem;color:#d97706;font-weight:700">TB</span>
+          <span style="font-weight:800;color:#fcd34d;font-size:0.95rem">:</span>
+        </div>
+        <div style="flex:1;display:flex;justify-content:center">
+          <div class="dc-score-btn" id="bscore-btn-tbb" onclick="selectTournamentField('bscore-tbb')" style="background:#fef9c3;border-color:#fcd34d;font-size:0.82rem;min-width:42px;height:42px">-</div>
+          <input type="hidden" id="bscore-tbb" value="">
+        </div>
       </div>
-      <div id="score-tb-row" style="display:none;flex-direction:row;align-items:center;justify-content:center;gap:8px;margin-top:6px;margin-bottom:2px">
-        <span style="font-size:0.72rem;color:#d97706;font-weight:700;min-width:24px;text-align:right">TB</span>
-        <input type="text" id="score-tb0" class="score-field" placeholder="0" maxlength="2" inputmode="numeric" style="width:54px"
-          oninput="autoNextScore(this,'score-tb1')">
-        <span class="score-colon">:</span>
-        <input type="text" id="score-tb1" class="score-field" placeholder="0" maxlength="2" inputmode="numeric" style="width:54px"
-          onkeydown="if(event.key==='Enter')submitScore()">
+      <div class="dc-numpad">
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('1')">1</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('2')">2</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('3')">3</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('4')">4</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('5')">5</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('6')">6</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('7')">7</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('8')">8</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('9')">9</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('⌫')" style="font-size:1.4rem">⌫</button>
+        <button class="dc-numpad-btn" onclick="numpadTournamentInput('0')">0</button>
+        <button class="dc-numpad-btn" style="background:#f1f5f9;border-color:#f1f5f9"></button>
       </div>
       <button class="confirm-btn" onclick="submitScore()">확인</button>
     </div>
@@ -2751,53 +2824,34 @@ function _saveCardToFirebase(id){
   db.ref(`jmt/dailyCards/${id}`).set(_dailyCards[id]).catch(()=>{});
 }
 
+function _normCard(data){
+  data.sets=Array.isArray(data.sets)?data.sets:(data.sets?Object.values(data.sets):[]);
+  data.team0=Array.isArray(data.team0)?data.team0:(data.team0?Object.values(data.team0):[]);
+  data.team1=Array.isArray(data.team1)?data.team1:(data.team1?Object.values(data.team1):[]);
+  data.bgImage=data.bgImage||'images/ca1.png';
+  return data;
+}
+
 function _setupDailyCardsListener(){
   if(_dailyCardsListenerSet||!db) return;
   _dailyCardsListenerSet=true;
   db.ref('jmt/dailyCards').once('value').then(snap=>{
-    if(!snap.val()||Object.keys(snap.val()).length===0) addDailyMatchCard();
-  });
-  db.ref('jmt/dailyCards').on('child_added',snap=>{
-    const id=snap.key, data=snap.val();
-    data.sets=Array.isArray(data.sets)?data.sets:(data.sets?Object.values(data.sets):[]);
-    data.team0=Array.isArray(data.team0)?data.team0:(data.team0?Object.values(data.team0):[]);
-    data.team1=Array.isArray(data.team1)?data.team1:(data.team1?Object.values(data.team1):[]);
-    data.bgImage=data.bgImage||'images/ca1.png';
-    _dailyCards[id]=data;
+    const all=snap.val()||{};
     const container=document.getElementById('daily-match-cards');
-    if(container&&!document.getElementById(`daily-card-${id}`)){
-      const el=document.createElement('div');
-      el.id=`daily-card-${id}`;
-      el.dataset.num=data.num||0;
-      container.appendChild(el);
-      // num 순서대로 DOM 정렬
-      Array.from(container.children).sort((a,b)=>parseInt(a.dataset.num||0)-parseInt(b.dataset.num||0))
-        .forEach(ch=>container.appendChild(ch));
-    }
-    _renderDailyCard(id);
-    if(_pendingScrollKey===id){
-      _pendingScrollKey=null;
-      setTimeout(()=>{
-        const el=document.getElementById(`daily-card-${id}`);
-        if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
-      },50);
-    }
-  });
-  db.ref('jmt/dailyCards').on('child_changed',snap=>{
-    const id=snap.key;
-    const data=snap.val();
-    data.sets=Array.isArray(data.sets)?data.sets:(data.sets?Object.values(data.sets):[]);
-    data.team0=Array.isArray(data.team0)?data.team0:(data.team0?Object.values(data.team0):[]);
-    data.team1=Array.isArray(data.team1)?data.team1:(data.team1?Object.values(data.team1):[]);
-    data.bgImage=data.bgImage||'images/ca1.png';
-    _dailyCards[id]=data;
-    _renderDailyCard(id);
-  });
-  db.ref('jmt/dailyCards').on('child_removed',snap=>{
-    const id=snap.key;
-    delete _dailyCards[id];
-    const el=document.getElementById(`daily-card-${id}`);
-    if(el) el.remove();
+    if(Object.keys(all).length===0){ addDailyMatchCard(); return; }
+    Object.entries(all)
+      .sort((a,b)=>((a[1].num||0)-(b[1].num||0)))
+      .forEach(([id,raw])=>{
+        const data=_normCard(raw);
+        _dailyCards[id]=data;
+        if(container&&!document.getElementById(`daily-card-${id}`)){
+          const el=document.createElement('div');
+          el.id=`daily-card-${id}`;
+          el.dataset.num=data.num||0;
+          container.appendChild(el);
+        }
+        _renderDailyCard(id);
+      });
   });
 }
 
@@ -2901,6 +2955,10 @@ function _renderDailyCard(id){
     const isDraw=d.winner===-1;
     const t0win=d.winner===0, t1win=d.winner===1;
     const t0=_getTeamDisplay(d.team0), t1=_getTeamDisplay(d.team1);
+    // 베이글(6:0) 체크
+    const bagelSides=_dailyBagelSides(d.sets);
+    const l0Bagel=!isDraw&&bagelSides.has(0)?'<div class="bagel-badge">🥯 베이글!</div>':'';
+    const r1Bagel=!isDraw&&bagelSides.has(1)?'<div class="bagel-badge">🥯 베이글!</div>':'';
     // 점수는 입력 순서 그대로 (team0:team1)
     const scoreItems=d.sets.map((s,i)=>{
       const hasTB=s.tb0!=null&&s.tb1!=null;
@@ -2925,12 +2983,14 @@ function _renderDailyCard(id){
     const r1Badge=isDraw?'<span class="dc-draw-badge">무승부</span>':t1win?'<span class="dc-win-badge">WIN 🏆</span>':'<span class="dc-lose-badge">LOSE</span>';
     const left=`<div class="dc-team-left${t0win?' win':''}" onclick="openDailyScore('${id}')" style="cursor:pointer">
       ${l0Emoji}
+      ${l0Bagel}
       <div class="dc-tnick">${t0.nick}</div>
       <div class="dc-tmembers">${t0.memberStr}</div>
       ${l0Badge}
     </div>`;
     const right=`<div class="dc-team-right" onclick="openDailyScore('${id}')" style="cursor:pointer">
       ${r1Emoji}
+      ${r1Bagel}
       <div class="dc-tnick">${t1.nick}</div>
       <div class="dc-tmembers">${t1.memberStr}</div>
       ${r1Badge}
@@ -3311,7 +3371,7 @@ async function saveDailyScore(){
     if(!d.scoredAt) d.scoredAt=Date.now(); // 최초 점수 등록 시각 기록
     if(d.matchKey){
       const oldWinner=d.winner; // 이전 결과 (undefined이면 아직 통계 미적용)
-      await db.ref('jmt/matches/'+d.matchKey).update({sets,winner,date:today});
+      await db.ref('jmt/matches/'+d.matchKey).update({sets,winner,date:today,team0,team1});
       if(oldWinner!==undefined){
         await reverseMatchStats(team0,team1,oldWinner); // 이전 통계 취소
       }
@@ -3340,6 +3400,7 @@ async function saveDailyScore(){
     // 랭킹 캐시 무효화 → 점수 저장 시 랭킹 즉시 반영
     delete _rankStatsCache[`player_${_selectedRankYear}`];
     delete _rankStatsCache[`pair_${_selectedRankYear}`];
+    delete _bagelStatsCache[_selectedRankYear];
     renderRankingTab();
     if (winner === 0 || winner === 1) {
       const wTeam = winner === 0 ? d.team0 : d.team1;
@@ -3490,9 +3551,10 @@ function renderRankYearRow(){
 }
 
 function setRankingYear(year){
-  _selectedRankYear=year;_selectedRankKey=null;
+  _selectedRankYear=year;_selectedRankKey=null;_rankDetailTab='vs';
   delete _rankStatsCache[`player_${year}`];
   delete _rankStatsCache[`pair_${year}`];
+  delete _bagelStatsCache[year];
   renderRankYearRow();
   renderRankingTab();
 }
@@ -3503,6 +3565,8 @@ let _rankingMode='player';
 let _selectedRankKey=null;
 const _rankStatsCache={};  // { 'player_2025': stats, 'pair_2025': stats }
 const _rankVsCache={};     // { 'player_2025_김철수': vsData }
+let _rankDetailTab='vs';   // 'vs' | 'bagel'
+const _bagelStatsCache={}; // { 2026: { given:{player:{opp:n}}, received:{...} } }
 let _playerRankShareData=[];  // 공유용 캐시
 let _pairRankShareData=[];
 
@@ -3535,7 +3599,7 @@ async function loadRankingTop3(){
 }
 
 function setRankingMode(mode){
-  _rankingMode=mode;_selectedRankKey=null;
+  _rankingMode=mode;_selectedRankKey=null;_rankDetailTab='vs';
   document.getElementById('rtog-pair').className='rank-toggle-btn'+(mode==='pair'?' active':'');
   document.getElementById('rtog-player').className='rank-toggle-btn'+(mode==='player'?' active':'');
   document.getElementById('rtog-attendance').className='rank-toggle-btn'+(mode==='attendance'?' active':'');
@@ -3552,7 +3616,29 @@ async function renderRankingTab(){
   if(!hasStatsCache) el.innerHTML='<div style="text-align:center;padding:20px;color:#94a3b8;font-size:0.85rem">불러오는 중...</div>';
 
   // ── 공통 헬퍼 ──
-  function mkDetail(vsData,stats,mode,indent){
+  function mkDetail(vsData,stats,mode,indent,bagelData){
+    const style=indent?'margin-left:51px':'';
+    const showTabs=mode==='pair'&&bagelData;
+    const tabsHtml=showTabs?`<div style="display:flex;gap:5px;margin-bottom:8px">
+      <button class="rank-dtab${_rankDetailTab==='vs'?' active-vs':''}" onclick="switchRankDetailTab('vs')">📊 만만한 전적</button>
+      <button class="rank-dtab${_rankDetailTab==='bagel'?' active-bagel':''}" onclick="switchRankDetailTab('bagel')">🥯 베이글 전적</button>
+    </div>` : '';
+    if(showTabs&&_rankDetailTab==='bagel'){
+      const givenE=Object.entries(bagelData.given||{}).sort((a,b)=>b[1]-a[1]);
+      const recvE=Object.entries(bagelData.received||{}).sort((a,b)=>b[1]-a[1]);
+      const mkRankBagelRow=(entries,icon,color)=>entries.length
+        ?entries.map(([pk,cnt])=>{const op=stats[pk]||{};const nm=getPairDisplayName(op.players||pk.split('_'),op.nickname);
+          return `<div class="rank-detail-row"><span style="flex:1;font-weight:600">${icon} ${nm}</span><span style="font-weight:800;color:${color}">×${cnt}</span></div>`;})
+          .join('')
+        :`<p style="font-size:0.77rem;color:#94a3b8;text-align:center;margin:2px 0">기록 없음</p>`;
+      const gt=givenE.reduce((s,[,c])=>s+c,0), rt=recvE.reduce((s,[,c])=>s+c,0);
+      return `<div class="rank-detail" style="${style}">${tabsHtml}
+        <div style="font-size:0.7rem;font-weight:800;color:#16a34a;margin-bottom:4px">⚡ 베이글 먹임 총 ${gt}개</div>
+        ${mkRankBagelRow(givenE,'🥯→','#16a34a')}
+        <div style="font-size:0.7rem;font-weight:800;color:#dc2626;margin:8px 0 4px">😵 베이글 먹음 총 ${rt}개</div>
+        ${mkRankBagelRow(recvE,'→🥯','#dc2626')}
+      </div>`;
+    }
     const title=mode==='pair'?'📊 만만한 팀 전적 순위':'📊 만만한 선수 전적 순위';
     const vs=Object.entries(vsData).filter(([k,v])=>(v.wins||0)+(v.draws||0)+(v.losses||0)>=1)
       .map(([k,v])=>{
@@ -3562,8 +3648,7 @@ async function renderRankingTab(){
         const og=getGender(k),oc=og==='male'?'#2563eb':og==='female'?'#db2777':'#1e293b';
         return{disp:`<span style="color:${oc};font-weight:600">${k}</span>`,wins:w,draws:dr,losses:l,wr:vr};
       }).sort((a,b)=>b.wr-a.wr);
-    const style=indent?'margin-left:51px':'';
-    return `<div class="rank-detail" style="${style}"><div class="rank-detail-title">${title}</div>${
+    return `<div class="rank-detail" style="${style}">${tabsHtml}<div class="rank-detail-title">${title}</div>${
       vs.length?vs.map(v=>`<div class="rank-detail-row"><span style="flex:1">${v.disp}</span><span style="color:#16a34a;font-weight:700;min-width:28px">${v.wins}승</span>${v.draws?`<span style="color:#f59e0b;font-weight:700;min-width:24px">${v.draws}무</span>`:''}<span style="color:#dc2626;font-weight:700;min-width:28px">${v.losses}패</span><span style="font-size:0.82rem;font-weight:800;min-width:38px;text-align:right;color:${v.wr>=50?'#16a34a':'#dc2626'}">${v.wr}%</span></div>`).join('')
       :'<p style="font-size:0.78rem;color:#94a3b8;text-align:center;margin:4px 0 0">상대 기록 없음</p>'
     }</div>`;
@@ -3654,9 +3739,10 @@ async function renderRankingTab(){
       const autoNick=(a[0]||'?')+(b[0]||'?')+'팀';
       const nick=p.nickname||autoNick;
       const wdl=p.draws?`${p.wins}승 ${p.draws}무 ${p.losses}패`:`${p.wins}승 ${p.losses}패`;
+      const podBagelIcon=_hasBagel(p.key)?'<span style="font-size:0.8em;margin-left:3px">🥯</span>':'';
       html+=`<div class="rank-pod ${podCls[i]}${isSel?' selected':''}" onclick="toggleRankDetail('${p.key}')">
         <div class="rank-pod-medal">${medals[(p.rank||1)-1]||medals[i]}</div>
-        <div class="rank-pod-nick">${nick}</div>
+        <div class="rank-pod-nick">${nick}${podBagelIcon}</div>
         <div class="rank-pod-members">${a}-${b}</div>
         <div class="rank-pod-wr ${wr>=50?'hot':'cold'}">${wr}%</div>
         <div class="rank-pod-wl">${wdl}</div>
@@ -3665,17 +3751,38 @@ async function renderRankingTab(){
     });
     html+=`</div>`;
 
+    // 베이글 아이콘 + 탭용 전체 stats 로드 (캐시 우선)
+    let _allBagelStats = _bagelStatsCache[_selectedRankYear] || null;
+    if (!_allBagelStats) {
+      try { _allBagelStats = await _getBagelStats(_selectedRankYear); } catch(e) {}
+    }
+    function _hasBagel(pairKey) {
+      if (!_allBagelStats) return false;
+      return ((_allBagelStats.pairGiven[pairKey] && Object.keys(_allBagelStats.pairGiven[pairKey]).length > 0) ||
+              (_allBagelStats.pairReceived[pairKey] && Object.keys(_allBagelStats.pairReceived[pairKey]).length > 0));
+    }
+    let bagelData=null;
+    if(_selectedRankKey && _rankDetailTab==='bagel'){
+      try{
+        const bs=_allBagelStats || await _getBagelStats(_selectedRankYear);
+        bagelData={given:bs.pairGiven[_selectedRankKey]||{},received:bs.pairReceived[_selectedRankKey]||{}};
+      }catch(e){console.error('_getBagelStats error',e);bagelData={given:{},received:{}};}
+    } else if(_selectedRankKey){
+      bagelData={};
+    }
+
     // 선택된 포디움 상세
     if(_selectedRankKey && pairs.slice(0,3).find(p=>p.key===_selectedRankKey))
-      html+=mkDetail(vsData,stats,'pair');
+      html+=mkDetail(vsData,stats,'pair',false,bagelData);
 
     // ── 4위 이하 ──
     if(pairs.length>3){
       html+=`<div class="rank-list-label">─ 4위 이하 ─</div>`;
       html+=pairs.slice(3).map((p,idx)=>{
         const isSel=p.key===_selectedRankKey;
-        const det=isSel?mkDetail(vsData,stats,'pair',true):'';
-        const disp=`<span>${getPairDisplayName(p.players,p.nickname)}</span>`;
+        const det=isSel?mkDetail(vsData,stats,'pair',true,bagelData):'';
+        const bagelIcon=_hasBagel(p.key)?'<span style="font-size:0.8em;margin-left:3px">🥯</span>':'';
+        const disp=`<span>${getPairDisplayName(p.players,p.nickname)}${bagelIcon}</span>`;
         return mkListItem(p.key,p.rank,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified);
       }).join('');
     }
@@ -3769,7 +3876,7 @@ async function renderRankingTab(){
     html+=`</div>`;
 
     if(_selectedRankKey && players.slice(0,3).find(p=>p.name===_selectedRankKey))
-      html+=mkDetail(vsData,stats,'player');
+      html+=mkDetail(vsData,stats,'player',false);
 
     if(players.length>3){
       html+=`<div class="rank-list-label">─ 4위 이하 ─</div>`;
@@ -3786,8 +3893,68 @@ async function renderRankingTab(){
 }
 
 function toggleRankDetail(key){
+  if (_selectedRankKey !== key) _rankDetailTab='vs'; // 다른 선수 클릭 시 탭 초기화
   _selectedRankKey=_selectedRankKey===key?null:key;
   renderRankingTab();
+}
+function switchRankDetailTab(tab){
+  _rankDetailTab=tab;
+  renderRankingTab();
+}
+// 베이글: 6:0 득점한 팀 = 상대에게 베이글 먹임 / 0:6 당한 팀 = 베이글 먹음
+// 반환: null | 0(team0이 베이글 먹음) | 1(team1이 베이글 먹음)
+function _bagelSide(sc0, sc1){
+  const a=parseInt(sc0), b=parseInt(sc1);
+  if(a===6&&b===0) return 1;
+  if(a===0&&b===6) return 0;
+  return null;
+}
+// 오늘의 경기(sets 배열): 베이글 먹은 side들의 Set 반환
+function _dailyBagelSides(sets){
+  const s=new Set();
+  if(!sets) return s;
+  const arr=Array.isArray(sets)?sets:Object.values(sets);
+  arr.forEach(sv=>{ const r=_bagelSide(sv.s0,sv.s1); if(r!==null) s.add(r); });
+  return s;
+}
+// 연도별 베이글 통계 계산 (캐시 사용)
+async function _getBagelStats(year){
+  if(_bagelStatsCache[year]) return _bagelStatsCache[year];
+  if(!db) return {pairGiven:{},pairReceived:{}};
+  const snap=await db.ref('jmt/matches').once('value');
+  const matches=snap.val()||{};
+  const pairGiven={}, pairReceived={};
+  const yr=String(year);
+  const toArr=v=>Array.isArray(v)?v:(v&&typeof v==='object'?Object.values(v):[]);
+  Object.values(matches).forEach(m=>{
+    if(!m.team0||!m.team1) return;
+    if(m.date&&!m.date.startsWith(yr)) return;
+    const t0=toArr(m.team0), t1=toArr(m.team1);
+    if(t0.length!==2||t1.length!==2) return;
+    let b1=false, b0=false;
+    if(m.sets&&(Array.isArray(m.sets)?m.sets.length:Object.keys(m.sets).length)>0){
+      const arr=Array.isArray(m.sets)?m.sets:Object.values(m.sets);
+      arr.forEach(s=>{ if(parseInt(s.s0)===6&&parseInt(s.s1)===0) b1=true; if(parseInt(s.s0)===0&&parseInt(s.s1)===6) b0=true; });
+    } else if(m.score0!=null&&m.score1!=null){
+      if(parseInt(m.score0)===6&&parseInt(m.score1)===0) b1=true;
+      if(parseInt(m.score0)===0&&parseInt(m.score1)===6) b0=true;
+    }
+    const pk0=getPairKey(t0[0],t0[1]), pk1=getPairKey(t1[0],t1[1]);
+    if(b1){ // team0이 team1에게 베이글
+      if(!pairGiven[pk0])pairGiven[pk0]={};
+      pairGiven[pk0][pk1]=(pairGiven[pk0][pk1]||0)+1;
+      if(!pairReceived[pk1])pairReceived[pk1]={};
+      pairReceived[pk1][pk0]=(pairReceived[pk1][pk0]||0)+1;
+    }
+    if(b0){ // team1이 team0에게 베이글
+      if(!pairGiven[pk1])pairGiven[pk1]={};
+      pairGiven[pk1][pk0]=(pairGiven[pk1][pk0]||0)+1;
+      if(!pairReceived[pk0])pairReceived[pk0]={};
+      pairReceived[pk0][pk1]=(pairReceived[pk0][pk1]||0)+1;
+    }
+  });
+  _bagelStatsCache[year]={pairGiven,pairReceived};
+  return _bagelStatsCache[year];
 }
 
 // ── 출석률 랭킹 ───────────────────────────────────────────────────
@@ -4334,9 +4501,12 @@ function renderTournament(type, opts) {
         const cls=match.winner===side?'winner':match.winner!==null&&match.winner!==-1?'loser':(!team?(ri===0?'bye-team':'tbd-team'):'');
         const nm=!team?(ri===0?'부전승':'TBD'):pairName(team);
         const sc=side===0?match.score0:match.score1;
+        const opSc=side===0?match.score1:match.score0;
         const tb=match.tb0!=null?(side===0?match.tb0:match.tb1):null;
         const scText=sc?(tb!=null?`${sc}(${tb})`:sc):'';
-        return `<div class="team ${cls}"><span class="team-name">${nm}</span>${scText?`<span class="team-score">${scText}</span>`:''}</div>`;
+        const isBraketBagel=sc!=null&&sc!==''&&parseInt(sc)===0&&parseInt(opSc)===6;
+        const bagelSm=isBraketBagel?'<span class="bagel-badge-sm">🥯</span>':'';
+        return `<div class="team ${cls}"><span class="team-name">${nm}${bagelSm}</span>${scText?`<span class="team-score">${scText}</span>`:''}</div>`;
       };
       div.innerHTML=row(match.team0,0)+row(match.team1,1);
       // edit mode: attach slot click handlers after innerHTML set
@@ -4425,18 +4595,41 @@ function openModal(type,ri,mi) {
   document.getElementById('modal-round').textContent=`${type==='mixed'?'혼합복식':type==='mens'?'남자복식':type==='ladder'?'사다리 복식':'여자복식'} — ${rn[ri]}`;
   document.getElementById('team0-name').textContent=pairName(match.team0);
   document.getElementById('team1-name').textContent=pairName(match.team1);
-  document.getElementById('score0-input').value=match.score0||'';
-  document.getElementById('score1-input').value=match.score1||'';
-  const tbRow = document.getElementById('score-tb-row');
-  if (tbRow) tbRow.style.display = 'none';
-  document.getElementById('score-tb0').value = match.tb0 != null ? String(match.tb0) : '';
-  document.getElementById('score-tb1').value = match.tb1 != null ? String(match.tb1) : '';
-  if (match.tb0 != null) _checkTournamentTB();
+  // Reset all score buttons and inputs
+  ['a','b','tba','tbb'].forEach(s=>{
+    const btn=document.getElementById(`bscore-btn-${s}`);
+    const inp=document.getElementById(`bscore-${s}`);
+    if(btn){btn.textContent='-';btn.classList.remove('filled','active');}
+    if(inp) inp.value='';
+  });
+  const tbRow=document.getElementById('bscore-tb-row');
+  if(tbRow) tbRow.style.display='none';
+  // Pre-populate existing scores
+  if(match.score0!=null){
+    document.getElementById('bscore-a').value=String(match.score0);
+    const btnA=document.getElementById('bscore-btn-a');
+    if(btnA){btnA.textContent=match.score0;btnA.classList.add('filled');}
+  }
+  if(match.score1!=null){
+    document.getElementById('bscore-b').value=String(match.score1);
+    const btnB=document.getElementById('bscore-btn-b');
+    if(btnB){btnB.textContent=match.score1;btnB.classList.add('filled');}
+  }
+  if(match.tb0!=null){
+    document.getElementById('bscore-tba').value=String(match.tb0);
+    const btnTA=document.getElementById('bscore-btn-tba');
+    if(btnTA){btnTA.textContent=match.tb0;btnTA.classList.add('filled');}
+  }
+  if(match.tb1!=null){
+    document.getElementById('bscore-tbb').value=String(match.tb1);
+    const btnTB=document.getElementById('bscore-btn-tbb');
+    if(btnTB){btnTB.textContent=match.tb1;btnTB.classList.add('filled');}
+  }
+  if(match.tb0!=null) _checkTournamentTBNew();
   document.getElementById('score-side-0').className='score-side'+(match.winner===0?' winner-row':'');
   document.getElementById('score-side-1').className='score-side'+(match.winner===1?' winner-row':'');
   document.getElementById('score-modal').classList.add('open');
-  const f=match.score0?document.getElementById('score1-input'):document.getElementById('score0-input');
-  setTimeout(()=>f.focus(),80);
+  setTimeout(()=>selectTournamentField('bscore-a'),50);
 }
 
 function closeModal() {
@@ -4444,54 +4637,92 @@ function closeModal() {
   modalCtx=null;
 }
 
-let _autoNextTimer = null;
-function autoNextScore(el, nextId) {
-  clearTimeout(_autoNextTimer);
-  if (el.value.length >= el.maxLength) {
-    document.getElementById(nextId).focus();
-    document.getElementById(nextId).select();
-  } else if (el.value.length >= 1) {
-    _autoNextTimer = setTimeout(() => {
-      document.getElementById(nextId).focus();
-      document.getElementById(nextId).select();
-    }, 500);
+let _tScoreActive=null;
+let _tScoreAdvTimer=null;
+
+function _updateTScoreBtn(id,val){
+  const btn=document.getElementById('bscore-btn-'+id.replace('bscore-',''));
+  if(!btn) return;
+  btn.textContent=val||'-';
+  btn.classList.toggle('filled',!!val);
+}
+
+function selectTournamentField(id){
+  if(_tScoreAdvTimer){clearTimeout(_tScoreAdvTimer);_tScoreAdvTimer=null;}
+  if(_tScoreActive){
+    const prev=document.getElementById('bscore-btn-'+_tScoreActive.replace('bscore-',''));
+    if(prev) prev.classList.remove('active');
+  }
+  _tScoreActive=id;
+  const inp=document.getElementById(id);
+  if(inp) inp.value='';
+  const btn=document.getElementById('bscore-btn-'+id.replace('bscore-',''));
+  if(btn){btn.textContent='-';btn.classList.remove('filled');btn.classList.add('active');}
+}
+
+function _checkTournamentTBNew(){
+  const na=parseInt(document.getElementById('bscore-a')?.value);
+  const nb=parseInt(document.getElementById('bscore-b')?.value);
+  const tbRow=document.getElementById('bscore-tb-row');
+  if(!tbRow) return;
+  const needs=_isTBScore(na,nb);
+  tbRow.style.display=needs?'flex':'none';
+  if(!needs){
+    ['tba','tbb'].forEach(s=>{
+      const inp=document.getElementById(`bscore-${s}`);
+      const btn=document.getElementById(`bscore-btn-${s}`);
+      if(inp) inp.value='';
+      if(btn){btn.textContent='-';btn.classList.remove('filled');}
+    });
   }
 }
 
-function previewWinner() {
-  const s0=parseInt(document.getElementById('score0-input').value);
-  const s1=parseInt(document.getElementById('score1-input').value);
-  const r0=document.getElementById('score-side-0'), r1=document.getElementById('score-side-1');
-  if(!isNaN(s0)&&!isNaN(s1)&&s0!==s1){
-    r0.className='score-side'+(s0>s1?' winner-row':'');
-    r1.className='score-side'+(s1>s0?' winner-row':'');
-  } else { r0.className='score-side'; r1.className='score-side'; }
+function _tScoreAdvance(){
+  _tScoreAdvTimer=null;
+  if(!_tScoreActive) return;
+  if(_tScoreActive==='bscore-a'){
+    selectTournamentField('bscore-b');
+  } else if(_tScoreActive==='bscore-b'){
+    _checkTournamentTBNew();
+    const tbRow=document.getElementById('bscore-tb-row');
+    if(tbRow&&tbRow.style.display!=='none') selectTournamentField('bscore-tba');
+  } else if(_tScoreActive==='bscore-tba'){
+    selectTournamentField('bscore-tbb');
+  }
 }
 
-function _checkTournamentTB() {
-  const s0 = parseInt(document.getElementById('score0-input').value);
-  const s1 = parseInt(document.getElementById('score1-input').value);
-  const tbRow = document.getElementById('score-tb-row');
-  if (!tbRow) return;
-  const needs = _isTBScore(s0, s1);
-  const wasVisible = tbRow.style.display === 'flex';
-  tbRow.style.display = needs ? 'flex' : 'none';
-  if (!needs) {
-    document.getElementById('score-tb0').value = '';
-    document.getElementById('score-tb1').value = '';
-  } else if (!wasVisible) {
-    // TB 행이 새로 나타남 → 자동으로 TB0에 포커스
-    setTimeout(() => {
-      const tb0 = document.getElementById('score-tb0');
-      if (tb0) { tb0.focus(); tb0.select(); }
-    }, 80);
+function numpadTournamentInput(val){
+  if(!_tScoreActive) return;
+  const inp=document.getElementById(_tScoreActive);
+  if(!inp) return;
+  if(_tScoreAdvTimer){clearTimeout(_tScoreAdvTimer);_tScoreAdvTimer=null;}
+  if(val==='⌫'){
+    inp.value=inp.value.slice(0,-1);
+  } else {
+    if(inp.value.length>=2) inp.value=val;
+    else inp.value+=val;
+  }
+  _updateTScoreBtn(_tScoreActive,inp.value);
+  if(_tScoreActive==='bscore-a'||_tScoreActive==='bscore-b'){
+    const s0=parseInt(document.getElementById('bscore-a').value);
+    const s1=parseInt(document.getElementById('bscore-b').value);
+    const r0=document.getElementById('score-side-0'),r1=document.getElementById('score-side-1');
+    if(!isNaN(s0)&&!isNaN(s1)&&s0!==s1){
+      r0.className='score-side'+(s0>s1?' winner-row':'');
+      r1.className='score-side'+(s1>s0?' winner-row':'');
+    } else {r0.className='score-side';r1.className='score-side';}
+    if(_tScoreActive==='bscore-b') _checkTournamentTBNew();
+  }
+  if(val!=='⌫'&&inp.value.length>0){
+    if(inp.value.length>=2) _tScoreAdvance();
+    else _tScoreAdvTimer=setTimeout(_tScoreAdvance,800);
   }
 }
 
 function submitScore() {
   if(!modalCtx)return;
-  const s0=document.getElementById('score0-input').value.trim();
-  const s1=document.getElementById('score1-input').value.trim();
+  const s0=document.getElementById('bscore-a').value.trim();
+  const s1=document.getElementById('bscore-b').value.trim();
   if(!s0||!s1){alert('두 팀의 점수를 입력하세요.');return;}
   const n0=parseInt(s0),n1=parseInt(s1);
   if(isNaN(n0)||isNaN(n1)){alert('숫자를 입력하세요.');return;}
@@ -4499,11 +4730,11 @@ function submitScore() {
   const {type,ri,mi}=modalCtx;
   const t=state.tournaments[type], match=t.rounds[ri][mi];
   // TB 점수 수집
-  const tbRow = document.getElementById('score-tb-row');
+  const tbRow = document.getElementById('bscore-tb-row');
   let tb0 = null, tb1 = null;
   if (tbRow && tbRow.style.display !== 'none') {
-    const tv0 = parseInt(document.getElementById('score-tb0').value);
-    const tv1 = parseInt(document.getElementById('score-tb1').value);
+    const tv0 = parseInt(document.getElementById('bscore-tba').value);
+    const tv1 = parseInt(document.getElementById('bscore-tbb').value);
     if (!isNaN(tv0) && !isNaN(tv1)) { tb0 = tv0; tb1 = tv1; }
   }
   const isNewScore = !match.score0; // 첫 입력 여부
@@ -4583,6 +4814,11 @@ function submitScore() {
       reverseMatchStats(match.team0, match.team1, oldWinner);
     }
     updateMatchStats(match.team0,match.team1,match.winner,'','');
+    // 랭킹 캐시 무효화 → 대진표 점수 저장 시 랭킹 즉시 반영
+    delete _rankStatsCache[`player_${_selectedRankYear}`];
+    delete _rankStatsCache[`pair_${_selectedRankYear}`];
+    delete _bagelStatsCache[_selectedRankYear];
+    renderRankingTab();
   }
   const wTeam = match.winner === 0 ? match.team0 : match.team1;
   if (wTeam && wTeam.length) showWinnerCelebration(wTeam.join(' / '));
@@ -4616,10 +4852,9 @@ function showBracketSection(type) {
 }
 
 // ══ NAV ══
-const _teamVideos  = ['images/team1.mp4',  'images/team2.mp4',  'images/team3.mp4'];
 const _teamPhotos  = ['images/team1.jpeg', 'images/team2.jpeg', 'images/team3.jpeg'];
-let _lastVideoIdx = -1;
 let _lastPhotoIdx = -1;
+let _lastCheckinPhotoIdx = -1;
 
 // ── 댓글/답글 입력창: 포커스 시 탭바 숨기고 버튼 바로 위에 키보드 위치 ────
 (function() {
@@ -4682,6 +4917,14 @@ let _lastPhotoIdx = -1;
 })();
 
 function switchPage(id) {
+  // 오늘의경기 탭을 벗어날 때 캐러셀 정지
+  if (document.getElementById('page-matches').classList.contains('active') && id !== 'matches') {
+    if (_carouselTimer) { clearInterval(_carouselTimer); _carouselTimer = null; }
+  }
+  // ATP 탭을 벗어날 때 Firebase 리스너 해제
+  if (document.getElementById('page-atp').classList.contains('active') && id !== 'atp') {
+    _teardownAtpListeners();
+  }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById(`page-${id}`).classList.add('active');
@@ -4691,17 +4934,8 @@ function switchPage(id) {
   if(id === 'history') {
     changeTeamPhotoRandom();
   }
-  // 출첵 탭 진입 시 랜덤 영상 선택 (직전과 다른 것으로)
   if(id === 'checkin') {
-    const v = document.getElementById('team-video');
-    if(v) {
-      let idx;
-      do { idx = Math.floor(Math.random() * _teamVideos.length); } while(idx === _lastVideoIdx && _teamVideos.length > 1);
-      _lastVideoIdx = idx;
-      v.src = _teamVideos[idx];
-      v.load();
-      v.play().catch(()=>{});
-    }
+    changeCheckinPhotoRandom();
   }
   if(id === 'matches') {
     if(state.currentHistoryId) {
@@ -4730,6 +4964,7 @@ function switchPage(id) {
     }
   }
   if(id === 'atp') {
+    initAtpListeners();
     renderAtpPage();
     if (!atpState.loaded) triggerAtpRefresh();
     if (atpState.preferBetTab) switchAtpTab('bet');
@@ -4777,6 +5012,28 @@ function switchPage(id) {
     }
   }
 }
+
+// ── 화면 백그라운드/잠금 시 Firebase 연결 일시 중단 ──────────────
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // 백그라운드: WebSocket 끊어서 배터리 절약
+    if (db) firebase.database().goOffline();
+    if (_carouselTimer) { clearInterval(_carouselTimer); _carouselTimer = null; }
+    if (typeof _mpCountdownTimer !== 'undefined' && _mpCountdownTimer) {
+      clearInterval(_mpCountdownTimer); _mpCountdownTimer = null;
+    }
+  } else {
+    // 포그라운드: 재연결 — 모든 .on() 리스너 자동 동기화됨
+    if (db) firebase.database().goOnline();
+    // 캐러셀 재시작 (오늘의경기 탭 활성화 중인 경우)
+    const matchEl = document.getElementById('page-matches');
+    if (matchEl && matchEl.classList.contains('active') && _carouselData.length > 0 && !_carouselTimer) {
+      _carouselTimer = setInterval(() => goCarousel((_carouselIdx+1)%_carouselData.length, true), 7000);
+    }
+    // 카운트다운 재시작
+    if (typeof _mpActiveClosesAt !== 'undefined' && _mpActiveClosesAt) _mpStartCountdown(_mpActiveClosesAt);
+  }
+});
 
 // ══ CONFETTI ══
 function launchConfetti() {
@@ -5837,8 +6094,17 @@ function changeTeamPhotoRandom() {
   const p = document.getElementById('team-photo');
   if(p) p.src = _teamPhotos[idx];
 }
+// 출첵 탭 사진 랜덤 변경
+function changeCheckinPhotoRandom() {
+  let idx;
+  do { idx = Math.floor(Math.random() * _teamPhotos.length); } while(idx === _lastCheckinPhotoIdx && _teamPhotos.length > 1);
+  _lastCheckinPhotoIdx = idx;
+  const p = document.getElementById('checkin-photo');
+  if(p) p.src = _teamPhotos[idx];
+}
 // 초기 로드 시 랭킹탭 사진 랜덤 설정
 changeTeamPhotoRandom();
+changeCheckinPhotoRandom();
 
 (function() {
   try {
@@ -5886,8 +6152,7 @@ changeTeamPhotoRandom();
     renderRankYearRow();
     renderRankingTab();
 
-    // ── ATP 리스너 초기화 (ATP 스크립트 블록 로드 후 실행) ───────
-    setTimeout(() => { if (typeof initAtpListeners === 'function') initAtpListeners(); }, 0);
+    // ATP 리스너는 탭 진입 시 lazyload (initAtpListeners는 switchPage에서 호출)
   } catch(e) {
     console.error('초기화 오류:', e);
     // 오류 시 로컬 폴백
@@ -5922,43 +6187,36 @@ const atpState = {
 };
 
 // ── Firebase 구독 초기화 ──────────────────────────────────────────
+let _atpListenersActive = false;
+let _atpGsQueryRef = null;
+let _atpNewsRef = null;
+let _atpFavRef = null;
+
 function initAtpListeners() {
-  if (!db) {
-    atpState.loaded = true; // db 없으면 즉시 로딩 완료 처리
-    return;
-  }
+  if (_atpListenersActive) return;
+  if (!db) { atpState.loaded = true; return; }
+  _atpListenersActive = true;
 
   // 8초 내 Firebase 무응답 → ESPN 자동 fetch
-  setTimeout(() => {
-    if (!atpState.loaded) {
-      triggerAtpRefresh();
-    }
-  }, 8000);
+  setTimeout(() => { if (!atpState.loaded) triggerAtpRefresh(); }, 8000);
 
   // ATP 데이터 구독
   db.ref('jmt/atpData').on('value', snap => {
     const d = snap.val();
     atpState.tournamentInfo = d ? (d.tournamentInfo || null) : null;
     atpState.matches = d ? (d.matches || []) : [];
-    atpState.gsRoundTab = null; // 새 데이터 → 라운드 탭 초기화
+    atpState.gsRoundTab = null;
     atpState.loaded = true;
-    if (document.getElementById('page-atp').classList.contains('active')) {
-      renderAtpPage();
-    }
+    if (document.getElementById('page-atp').classList.contains('active')) renderAtpPage();
   });
 
-  // 직전 Grand Slam 구독 — 가장 최근 항목 하나만 사용
-  db.ref('jmt/lastGrandSlam').orderByChild('savedAt').limitToLast(1).on('value', snap => {
+  // 직전 Grand Slam 구독
+  _atpGsQueryRef = db.ref('jmt/lastGrandSlam').orderByChild('savedAt').limitToLast(1);
+  _atpGsQueryRef.on('value', snap => {
     const d = snap.val();
-    if (d) {
-      const keys = Object.keys(d);
-      atpState.lastGrandSlam = d[keys[keys.length - 1]];
-    } else {
-      atpState.lastGrandSlam = null;
-    }
-    if (!atpState.tournamentInfo && document.getElementById('page-atp').classList.contains('active')) {
-      renderAtpPage();
-    }
+    if (d) { const keys = Object.keys(d); atpState.lastGrandSlam = d[keys[keys.length-1]]; }
+    else atpState.lastGrandSlam = null;
+    if (!atpState.tournamentInfo && document.getElementById('page-atp').classList.contains('active')) renderAtpPage();
   });
 
   // 베팅 구독
@@ -5968,35 +6226,29 @@ function initAtpListeners() {
       atpState.preferBetTab = true;
       if (document.getElementById('page-atp').classList.contains('active')) switchAtpTab('bet');
     }
-    if (document.getElementById('page-atp').classList.contains('active')) {
-      renderAtpBetPanel();
-    }
+    if (document.getElementById('page-atp').classList.contains('active')) renderAtpBetPanel();
   });
 
-  // ATP 세계 랭킹 구독 (주 1회 갱신)
+  // ATP 세계 랭킹 구독
   db.ref('jmt/atpRankings').on('value', snap => {
     const d = snap.val();
     atpState.rankingsFromDb = (d && d.players) ? d.players : [];
   });
 
-  // ATP 뉴스 구독 — Cloud Function이 12시간마다 업데이트, 앱은 읽기만
-  const _newsRef = db.ref('jmt/atpNews');
+  // ATP 뉴스 구독
+  _atpNewsRef = db.ref('jmt/atpNews');
   const _onNewsSnap = snap => {
     const d = snap.val();
     atpState.news = (d && d.articles) ? d.articles : [];
     atpState.newsLoaded = true;
     updateNewsBadge();
-    if (atpState.currentTab === 'news' && document.getElementById('page-atp').classList.contains('active')) {
-      renderAtpNewsPanel();
-    }
+    if (atpState.currentTab === 'news' && document.getElementById('page-atp').classList.contains('active')) renderAtpNewsPanel();
   };
-  _newsRef.on('value', _onNewsSnap);
-
-  // 8초 내 응답 없으면 once()로 강제 1회 읽기 (Firebase 연결 지연 대비)
+  _atpNewsRef.on('value', _onNewsSnap);
   setTimeout(() => {
     if (!atpState.newsLoaded) {
-      _newsRef.once('value').then(_onNewsSnap).catch(() => {
-        atpState.newsLoaded = true; // 오류 시 "없음"으로 처리
+      _atpNewsRef.once('value').then(_onNewsSnap).catch(() => {
+        atpState.newsLoaded = true;
         if (atpState.currentTab === 'news') renderAtpNewsPanel();
       });
     }
@@ -6005,21 +6257,26 @@ function initAtpListeners() {
   // 개인 관심선수 구독
   const myName = state.identity && state.identity.name;
   if (myName) {
-    // localStorage에서 즉시 로드 (Firebase 응답 전 대비)
-    try {
-      const cached = localStorage.getItem(`${LS_FAV_PLAYERS}_${myName}`);
-      if (cached) atpState.favPlayers = JSON.parse(cached);
-    } catch(e) {}
-
-    db.ref(`jmt/favPlayers/${myName}`).on('value', snap => {
+    try { const cached = localStorage.getItem(`${LS_FAV_PLAYERS}_${myName}`); if (cached) atpState.favPlayers = JSON.parse(cached); } catch(e) {}
+    _atpFavRef = db.ref(`jmt/favPlayers/${myName}`);
+    _atpFavRef.on('value', snap => {
       const players = snap.val() || [];
       atpState.favPlayers = players;
       try { localStorage.setItem(`${LS_FAV_PLAYERS}_${myName}`, JSON.stringify(players)); } catch(e) {}
-      if (document.getElementById('page-atp').classList.contains('active')) {
-        renderAtpFavMatches();
-      }
+      if (document.getElementById('page-atp').classList.contains('active')) renderAtpFavMatches();
     });
   }
+}
+
+function _teardownAtpListeners() {
+  if (!_atpListenersActive || !db) return;
+  _atpListenersActive = false;
+  db.ref('jmt/atpData').off('value');
+  if (_atpGsQueryRef) { _atpGsQueryRef.off('value'); _atpGsQueryRef = null; }
+  db.ref('jmt/atpBets').off('value');
+  db.ref('jmt/atpRankings').off('value');
+  if (_atpNewsRef) { _atpNewsRef.off('value'); _atpNewsRef = null; }
+  if (_atpFavRef) { _atpFavRef.off('value'); _atpFavRef = null; }
 }
 
 // ── ATP 뉴스 NEW 배지 ────────────────────────────────────────────
@@ -11352,7 +11609,9 @@ function mpStartNew() {
 
 // ── 마감 카운트다운 ──
 let _mpCountdownTimer = null;
+let _mpActiveClosesAt = null;
 function _mpStartCountdown(closesAt) {
+  _mpActiveClosesAt = closesAt;
   if (_mpCountdownTimer) clearInterval(_mpCountdownTimer);
   const endTime = new Date(closesAt).getTime();
   function update() {
@@ -11370,15 +11629,14 @@ function _mpStartCountdown(closesAt) {
     el.textContent = '⏱ ' + _mpFormatRemaining(remaining) + '  · ' + dlStr;
   }
   update();
-  _mpCountdownTimer = setInterval(update, 1000);
+  _mpCountdownTimer = setInterval(update, 60000); // 1분마다 갱신 (초 단위 불필요)
 }
 function _mpFormatRemaining(ms) {
-  const s = Math.floor(ms/1000);
-  const m = Math.floor(s/60);
-  const h = Math.floor(s/3600);
-  if (h > 0) return `${h}시간 ${m%60}분 ${s%60}초 후 마감`;
-  if (m > 0) return `${m}분 ${s%60}초 후 마감`;
-  return `${s}초 후 마감`;
+  const m = Math.floor(ms / 60000);
+  const h = Math.floor(m / 60);
+  if (h > 0) return `${h}시간 ${m%60}분 후 마감`;
+  if (m > 0) return `${m}분 후 마감`;
+  return '곧 마감';
 }
 
 // ── 투표 삭제 (관리자만, 히스토리 미저장) ──
@@ -11783,78 +12041,152 @@ function deleteMpHistory(pollId, event) {
 </script>
 
 <script>
-// ── 랭킹 탭 pull-to-refresh ──────────────────────────────────────
+// ══ 전체 화면 통합 Pull-to-Refresh ══════════════════════════════
 (function() {
   'use strict';
-  const THRESHOLD = 60; // 새로고침 발동 최소 당김 px
-  let startY = null, pulling = false, refreshing = false;
+  const THRESHOLD = 68;
+  let startY = 0, startX = 0, ptrActive = false, ptrRefreshing = false;
 
-  function isRankingActive() {
-    const p = document.getElementById('page-history');
-    return p && p.classList.contains('active');
-  }
-
-  function getIndicator() {
-    let el = document.getElementById('ptr-indicator');
+  // ── PIL 생성 ──
+  function getPill() {
+    let el = document.getElementById('ptr-pill');
     if (!el) {
       el = document.createElement('div');
-      el.id = 'ptr-indicator';
-      el.style.cssText = [
-        'position:fixed', 'top:62px', 'left:0', 'right:0',
-        'display:flex', 'justify-content:center', 'pointer-events:none',
-        'z-index:200', 'opacity:0', 'transition:opacity 0.2s'
-      ].join(';');
-      el.innerHTML = '<div style="background:#fff;border-radius:50%;width:34px;height:34px;' +
-        'display:flex;align-items:center;justify-content:center;' +
-        'box-shadow:0 2px 8px rgba(0,0,0,0.18);font-size:18px;color:#3b82f6">↻</div>';
+      el.id = 'ptr-pill';
+      el.innerHTML =
+        '<div class="ptr-icon-wrap" id="ptr-icon-wrap">↓</div>' +
+        '<span id="ptr-text">당겨서 새로고침</span>';
       document.body.appendChild(el);
     }
     return el;
   }
 
+  function setPillState(state) {
+    const wrap = document.getElementById('ptr-icon-wrap');
+    const text = document.getElementById('ptr-text');
+    if (!wrap || !text) return;
+    if (state === 'pull') {
+      wrap.className = 'ptr-icon-wrap';
+      wrap.textContent = '↓';
+      text.textContent = '당겨서 새로고침';
+    } else if (state === 'release') {
+      wrap.className = 'ptr-icon-wrap rotate180';
+      wrap.textContent = '↓';
+      text.textContent = '손 떼면 새로고침!';
+    } else if (state === 'loading') {
+      wrap.className = 'ptr-icon-wrap spinning';
+      wrap.textContent = '↻';
+      text.textContent = '새 정보 불러오는 중...';
+    } else if (state === 'done') {
+      wrap.className = 'ptr-icon-wrap done-pop';
+      wrap.textContent = '✓';
+      text.textContent = '업데이트 완료';
+    }
+  }
+
+  function activePageId() {
+    const p = document.querySelector('.page.active');
+    return p ? p.id.replace('page-', '') : null;
+  }
+
+  // ── 터치 이벤트 ──
   document.addEventListener('touchstart', function(e) {
-    if (refreshing || !isRankingActive() || e.touches.length !== 1) return;
-    if (window.scrollY > 0) return; // 스크롤 중간 위치에선 작동 안 함
+    if (ptrRefreshing || e.touches.length !== 1) return;
+    if (window.scrollY > 4) return;
     startY = e.touches[0].clientY;
-    pulling = false;
+    startX = e.touches[0].clientX;
+    ptrActive = true;
   }, { passive: true });
 
   document.addEventListener('touchmove', function(e) {
-    if (startY === null || !isRankingActive()) return;
+    if (!ptrActive) return;
     const dy = e.touches[0].clientY - startY;
-    if (dy <= 10) return;
-    pulling = true;
-    const progress = Math.min(dy / THRESHOLD, 1);
-    const ind = getIndicator();
-    ind.style.opacity = String(progress * 0.9 + 0.1);
-    ind.querySelector('div').style.transform = `rotate(${progress * 270}deg) scale(${0.7 + progress * 0.3})`;
-  }, { passive: true });
-
-  document.addEventListener('touchend', function(e) {
-    if (!pulling || startY === null) { startY = null; return; }
-    const dy = (e.changedTouches[0]?.clientY || startY) - startY;
-    const ind = getIndicator();
-    startY = null; pulling = false;
-
-    if (dy >= THRESHOLD && !refreshing) {
-      refreshing = true;
-      ind.style.opacity = '1';
-      ind.querySelector('div').style.transform = 'rotate(360deg) scale(1)';
-      // 캐시 전체 무효화 후 재로드
-      if (typeof _rankStatsCache !== 'undefined') {
-        Object.keys(_rankStatsCache).forEach(k => delete _rankStatsCache[k]);
-      }
-      if (typeof _rankingMode !== 'undefined' && _rankingMode === 'attendance') {
-        if (typeof renderAttendanceRanking === 'function') renderAttendanceRanking();
-      } else if (typeof renderRankingTab === 'function') renderRankingTab();
-      setTimeout(() => {
-        ind.style.opacity = '0';
-        refreshing = false;
-      }, 800);
+    const dx = Math.abs(e.touches[0].clientX - startX);
+    if (dy < 0 || dx > dy * 0.8) { ptrActive = false; return; } // 수평 스와이프 제외
+    if (dy > 8) e.preventDefault(); // 네이티브 bounce 차단
+    const pill = getPill();
+    if (dy > 16) {
+      pill.classList.add('visible');
+      if (dy >= THRESHOLD) setPillState('release');
+      else setPillState('pull');
     } else {
-      ind.style.opacity = '0';
+      pill.classList.remove('visible');
     }
+  }, { passive: false });
+
+  document.addEventListener('touchend', async function(e) {
+    if (!ptrActive) return;
+    ptrActive = false;
+    const dy = e.changedTouches[0].clientY - startY;
+    const pill = getPill();
+
+    if (dy < THRESHOLD || ptrRefreshing) {
+      pill.classList.remove('visible');
+      return;
+    }
+
+    ptrRefreshing = true;
+    setPillState('loading');
+
+    const pageId = activePageId();
+    try { await _ptrRefreshPage(pageId); } catch(err) { console.warn('PTR error', err); }
+
+    setPillState('done');
+    setTimeout(() => {
+      pill.classList.remove('visible');
+      setTimeout(() => { setPillState('pull'); ptrRefreshing = false; }, 350);
+    }, 1100);
   }, { passive: true });
+
+  // ── 페이지별 새로고침 로직 ──
+  window._ptrRefreshPage = async function(pageId) {
+    switch (pageId) {
+      case 'matches':
+        // daily cards 강제 재로드
+        if (typeof _dailyCardsListenerSet !== 'undefined') {
+          _dailyCardsListenerSet = false;
+          const con = document.getElementById('daily-match-cards');
+          if (con) con.innerHTML = '';
+          Object.keys(_dailyCards || {}).forEach(k => delete _dailyCards[k]);
+          if (typeof _setupDailyCardsListener === 'function') _setupDailyCardsListener();
+        }
+        // 캐러셀 재로드
+        if (typeof renderRecentMatchesCarousel === 'function') await renderRecentMatchesCarousel();
+        break;
+
+      case 'history':
+        // 랭킹 캐시 전체 무효화
+        if (typeof _rankStatsCache !== 'undefined') Object.keys(_rankStatsCache).forEach(k => delete _rankStatsCache[k]);
+        if (typeof _rankVsCache !== 'undefined') Object.keys(_rankVsCache).forEach(k => delete _rankVsCache[k]);
+        if (typeof _bagelStatsCache !== 'undefined') Object.keys(_bagelStatsCache).forEach(k => delete _bagelStatsCache[k]);
+        if (typeof _rankingMode !== 'undefined' && _rankingMode === 'attendance') {
+          if (typeof renderAttendanceRanking === 'function') renderAttendanceRanking();
+        } else if (typeof renderRankingTab === 'function') renderRankingTab();
+        break;
+
+      case 'checkin':
+        if (typeof db !== 'undefined' && db) {
+          const snap = await db.ref('jmt/pollState').once('value');
+          const ps = snap.val();
+          if (ps && typeof state !== 'undefined') { state.pollState = ps; }
+          if (typeof renderCheckinPage === 'function') renderCheckinPage();
+        }
+        break;
+
+      case 'atp':
+        if (typeof triggerAtpRefresh === 'function') triggerAtpRefresh();
+        if (typeof initAtpListeners === 'function') { _atpListenersActive = false; initAtpListeners(); }
+        break;
+
+      case 'members':
+        if (typeof loadRankingTop3 === 'function') await loadRankingTop3();
+        if (typeof renderMemberList === 'function') renderMemberList();
+        break;
+
+      default:
+        break;
+    }
+  };
 })();
 </script>
 
