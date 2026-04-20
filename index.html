@@ -426,7 +426,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 @keyframes confettiFall { 0%{transform:translateY(-20px) rotate(0deg);opacity:1} 100%{transform:translateY(120px) rotate(720deg);opacity:0} }
 @keyframes bounce-celebrate { 0%,100%{transform:translateY(0) rotate(0deg)} 30%{transform:translateY(-8px) rotate(-6deg)} 60%{transform:translateY(-4px) rotate(4deg)} }
 @keyframes shake-sad { 0%,100%{transform:rotate(0deg) translateY(0)} 20%{transform:rotate(-5deg) translateY(2px)} 40%{transform:rotate(5deg) translateY(0)} 70%{transform:rotate(-2deg) translateY(1px)} }
-.daily-add-btn { width:100%; border:2px dashed rgba(124,58,237,0.4); background:rgba(124,58,237,0.08); border-radius:14px; color:#7c3aed; font-size:1.8rem; font-weight:400; padding:10px; cursor:pointer; margin-top:6px; line-height:1; }
+.daily-add-btn { width:100%; border:3px dashed #7c3aed; background:linear-gradient(135deg,rgba(124,58,237,0.10),rgba(99,102,241,0.16)); border-radius:18px; color:#7c3aed; font-size:2.6rem; font-weight:300; padding:18px 10px; cursor:pointer; margin:6px 0 10px; line-height:1; box-shadow:0 3px 16px rgba(124,58,237,0.18); transition:transform 0.15s,box-shadow 0.15s; }
+.daily-add-btn:active { transform:scale(0.97); box-shadow:0 1px 6px rgba(124,58,237,0.12); }
 
 
 /* ── PARTICIPANT CHECKBOXES ── */
@@ -2903,7 +2904,7 @@ function addDailyMatchCard(){
   el.dataset.num=num;
   container.insertBefore(el,container.firstChild);
   _renderDailyCard(id);
-  setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),50);
+  setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'nearest'}),50);
 }
 
 function _renderDailyCard(id){
