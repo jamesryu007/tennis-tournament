@@ -3725,6 +3725,14 @@ async function renderRankingTab(){
     _pairRankShareData = pairs;
     let html=`<div class="rank-banner" style="position:relative"><div class="rank-banner-title">🏆 자미터 팀페어 랭킹</div><div class="rank-banner-sub">총 ${pairs.length}팀 등록 · 클릭하면 상대 전적을 볼 수 있어요</div><div style="position:absolute;top:50%;right:10px;transform:translateY(-50%);display:flex;gap:6px;align-items:center"><button onclick="document.getElementById('rank-info-modal').classList.add('open')" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">i</button>${isAdmin()?`<button onclick="shareRanking('pair')" style="display:inline-flex;align-items:center;gap:3px;padding:4px 9px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.4);background:rgba(255,255,255,0.15);color:#fff;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> 공유</button>`:''}</div></div>`;
 
+    // 베이글 아이콘: 캐시 우선 (없으면 아이콘 없이 즉시 렌더, 백그라운드 로드 후 재렌더)
+    const _allBagelStats = _bagelStatsCache[_selectedRankYear] || null;
+    function _hasBagel(pairKey) {
+      if (!_allBagelStats) return false;
+      return ((_allBagelStats.pairGiven[pairKey] && Object.keys(_allBagelStats.pairGiven[pairKey]).length > 0) ||
+              (_allBagelStats.pairReceived[pairKey] && Object.keys(_allBagelStats.pairReceived[pairKey]).length > 0));
+    }
+
     // ── 시상대 (1~3위) ──
     const podItems=pairs.slice(0,Math.min(3,pairs.length));
     const podCls=['p1','p2','p3'],medals=['🥇','🥈','🥉'];
@@ -3751,22 +3759,9 @@ async function renderRankingTab(){
     });
     html+=`</div>`;
 
-    // 베이글 아이콘 + 탭용 전체 stats 로드 (캐시 우선)
-    let _allBagelStats = _bagelStatsCache[_selectedRankYear] || null;
-    if (!_allBagelStats) {
-      try { _allBagelStats = await _getBagelStats(_selectedRankYear); } catch(e) {}
-    }
-    function _hasBagel(pairKey) {
-      if (!_allBagelStats) return false;
-      return ((_allBagelStats.pairGiven[pairKey] && Object.keys(_allBagelStats.pairGiven[pairKey]).length > 0) ||
-              (_allBagelStats.pairReceived[pairKey] && Object.keys(_allBagelStats.pairReceived[pairKey]).length > 0));
-    }
     let bagelData=null;
     if(_selectedRankKey && _rankDetailTab==='bagel'){
-      try{
-        const bs=_allBagelStats || await _getBagelStats(_selectedRankYear);
-        bagelData={given:bs.pairGiven[_selectedRankKey]||{},received:bs.pairReceived[_selectedRankKey]||{}};
-      }catch(e){console.error('_getBagelStats error',e);bagelData={given:{},received:{}};}
+      bagelData={given:(_allBagelStats&&_allBagelStats.pairGiven[_selectedRankKey])||{},received:(_allBagelStats&&_allBagelStats.pairReceived[_selectedRankKey])||{}};
     } else if(_selectedRankKey){
       bagelData={};
     }
@@ -3787,6 +3782,8 @@ async function renderRankingTab(){
       }).join('');
     }
     el.innerHTML=html;
+    // 베이글 캐시 없으면 백그라운드 로드 후 재렌더
+    if(!_allBagelStats) _getBagelStats(_selectedRankYear).then(()=>{if(document.getElementById('page-history')?.classList.contains('active'))renderRankingTab();}).catch(()=>{});
 
   } else {
     let stats;
