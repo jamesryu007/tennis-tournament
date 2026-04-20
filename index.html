@@ -3714,9 +3714,10 @@ async function renderRankingTab(){
       const autoNick=(a[0]||'?')+(b[0]||'?')+'팀';
       const nick=p.nickname||autoNick;
       const wdl=p.draws?`${p.wins}승 ${p.draws}무 ${p.losses}패`:`${p.wins}승 ${p.losses}패`;
+      const podBagelIcon=_hasBagel(p.key)?'<span style="font-size:0.8em;margin-left:3px">🥯</span>':'';
       html+=`<div class="rank-pod ${podCls[i]}${isSel?' selected':''}" onclick="toggleRankDetail('${p.key}')">
         <div class="rank-pod-medal">${medals[(p.rank||1)-1]||medals[i]}</div>
-        <div class="rank-pod-nick">${nick}</div>
+        <div class="rank-pod-nick">${nick}${podBagelIcon}</div>
         <div class="rank-pod-members">${a}-${b}</div>
         <div class="rank-pod-wr ${wr>=50?'hot':'cold'}">${wr}%</div>
         <div class="rank-pod-wl">${wdl}</div>
@@ -3725,11 +3726,20 @@ async function renderRankingTab(){
     });
     html+=`</div>`;
 
-    // 베이글 탭 선택 시 페어 베이글 stats 로드
+    // 베이글 아이콘 + 탭용 전체 stats 로드 (캐시 우선)
+    let _allBagelStats = _bagelStatsCache[_selectedRankYear] || null;
+    if (!_allBagelStats) {
+      try { _allBagelStats = await _getBagelStats(_selectedRankYear); } catch(e) {}
+    }
+    function _hasBagel(pairKey) {
+      if (!_allBagelStats) return false;
+      return ((_allBagelStats.pairGiven[pairKey] && Object.keys(_allBagelStats.pairGiven[pairKey]).length > 0) ||
+              (_allBagelStats.pairReceived[pairKey] && Object.keys(_allBagelStats.pairReceived[pairKey]).length > 0));
+    }
     let bagelData=null;
     if(_selectedRankKey && _rankDetailTab==='bagel'){
       try{
-        const bs=await _getBagelStats(_selectedRankYear);
+        const bs=_allBagelStats || await _getBagelStats(_selectedRankYear);
         bagelData={given:bs.pairGiven[_selectedRankKey]||{},received:bs.pairReceived[_selectedRankKey]||{}};
       }catch(e){console.error('_getBagelStats error',e);bagelData={given:{},received:{}};}
     } else if(_selectedRankKey){
@@ -3746,7 +3756,8 @@ async function renderRankingTab(){
       html+=pairs.slice(3).map((p,idx)=>{
         const isSel=p.key===_selectedRankKey;
         const det=isSel?mkDetail(vsData,stats,'pair',true,bagelData):'';
-        const disp=`<span>${getPairDisplayName(p.players,p.nickname)}</span>`;
+        const bagelIcon=_hasBagel(p.key)?'<span style="font-size:0.8em;margin-left:3px">🥯</span>':'';
+        const disp=`<span>${getPairDisplayName(p.players,p.nickname)}${bagelIcon}</span>`;
         return mkListItem(p.key,p.rank,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified);
       }).join('');
     }
@@ -4882,6 +4893,14 @@ let _lastPhotoIdx = -1;
 })();
 
 function switchPage(id) {
+  // 오늘의경기 탭을 벗어날 때 캐러셀 정지
+  if (document.getElementById('page-matches').classList.contains('active') && id !== 'matches') {
+    if (_carouselTimer) { clearInterval(_carouselTimer); _carouselTimer = null; }
+  }
+  // ATP 탭을 벗어날 때 Firebase 리스너 해제
+  if (document.getElementById('page-atp').classList.contains('active') && id !== 'atp') {
+    _teardownAtpListeners();
+  }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById(`page-${id}`).classList.add('active');
@@ -4930,6 +4949,7 @@ function switchPage(id) {
     }
   }
   if(id === 'atp') {
+    initAtpListeners();
     renderAtpPage();
     if (!atpState.loaded) triggerAtpRefresh();
     if (atpState.preferBetTab) switchAtpTab('bet');
@@ -4977,6 +4997,28 @@ function switchPage(id) {
     }
   }
 }
+
+// ── 화면 백그라운드/잠금 시 Firebase 연결 일시 중단 ──────────────
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // 백그라운드: WebSocket 끊어서 배터리 절약
+    if (db) firebase.database().goOffline();
+    if (_carouselTimer) { clearInterval(_carouselTimer); _carouselTimer = null; }
+    if (typeof _mpCountdownTimer !== 'undefined' && _mpCountdownTimer) {
+      clearInterval(_mpCountdownTimer); _mpCountdownTimer = null;
+    }
+  } else {
+    // 포그라운드: 재연결 — 모든 .on() 리스너 자동 동기화됨
+    if (db) firebase.database().goOnline();
+    // 캐러셀 재시작 (오늘의경기 탭 활성화 중인 경우)
+    const matchEl = document.getElementById('page-matches');
+    if (matchEl && matchEl.classList.contains('active') && _carouselData.length > 0 && !_carouselTimer) {
+      _carouselTimer = setInterval(() => goCarousel((_carouselIdx+1)%_carouselData.length, true), 7000);
+    }
+    // 카운트다운 재시작
+    if (typeof _mpActiveClosesAt !== 'undefined' && _mpActiveClosesAt) _mpStartCountdown(_mpActiveClosesAt);
+  }
+});
 
 // ══ CONFETTI ══
 function launchConfetti() {
@@ -6086,8 +6128,7 @@ changeTeamPhotoRandom();
     renderRankYearRow();
     renderRankingTab();
 
-    // ── ATP 리스너 초기화 (ATP 스크립트 블록 로드 후 실행) ───────
-    setTimeout(() => { if (typeof initAtpListeners === 'function') initAtpListeners(); }, 0);
+    // ATP 리스너는 탭 진입 시 lazyload (initAtpListeners는 switchPage에서 호출)
   } catch(e) {
     console.error('초기화 오류:', e);
     // 오류 시 로컬 폴백
@@ -6122,43 +6163,36 @@ const atpState = {
 };
 
 // ── Firebase 구독 초기화 ──────────────────────────────────────────
+let _atpListenersActive = false;
+let _atpGsQueryRef = null;
+let _atpNewsRef = null;
+let _atpFavRef = null;
+
 function initAtpListeners() {
-  if (!db) {
-    atpState.loaded = true; // db 없으면 즉시 로딩 완료 처리
-    return;
-  }
+  if (_atpListenersActive) return;
+  if (!db) { atpState.loaded = true; return; }
+  _atpListenersActive = true;
 
   // 8초 내 Firebase 무응답 → ESPN 자동 fetch
-  setTimeout(() => {
-    if (!atpState.loaded) {
-      triggerAtpRefresh();
-    }
-  }, 8000);
+  setTimeout(() => { if (!atpState.loaded) triggerAtpRefresh(); }, 8000);
 
   // ATP 데이터 구독
   db.ref('jmt/atpData').on('value', snap => {
     const d = snap.val();
     atpState.tournamentInfo = d ? (d.tournamentInfo || null) : null;
     atpState.matches = d ? (d.matches || []) : [];
-    atpState.gsRoundTab = null; // 새 데이터 → 라운드 탭 초기화
+    atpState.gsRoundTab = null;
     atpState.loaded = true;
-    if (document.getElementById('page-atp').classList.contains('active')) {
-      renderAtpPage();
-    }
+    if (document.getElementById('page-atp').classList.contains('active')) renderAtpPage();
   });
 
-  // 직전 Grand Slam 구독 — 가장 최근 항목 하나만 사용
-  db.ref('jmt/lastGrandSlam').orderByChild('savedAt').limitToLast(1).on('value', snap => {
+  // 직전 Grand Slam 구독
+  _atpGsQueryRef = db.ref('jmt/lastGrandSlam').orderByChild('savedAt').limitToLast(1);
+  _atpGsQueryRef.on('value', snap => {
     const d = snap.val();
-    if (d) {
-      const keys = Object.keys(d);
-      atpState.lastGrandSlam = d[keys[keys.length - 1]];
-    } else {
-      atpState.lastGrandSlam = null;
-    }
-    if (!atpState.tournamentInfo && document.getElementById('page-atp').classList.contains('active')) {
-      renderAtpPage();
-    }
+    if (d) { const keys = Object.keys(d); atpState.lastGrandSlam = d[keys[keys.length-1]]; }
+    else atpState.lastGrandSlam = null;
+    if (!atpState.tournamentInfo && document.getElementById('page-atp').classList.contains('active')) renderAtpPage();
   });
 
   // 베팅 구독
@@ -6168,35 +6202,29 @@ function initAtpListeners() {
       atpState.preferBetTab = true;
       if (document.getElementById('page-atp').classList.contains('active')) switchAtpTab('bet');
     }
-    if (document.getElementById('page-atp').classList.contains('active')) {
-      renderAtpBetPanel();
-    }
+    if (document.getElementById('page-atp').classList.contains('active')) renderAtpBetPanel();
   });
 
-  // ATP 세계 랭킹 구독 (주 1회 갱신)
+  // ATP 세계 랭킹 구독
   db.ref('jmt/atpRankings').on('value', snap => {
     const d = snap.val();
     atpState.rankingsFromDb = (d && d.players) ? d.players : [];
   });
 
-  // ATP 뉴스 구독 — Cloud Function이 12시간마다 업데이트, 앱은 읽기만
-  const _newsRef = db.ref('jmt/atpNews');
+  // ATP 뉴스 구독
+  _atpNewsRef = db.ref('jmt/atpNews');
   const _onNewsSnap = snap => {
     const d = snap.val();
     atpState.news = (d && d.articles) ? d.articles : [];
     atpState.newsLoaded = true;
     updateNewsBadge();
-    if (atpState.currentTab === 'news' && document.getElementById('page-atp').classList.contains('active')) {
-      renderAtpNewsPanel();
-    }
+    if (atpState.currentTab === 'news' && document.getElementById('page-atp').classList.contains('active')) renderAtpNewsPanel();
   };
-  _newsRef.on('value', _onNewsSnap);
-
-  // 8초 내 응답 없으면 once()로 강제 1회 읽기 (Firebase 연결 지연 대비)
+  _atpNewsRef.on('value', _onNewsSnap);
   setTimeout(() => {
     if (!atpState.newsLoaded) {
-      _newsRef.once('value').then(_onNewsSnap).catch(() => {
-        atpState.newsLoaded = true; // 오류 시 "없음"으로 처리
+      _atpNewsRef.once('value').then(_onNewsSnap).catch(() => {
+        atpState.newsLoaded = true;
         if (atpState.currentTab === 'news') renderAtpNewsPanel();
       });
     }
@@ -6205,21 +6233,26 @@ function initAtpListeners() {
   // 개인 관심선수 구독
   const myName = state.identity && state.identity.name;
   if (myName) {
-    // localStorage에서 즉시 로드 (Firebase 응답 전 대비)
-    try {
-      const cached = localStorage.getItem(`${LS_FAV_PLAYERS}_${myName}`);
-      if (cached) atpState.favPlayers = JSON.parse(cached);
-    } catch(e) {}
-
-    db.ref(`jmt/favPlayers/${myName}`).on('value', snap => {
+    try { const cached = localStorage.getItem(`${LS_FAV_PLAYERS}_${myName}`); if (cached) atpState.favPlayers = JSON.parse(cached); } catch(e) {}
+    _atpFavRef = db.ref(`jmt/favPlayers/${myName}`);
+    _atpFavRef.on('value', snap => {
       const players = snap.val() || [];
       atpState.favPlayers = players;
       try { localStorage.setItem(`${LS_FAV_PLAYERS}_${myName}`, JSON.stringify(players)); } catch(e) {}
-      if (document.getElementById('page-atp').classList.contains('active')) {
-        renderAtpFavMatches();
-      }
+      if (document.getElementById('page-atp').classList.contains('active')) renderAtpFavMatches();
     });
   }
+}
+
+function _teardownAtpListeners() {
+  if (!_atpListenersActive || !db) return;
+  _atpListenersActive = false;
+  db.ref('jmt/atpData').off('value');
+  if (_atpGsQueryRef) { _atpGsQueryRef.off('value'); _atpGsQueryRef = null; }
+  db.ref('jmt/atpBets').off('value');
+  db.ref('jmt/atpRankings').off('value');
+  if (_atpNewsRef) { _atpNewsRef.off('value'); _atpNewsRef = null; }
+  if (_atpFavRef) { _atpFavRef.off('value'); _atpFavRef = null; }
 }
 
 // ── ATP 뉴스 NEW 배지 ────────────────────────────────────────────
@@ -11552,7 +11585,9 @@ function mpStartNew() {
 
 // ── 마감 카운트다운 ──
 let _mpCountdownTimer = null;
+let _mpActiveClosesAt = null;
 function _mpStartCountdown(closesAt) {
+  _mpActiveClosesAt = closesAt;
   if (_mpCountdownTimer) clearInterval(_mpCountdownTimer);
   const endTime = new Date(closesAt).getTime();
   function update() {
@@ -11570,15 +11605,14 @@ function _mpStartCountdown(closesAt) {
     el.textContent = '⏱ ' + _mpFormatRemaining(remaining) + '  · ' + dlStr;
   }
   update();
-  _mpCountdownTimer = setInterval(update, 1000);
+  _mpCountdownTimer = setInterval(update, 60000); // 1분마다 갱신 (초 단위 불필요)
 }
 function _mpFormatRemaining(ms) {
-  const s = Math.floor(ms/1000);
-  const m = Math.floor(s/60);
-  const h = Math.floor(s/3600);
-  if (h > 0) return `${h}시간 ${m%60}분 ${s%60}초 후 마감`;
-  if (m > 0) return `${m}분 ${s%60}초 후 마감`;
-  return `${s}초 후 마감`;
+  const m = Math.floor(ms / 60000);
+  const h = Math.floor(m / 60);
+  if (h > 0) return `${h}시간 ${m%60}분 후 마감`;
+  if (m > 0) return `${m}분 후 마감`;
+  return '곧 마감';
 }
 
 // ── 투표 삭제 (관리자만, 히스토리 미저장) ──
