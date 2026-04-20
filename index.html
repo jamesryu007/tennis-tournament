@@ -3042,14 +3042,14 @@ function _renderDailyPickList(){
       const isOtherTeam=other.length>0&&(otherSet.has(a)||otherSet.has(b));
       const isPlaying=playingPlayers.has(a)||playingPlayers.has(b);
       const dis=isOtherTeam||isPlaying;
-      const baseStyle=`font-size:0.7rem;padding:4px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;`;
+      const baseStyle=`font-size:0.7rem;padding:4px 7px;white-space:normal;word-break:keep-all;text-align:center;`;
       const style=dis?baseStyle+`background:#f1f5f9;border-color:#cbd5e1;color:#94a3b8;cursor:not-allowed;`
                     :isSel?baseStyle  // 선택됨: CSS .selected 클래스가 파란색 처리
                           :baseStyle+`background:#fef3c7;border-color:#fcd34d;color:#92400e;`;
       const click=dis?'':`onclick="selectDailyPair('${a}','${b}')"`;
       return `<button class="player-pick-btn${isSel?' selected':''}" ${click} style="${style}">${nick}(${a}-${b})</button>`;
     }).join('');
-    html+=`<div style="margin-bottom:12px"><div class="pick-group-label">⭐ 페어링된 닉네임</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px">${btns}</div></div>`;
+    html+=`<div style="margin-bottom:12px"><div class="pick-group-label">⭐ 페어링된 닉네임</div><div style="display:flex;flex-wrap:wrap;gap:5px">${btns}</div></div>`;
   }
 
   // 성별 그룹 — 상대팀 선수 또는 진행 중 선수는 비활성화
