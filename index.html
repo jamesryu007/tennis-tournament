@@ -7295,7 +7295,12 @@ function closeBet(betId) {
 
 function deleteBet(betId) {
   if (!confirm('이 베팅 카드를 삭제하시겠습니까? 복구할 수 없습니다.')) return;
-  db.ref(`jmt/atpBets/${betId}`).remove().catch(fbErr);
+  // 삭제 전 히스토리에 보존
+  _archiveBetToHistory(betId, { deletedAt: new Date().toISOString() });
+  db.ref(`jmt/atpBets/${betId}`).remove().then(() => {
+    delete atpState.bets[betId];
+    renderAtpBetPanel();
+  }).catch(fbErr);
 }
 
 function _archiveBetToHistory(betId, extra) {
