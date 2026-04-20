@@ -9731,10 +9731,11 @@ async function shareLadderBracket() {
   const isDone    = !!t.champion;
 
   // ── 임시 캡처 컨테이너 ──────────────────────────────────
-  const bw = parseInt(bracketEl.style.width)  || bracketEl.offsetWidth  || 320;
-  const bh = parseInt(bracketEl.style.height) || bracketEl.offsetHeight || 200;
-  // 최대 너비 500px — 넘으면 축소
-  const MAX_CONTENT_W = 468; // 500 - padding 32
+  // scrollWidth/scrollHeight: overflow 포함 실제 콘텐츠 전체 크기
+  const bw = bracketEl.scrollWidth  || bracketEl.offsetWidth  || 320;
+  const bh = bracketEl.scrollHeight || bracketEl.offsetHeight || 200;
+  // 최대 너비 360px — 캡처 이미지 안에 전체 대진표가 들어오도록 충분히 축소
+  const MAX_CONTENT_W = 360;
   const scale = bw > MAX_CONTENT_W ? MAX_CONTENT_W / bw : 1;
   const scaledBw = Math.round(bw * scale);
   const scaledBh = Math.round(bh * scale);
@@ -9763,7 +9764,7 @@ async function shareLadderBracket() {
   // 대진표 클론 — 필요시 축소해서 테두리 안에 맞춤
   const bracketClone = bracketEl.cloneNode(true);
   const bracketBox = document.createElement('div');
-  bracketBox.style.cssText = `background:#fff;border-radius:12px;padding:10px;border:1px solid #e2e8f0;width:${scaledBw}px;height:${scaledBh}px;position:relative;overflow:hidden;box-sizing:border-box;`;
+  bracketBox.style.cssText = `background:#fff;border-radius:12px;border:1px solid #e2e8f0;width:${scaledBw}px;height:${scaledBh}px;position:relative;overflow:hidden;box-sizing:content-box;`;
   if (scale < 1) {
     bracketClone.style.transform = `scale(${scale})`;
     bracketClone.style.transformOrigin = 'top left';
