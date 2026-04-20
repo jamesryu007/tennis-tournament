@@ -235,6 +235,51 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .dc-numpad { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:12px 0; }
 .dc-numpad-btn { padding:14px 0; font-size:1.15rem; font-weight:700; border:1.5px solid #e2e8f0; border-radius:10px; background:#f8fafc; cursor:pointer; text-align:center; -webkit-tap-highlight-color:transparent; box-shadow:0 4px 0 #d1d5db; transition:transform 0.08s, box-shadow 0.08s, background 0.08s; }
 .dc-numpad-btn:active { transform:translateY(3px); box-shadow:0 1px 0 #d1d5db; background:#e2e8f0; }
+/* ── Pull-to-Refresh 공통 ── */
+#ptr-pill {
+  position: fixed;
+  top: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 20px 10px 14px;
+  background: rgba(255,255,255,0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 100px;
+  box-shadow: 0 6px 28px rgba(0,0,0,0.14), 0 1px 4px rgba(0,0,0,0.08);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+  z-index: 9998;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: top 0.32s cubic-bezier(0.34,1.28,0.64,1);
+  border: 1.5px solid rgba(59,130,246,0.15);
+}
+#ptr-pill.visible { top: calc(env(safe-area-inset-top, 0px) + 14px); }
+.ptr-icon-wrap {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(59,130,246,0.4);
+  font-size: 1rem;
+  transition: transform 0.25s;
+}
+.ptr-icon-wrap.rotate180 { transform: rotate(180deg); }
+@keyframes ptr-spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@keyframes ptr-pop { 0%{transform:scale(0.7)} 60%{transform:scale(1.15)} 100%{transform:scale(1)} }
+.ptr-icon-wrap.spinning { animation: ptr-spin 0.7s linear infinite; }
+.ptr-icon-wrap.done-pop {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  animation: ptr-pop 0.35s ease;
+  box-shadow: 0 2px 8px rgba(22,163,74,0.4);
+}
+#ptr-text { transition: opacity 0.15s; }
 /* ── RANKING 전면 리디자인 ── */
 /* 연도 선택 */
 .rank-year-row { display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap; }
@@ -2780,53 +2825,34 @@ function _saveCardToFirebase(id){
   db.ref(`jmt/dailyCards/${id}`).set(_dailyCards[id]).catch(()=>{});
 }
 
+function _normCard(data){
+  data.sets=Array.isArray(data.sets)?data.sets:(data.sets?Object.values(data.sets):[]);
+  data.team0=Array.isArray(data.team0)?data.team0:(data.team0?Object.values(data.team0):[]);
+  data.team1=Array.isArray(data.team1)?data.team1:(data.team1?Object.values(data.team1):[]);
+  data.bgImage=data.bgImage||'images/ca1.png';
+  return data;
+}
+
 function _setupDailyCardsListener(){
   if(_dailyCardsListenerSet||!db) return;
   _dailyCardsListenerSet=true;
   db.ref('jmt/dailyCards').once('value').then(snap=>{
-    if(!snap.val()||Object.keys(snap.val()).length===0) addDailyMatchCard();
-  });
-  db.ref('jmt/dailyCards').on('child_added',snap=>{
-    const id=snap.key, data=snap.val();
-    data.sets=Array.isArray(data.sets)?data.sets:(data.sets?Object.values(data.sets):[]);
-    data.team0=Array.isArray(data.team0)?data.team0:(data.team0?Object.values(data.team0):[]);
-    data.team1=Array.isArray(data.team1)?data.team1:(data.team1?Object.values(data.team1):[]);
-    data.bgImage=data.bgImage||'images/ca1.png';
-    _dailyCards[id]=data;
+    const all=snap.val()||{};
     const container=document.getElementById('daily-match-cards');
-    if(container&&!document.getElementById(`daily-card-${id}`)){
-      const el=document.createElement('div');
-      el.id=`daily-card-${id}`;
-      el.dataset.num=data.num||0;
-      container.appendChild(el);
-      // num 순서대로 DOM 정렬
-      Array.from(container.children).sort((a,b)=>parseInt(a.dataset.num||0)-parseInt(b.dataset.num||0))
-        .forEach(ch=>container.appendChild(ch));
-    }
-    _renderDailyCard(id);
-    if(_pendingScrollKey===id){
-      _pendingScrollKey=null;
-      setTimeout(()=>{
-        const el=document.getElementById(`daily-card-${id}`);
-        if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
-      },50);
-    }
-  });
-  db.ref('jmt/dailyCards').on('child_changed',snap=>{
-    const id=snap.key;
-    const data=snap.val();
-    data.sets=Array.isArray(data.sets)?data.sets:(data.sets?Object.values(data.sets):[]);
-    data.team0=Array.isArray(data.team0)?data.team0:(data.team0?Object.values(data.team0):[]);
-    data.team1=Array.isArray(data.team1)?data.team1:(data.team1?Object.values(data.team1):[]);
-    data.bgImage=data.bgImage||'images/ca1.png';
-    _dailyCards[id]=data;
-    _renderDailyCard(id);
-  });
-  db.ref('jmt/dailyCards').on('child_removed',snap=>{
-    const id=snap.key;
-    delete _dailyCards[id];
-    const el=document.getElementById(`daily-card-${id}`);
-    if(el) el.remove();
+    if(Object.keys(all).length===0){ addDailyMatchCard(); return; }
+    Object.entries(all)
+      .sort((a,b)=>((a[1].num||0)-(b[1].num||0)))
+      .forEach(([id,raw])=>{
+        const data=_normCard(raw);
+        _dailyCards[id]=data;
+        if(container&&!document.getElementById(`daily-card-${id}`)){
+          const el=document.createElement('div');
+          el.id=`daily-card-${id}`;
+          el.dataset.num=data.num||0;
+          container.appendChild(el);
+        }
+        _renderDailyCard(id);
+      });
   });
 }
 
@@ -4604,7 +4630,7 @@ function openModal(type,ri,mi) {
   document.getElementById('score-side-0').className='score-side'+(match.winner===0?' winner-row':'');
   document.getElementById('score-side-1').className='score-side'+(match.winner===1?' winner-row':'');
   document.getElementById('score-modal').classList.add('open');
-  setTimeout(()=>selectTournamentField(match.score0!=null?'bscore-b':'bscore-a'),50);
+  setTimeout(()=>selectTournamentField('bscore-a'),50);
 }
 
 function closeModal() {
@@ -12017,78 +12043,152 @@ function deleteMpHistory(pollId, event) {
 </script>
 
 <script>
-// ── 랭킹 탭 pull-to-refresh ──────────────────────────────────────
+// ══ 전체 화면 통합 Pull-to-Refresh ══════════════════════════════
 (function() {
   'use strict';
-  const THRESHOLD = 60; // 새로고침 발동 최소 당김 px
-  let startY = null, pulling = false, refreshing = false;
+  const THRESHOLD = 68;
+  let startY = 0, startX = 0, ptrActive = false, ptrRefreshing = false;
 
-  function isRankingActive() {
-    const p = document.getElementById('page-history');
-    return p && p.classList.contains('active');
-  }
-
-  function getIndicator() {
-    let el = document.getElementById('ptr-indicator');
+  // ── PIL 생성 ──
+  function getPill() {
+    let el = document.getElementById('ptr-pill');
     if (!el) {
       el = document.createElement('div');
-      el.id = 'ptr-indicator';
-      el.style.cssText = [
-        'position:fixed', 'top:62px', 'left:0', 'right:0',
-        'display:flex', 'justify-content:center', 'pointer-events:none',
-        'z-index:200', 'opacity:0', 'transition:opacity 0.2s'
-      ].join(';');
-      el.innerHTML = '<div style="background:#fff;border-radius:50%;width:34px;height:34px;' +
-        'display:flex;align-items:center;justify-content:center;' +
-        'box-shadow:0 2px 8px rgba(0,0,0,0.18);font-size:18px;color:#3b82f6">↻</div>';
+      el.id = 'ptr-pill';
+      el.innerHTML =
+        '<div class="ptr-icon-wrap" id="ptr-icon-wrap">↓</div>' +
+        '<span id="ptr-text">당겨서 새로고침</span>';
       document.body.appendChild(el);
     }
     return el;
   }
 
+  function setPillState(state) {
+    const wrap = document.getElementById('ptr-icon-wrap');
+    const text = document.getElementById('ptr-text');
+    if (!wrap || !text) return;
+    if (state === 'pull') {
+      wrap.className = 'ptr-icon-wrap';
+      wrap.textContent = '↓';
+      text.textContent = '당겨서 새로고침';
+    } else if (state === 'release') {
+      wrap.className = 'ptr-icon-wrap rotate180';
+      wrap.textContent = '↓';
+      text.textContent = '손 떼면 새로고침!';
+    } else if (state === 'loading') {
+      wrap.className = 'ptr-icon-wrap spinning';
+      wrap.textContent = '↻';
+      text.textContent = '새 정보 불러오는 중...';
+    } else if (state === 'done') {
+      wrap.className = 'ptr-icon-wrap done-pop';
+      wrap.textContent = '✓';
+      text.textContent = '업데이트 완료';
+    }
+  }
+
+  function activePageId() {
+    const p = document.querySelector('.page.active');
+    return p ? p.id.replace('page-', '') : null;
+  }
+
+  // ── 터치 이벤트 ──
   document.addEventListener('touchstart', function(e) {
-    if (refreshing || !isRankingActive() || e.touches.length !== 1) return;
-    if (window.scrollY > 0) return; // 스크롤 중간 위치에선 작동 안 함
+    if (ptrRefreshing || e.touches.length !== 1) return;
+    if (window.scrollY > 4) return;
     startY = e.touches[0].clientY;
-    pulling = false;
+    startX = e.touches[0].clientX;
+    ptrActive = true;
   }, { passive: true });
 
   document.addEventListener('touchmove', function(e) {
-    if (startY === null || !isRankingActive()) return;
+    if (!ptrActive) return;
     const dy = e.touches[0].clientY - startY;
-    if (dy <= 10) return;
-    pulling = true;
-    const progress = Math.min(dy / THRESHOLD, 1);
-    const ind = getIndicator();
-    ind.style.opacity = String(progress * 0.9 + 0.1);
-    ind.querySelector('div').style.transform = `rotate(${progress * 270}deg) scale(${0.7 + progress * 0.3})`;
-  }, { passive: true });
-
-  document.addEventListener('touchend', function(e) {
-    if (!pulling || startY === null) { startY = null; return; }
-    const dy = (e.changedTouches[0]?.clientY || startY) - startY;
-    const ind = getIndicator();
-    startY = null; pulling = false;
-
-    if (dy >= THRESHOLD && !refreshing) {
-      refreshing = true;
-      ind.style.opacity = '1';
-      ind.querySelector('div').style.transform = 'rotate(360deg) scale(1)';
-      // 캐시 전체 무효화 후 재로드
-      if (typeof _rankStatsCache !== 'undefined') {
-        Object.keys(_rankStatsCache).forEach(k => delete _rankStatsCache[k]);
-      }
-      if (typeof _rankingMode !== 'undefined' && _rankingMode === 'attendance') {
-        if (typeof renderAttendanceRanking === 'function') renderAttendanceRanking();
-      } else if (typeof renderRankingTab === 'function') renderRankingTab();
-      setTimeout(() => {
-        ind.style.opacity = '0';
-        refreshing = false;
-      }, 800);
+    const dx = Math.abs(e.touches[0].clientX - startX);
+    if (dy < 0 || dx > dy * 0.8) { ptrActive = false; return; } // 수평 스와이프 제외
+    if (dy > 8) e.preventDefault(); // 네이티브 bounce 차단
+    const pill = getPill();
+    if (dy > 16) {
+      pill.classList.add('visible');
+      if (dy >= THRESHOLD) setPillState('release');
+      else setPillState('pull');
     } else {
-      ind.style.opacity = '0';
+      pill.classList.remove('visible');
     }
+  }, { passive: false });
+
+  document.addEventListener('touchend', async function(e) {
+    if (!ptrActive) return;
+    ptrActive = false;
+    const dy = e.changedTouches[0].clientY - startY;
+    const pill = getPill();
+
+    if (dy < THRESHOLD || ptrRefreshing) {
+      pill.classList.remove('visible');
+      return;
+    }
+
+    ptrRefreshing = true;
+    setPillState('loading');
+
+    const pageId = activePageId();
+    try { await _ptrRefreshPage(pageId); } catch(err) { console.warn('PTR error', err); }
+
+    setPillState('done');
+    setTimeout(() => {
+      pill.classList.remove('visible');
+      setTimeout(() => { setPillState('pull'); ptrRefreshing = false; }, 350);
+    }, 1100);
   }, { passive: true });
+
+  // ── 페이지별 새로고침 로직 ──
+  window._ptrRefreshPage = async function(pageId) {
+    switch (pageId) {
+      case 'matches':
+        // daily cards 강제 재로드
+        if (typeof _dailyCardsListenerSet !== 'undefined') {
+          _dailyCardsListenerSet = false;
+          const con = document.getElementById('daily-match-cards');
+          if (con) con.innerHTML = '';
+          Object.keys(_dailyCards || {}).forEach(k => delete _dailyCards[k]);
+          if (typeof _setupDailyCardsListener === 'function') _setupDailyCardsListener();
+        }
+        // 캐러셀 재로드
+        if (typeof renderRecentMatchesCarousel === 'function') await renderRecentMatchesCarousel();
+        break;
+
+      case 'history':
+        // 랭킹 캐시 전체 무효화
+        if (typeof _rankStatsCache !== 'undefined') Object.keys(_rankStatsCache).forEach(k => delete _rankStatsCache[k]);
+        if (typeof _rankVsCache !== 'undefined') Object.keys(_rankVsCache).forEach(k => delete _rankVsCache[k]);
+        if (typeof _bagelStatsCache !== 'undefined') Object.keys(_bagelStatsCache).forEach(k => delete _bagelStatsCache[k]);
+        if (typeof _rankingMode !== 'undefined' && _rankingMode === 'attendance') {
+          if (typeof renderAttendanceRanking === 'function') renderAttendanceRanking();
+        } else if (typeof renderRankingTab === 'function') renderRankingTab();
+        break;
+
+      case 'checkin':
+        if (typeof db !== 'undefined' && db) {
+          const snap = await db.ref('jmt/pollState').once('value');
+          const ps = snap.val();
+          if (ps && typeof state !== 'undefined') { state.pollState = ps; }
+          if (typeof renderCheckinPage === 'function') renderCheckinPage();
+        }
+        break;
+
+      case 'atp':
+        if (typeof triggerAtpRefresh === 'function') triggerAtpRefresh();
+        if (typeof initAtpListeners === 'function') { _atpListenersActive = false; initAtpListeners(); }
+        break;
+
+      case 'members':
+        if (typeof loadRankingTop3 === 'function') await loadRankingTop3();
+        if (typeof renderMemberList === 'function') renderMemberList();
+        break;
+
+      default:
+        break;
+    }
+  };
 })();
 </script>
 
