@@ -4816,10 +4816,21 @@ function submitScore() {
         const _lm = _getTournamentMeta(type);
         const _lDate = _lm.date ? _lm.date.slice(5).replace('-','/') : '';
         const cardLabel = [_lm.title, _lDate, _rLabel].filter(Boolean).join(' ');
-        db.ref(`jmt/dailyCards/${newKey}`).set({
+        const newCardData = {
           phase: 'done', team0: t0, team1: t1, sets, winner, bgImage, num,
           matchKey: newKey, source: type + '-bracket', scoredAt: Date.now(), label: cardLabel
-        }).catch(fbErr);
+        };
+        db.ref(`jmt/dailyCards/${newKey}`).set(newCardData).catch(fbErr);
+        // 로컬 상태 + DOM 즉시 반영 (맨 위에 삽입)
+        _dailyCards[newKey] = Object.assign({}, newCardData);
+        const _dc = document.getElementById('daily-match-cards');
+        if (_dc) {
+          const _dcEl = document.createElement('div');
+          _dcEl.id = `daily-card-${newKey}`;
+          _dcEl.dataset.num = num;
+          _dc.insertBefore(_dcEl, _dc.firstChild);
+          _renderDailyCard(newKey);
+        }
         // 키 포함 상태 저장 (ladder는 ladderState, 나머지는 activeState)
         if (type === 'ladder') {
           state._ladderNonce = Math.random().toString(36).slice(2);
@@ -4838,7 +4849,10 @@ function submitScore() {
         db.ref('jmt/matches/' + existingKey).update({ sets, winner, date: today }).catch(fbErr);
         const existing = _dailyCards[existingKey];
         const cardUpdate = { sets, winner, bgImage };
-        if (existing) Object.assign(existing, cardUpdate);
+        if (existing) {
+          Object.assign(existing, cardUpdate);
+          _renderDailyCard(existingKey);
+        }
         db.ref(`jmt/dailyCards/${existingKey}`).update(cardUpdate).catch(fbErr);
       }
     }
