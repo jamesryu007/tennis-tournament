@@ -2930,8 +2930,11 @@ function _renderDailyCard(id){
       </div>`;
     }).join('<div class="dc-set-divider"></div>');
     const mid=`<div onclick="openDailyScore('${id}')" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer">${scoreItems}</div>`;
-    const l0Emoji=isDraw?'':t0win?`<div class="dc-win-icon">🎉</div>`:`<div class="dc-lose-icon">😢</div>`;
-    const r1Emoji=isDraw?'':t1win?`<div class="dc-win-icon">🎉</div>`:`<div class="dc-lose-icon">😢</div>`;
+    const _loseIcon=(isBageled)=>isBageled
+      ?`<div class="dc-lose-icon"><img src="images/bagle.png" style="width:2rem;height:auto;display:block;margin:0 auto"></div>`
+      :`<div class="dc-lose-icon">😢</div>`;
+    const l0Emoji=isDraw?'':t0win?`<div class="dc-win-icon">🎉</div>`:_loseIcon(bagelSides.has(0));
+    const r1Emoji=isDraw?'':t1win?`<div class="dc-win-icon">🎉</div>`:_loseIcon(bagelSides.has(1));
     const l0Badge=isDraw?'<span class="dc-draw-badge">무승부</span>':t0win?'<span class="dc-win-badge">WIN 🏆</span>':'<span class="dc-lose-badge">LOSE</span>';
     const r1Badge=isDraw?'<span class="dc-draw-badge">무승부</span>':t1win?'<span class="dc-win-badge">WIN 🏆</span>':'<span class="dc-lose-badge">LOSE</span>';
     const left=`<div class="dc-team-left${t0win?' win':''}" onclick="openDailyScore('${id}')" style="cursor:pointer">
