@@ -2930,17 +2930,8 @@ function _renderDailyCard(id){
       </div>`;
     }).join('<div class="dc-set-divider"></div>');
     const mid=`<div onclick="openDailyScore('${id}')" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer">${scoreItems}</div>`;
-    // 6:0 베이글 경기 → 이미지 아이콘 / 일반 경기 → 이모지
-    const _bagelDcIcon=(side)=>{
-      if(bagelSides.has(side)){
-        const img=Math.random()<0.5?'bagleMan.png':'bagleWoman.png';
-        return `<img src="images/${img}" class="bagel-char-img">`;
-      }
-      return `<img src="images/baglegiver.png" class="bagel-char-img">`;
-    };
-    const isBagelMatch=bagelSides.size>0;
-    const l0Emoji=isDraw?'':isBagelMatch?_bagelDcIcon(0):(t0win?`<div class="dc-win-icon">🎉</div>`:`<div class="dc-lose-icon">😢</div>`);
-    const r1Emoji=isDraw?'':isBagelMatch?_bagelDcIcon(1):(t1win?`<div class="dc-win-icon">🎉</div>`:`<div class="dc-lose-icon">😢</div>`);
+    const l0Emoji=isDraw?'':t0win?`<div class="dc-win-icon">🎉</div>`:`<div class="dc-lose-icon">😢</div>`;
+    const r1Emoji=isDraw?'':t1win?`<div class="dc-win-icon">🎉</div>`:`<div class="dc-lose-icon">😢</div>`;
     const l0Badge=isDraw?'<span class="dc-draw-badge">무승부</span>':t0win?'<span class="dc-win-badge">WIN 🏆</span>':'<span class="dc-lose-badge">LOSE</span>';
     const r1Badge=isDraw?'<span class="dc-draw-badge">무승부</span>':t1win?'<span class="dc-win-badge">WIN 🏆</span>':'<span class="dc-lose-badge">LOSE</span>';
     const left=`<div class="dc-team-left${t0win?' win':''}" onclick="openDailyScore('${id}')" style="cursor:pointer">
@@ -3588,23 +3579,17 @@ async function renderRankingTab(){
     if(showTabs&&_rankDetailTab==='bagel'){
       const givenE=Object.entries(bagelData.given||{}).sort((a,b)=>b[1]-a[1]);
       const recvE=Object.entries(bagelData.received||{}).sort((a,b)=>b[1]-a[1]);
-      const mkRankBagelRow=(entries,isGiver)=>entries.length
-        ?entries.map(([name,cnt])=>{
-          const g=getGender(name),nc=g==='male'?'#2563eb':g==='female'?'#db2777':'#1e293b';
-          const iconSrc=isGiver?'baglegiver.png':(g==='female'?'bagleWoman.png':'bagleMan.png');
-          return `<div class="rank-detail-row" style="align-items:center">
-            <img src="images/${iconSrc}" style="width:28px;height:auto;margin-right:6px;flex-shrink:0">
-            <span style="flex:1;color:${nc};font-weight:600">${name}</span>
-            <span style="font-weight:800;color:${isGiver?'#16a34a':'#dc2626'}">×${cnt}</span>
-          </div>`;})
+      const mkRankBagelRow=(entries,icon,color)=>entries.length
+        ?entries.map(([name,cnt])=>{const g=getGender(name),nc=g==='male'?'#2563eb':g==='female'?'#db2777':'#1e293b';
+          return `<div class="rank-detail-row"><span style="flex:1;color:${nc};font-weight:600">${icon} ${name}</span><span style="font-weight:800;color:${color}">×${cnt}</span></div>`;})
           .join('')
         :`<p style="font-size:0.77rem;color:#94a3b8;text-align:center;margin:2px 0">기록 없음</p>`;
       const gt=givenE.reduce((s,[,c])=>s+c,0), rt=recvE.reduce((s,[,c])=>s+c,0);
       return `<div class="rank-detail" style="${style}">${tabsHtml}
         <div style="font-size:0.7rem;font-weight:800;color:#16a34a;margin-bottom:4px">⚡ 베이글 먹임 총 ${gt}개</div>
-        ${mkRankBagelRow(givenE,true)}
+        ${mkRankBagelRow(givenE,'🥯→','#16a34a')}
         <div style="font-size:0.7rem;font-weight:800;color:#dc2626;margin:8px 0 4px">😵 베이글 먹음 총 ${rt}개</div>
-        ${mkRankBagelRow(recvE,false)}
+        ${mkRankBagelRow(recvE,'→🥯','#dc2626')}
       </div>`;
     }
     const title=mode==='pair'?'📊 만만한 팀 전적 순위':'📊 만만한 선수 전적 순위';
@@ -4450,7 +4435,7 @@ function renderTournament(type, opts) {
         const tb=match.tb0!=null?(side===0?match.tb0:match.tb1):null;
         const scText=sc?(tb!=null?`${sc}(${tb})`:sc):'';
         const isBraketBagel=sc!=null&&sc!==''&&parseInt(sc)===0&&parseInt(opSc)===6;
-        const bagelSm=isBraketBagel?`<img src="images/bagle.png" style="width:14px;height:auto;vertical-align:middle;margin-left:2px;display:inline-block">`:''
+        const bagelSm=isBraketBagel?'<span class="bagel-badge-sm">🥯</span>':'';
         return `<div class="team ${cls}"><span class="team-name">${nm}${bagelSm}</span>${scText?`<span class="team-score">${scText}</span>`:''}</div>`;
       };
       div.innerHTML=row(match.team0,0)+row(match.team1,1);
@@ -4698,6 +4683,11 @@ function submitScore() {
       reverseMatchStats(match.team0, match.team1, oldWinner);
     }
     updateMatchStats(match.team0,match.team1,match.winner,'','');
+    // 랭킹 캐시 무효화 → 대진표 점수 저장 시 랭킹 즉시 반영
+    delete _rankStatsCache[`player_${_selectedRankYear}`];
+    delete _rankStatsCache[`pair_${_selectedRankYear}`];
+    delete _bagelStatsCache[_selectedRankYear];
+    renderRankingTab();
   }
   const wTeam = match.winner === 0 ? match.team0 : match.team1;
   if (wTeam && wTeam.length) showWinnerCelebration(wTeam.join(' / '));
