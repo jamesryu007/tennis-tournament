@@ -2846,14 +2846,14 @@ function _setupDailyCardsListener(){
     const container=document.getElementById('daily-match-cards');
     if(Object.keys(all).length===0){ addDailyMatchCard(); return; }
     Object.entries(all)
-      .sort((a,b)=>((b[1].num||0)-(a[1].num||0)))
+      .sort((a,b)=>((b[1].createdAt||b[1].num||0)-(a[1].createdAt||a[1].num||0)))
       .forEach(([id,raw])=>{
         const data=_normCard(raw);
         _dailyCards[id]=data;
         if(container&&!document.getElementById(`daily-card-${id}`)){
           const el=document.createElement('div');
           el.id=`daily-card-${id}`;
-          el.dataset.num=data.num||0;
+          el.dataset.createdAt=data.createdAt||data.num||0;
           container.appendChild(el);
         }
         _renderDailyCard(id);
@@ -2897,11 +2897,12 @@ function addDailyMatchCard(){
   const id=++_dailyCardCounter;
   const bgImage='images/'+_DC_BG_IMAGES[Math.floor(Math.random()*_DC_BG_IMAGES.length)];
   const num=Object.keys(_dailyCards).length+1;
-  _dailyCards[id]={phase:'setup',team0:[],team1:[],sets:[],winner:-1,bgImage,num};
+  const createdAt=Date.now();
+  _dailyCards[id]={phase:'setup',team0:[],team1:[],sets:[],winner:-1,bgImage,num,createdAt};
   const container=document.getElementById('daily-match-cards');
   const el=document.createElement('div');
   el.id=`daily-card-${id}`;
-  el.dataset.num=num;
+  el.dataset.createdAt=createdAt;
   container.insertBefore(el,container.firstChild);
   _renderDailyCard(id);
   setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'nearest'}),50);
@@ -3110,7 +3111,7 @@ function startDailyMatch(id){
   if(!d||d.team0.length!==2||d.team1.length!==2) return;
   d.phase='playing';
   if(db){
-    const cardData={phase:'playing',team0:[...d.team0],team1:[...d.team1],sets:[],winner:-1,bgImage:d.bgImage,num:d.num};
+    const cardData={phase:'playing',team0:[...d.team0],team1:[...d.team1],sets:[],winner:-1,bgImage:d.bgImage,num:d.num,createdAt:d.createdAt||Date.now()};
     const ref=db.ref('jmt/dailyCards').push(cardData);
     const newKey=ref.key;
     // 로컬 임시 카드 제거
@@ -3122,7 +3123,7 @@ function startDailyMatch(id){
     const container=document.getElementById('daily-match-cards');
     const newEl=document.createElement('div');
     newEl.id=`daily-card-${newKey}`;
-    newEl.dataset.num=cardData.num||0;
+    newEl.dataset.createdAt=cardData.createdAt;
     container.insertBefore(newEl,container.firstChild);
     _renderDailyCard(newKey);
   } else {
@@ -4818,7 +4819,8 @@ function submitScore() {
         const cardLabel = [_lm.title, _lDate, _rLabel].filter(Boolean).join(' ');
         const newCardData = {
           phase: 'done', team0: t0, team1: t1, sets, winner, bgImage, num,
-          matchKey: newKey, source: type + '-bracket', scoredAt: Date.now(), label: cardLabel
+          matchKey: newKey, source: type + '-bracket', scoredAt: Date.now(),
+          createdAt: Date.now(), label: cardLabel
         };
         db.ref(`jmt/dailyCards/${newKey}`).set(newCardData).catch(fbErr);
         // 로컬 상태 + DOM 즉시 반영 (맨 위에 삽입)
@@ -4827,7 +4829,7 @@ function submitScore() {
         if (_dc) {
           const _dcEl = document.createElement('div');
           _dcEl.id = `daily-card-${newKey}`;
-          _dcEl.dataset.num = num;
+          _dcEl.dataset.createdAt = newCardData.createdAt;
           _dc.insertBefore(_dcEl, _dc.firstChild);
           _renderDailyCard(newKey);
         }
