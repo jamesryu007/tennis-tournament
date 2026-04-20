@@ -1399,8 +1399,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <!-- 경기 안내 + 추가 -->
   <div id="match-panel-daily" style="padding:4px 12px 0">
     <div id="daily-guide-row" style="text-align:center;padding:10px 0 8px;color:#94a3b8;font-size:0.82rem;font-weight:600;letter-spacing:0.02em">🎾 오늘의 멋진 경기를 만드세요</div>
-    <div id="daily-match-cards"></div>
     <button class="daily-add-btn" onclick="addDailyMatchCard()">⊕</button>
+    <div id="daily-match-cards"></div>
   </div>
 </div>
 
@@ -2845,7 +2845,7 @@ function _setupDailyCardsListener(){
     const container=document.getElementById('daily-match-cards');
     if(Object.keys(all).length===0){ addDailyMatchCard(); return; }
     Object.entries(all)
-      .sort((a,b)=>((a[1].num||0)-(b[1].num||0)))
+      .sort((a,b)=>((b[1].num||0)-(a[1].num||0)))
       .forEach(([id,raw])=>{
         const data=_normCard(raw);
         _dailyCards[id]=data;
@@ -2901,7 +2901,7 @@ function addDailyMatchCard(){
   const el=document.createElement('div');
   el.id=`daily-card-${id}`;
   el.dataset.num=num;
-  container.appendChild(el);
+  container.insertBefore(el,container.firstChild);
   _renderDailyCard(id);
   setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),50);
 }
@@ -3111,10 +3111,19 @@ function startDailyMatch(id){
   if(db){
     const cardData={phase:'playing',team0:[...d.team0],team1:[...d.team1],sets:[],winner:-1,bgImage:d.bgImage,num:d.num};
     const ref=db.ref('jmt/dailyCards').push(cardData);
-    _pendingScrollKey=ref.key;
+    const newKey=ref.key;
+    // 로컬 임시 카드 제거
     delete _dailyCards[id];
-    const el=document.getElementById(`daily-card-${id}`);
-    if(el) el.remove();
+    const oldEl=document.getElementById(`daily-card-${id}`);
+    if(oldEl) oldEl.remove();
+    // 새 Firebase key로 즉시 카드 생성 (맨 위에)
+    _dailyCards[newKey]=Object.assign({},cardData);
+    const container=document.getElementById('daily-match-cards');
+    const newEl=document.createElement('div');
+    newEl.id=`daily-card-${newKey}`;
+    newEl.dataset.num=cardData.num||0;
+    container.insertBefore(newEl,container.firstChild);
+    _renderDailyCard(newKey);
   } else {
     _renderDailyCard(id);
   }
