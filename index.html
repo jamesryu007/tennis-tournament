@@ -1426,11 +1426,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <!-- ══ PAGE: 출첵 ══ -->
 <div class="page" id="page-checkin">
 
-  <!-- 모임 영상 프레임 -->
-  <div style="margin-bottom:14px;border-radius:18px;overflow:hidden;box-shadow:0 4px 20px rgba(37,99,235,0.13),0 1px 4px rgba(0,0,0,0.08);background:#000;border:1px solid #e2e8f0;position:relative;">
-    <video id="team-video" autoplay muted loop playsinline
+  <!-- 모임 사진 프레임 -->
+  <div onclick="changeCheckinPhotoRandom()" style="margin-bottom:14px;border-radius:18px;overflow:hidden;box-shadow:0 4px 20px rgba(37,99,235,0.13),0 1px 4px rgba(0,0,0,0.08);background:#000;border:1px solid #e2e8f0;position:relative;cursor:pointer;-webkit-tap-highlight-color:transparent">
+    <img id="checkin-photo" src=""
       style="width:100%;display:block;max-height:220px;object-fit:cover;object-position:center;">
-    </video>
     <!-- 하단 그라디언트 오버레이 -->
     <div style="position:absolute;bottom:0;left:0;right:0;height:72px;background:linear-gradient(to top,rgba(15,23,42,0.72),transparent);pointer-events:none;"></div>
     <!-- 텍스트 오버레이 -->
@@ -4853,10 +4852,9 @@ function showBracketSection(type) {
 }
 
 // ══ NAV ══
-const _teamVideos  = ['images/team1.mp4',  'images/team2.mp4',  'images/team3.mp4'];
 const _teamPhotos  = ['images/team1.jpeg', 'images/team2.jpeg', 'images/team3.jpeg'];
-let _lastVideoIdx = -1;
 let _lastPhotoIdx = -1;
+let _lastCheckinPhotoIdx = -1;
 
 // ── 댓글/답글 입력창: 포커스 시 탭바 숨기고 버튼 바로 위에 키보드 위치 ────
 (function() {
@@ -4936,17 +4934,8 @@ function switchPage(id) {
   if(id === 'history') {
     changeTeamPhotoRandom();
   }
-  // 출첵 탭 진입 시 랜덤 영상 선택 (직전과 다른 것으로)
   if(id === 'checkin') {
-    const v = document.getElementById('team-video');
-    if(v) {
-      let idx;
-      do { idx = Math.floor(Math.random() * _teamVideos.length); } while(idx === _lastVideoIdx && _teamVideos.length > 1);
-      _lastVideoIdx = idx;
-      v.src = _teamVideos[idx];
-      v.load();
-      v.play().catch(()=>{});
-    }
+    changeCheckinPhotoRandom();
   }
   if(id === 'matches') {
     if(state.currentHistoryId) {
@@ -6105,8 +6094,17 @@ function changeTeamPhotoRandom() {
   const p = document.getElementById('team-photo');
   if(p) p.src = _teamPhotos[idx];
 }
+// 출첵 탭 사진 랜덤 변경
+function changeCheckinPhotoRandom() {
+  let idx;
+  do { idx = Math.floor(Math.random() * _teamPhotos.length); } while(idx === _lastCheckinPhotoIdx && _teamPhotos.length > 1);
+  _lastCheckinPhotoIdx = idx;
+  const p = document.getElementById('checkin-photo');
+  if(p) p.src = _teamPhotos[idx];
+}
 // 초기 로드 시 랭킹탭 사진 랜덤 설정
 changeTeamPhotoRandom();
+changeCheckinPhotoRandom();
 
 (function() {
   try {
