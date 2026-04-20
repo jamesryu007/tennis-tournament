@@ -12044,10 +12044,11 @@ function deleteMpHistory(pollId, event) {
 // ══ 전체 화면 통합 Pull-to-Refresh ══════════════════════════════
 (function() {
   'use strict';
-  const THRESHOLD = 68;
+  const THRESHOLD = 72;
   let startY = 0, startX = 0, ptrActive = false, ptrRefreshing = false;
+  let activePage = null;
 
-  // ── PIL 생성 ──
+  // ── Pill 생성 ──
   function getPill() {
     let el = document.getElementById('ptr-pill');
     if (!el) {
@@ -12061,32 +12062,45 @@ function deleteMpHistory(pollId, event) {
     return el;
   }
 
-  function setPillState(state) {
+  function setPillState(s) {
     const wrap = document.getElementById('ptr-icon-wrap');
     const text = document.getElementById('ptr-text');
     if (!wrap || !text) return;
-    if (state === 'pull') {
-      wrap.className = 'ptr-icon-wrap';
-      wrap.textContent = '↓';
+    if (s === 'pull') {
+      wrap.className = 'ptr-icon-wrap'; wrap.textContent = '↓';
       text.textContent = '당겨서 새로고침';
-    } else if (state === 'release') {
-      wrap.className = 'ptr-icon-wrap rotate180';
-      wrap.textContent = '↓';
+    } else if (s === 'release') {
+      wrap.className = 'ptr-icon-wrap rotate180'; wrap.textContent = '↓';
       text.textContent = '손 떼면 새로고침!';
-    } else if (state === 'loading') {
-      wrap.className = 'ptr-icon-wrap spinning';
-      wrap.textContent = '↻';
+    } else if (s === 'loading') {
+      wrap.className = 'ptr-icon-wrap spinning'; wrap.textContent = '↻';
       text.textContent = '새 정보 불러오는 중...';
-    } else if (state === 'done') {
-      wrap.className = 'ptr-icon-wrap done-pop';
-      wrap.textContent = '✓';
+    } else if (s === 'done') {
+      wrap.className = 'ptr-icon-wrap done-pop'; wrap.textContent = '✓';
       text.textContent = '업데이트 완료';
     }
   }
 
-  function activePageId() {
-    const p = document.querySelector('.page.active');
-    return p ? p.id.replace('page-', '') : null;
+  // ── 페이지 이동 헬퍼 ──
+  function setPageY(el, y, animated) {
+    if (!el) return;
+    el.style.transition = animated
+      ? 'transform 0.42s cubic-bezier(0.34,1.48,0.64,1)'
+      : 'none';
+    el.style.transform = y === 0 ? '' : `translateY(${y}px)`;
+    el.style.willChange = y === 0 ? '' : 'transform';
+  }
+
+  function snapBack(el) {
+    setPageY(el, 0, true);
+    el.addEventListener('transitionend', () => {
+      el.style.transition = '';
+      el.style.willChange = '';
+    }, { once: true });
+  }
+
+  function activePageEl() {
+    return document.querySelector('.page.active');
   }
 
   // ── 터치 이벤트 ──
@@ -12095,6 +12109,7 @@ function deleteMpHistory(pollId, event) {
     if (window.scrollY > 4) return;
     startY = e.touches[0].clientY;
     startX = e.touches[0].clientX;
+    activePage = activePageEl();
     ptrActive = true;
   }, { passive: true });
 
@@ -12102,13 +12117,23 @@ function deleteMpHistory(pollId, event) {
     if (!ptrActive) return;
     const dy = e.touches[0].clientY - startY;
     const dx = Math.abs(e.touches[0].clientX - startX);
-    if (dy < 0 || dx > dy * 0.8) { ptrActive = false; return; } // 수평 스와이프 제외
-    if (dy > 8) e.preventDefault(); // 네이티브 bounce 차단
+    if (dy < 0 || dx > dy * 0.75) {
+      ptrActive = false;
+      if (activePage) setPageY(activePage, 0, true);
+      return;
+    }
+    if (dy > 6) e.preventDefault();
+
+    // 고무줄 저항감: 제곱근으로 감쇠
+    const pull = Math.pow(dy, 0.72) * 2.2;
+    const capped = Math.min(pull, 110);
+
+    setPageY(activePage, capped, false);
+
     const pill = getPill();
-    if (dy > 16) {
+    if (dy > 14) {
       pill.classList.add('visible');
-      if (dy >= THRESHOLD) setPillState('release');
-      else setPillState('pull');
+      setPillState(dy >= THRESHOLD ? 'release' : 'pull');
     } else {
       pill.classList.remove('visible');
     }
@@ -12119,23 +12144,31 @@ function deleteMpHistory(pollId, event) {
     ptrActive = false;
     const dy = e.changedTouches[0].clientY - startY;
     const pill = getPill();
+    const page = activePage;
+    activePage = null;
 
     if (dy < THRESHOLD || ptrRefreshing) {
+      snapBack(page);
       pill.classList.remove('visible');
       return;
     }
 
+    // 트리거: 페이지를 살짝 아래에 고정했다 튕겨 올리기
+    setPageY(page, 28, true);
     ptrRefreshing = true;
     setPillState('loading');
 
-    const pageId = activePageId();
+    await new Promise(r => setTimeout(r, 180)); // 살짝 머무르기
+    snapBack(page);
+
+    const pageId = page ? page.id.replace('page-', '') : null;
     try { await _ptrRefreshPage(pageId); } catch(err) { console.warn('PTR error', err); }
 
     setPillState('done');
     setTimeout(() => {
       pill.classList.remove('visible');
       setTimeout(() => { setPillState('pull'); ptrRefreshing = false; }, 350);
-    }, 1100);
+    }, 1000);
   }, { passive: true });
 
   // ── 페이지별 새로고침 로직 ──
