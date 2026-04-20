@@ -2894,18 +2894,40 @@ function _allPlayers(){
 
 const _DC_BG_IMAGES=['ca2.png','ca3.png','ca4.png','ca5.png','ca6.png','ca7.png','ca8.png','ca9.png','ca10.png','ca11.png'];
 function addDailyMatchCard(){
-  const id=++_dailyCardCounter;
-  const bgImage='images/'+_DC_BG_IMAGES[Math.floor(Math.random()*_DC_BG_IMAGES.length)];
-  const num=Object.keys(_dailyCards).length+1;
-  const createdAt=Date.now();
-  _dailyCards[id]={phase:'setup',team0:[],team1:[],sets:[],winner:-1,bgImage,num,createdAt};
-  const container=document.getElementById('daily-match-cards');
-  const el=document.createElement('div');
-  el.id=`daily-card-${id}`;
-  el.dataset.createdAt=createdAt;
-  container.insertBefore(el,container.firstChild);
-  _renderDailyCard(id);
-  setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'nearest'}),50);
+  const _doAdd=()=>{
+    const id=++_dailyCardCounter;
+    const bgImage='images/'+_DC_BG_IMAGES[Math.floor(Math.random()*_DC_BG_IMAGES.length)];
+    const num=Object.keys(_dailyCards).length+1;
+    const createdAt=Date.now();
+    _dailyCards[id]={phase:'setup',team0:[],team1:[],sets:[],winner:-1,bgImage,num,createdAt};
+    const container=document.getElementById('daily-match-cards');
+    const el=document.createElement('div');
+    el.id=`daily-card-${id}`;
+    el.dataset.createdAt=createdAt;
+    container.insertBefore(el,container.firstChild);
+    _renderDailyCard(id);
+    setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'nearest'}),50);
+  };
+  if(!db){ _doAdd(); return; }
+  // + 버튼 클릭 시 DB 최신 상태 한 번 조회 → 다른 멤버가 추가한 카드 동기화
+  db.ref('jmt/dailyCards').once('value').then(snap=>{
+    const all=snap.val()||{};
+    const container=document.getElementById('daily-match-cards');
+    Object.entries(all)
+      .sort((a,b)=>((b[1].createdAt||b[1].num||0)-(a[1].createdAt||a[1].num||0)))
+      .forEach(([id,raw])=>{
+        const data=_normCard(raw);
+        _dailyCards[id]=data; // 로컬 상태 최신화 (진행중 선수 포함)
+        if(container&&!document.getElementById(`daily-card-${id}`)){
+          const el=document.createElement('div');
+          el.id=`daily-card-${id}`;
+          el.dataset.createdAt=data.createdAt||data.num||0;
+          container.appendChild(el);
+          _renderDailyCard(id);
+        }
+      });
+    _doAdd();
+  }).catch(()=>_doAdd());
 }
 
 function _renderDailyCard(id){
