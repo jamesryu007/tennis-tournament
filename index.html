@@ -3412,6 +3412,7 @@ async function saveDailyScore(){
     document.getElementById('daily-score-modal').classList.remove('open');
     _dailyScoreCtx=null;
     _saveCardToFirebase(id);
+    _renderDailyCard(id);
     // 랭킹 캐시 무효화 → 점수 저장 시 랭킹 즉시 반영
     delete _rankStatsCache[`player_${_selectedRankYear}`];
     delete _rankStatsCache[`pair_${_selectedRankYear}`];
