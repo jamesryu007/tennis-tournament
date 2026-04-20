@@ -4801,11 +4801,10 @@ function submitScore() {
         match._dailyCardKey = newKey; // 즉시 동기적으로 키 저장
         newMatchRef.set({ date: today, team0: t0, team1: t1, sets, winner, source: type + '-bracket' }).catch(fbErr);
         const num = Object.keys(_dailyCards).length + 1;
-        const _tLabel = {mixed:'혼합복식', mens:'남자복식', womens:'여자복식', ladder:'사다리 복식'};
         const _rLabel = roundNames(t.rounds.length)[ri] || '';
         const _lm = _getTournamentMeta(type);
         const _lDate = _lm.date ? _lm.date.slice(5).replace('-','/') : '';
-        const cardLabel = [_tLabel[type]||type, _lm.title, _lDate, _rLabel].filter(Boolean).join(' ');
+        const cardLabel = [_lm.title, _lDate, _rLabel].filter(Boolean).join(' ');
         db.ref(`jmt/dailyCards/${newKey}`).set({
           phase: 'done', team0: t0, team1: t1, sets, winner, bgImage, num,
           matchKey: newKey, source: type + '-bracket', scoredAt: Date.now(), label: cardLabel
