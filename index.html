@@ -3324,7 +3324,7 @@ async function saveDailyScore(){
     if(!d.scoredAt) d.scoredAt=Date.now(); // 최초 점수 등록 시각 기록
     if(d.matchKey){
       const oldWinner=d.winner; // 이전 결과 (undefined이면 아직 통계 미적용)
-      await db.ref('jmt/matches/'+d.matchKey).update({sets,winner,date:today});
+      await db.ref('jmt/matches/'+d.matchKey).update({sets,winner,date:today,team0,team1});
       if(oldWinner!==undefined){
         await reverseMatchStats(team0,team1,oldWinner); // 이전 통계 취소
       }
