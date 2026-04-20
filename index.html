@@ -2931,7 +2931,7 @@ function _renderDailyCard(id){
     }).join('<div class="dc-set-divider"></div>');
     const mid=`<div onclick="openDailyScore('${id}')" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer">${scoreItems}</div>`;
     const _loseIcon=(isBageled)=>isBageled
-      ?`<div class="dc-lose-icon"><img src="images/bagle.png" style="width:2rem;height:auto;display:block;margin:0 auto"></div>`
+      ?`<div class="dc-lose-icon"><img src="images/bagle.png" style="width:2.8rem;height:auto;display:block;margin:0 auto;mix-blend-mode:multiply"></div>`
       :`<div class="dc-lose-icon">😢</div>`;
     const l0Emoji=isDraw?'':t0win?`<div class="dc-win-icon">🎉</div>`:_loseIcon(bagelSides.has(0));
     const r1Emoji=isDraw?'':t1win?`<div class="dc-win-icon">🎉</div>`:_loseIcon(bagelSides.has(1));
@@ -3868,9 +3868,12 @@ async function _getBagelStats(year){
   const matches=snap.val()||{};
   const given={}, received={};
   const yr=String(year);
+  const toArr=v=>Array.isArray(v)?v:(v&&typeof v==='object'?Object.values(v):[]);
   Object.values(matches).forEach(m=>{
     if(!m.team0||!m.team1) return;
     if(m.date&&!m.date.startsWith(yr)) return;
+    const t0=toArr(m.team0), t1=toArr(m.team1);
+    if(!t0.length||!t1.length) return;
     let b1=false, b0=false;
     if(m.sets&&(Array.isArray(m.sets)?m.sets.length:Object.keys(m.sets).length)>0){
       const arr=Array.isArray(m.sets)?m.sets:Object.values(m.sets);
@@ -3883,8 +3886,8 @@ async function _getBagelStats(year){
       givers.forEach(p=>{ if(!given[p])given[p]={}; receivers.forEach(o=>{given[p][o]=(given[p][o]||0)+1;}); });
       receivers.forEach(p=>{ if(!received[p])received[p]={}; givers.forEach(o=>{received[p][o]=(received[p][o]||0)+1;}); });
     };
-    if(b1) record(m.team0,m.team1); // team0이 team1에게 베이글
-    if(b0) record(m.team1,m.team0); // team1이 team0에게 베이글
+    if(b1) record(t0,t1); // team0이 team1에게 베이글
+    if(b0) record(t1,t0); // team1이 team0에게 베이글
   });
   _bagelStatsCache[year]={given,received};
   return _bagelStatsCache[year];
