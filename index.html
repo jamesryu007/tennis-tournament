@@ -2562,7 +2562,7 @@ function renderMemberList() {
           const hasPin  = !!_memberPins[m.name];
           return `
             ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="openEditMember(${m.id})">수정</button>` : ''}
-            ${canDel  ? `<button class="btn btn-outline btn-sm" onclick="openSetPin('${m.name}')" title="${hasPin?'PIN 변경':'PIN 설정'}" style="${hasPin?'color:#2563eb;border-color:#93c5fd':'color:#94a3b8'}">🔑</button>` : ''}
+            ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="openSetPin('${m.name}')" title="${hasPin?'PIN 변경':'PIN 설정'}" style="${hasPin?'color:#2563eb;border-color:#93c5fd':'color:#94a3b8'}">🔑</button>` : ''}
             ${canDel  ? `<button class="btn btn-danger" onclick="deleteMember(${m.id})">삭제</button>` : ''}`;
         })()}
       </div>
