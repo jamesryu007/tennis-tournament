@@ -5098,7 +5098,8 @@ function switchPage(id) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById(`page-${id}`).classList.add('active');
-  document.getElementById(`nav-${id}`).classList.add('active');
+  const _navEl = document.getElementById(`nav-${id}`);
+  if (_navEl) _navEl.classList.add('active');
   window.scrollTo(0,0);
   // 랭킹 탭 진입 시 랜덤 사진 선택 (직전과 다른 것으로)
   if(id === 'history') {
