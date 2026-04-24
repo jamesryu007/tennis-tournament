@@ -1922,9 +1922,10 @@ function pinInput(val) {
 function confirmPin() {
   if (_pinSetMode) {
     if (_pinInput.length < 4) return;
-    db.ref(`jmt/memberPins/${_pendingIdentityName}`).set(_pinInput).then(() => {
+    const nameToSet = _pendingIdentityName;
+    db.ref(`jmt/memberPins/${nameToSet}`).set(_pinInput).then(() => {
       closePinModal();
-      alert(`${_pendingIdentityName} 님의 PIN이 설정되었습니다.`);
+      alert(`${nameToSet} 님의 PIN이 설정되었습니다.`);
     }).catch(fbErr);
     return;
   }
@@ -1981,10 +1982,11 @@ function openSetPin(name) {
 
 function confirmRemovePin() {
   if (!_pendingIdentityName) return;
-  if (!confirm(`${_pendingIdentityName} 님의 PIN을 해제하시겠습니까?`)) return;
-  db.ref(`jmt/memberPins/${_pendingIdentityName}`).remove().then(() => {
+  const nameToRemove = _pendingIdentityName;
+  if (!confirm(`${nameToRemove} 님의 PIN을 해제하시겠습니까?`)) return;
+  db.ref(`jmt/memberPins/${nameToRemove}`).remove().then(() => {
     closePinModal();
-    alert(`${_pendingIdentityName} 님의 PIN이 해제되었습니다.`);
+    alert(`${nameToRemove} 님의 PIN이 해제되었습니다.`);
   }).catch(fbErr);
 }
 
