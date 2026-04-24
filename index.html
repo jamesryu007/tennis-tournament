@@ -6230,7 +6230,7 @@ function updateSetupPageUI() {
 }
 
 // ══ MODAL OVERLAY CLOSE ══
-['score-modal','participant-modal','add-member-modal','edit-modal','hist-detail-modal','slot-edit-modal','pw-modal','mp-cal-modal','tournament-setup-modal'].forEach(id => {
+['score-modal','participant-modal','add-member-modal','edit-modal','hist-detail-modal','slot-edit-modal','pin-modal','mp-cal-modal','tournament-setup-modal'].forEach(id => {
   document.getElementById(id).addEventListener('click', function(e) {
     if (e.target === this) {
       if (id==='score-modal') closeModal();
@@ -6239,7 +6239,7 @@ function updateSetupPageUI() {
       else if (id==='edit-modal') closeEditModal();
       else if (id==='hist-detail-modal') closeHistoryDetail();
       else if (id==='slot-edit-modal') closeSlotEditModal();
-      else if (id==='pw-modal') closePwModal();
+      else if (id==='pin-modal') closePinModal();
       else if (id==='tournament-setup-modal') closeTournamentSetupModal();
     }
   });
