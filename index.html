@@ -568,6 +568,11 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .identity-item.selected { border-color:#2563eb; background:#eff6ff; }
 #identity-modal { align-items:center; }
 #identity-modal .modal { border-radius:20px; margin:16px; }
+/* ── PIN 인증 ── */
+.pin-dot { width:16px;height:16px;border-radius:50%;border:2px solid #cbd5e1;background:#fff;transition:background 0.15s,border-color 0.15s; }
+.pin-dot.filled { background:#2563eb;border-color:#2563eb; }
+.pin-numpad-btn { width:100%;aspect-ratio:1;border-radius:14px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:1.4rem;font-weight:600;color:#1e293b;cursor:pointer;transition:background 0.08s;display:flex;align-items:center;justify-content:center; }
+.pin-numpad-btn:active { background:#dbeafe;border-color:#93c5fd; }
 /* ── 모임 정하기 ── */
 .mp-cal-wrap{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
 .mp-cal-day{text-align:center;padding:8px 2px;font-size:0.78rem;border-radius:7px;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;transition:transform 0.08s,opacity 0.08s;}
@@ -1594,21 +1599,39 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   </div>
 </div>
 
-<!-- ══ PASSWORD MODAL ══ -->
-<div class="modal-overlay" id="pw-modal">
-  <div class="modal" style="max-width:320px;margin:0 auto">
+<!-- ══ PIN MODAL ══ -->
+<div class="modal-overlay" id="pin-modal" style="align-items:center">
+  <div class="modal" style="max-width:300px;margin:16px auto">
     <div class="modal-handle"></div>
-    <div style="padding:22px 22px 18px;text-align:center">
+    <div style="padding:20px 20px 16px;text-align:center">
       <div style="font-size:1.8rem;margin-bottom:6px">🔐</div>
-      <div style="font-size:1rem;font-weight:800;color:#1e293b;margin-bottom:4px">관리자 인증</div>
-      <div id="pw-modal-name" style="font-size:0.82rem;color:#64748b;margin-bottom:16px"></div>
-      <input type="password" id="pw-input" placeholder="암호 입력"
-        style="width:100%;text-align:center;font-size:1rem;letter-spacing:0.15em;margin-bottom:10px"
-        onkeydown="if(event.key==='Enter')confirmPassword()">
-      <div id="pw-error" style="font-size:0.78rem;color:#dc2626;min-height:18px;margin-bottom:10px"></div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-warning btn-full" onclick="closePwModal()">취소</button>
-        <button class="btn btn-primary btn-full" onclick="confirmPassword()">확인</button>
+      <div id="pin-modal-title" style="font-size:1rem;font-weight:800;color:#1e293b;margin-bottom:4px">본인 확인</div>
+      <div id="pin-modal-name" style="font-size:0.82rem;color:#64748b;margin-bottom:16px"></div>
+      <!-- PIN 도트 -->
+      <div style="display:flex;justify-content:center;gap:14px;margin-bottom:20px">
+        <div class="pin-dot" id="pin-dot-0"></div>
+        <div class="pin-dot" id="pin-dot-1"></div>
+        <div class="pin-dot" id="pin-dot-2"></div>
+        <div class="pin-dot" id="pin-dot-3"></div>
+      </div>
+      <!-- 숫자 패드 -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">
+        <button class="pin-numpad-btn" onclick="pinInput('1')">1</button>
+        <button class="pin-numpad-btn" onclick="pinInput('2')">2</button>
+        <button class="pin-numpad-btn" onclick="pinInput('3')">3</button>
+        <button class="pin-numpad-btn" onclick="pinInput('4')">4</button>
+        <button class="pin-numpad-btn" onclick="pinInput('5')">5</button>
+        <button class="pin-numpad-btn" onclick="pinInput('6')">6</button>
+        <button class="pin-numpad-btn" onclick="pinInput('7')">7</button>
+        <button class="pin-numpad-btn" onclick="pinInput('8')">8</button>
+        <button class="pin-numpad-btn" onclick="pinInput('9')">9</button>
+        <button class="pin-numpad-btn" onclick="closePinModal()" style="font-size:0.82rem;color:#94a3b8">취소</button>
+        <button class="pin-numpad-btn" onclick="pinInput('0')">0</button>
+        <button class="pin-numpad-btn" onclick="pinInput('del')" style="font-size:1.1rem">⌫</button>
+      </div>
+      <div id="pin-error" style="font-size:0.78rem;color:#dc2626;min-height:18px;margin-bottom:4px"></div>
+      <div id="pin-remove-row" style="display:none;margin-top:4px">
+        <button onclick="confirmRemovePin()" style="background:none;border:none;font-size:0.75rem;color:#94a3b8;cursor:pointer;text-decoration:underline">PIN 해제</button>
       </div>
     </div>
   </div>
@@ -1871,42 +1894,98 @@ const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·�
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
 function isAdmin()   { return (state.identity && state.identity.name) === ADMIN_NAME; }
 
-// ══ 암호 테이블 ══
-const USER_PASSWORDS = {
-  '유지원': 'love'
-};
-
+// ══ PIN 인증 ══
+let _memberPins = {};       // { 이름: '1234' } — DB 실시간 동기
 let _pendingIdentityName = null;
+let _pendingPin = '';
+let _pinInput = '';
+let _pinSetMode = false;    // true: 관리자 PIN 설정 모드, false: 로그인 확인 모드
+
+function _renderPinDots() {
+  for (let i = 0; i < 4; i++) {
+    const d = document.getElementById(`pin-dot-${i}`);
+    if (d) d.classList.toggle('filled', i < _pinInput.length);
+  }
+}
+
+function pinInput(val) {
+  if (val === 'del') {
+    _pinInput = _pinInput.slice(0, -1);
+  } else if (_pinInput.length < 4) {
+    _pinInput += val;
+  }
+  _renderPinDots();
+  document.getElementById('pin-error').textContent = '';
+  if (_pinInput.length === 4) setTimeout(confirmPin, 120);
+}
+
+function confirmPin() {
+  if (_pinSetMode) {
+    if (_pinInput.length < 4) return;
+    db.ref(`jmt/memberPins/${_pendingIdentityName}`).set(_pinInput).then(() => {
+      closePinModal();
+      alert(`${_pendingIdentityName} 님의 PIN이 설정되었습니다.`);
+    }).catch(fbErr);
+    return;
+  }
+  if (_pinInput === _pendingPin) {
+    const name = _pendingIdentityName;
+    closePinModal();
+    selectIdentity(name);
+  } else {
+    document.getElementById('pin-error').textContent = 'PIN이 틀렸습니다. 다시 입력하세요.';
+    _pinInput = '';
+    _renderPinDots();
+  }
+}
+
+function closePinModal() {
+  document.getElementById('pin-modal').classList.remove('open');
+  _pendingIdentityName = null;
+  _pendingPin = '';
+  _pinInput = '';
+  _pinSetMode = false;
+}
 
 function trySelectIdentity(name) {
-  if (USER_PASSWORDS[name]) {
+  const pin = _memberPins[name];
+  if (pin) {
     _pendingIdentityName = name;
-    document.getElementById('pw-modal-name').textContent = `${name} 님 · 관리자 암호를 입력하세요`;
-    document.getElementById('pw-input').value = '';
-    document.getElementById('pw-error').textContent = '';
-    document.getElementById('pw-modal').classList.add('open');
-    setTimeout(() => document.getElementById('pw-input').focus(), 150);
+    _pendingPin = String(pin);
+    _pinInput = '';
+    _pinSetMode = false;
+    document.getElementById('pin-modal-title').textContent = '본인 확인';
+    document.getElementById('pin-modal-name').textContent = `${name} 님의 PIN을 입력하세요`;
+    document.getElementById('pin-error').textContent = '';
+    document.getElementById('pin-remove-row').style.display = 'none';
+    _renderPinDots();
+    document.getElementById('pin-modal').classList.add('open');
   } else {
     selectIdentity(name);
   }
 }
 
-function confirmPassword() {
-  const entered = document.getElementById('pw-input').value;
-  if (entered === USER_PASSWORDS[_pendingIdentityName]) {
-    const name = _pendingIdentityName; // closePwModal이 null로 초기화하기 전에 저장
-    closePwModal();
-    selectIdentity(name);
-  } else {
-    document.getElementById('pw-error').textContent = '암호가 틀렸습니다. 다시 입력하세요.';
-    document.getElementById('pw-input').value = '';
-    document.getElementById('pw-input').focus();
-  }
+// 관리자: 멤버 PIN 설정 모달 열기
+function openSetPin(name) {
+  _pendingIdentityName = name;
+  _pinInput = '';
+  _pinSetMode = true;
+  const hasPin = !!_memberPins[name];
+  document.getElementById('pin-modal-title').textContent = `PIN ${hasPin ? '변경' : '설정'}`;
+  document.getElementById('pin-modal-name').textContent = `${name} 님의 새 PIN 4자리를 입력하세요`;
+  document.getElementById('pin-error').textContent = '';
+  document.getElementById('pin-remove-row').style.display = hasPin ? '' : 'none';
+  _renderPinDots();
+  document.getElementById('pin-modal').classList.add('open');
 }
 
-function closePwModal() {
-  document.getElementById('pw-modal').classList.remove('open');
-  _pendingIdentityName = null;
+function confirmRemovePin() {
+  if (!_pendingIdentityName) return;
+  if (!confirm(`${_pendingIdentityName} 님의 PIN을 해제하시겠습니까?`)) return;
+  db.ref(`jmt/memberPins/${_pendingIdentityName}`).remove().then(() => {
+    closePinModal();
+    alert(`${_pendingIdentityName} 님의 PIN이 해제되었습니다.`);
+  }).catch(fbErr);
 }
 
 // ══ LOCALSTORAGE ══
@@ -2306,6 +2385,12 @@ function setupFirebaseListeners() {
     }
   });
 
+  // PIN 테이블 동기화
+  db.ref('jmt/memberPins').on('value', snap => {
+    _memberPins = snap.val() || {};
+    if (document.getElementById('identity-modal').classList.contains('open')) renderIdentityList();
+  });
+
   // 팀 닉네임 테이블 동기화
   db.ref('jmt/pairNicknames').on('value', snap => {
     state.pairNicknames = snap.val() || {};
@@ -2472,8 +2557,10 @@ function renderMemberList() {
           const curName = (state.identity && state.identity.name) || '';
           const canEdit = curName === m.name || curName === ADMIN_NAME;
           const canDel  = curName === ADMIN_NAME;
+          const hasPin  = !!_memberPins[m.name];
           return `
             ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="openEditMember(${m.id})">수정</button>` : ''}
+            ${canDel  ? `<button class="btn btn-outline btn-sm" onclick="openSetPin('${m.name}')" title="${hasPin?'PIN 변경':'PIN 설정'}" style="${hasPin?'color:#2563eb;border-color:#93c5fd':'color:#94a3b8'}">🔑</button>` : ''}
             ${canDel  ? `<button class="btn btn-danger" onclick="deleteMember(${m.id})">삭제</button>` : ''}`;
         })()}
       </div>
@@ -6038,7 +6125,7 @@ function renderIdentityList() {
       <span class="badge ${m.gender==='male'?'badge-male':'badge-female'}">${m.gender==='male'?'남':'여'}</span>
       <span style="flex:1;font-size:0.9rem;font-weight:600;color:#1e293b">${m.name}${m.nickname?` <span style="font-weight:400;font-size:0.78rem;color:#94a3b8">(${m.nickname})</span>`:''}</span>
       ${m.ntrp?`<span class="badge badge-ntrp">NTRP ${m.ntrp}</span>`:''}
-      ${USER_PASSWORDS[m.name]?'<span style="font-size:0.75rem;color:#94a3b8">🔐</span>':''}
+      ${_memberPins[m.name]?'<span style="font-size:0.75rem;color:#94a3b8">🔐</span>':''}
       ${cur===m.name?'<span style="color:#2563eb;font-size:1rem">✓</span>':''}
     </div>`).join('');
 }
