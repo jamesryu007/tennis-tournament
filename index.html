@@ -6128,7 +6128,7 @@ function renderIdentityList() {
       <span style="flex:1;font-size:0.9rem;font-weight:600;color:#1e293b">${m.name}${m.nickname?` <span style="font-weight:400;font-size:0.78rem;color:#94a3b8">(${m.nickname})</span>`:''}</span>
       ${m.ntrp?`<span class="badge badge-ntrp">NTRP ${m.ntrp}</span>`:''}
       ${_memberPins[m.name]?'<span style="font-size:0.75rem;color:#94a3b8">🔐</span>':''}
-      ${cur===m.name?'<span style="color:#2563eb;font-size:1rem">✓</span>':''}
+      ${cur===m.name?`<button onclick="event.stopPropagation();openSetPin('${m.name.replace(/'/g,"\\'")}')" style="background:none;border:1.5px solid #cbd5e1;border-radius:8px;padding:3px 7px;font-size:0.75rem;cursor:pointer;color:#64748b;flex-shrink:0">${_memberPins[m.name]?'🔑변경':'🔑설정'}</button><span style="color:#2563eb;font-size:1rem">✓</span>`:''}
     </div>`).join('');
 }
 
