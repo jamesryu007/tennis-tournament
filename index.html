@@ -5980,7 +5980,9 @@ function loadIdentity() {
 }
 
 // ══ FCM 푸시 알림 ══
-const VAPID_KEY = 'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg';
+const VAPID_KEY = (typeof firebaseConfig !== 'undefined' && firebaseConfig.vapidKey)
+  ? firebaseConfig.vapidKey
+  : 'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg';
 let _fcmMessaging = null;
 
 async function initFCM(askPermission = false) {

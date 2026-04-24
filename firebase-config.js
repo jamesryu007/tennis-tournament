@@ -11,5 +11,6 @@ const firebaseConfig = {
   projectId:         "jamite-dev",
   storageBucket:     "jamite-dev.firebasestorage.app",
   messagingSenderId: "168236820456",
-  appId:             "1:168236820456:web:32fab6a04d85702055e65d"
+  appId:             "1:168236820456:web:32fab6a04d85702055e65d",
+  vapidKey:          "BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc"
 };
