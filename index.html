@@ -10974,12 +10974,13 @@ function bzSend() {
   const input = document.getElementById('bz-input');
   const text = (input.value || '').trim();
   if (!text) return;
-  if (!_bzCurrentAlias) { alert('먼저 가명을 선택하세요.'); return; }
   const myName = (state.identity && state.identity.name) || '';
+  if (!myName) { alert('로그인 후 이용하세요.'); return; }
   const phase = (_bzState && _bzState.phase) || 'chatting';
   if (phase === 'revealed') { alert('게임이 종료되었습니다.'); return; }
+  const senderAlias = _bzCurrentAlias || myName;
   db.ref(`${BZ_REF}/messages`).push({
-    alias: _bzCurrentAlias,
+    alias: senderAlias,
     realName: myName,
     text,
     ts: Date.now()
