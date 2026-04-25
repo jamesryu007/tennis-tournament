@@ -1400,7 +1400,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <div id="bz-alias-row" style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
           <span style="font-size:0.75rem;font-weight:700;color:#64748b;white-space:nowrap">나의 가명:</span>
           <select id="bz-alias-select" onchange="bzSelectAlias(this.value)" style="width:110px;padding:4px 6px;border-radius:8px;border:1.5px solid #e2e8f0;font-size:0.78rem;font-weight:600;background:#f8fafc">
-            <option value="">선택...</option>
+            <option value="">나 자신</option>
           </select>
           <div id="bz-alias-chips" style="display:flex;flex-wrap:wrap;gap:4px;flex:1"></div>
         </div>
@@ -1443,8 +1443,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <div id="bz-chat-empty" style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:30px 0">아직 대화가 없습니다.<br>가명을 선택하고 첫 메시지를 남겨보세요!</div>
       </div>
 
-      <!-- 입력 영역 -->
-      <div id="bz-input-area" style="display:flex;gap:8px;align-items:center">
+      <!-- 입력 영역 (하단 고정) -->
+      <div id="bz-input-area" style="display:flex;gap:8px;align-items:center;position:sticky;bottom:0;background:#f0f4fb;padding:8px 0 4px">
         <input id="bz-input" type="text" placeholder="메시지 입력..." maxlength="100"
           onkeydown="if(event.key==='Enter'&&!event.isComposing)bzSend()"
           style="flex:1;padding:11px 14px;border-radius:12px;border:1.5px solid #e2e8f0;font-size:0.88rem;background:#fff;outline:none">
@@ -10922,7 +10922,7 @@ function _bzSetupAliasList() {
   const sel = document.getElementById('bz-alias-select');
   if (!sel) return;
   const myName = (state.identity && state.identity.name) || '';
-  sel.innerHTML = '<option value="">멤버 선택...</option>' +
+  sel.innerHTML = '<option value="">나 자신</option>' +
     state.members.filter(m => m.name !== myName)
       .map(m => `<option value="${m.name}">${m.name}</option>`).join('');
 }
@@ -10936,7 +10936,7 @@ function _bzSetupListener() {
 }
 
 function bzSelectAlias(name) {
-  if (!name) { _bzCurrentAlias = ''; _bzUpdateAliasBadge(); return; }
+  if (!name) { _bzCurrentAlias = ''; _bzUpdateAliasBadge(); return; } // 나 자신 선택
   // 이미 사용한 가명이면 그냥 선택
   if (_bzMyAliases.includes(name)) {
     _bzCurrentAlias = name;
