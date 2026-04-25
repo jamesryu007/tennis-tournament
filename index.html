@@ -2988,7 +2988,11 @@ function addDailyMatchCard(){
     const bgImage='images/'+_DC_BG_IMAGES[Math.floor(Math.random()*_DC_BG_IMAGES.length)];
     const num=Object.keys(_dailyCards).length+1;
     const createdAt=Date.now();
-    _dailyCards[id]={phase:'setup',team0:[],team1:[],sets:[],winner:-1,bgImage,num,createdAt};
+    const _today=new Date();
+    const _mm=String(_today.getMonth()+1).padStart(2,'0');
+    const _dd=String(_today.getDate()).padStart(2,'0');
+    const label=`경기${num} · ${_mm}/${_dd}`;
+    _dailyCards[id]={phase:'setup',team0:[],team1:[],sets:[],winner:-1,bgImage,num,createdAt,label};
     const container=document.getElementById('daily-match-cards');
     const el=document.createElement('div');
     el.id=`daily-card-${id}`;
