@@ -11074,7 +11074,10 @@ function bzNewGame() {
 }
 
 function _bzOnInputFocus() {
-  // 모바일 키보드 팝업 시 채팅영역 높이 동적 조정 — 입력기를 키보드 바로 위에 고정
+  // 키보드 팝업 시 하단 네비 숨기고, 채팅영역 높이 동적 조정
+  const nav = document.querySelector('.bottom-nav');
+  if (nav) nav.style.display = 'none';
+
   if (!window.visualViewport) {
     setTimeout(() => {
       document.getElementById('bz-input')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -11098,6 +11101,11 @@ function _bzOnInputFocus() {
 }
 
 function _bzOnInputBlur() {
+  // 키보드 내려가면 하단 네비 복원
+  setTimeout(() => {
+    const nav = document.querySelector('.bottom-nav');
+    if (nav) nav.style.display = '';
+  }, 150);
   if (window._bzVpHandler && window.visualViewport) {
     window.visualViewport.removeEventListener('resize', window._bzVpHandler);
     window._bzVpHandler = null;
