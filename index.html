@@ -11197,23 +11197,35 @@ function _bzOnInputFocus() {
     return;
   }
 
-  const _handler = () => {
+  const _adjustLayout = (doScroll) => {
     const area = document.getElementById('bz-chat-area');
     const ia = document.getElementById('bz-input-area');
+    const screen = document.getElementById('bet-screen-banzige');
     if (!area || !ia) return;
     const vv = window.visualViewport;
-    // 채팅 영역: visual viewport 높이에서 입력창 높이 제외
-    const chatTop = area.getBoundingClientRect().top;
-    const inputH = ia.offsetHeight + 10;
-    const newMax = Math.max(60, vv.height - Math.max(chatTop, 0) - inputH - 16);
-    area.style.maxHeight = newMax + 'px';
-    area.scrollTop = area.scrollHeight;
+
+    if (doScroll && screen) {
+      // bz 화면 상단(헤더+정보 프레임)이 viewport 상단에 오도록 스크롤
+      const screenDocTop = screen.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({ top: screenDocTop, behavior: 'instant' });
+    }
+
+    // 스크롤 반영 후 채팅 영역 높이 계산
+    requestAnimationFrame(() => {
+      const chatTop = area.getBoundingClientRect().top;
+      const inputH = ia.offsetHeight + 10;
+      const newMax = Math.max(60, vv.height - Math.max(chatTop, 0) - inputH - 16);
+      area.style.maxHeight = newMax + 'px';
+      area.scrollTop = area.scrollHeight;
+    });
   };
 
+  const _handler = () => _adjustLayout(false);
   window.visualViewport.addEventListener('resize', _handler);
   window.visualViewport.addEventListener('scroll', _handler);
   window._bzVpHandler = _handler;
-  setTimeout(_handler, 300);
+  // 키보드 완전히 올라온 후 스크롤 + 높이 조정
+  setTimeout(() => _adjustLayout(true), 300);
 }
 
 function _bzOnInputBlur() {
