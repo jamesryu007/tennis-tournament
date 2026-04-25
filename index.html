@@ -1055,6 +1055,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div id="bet-home-header" style="margin-bottom:20px">
         <div style="background:#fff;border-radius:14px;border:1.5px solid #e2e8f0;padding:8px;box-shadow:0 2px 10px rgba(0,0,0,0.06)">
           <div style="font-size:0.65rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;text-align:center;padding:2px 0 7px;border-bottom:1px solid #f1f5f9;margin-bottom:7px">🎲 내기 게임 선택</div>
+          <button onclick="bzShowRoom()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #fde68a;background:linear-gradient(135deg,#fffbeb,#fef3c7);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
+            <span style="font-size:1.4rem">🕵️</span>
+            <div><div style="font-weight:800">범찾게</div><div style="font-size:0.68rem;color:#b45309;font-weight:600">채팅 속 진짜 범인을 찾아라!</div></div>
+          </button>
           <button onclick="betShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #ede9fe;background:linear-gradient(135deg,#f5f3ff,#ede9fe);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
             <span style="font-size:1.4rem">🎈</span>
             <div><div style="font-weight:800">릴레이 풍선 터치</div><div style="font-size:0.68rem;color:#7c3aed;font-weight:600">순서대로 터치 — 끝까지 살아남아라!</div></div>
@@ -1375,6 +1379,77 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <button onclick="ladderSaveAndHome()" style="flex:1;padding:14px;border-radius:14px;border:none;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer">저장하고 나가기</button>
       </div>
     </div>
+
+    <!-- ══ 범찾게 채팅방 화면 ══ -->
+    <div id="bet-screen-banzige" style="display:none">
+      <!-- 헤더 -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <button onclick="bzLeaveRoom()" style="border:none;background:none;font-size:1.4rem;cursor:pointer;padding:0;color:#64748b">←</button>
+        <div style="font-size:0.95rem;font-weight:800;color:#1e293b">🕵️ 범찾게 (범인 찾기 게임)</div>
+        <button onclick="bzLeaveRoom()" style="border:none;background:none;font-size:1.1rem;cursor:pointer;padding:0;color:#94a3b8">✕</button>
+      </div>
+
+      <!-- 상단 정보 프레임 -->
+      <div style="background:#fff;border:1.5px solid #fde68a;border-radius:14px;padding:12px 14px;margin-bottom:10px">
+        <!-- 입실 인원 -->
+        <div style="font-size:0.78rem;color:#64748b;margin-bottom:8px">
+          👥 입실 인원: <span id="bz-count" style="font-weight:800;color:#1e293b">0</span>명
+          &nbsp;|&nbsp; 위상: <span id="bz-phase-label" style="font-weight:700;color:#b45309">대기중</span>
+        </div>
+
+        <!-- 가명 선택 -->
+        <div id="bz-alias-row" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <span style="font-size:0.78rem;font-weight:700;color:#64748b;white-space:nowrap">나의 가명:</span>
+          <select id="bz-alias-select" onchange="bzSelectAlias(this.value)" style="flex:1;padding:6px 10px;border-radius:8px;border:1.5px solid #e2e8f0;font-size:0.82rem;font-weight:600;background:#f8fafc">
+            <option value="">멤버 선택...</option>
+          </select>
+          <span id="bz-alias-badge" style="display:none;background:#fef3c7;border:1.5px solid #fde68a;border-radius:8px;padding:3px 8px;font-size:0.75rem;font-weight:700;color:#b45309;white-space:nowrap"></span>
+        </div>
+        <div id="bz-alias-limit-msg" style="display:none;font-size:0.72rem;color:#dc2626;margin-bottom:6px">⚠️ 최대 2개의 가명만 사용할 수 있습니다.</div>
+
+        <!-- 관리자 컨트롤 -->
+        <div id="bz-admin-controls" style="display:none;gap:8px;flex-wrap:wrap">
+          <button id="bz-btn-start" onclick="bzStartGuessing()" style="padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer">🕵️ 범찾게 시작</button>
+          <button id="bz-btn-reveal" onclick="bzReveal()" style="display:none;padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer">🔓 최종 오픈</button>
+          <button onclick="bzNewGame()" style="padding:7px 14px;border-radius:10px;border:none;background:#f1f5f9;color:#64748b;font-size:0.8rem;font-weight:700;cursor:pointer">🔄 새 게임</button>
+        </div>
+
+        <!-- 멤버 맞추기 섹션 (guessing phase) -->
+        <div id="bz-guess-section" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #fde68a">
+          <div style="font-size:0.78rem;font-weight:800;color:#b45309;margin-bottom:8px">🎯 멤버 맞추기 (1회만 가능)</div>
+          <div id="bz-guess-done-msg" style="display:none;font-size:0.8rem;color:#16a34a;font-weight:700">✅ 맞추기 완료!</div>
+          <div id="bz-guess-form" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <select id="bz-guess-fake-sel" style="flex:1;min-width:90px;padding:6px 8px;border-radius:8px;border:1.5px solid #fde68a;font-size:0.78rem;font-weight:600;background:#fffbeb">
+              <option value="">가짜 이름</option>
+            </select>
+            <span style="font-size:0.75rem;color:#64748b">은 실제로</span>
+            <select id="bz-guess-real-sel" style="flex:1;min-width:90px;padding:6px 8px;border-radius:8px;border:1.5px solid #e2e8f0;font-size:0.78rem;font-weight:600;background:#f8fafc">
+              <option value="">실제 멤버</option>
+            </select>
+            <button onclick="bzSubmitGuess()" style="padding:6px 12px;border-radius:8px;border:none;background:#f59e0b;color:#fff;font-size:0.78rem;font-weight:800;cursor:pointer">확인</button>
+          </div>
+        </div>
+
+        <!-- 결과 섹션 (revealed phase) -->
+        <div id="bz-result-section" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid #fde68a">
+          <div id="bz-result-summary" style="font-size:0.82rem;font-weight:800;margin-bottom:6px"></div>
+          <div id="bz-result-list" style="font-size:0.78rem;color:#64748b"></div>
+        </div>
+      </div>
+
+      <!-- 채팅 영역 -->
+      <div id="bz-chat-area" style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:14px;min-height:220px;max-height:340px;overflow-y:auto;padding:10px 12px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px">
+        <div id="bz-chat-empty" style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:30px 0">아직 대화가 없습니다.<br>가명을 선택하고 첫 메시지를 남겨보세요!</div>
+      </div>
+
+      <!-- 입력 영역 -->
+      <div id="bz-input-area" style="display:flex;gap:8px;align-items:center">
+        <input id="bz-input" type="text" placeholder="메시지 입력..." maxlength="100"
+          onkeydown="if(event.key==='Enter')bzSend()"
+          style="flex:1;padding:11px 14px;border-radius:12px;border:1.5px solid #e2e8f0;font-size:0.88rem;background:#fff;outline:none">
+        <button onclick="bzSend()" style="padding:11px 16px;border-radius:12px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.88rem;font-weight:800;cursor:pointer">전송</button>
+      </div>
+    </div><!-- /bet-screen-banzige -->
 
   </div><!-- /setup-panel-bet -->
 
@@ -8630,7 +8705,7 @@ function betPlayLose() {
 }
 
 function betShowScreen(id) {
-  ['home','setup','sound','game','result','bomb-list','bomb-setup','bomb-master','bomb-waiting','bomb-reveal','ladder-setup','ladder-game','ladder-result'].forEach(s => {
+  ['home','setup','sound','game','result','bomb-list','bomb-setup','bomb-master','bomb-waiting','bomb-reveal','ladder-setup','ladder-game','ladder-result','banzige'].forEach(s => {
     const el = document.getElementById(`bet-screen-${s}`);
     if (el) el.style.display = s === id ? 'block' : 'none';
   });
@@ -10810,6 +10885,259 @@ function _bombCleanup() {
   if (_bombState.roomsListener) { db.ref('jmt/bombRooms').off('value', _bombState.roomsListener); }
   if (_bombState.roomListener && _bombState.roomId) { db.ref(`jmt/bombRooms/${_bombState.roomId}`).off('value', _bombState.roomListener); }
   _bombState = { roomId:null, isHost:false, room:null, roomListener:null, roomsListener:null, myName:_bombState.myName, revealed:false, historyId:null };
+}
+
+// ══ 범찾게 (범인 찾기 게임) ════════════════════════════════════════
+
+let _bzMyAliases = [];     // 내가 사용한 가명 목록 (max 2)
+let _bzCurrentAlias = '';  // 현재 선택된 가명
+let _bzListener = null;    // Firebase 리스너
+let _bzState = null;       // 현재 게임 상태
+
+const BZ_REF = 'jmt/banzige/current';
+
+function bzShowRoom() {
+  const myName = state.identity && state.identity.name;
+  if (!myName) { alert('로그인 후 이용하세요.'); return; }
+  betShowScreen('banzige');
+  _bzMyAliases = [];
+  _bzCurrentAlias = '';
+  _bzSetupAliasList();
+  _bzSetupListener();
+  // 입실 기록 (처음 입실 시에만 카운트 증가)
+  db.ref(`${BZ_REF}/entrants/${myName}`).once('value').then(snap => {
+    if (!snap.val()) {
+      db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
+      db.ref(`${BZ_REF}/entrantCount`).transaction(n => (n || 0) + 1).catch(fbErr);
+    }
+  }).catch(fbErr);
+}
+
+function bzLeaveRoom() {
+  if (_bzListener) { db.ref(BZ_REF).off('value', _bzListener); _bzListener = null; }
+  _bzState = null;
+  betShowHome();
+}
+
+function _bzSetupAliasList() {
+  const sel = document.getElementById('bz-alias-select');
+  if (!sel) return;
+  const myName = (state.identity && state.identity.name) || '';
+  sel.innerHTML = '<option value="">멤버 선택...</option>' +
+    state.members.filter(m => m.name !== myName)
+      .map(m => `<option value="${m.name}">${m.name}</option>`).join('');
+}
+
+function _bzSetupListener() {
+  if (_bzListener) { db.ref(BZ_REF).off('value', _bzListener); }
+  _bzListener = db.ref(BZ_REF).on('value', snap => {
+    _bzState = snap.val() || {};
+    _bzRender();
+  });
+}
+
+function bzSelectAlias(name) {
+  if (!name) { _bzCurrentAlias = ''; _bzUpdateAliasBadge(); return; }
+  // 이미 사용한 가명이면 그냥 선택
+  if (_bzMyAliases.includes(name)) {
+    _bzCurrentAlias = name;
+    _bzUpdateAliasBadge();
+    document.getElementById('bz-alias-limit-msg').style.display = 'none';
+    return;
+  }
+  // 새 가명 — 최대 2개 초과 시 차단
+  if (_bzMyAliases.length >= 2) {
+    document.getElementById('bz-alias-limit-msg').style.display = 'block';
+    document.getElementById('bz-alias-select').value = _bzCurrentAlias || '';
+    return;
+  }
+  document.getElementById('bz-alias-limit-msg').style.display = 'none';
+  _bzMyAliases.push(name);
+  _bzCurrentAlias = name;
+  // Firebase에 aliases 기록
+  const myName = (state.identity && state.identity.name) || '';
+  db.ref(`${BZ_REF}/aliases/${myName}`).set(_bzMyAliases).catch(fbErr);
+  _bzUpdateAliasBadge();
+}
+
+function _bzUpdateAliasBadge() {
+  const badge = document.getElementById('bz-alias-badge');
+  if (_bzCurrentAlias) {
+    badge.style.display = 'inline-block';
+    badge.textContent = _bzCurrentAlias + ' 로 활동중';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function bzSend() {
+  const input = document.getElementById('bz-input');
+  const text = (input.value || '').trim();
+  if (!text) return;
+  if (!_bzCurrentAlias) { alert('먼저 가명을 선택하세요.'); return; }
+  const myName = (state.identity && state.identity.name) || '';
+  const phase = (_bzState && _bzState.phase) || 'chatting';
+  if (phase === 'revealed') { alert('게임이 종료되었습니다.'); return; }
+  db.ref(`${BZ_REF}/messages`).push({
+    alias: _bzCurrentAlias,
+    realName: myName,
+    text,
+    ts: Date.now()
+  }).catch(fbErr);
+  // 채팅 시작 시 phase를 chatting으로
+  if (!phase || phase === 'waiting') {
+    db.ref(`${BZ_REF}/phase`).set('chatting').catch(fbErr);
+  }
+  input.value = '';
+}
+
+function bzStartGuessing() {
+  if (!isAdmin()) return;
+  const msgs = (_bzState && _bzState.messages) ? Object.values(_bzState.messages) : [];
+  if (msgs.length === 0) { alert('채팅 메시지가 없습니다.'); return; }
+  db.ref(`${BZ_REF}/phase`).set('guessing').catch(fbErr);
+}
+
+function bzSubmitGuess() {
+  const myName = (state.identity && state.identity.name) || '';
+  const fake = document.getElementById('bz-guess-fake-sel').value;
+  const real = document.getElementById('bz-guess-real-sel').value;
+  if (!fake || !real) { alert('가짜 이름과 실제 멤버를 모두 선택하세요.'); return; }
+  if ((_bzState && _bzState.guesses && _bzState.guesses[myName])) {
+    alert('이미 맞추기를 제출했습니다.'); return;
+  }
+  db.ref(`${BZ_REF}/guesses/${myName}`).set({ fake, real, ts: Date.now() }).catch(fbErr);
+}
+
+function bzReveal() {
+  if (!isAdmin()) return;
+  // aliases: { realName: [alias1, alias2] } → reverse map: alias → realName
+  const aliases = (_bzState && _bzState.aliases) || {};
+  const aliasToReal = {};
+  Object.entries(aliases).forEach(([real, list]) => {
+    (list || []).forEach(a => { aliasToReal[a] = real; });
+  });
+  // 결과 계산: guess { fake, real } 와 aliasToReal 비교
+  const guesses = (_bzState && _bzState.guesses) || {};
+  const results = {};
+  Object.entries(guesses).forEach(([member, g]) => {
+    const actualReal = aliasToReal[g.fake];
+    results[member] = { fake: g.fake, guessedReal: g.real, actualReal, correct: actualReal === g.real };
+  });
+  db.ref(BZ_REF).update({ phase: 'revealed', results }).catch(fbErr);
+}
+
+function bzNewGame() {
+  if (!isAdmin()) return;
+  if (!confirm('새 게임을 시작하면 현재 게임이 이력으로 이동합니다.')) return;
+  if (_bzState && Object.keys(_bzState).length > 0) {
+    db.ref('jmt/banzige/history').push({ ..._bzState, archivedAt: Date.now() }).catch(fbErr);
+  }
+  db.ref(BZ_REF).set({ phase: 'chatting', entrants: {}, entrantCount: 0, messages: {}, aliases: {}, guesses: {}, results: {} }).catch(fbErr);
+  _bzMyAliases = [];
+  _bzCurrentAlias = '';
+  _bzUpdateAliasBadge();
+  document.getElementById('bz-alias-select').value = '';
+  document.getElementById('bz-alias-limit-msg').style.display = 'none';
+}
+
+function _bzRender() {
+  if (!_bzState) return;
+  const phase = _bzState.phase || 'chatting';
+  const myName = (state.identity && state.identity.name) || '';
+  const entrantCount = _bzState.entrantCount || 0;
+  const aliases = _bzState.aliases || {};
+  const guesses = _bzState.guesses || {};
+
+  // 인원 / 위상
+  document.getElementById('bz-count').textContent = entrantCount;
+  const phaseLabels = { chatting: '채팅중', guessing: '맞추기 진행', revealed: '결과 공개', waiting: '대기중' };
+  document.getElementById('bz-phase-label').textContent = phaseLabels[phase] || phase;
+
+  // 관리자 컨트롤
+  const adminCtrl = document.getElementById('bz-admin-controls');
+  if (isAdmin()) {
+    adminCtrl.style.display = 'flex';
+    document.getElementById('bz-btn-start').style.display = phase === 'chatting' ? 'inline-block' : 'none';
+    document.getElementById('bz-btn-reveal').style.display = phase === 'guessing' ? 'inline-block' : 'none';
+  } else {
+    adminCtrl.style.display = 'none';
+  }
+
+  // 가명 선택 행 — revealed 단계에서는 숨김
+  document.getElementById('bz-alias-row').style.display = phase === 'revealed' ? 'none' : 'flex';
+
+  // 맞추기 섹션
+  const guessSection = document.getElementById('bz-guess-section');
+  guessSection.style.display = phase === 'guessing' ? 'block' : 'none';
+  if (phase === 'guessing') {
+    const alreadyGuessed = !!(guesses[myName]);
+    document.getElementById('bz-guess-done-msg').style.display = alreadyGuessed ? 'block' : 'none';
+    document.getElementById('bz-guess-form').style.display = alreadyGuessed ? 'none' : 'flex';
+    if (!alreadyGuessed) {
+      // 채팅에 등장한 가명 목록
+      const msgs = _bzState.messages ? Object.values(_bzState.messages) : [];
+      const fakeNames = [...new Set(msgs.map(m => m.alias))];
+      const fakeSel = document.getElementById('bz-guess-fake-sel');
+      fakeSel.innerHTML = '<option value="">가짜 이름</option>' +
+        fakeNames.map(n => `<option value="${n}">${n}</option>`).join('');
+      const realSel = document.getElementById('bz-guess-real-sel');
+      realSel.innerHTML = '<option value="">실제 멤버</option>' +
+        state.members.map(m => `<option value="${m.name}">${m.name}</option>`).join('');
+    }
+  }
+
+  // 결과 섹션
+  const resultSection = document.getElementById('bz-result-section');
+  resultSection.style.display = phase === 'revealed' ? 'block' : 'none';
+  if (phase === 'revealed') {
+    const results = _bzState.results || {};
+    const total = Object.keys(results).length;
+    const correct = Object.values(results).filter(r => r.correct).length;
+    document.getElementById('bz-result-summary').innerHTML =
+      `🔓 결과 공개! ${correct}/${total}명 성공 ${correct === total && total > 0 ? '🎉' : '😅'}`;
+    document.getElementById('bz-result-list').innerHTML = Object.entries(results)
+      .map(([m, r]) => `<div style="padding:3px 0">${r.correct ? '✅' : '❌'} <b>${m}</b>: "${r.fake}"은 실제로 ${r.actualReal} (내 답: ${r.guessedReal})</div>`)
+      .join('');
+  }
+
+  // 입력 영역 — revealed 단계 비활성
+  document.getElementById('bz-input-area').style.opacity = phase === 'revealed' ? '0.4' : '1';
+  document.getElementById('bz-input').disabled = phase === 'revealed';
+
+  // 채팅 메시지 렌더
+  _bzRenderMessages(phase);
+}
+
+function _bzRenderMessages(phase) {
+  const area = document.getElementById('bz-chat-area');
+  if (!area) return;
+  const msgs = _bzState && _bzState.messages
+    ? Object.values(_bzState.messages).sort((a, b) => (a.ts || 0) - (b.ts || 0))
+    : [];
+  const aliases = (_bzState && _bzState.aliases) || {};
+  // alias → real 역맵
+  const aliasToReal = {};
+  Object.entries(aliases).forEach(([real, list]) => {
+    (list || []).forEach(a => { aliasToReal[a] = real; });
+  });
+  if (msgs.length === 0) {
+    area.innerHTML = `<div id="bz-chat-empty" style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:30px 0">아직 대화가 없습니다.<br>가명을 선택하고 첫 메시지를 남겨보세요!</div>`;
+    return;
+  }
+  const myName = (state.identity && state.identity.name) || '';
+  area.innerHTML = msgs.map(m => {
+    const senderLabel = phase === 'revealed'
+      ? `${m.alias} <span style="color:#f59e0b;font-size:0.7rem">(실제: ${aliasToReal[m.alias] || '?'})</span>`
+      : m.alias;
+    const isMine = m.realName === myName;
+    return `<div style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
+      <span style="font-size:0.68rem;color:#94a3b8;padding:0 4px">${senderLabel}</span>
+      <div style="max-width:75%;padding:8px 12px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:1px solid ${isMine ? 'transparent' : '#e2e8f0'};word-break:break-all">${m.text}</div>
+    </div>`;
+  }).join('');
+  // 최신 메시지로 스크롤
+  area.scrollTop = area.scrollHeight;
 }
 
 // ══════════════════════════════════════════════════════════
