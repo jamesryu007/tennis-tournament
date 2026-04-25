@@ -10897,6 +10897,18 @@ let _bzState = null;       // 현재 게임 상태
 
 const BZ_REF = 'jmt/banzige/current';
 
+function _bzSendPush(alias, text, type) {
+  const fn = firebase.app().functions('asia-southeast1').httpsCallable('sendBanzigePush');
+  fn({ alias, text, type }).catch(e => console.warn('범찾게 푸시 실패:', e));
+}
+
+function _bzPickRandomAlias() {
+  if (!_bzState || !_bzState.messages) return null;
+  const msgs = Object.values(_bzState.messages);
+  if (!msgs.length) return null;
+  return msgs[Math.floor(Math.random() * msgs.length)].alias;
+}
+
 function bzShowRoom() {
   const myName = state.identity && state.identity.name;
   if (!myName) { alert('로그인 후 이용하세요.'); return; }
@@ -10997,9 +11009,10 @@ function bzSend() {
     text,
     ts: Date.now()
   }).catch(fbErr);
-  // 채팅 시작 시 phase를 chatting으로
+  // 채팅 시작 시 phase를 chatting으로 + 게임 시작 푸시 (최초 1회)
   if (!phase || phase === 'waiting') {
     db.ref(`${BZ_REF}/phase`).set('chatting').catch(fbErr);
+    _bzSendPush(senderAlias, `${senderAlias}이(가) 수상한 말을 하고 있어요...`, 'start');
   }
   input.value = '';
 }
@@ -11009,6 +11022,8 @@ function bzStartGuessing() {
   const msgs = (_bzState && _bzState.messages) ? Object.values(_bzState.messages) : [];
   if (msgs.length === 0) { alert('채팅 메시지가 없습니다.'); return; }
   db.ref(`${BZ_REF}/phase`).set('guessing').catch(fbErr);
+  const alias = _bzPickRandomAlias();
+  if (alias) _bzSendPush(alias, `${alias}의 정체를 맞춰보세요!`, 'guessing');
 }
 
 function bzSubmitGuess() {
@@ -11038,6 +11053,8 @@ function bzReveal() {
     results[member] = { fake: g.fake, guessedReal: g.real, actualReal, correct: actualReal === g.real };
   });
   db.ref(BZ_REF).update({ phase: 'revealed', results }).catch(fbErr);
+  const alias = _bzPickRandomAlias();
+  if (alias) _bzSendPush(alias, `${alias}의 정체가 밝혀졌습니다!`, 'reveal');
 }
 
 function bzNewGame() {
@@ -11164,8 +11181,15 @@ function _bzRenderMessages(phase) {
       ? `${m.alias} <span style="color:#f59e0b;font-size:0.7rem">(실제: ${aliasToReal[m.alias] || '?'})</span>`
       : m.alias;
     const isMine = m.realName === myName;
+    const adminPushBtn = isAdmin() && phase !== 'revealed'
+      ? `<button onclick="_bzSendPush('${m.alias.replace(/'/g,"\\'")}','${m.text.replace(/'/g,"\\'")}','manual')" title="이 메시지 전체 푸시"
+          style="background:none;border:1.5px solid #fde68a;border-radius:8px;padding:1px 5px;font-size:0.7rem;cursor:pointer;color:#b45309;flex-shrink:0">📢</button>` : '';
     return `<div style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
-      <span style="font-size:0.68rem;color:#94a3b8;padding:0 4px">${senderLabel}</span>
+      <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
+        ${!isMine && isAdmin() ? adminPushBtn : ''}
+        <span style="font-size:0.68rem;color:#94a3b8">${senderLabel}</span>
+        ${isMine && isAdmin() ? adminPushBtn : ''}
+      </div>
       <div style="max-width:75%;padding:8px 12px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:1px solid ${isMine ? 'transparent' : '#e2e8f0'};word-break:break-all">${m.text}</div>
     </div>`;
   }).join('');

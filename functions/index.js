@@ -670,6 +670,27 @@ exports.notifyBetReminder = onCall(
   }
 );
 
+// ══ 범찾게 푸시 ═══════════════════════════════════════════════════
+exports.sendBanzigePush = onCall(
+  { region: 'asia-southeast1' },
+  async (request) => {
+    const { alias, text, type } = request.data || {};
+    if (!alias || !text) return { success: false, error: 'missing params' };
+    const titleMap = {
+      start:    `🕵️ 범찾게 — ${alias}`,
+      guessing: `🎯 범찾게 — ${alias}`,
+      reveal:   `🔓 범찾게 — ${alias}`,
+      manual:   `🕵️ 범찾게 — ${alias}`,
+    };
+    const title = titleMap[type] || `🕵️ 범찾게 — ${alias}`;
+    const tokens = await getAllTokens();
+    if (tokens.length) {
+      await sendPush(tokens, title, text, 'setup');
+    }
+    return { success: true, sent: tokens.length };
+  }
+);
+
 // ══ 7. 대진 생성/수정 감지 — DB 트리거 ═══════════════════════════
 exports.notifyBracketUpdate = onValueWritten(
   { ref: 'jmt/activeState', region: 'asia-southeast1' },
