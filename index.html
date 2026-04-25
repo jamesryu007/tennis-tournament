@@ -1394,19 +1394,19 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <!-- 입실 인원 -->
         <div style="font-size:0.78rem;color:#64748b;margin-bottom:8px">
           👥 입실 인원: <span id="bz-count" style="font-weight:800;color:#1e293b">0</span>명
-          &nbsp;|&nbsp; 위상: <span id="bz-phase-label" style="font-weight:700;color:#b45309">대기중</span>
         </div>
 
         <!-- 가명 선택 -->
-        <div id="bz-alias-row" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <span style="font-size:0.78rem;font-weight:700;color:#64748b;white-space:nowrap">나의 가명:</span>
-          <select id="bz-alias-select" onchange="bzSelectAlias(this.value)" style="flex:1;padding:6px 10px;border-radius:8px;border:1.5px solid #e2e8f0;font-size:0.82rem;font-weight:600;background:#f8fafc">
-            <option value="">멤버 선택...</option>
+        <div id="bz-alias-row" style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span style="font-size:0.75rem;font-weight:700;color:#64748b;white-space:nowrap">나의 가명:</span>
+          <select id="bz-alias-select" onchange="bzSelectAlias(this.value)" style="width:110px;padding:4px 6px;border-radius:8px;border:1.5px solid #e2e8f0;font-size:0.78rem;font-weight:600;background:#f8fafc">
+            <option value="">선택...</option>
           </select>
-          <span id="bz-alias-badge" style="display:none;background:#fef3c7;border:1.5px solid #fde68a;border-radius:8px;padding:3px 8px;font-size:0.75rem;font-weight:700;color:#b45309;white-space:nowrap"></span>
+          <div id="bz-alias-chips" style="display:flex;flex-wrap:wrap;gap:4px;flex:1"></div>
         </div>
-        <div id="bz-alias-chips" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px"></div>
-        <div id="bz-alias-limit-msg" style="display:none;font-size:0.72rem;color:#dc2626;margin-bottom:6px">⚠️ 최대 3개의 가명만 사용할 수 있습니다.</div>
+        <div id="bz-alias-limit-msg" style="display:none;font-size:0.72rem;color:#dc2626;margin-bottom:4px">⚠️ 최대 3개의 가명만 사용할 수 있습니다.</div>
+        <!-- 채팅중인 멤버 -->
+        <div id="bz-active-members" style="font-size:0.75rem;color:#64748b;margin-bottom:6px"></div>
 
         <!-- 관리자 컨트롤 -->
         <div id="bz-admin-controls" style="display:none;gap:8px;flex-wrap:wrap">
@@ -10901,8 +10901,6 @@ function bzShowRoom() {
   const myName = state.identity && state.identity.name;
   if (!myName) { alert('로그인 후 이용하세요.'); return; }
   betShowScreen('banzige');
-  _bzMyAliases = [];
-  _bzCurrentAlias = '';
   _bzSetupAliasList();
   _bzSetupListener();
   // 입실 기록 (처음 입실 시에만 카운트 증가)
@@ -10962,13 +10960,6 @@ function bzSelectAlias(name) {
 }
 
 function _bzUpdateAliasBadge() {
-  const badge = document.getElementById('bz-alias-badge');
-  if (_bzCurrentAlias) {
-    badge.style.display = 'inline-block';
-    badge.textContent = _bzCurrentAlias + ' 로 활동중';
-  } else {
-    badge.style.display = 'none';
-  }
   // 선택된 가명 칩 목록 렌더
   const chipsEl = document.getElementById('bz-alias-chips');
   if (!chipsEl) return;
@@ -10976,9 +10967,9 @@ function _bzUpdateAliasBadge() {
   chipsEl.innerHTML = _bzMyAliases.map(name => {
     const active = name === _bzCurrentAlias;
     return `<button onclick="bzSwitchAlias('${name}')"
-      style="padding:4px 11px;border-radius:20px;border:1.5px solid ${active ? '#f59e0b' : '#e2e8f0'};
+      style="padding:3px 9px;border-radius:20px;border:1.5px solid ${active ? '#f59e0b' : '#e2e8f0'};
       background:${active ? 'linear-gradient(135deg,#fef3c7,#fde68a)' : '#f8fafc'};
-      color:${active ? '#b45309' : '#64748b'};font-size:0.75rem;font-weight:700;cursor:pointer">
+      color:${active ? '#b45309' : '#64748b'};font-size:0.73rem;font-weight:700;cursor:pointer;white-space:nowrap">
       ${active ? '✓ ' : ''}${name}
     </button>`;
   }).join('');
@@ -11071,10 +11062,27 @@ function _bzRender() {
   const aliases = _bzState.aliases || {};
   const guesses = _bzState.guesses || {};
 
-  // 인원 / 위상
+  // 인원
   document.getElementById('bz-count').textContent = entrantCount;
-  const phaseLabels = { chatting: '채팅중', guessing: '맞추기 진행', revealed: '결과 공개', waiting: '대기중' };
-  document.getElementById('bz-phase-label').textContent = phaseLabels[phase] || phase;
+
+  // 나의 가명 복원 (재입실 시)
+  const myAliasesFromDb = (aliases[myName] || []);
+  if (myAliasesFromDb.length > 0 && _bzMyAliases.length === 0) {
+    _bzMyAliases = [...myAliasesFromDb];
+    if (!_bzCurrentAlias && _bzMyAliases.length > 0) _bzCurrentAlias = _bzMyAliases[_bzMyAliases.length - 1];
+    const sel = document.getElementById('bz-alias-select');
+    if (sel) sel.value = _bzCurrentAlias || '';
+  }
+
+  // 채팅중인 멤버 (메시지에 등장한 가명 목록)
+  const msgs = _bzState.messages ? Object.values(_bzState.messages) : [];
+  const activeAliases = [...new Set(msgs.map(m => m.alias))];
+  const activeMembersEl = document.getElementById('bz-active-members');
+  if (activeMembersEl) {
+    activeMembersEl.textContent = activeAliases.length > 0
+      ? '채팅중인 멤버: ' + activeAliases.join('  ')
+      : '';
+  }
 
   // 관리자 컨트롤
   const adminCtrl = document.getElementById('bz-admin-controls');
