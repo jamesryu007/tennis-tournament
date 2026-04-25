@@ -1446,13 +1446,23 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       </div>
 
       <!-- 입력 영역 (키보드 위 고정) -->
-      <div id="bz-input-area" style="display:flex;gap:8px;align-items:center;background:#f0f4fb;padding:4px 0 6px">
-        <input id="bz-input" type="text" placeholder="메시지 입력..." maxlength="100"
-          onkeydown="if(event.key==='Enter'&&!event.isComposing)bzSend()"
-          onfocus="_bzOnInputFocus()"
-          onblur="_bzOnInputBlur()"
-          style="flex:1;padding:10px 14px;border-radius:12px;border:1.5px solid #e2e8f0;font-size:0.88rem;background:#fff;outline:none">
-        <button onclick="bzSend()" style="padding:10px 16px;border-radius:12px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.88rem;font-weight:800;cursor:pointer">전송</button>
+      <div id="bz-input-area" style="background:#f0f4fb;padding:4px 0 6px">
+        <!-- 답글 미리보기 바 -->
+        <div id="bz-reply-bar" style="display:none;background:#fef3c7;border-left:3px solid #f59e0b;border-radius:8px;padding:5px 10px;margin-bottom:5px;display:flex;align-items:center;justify-content:space-between;gap:8px">
+          <div style="flex:1;overflow:hidden">
+            <span id="bz-reply-label" style="font-size:0.72rem;color:#b45309;font-weight:700"></span>
+            <span id="bz-reply-preview" style="font-size:0.72rem;color:#92400e;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+          </div>
+          <button onclick="bzCancelReply()" style="border:none;background:none;font-size:1rem;color:#94a3b8;cursor:pointer;flex-shrink:0;padding:0">✕</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="bz-input" type="text" placeholder="메시지 입력..." maxlength="100"
+            onkeydown="if(event.key==='Enter'&&!event.isComposing)bzSend()"
+            onfocus="_bzOnInputFocus()"
+            onblur="_bzOnInputBlur()"
+            style="flex:1;padding:10px 14px;border-radius:12px;border:1.5px solid #e2e8f0;font-size:0.88rem;background:#fff;outline:none">
+          <button onclick="bzSend()" style="padding:10px 16px;border-radius:12px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.88rem;font-weight:800;cursor:pointer">전송</button>
+        </div>
       </div>
     </div><!-- /bet-screen-banzige -->
 
@@ -10958,8 +10968,9 @@ function _bombCleanup() {
 
 let _bzMyAliases = [];       // 내가 사용한 가명 목록 (max 2)
 let _bzCurrentAlias = null; // null=미초기화, ''=나자신, 'name'=가명
-let _bzListener = null;    // Firebase 리스너
-let _bzState = null;       // 현재 게임 상태
+let _bzListener = null;     // Firebase 리스너
+let _bzState = null;        // 현재 게임 상태
+let _bzReplyTo = null;      // 현재 답글 대상 { alias, text }
 
 const BZ_REF = 'jmt/banzige/current';
 
@@ -10993,7 +11004,8 @@ function bzShowRoom() {
 function bzLeaveRoom() {
   if (_bzListener) { db.ref(BZ_REF).off('value', _bzListener); _bzListener = null; }
   _bzState = null;
-  _bzCurrentAlias = null; // 재입실 시 DB에서 복원되도록 초기화
+  _bzCurrentAlias = null;
+  bzCancelReply();
   betShowHome();
 }
 
@@ -11074,18 +11086,33 @@ function bzSend() {
   if (!(_bzState && _bzState.entrants && _bzState.entrants[myName])) {
     db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
   }
-  db.ref(`${BZ_REF}/messages`).push({
-    alias: senderAlias,
-    realName: myName,
-    text,
-    ts: Date.now()
-  }).catch(fbErr);
+  const msgData = { alias: senderAlias, realName: myName, text, ts: Date.now() };
+  if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text };
+  db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
   // 채팅 시작 시 phase를 chatting으로 + 게임 시작 푸시 (최초 1회)
   if (!phase || phase === 'waiting') {
     db.ref(`${BZ_REF}/phase`).set('chatting').catch(fbErr);
     _bzSendPush(senderAlias, `${senderAlias}이(가) 수상한 말을 하고 있어요...`, 'start');
   }
   input.value = '';
+  bzCancelReply();
+}
+
+function bzSetReply(alias, text) {
+  _bzReplyTo = { alias, text };
+  const bar = document.getElementById('bz-reply-bar');
+  if (bar) {
+    document.getElementById('bz-reply-label').textContent = `↩ ${alias}에게 답글`;
+    document.getElementById('bz-reply-preview').textContent = text.length > 40 ? text.slice(0, 40) + '…' : text;
+    bar.style.display = 'flex';
+  }
+  document.getElementById('bz-input')?.focus();
+}
+
+function bzCancelReply() {
+  _bzReplyTo = null;
+  const bar = document.getElementById('bz-reply-bar');
+  if (bar) bar.style.display = 'none';
 }
 
 function bzStartGuessing() {
@@ -11348,21 +11375,37 @@ function _bzRenderMessages(phase) {
     return;
   }
   const myName = (state.identity && state.identity.name) || '';
+  const canReply = phase !== 'revealed';
   area.innerHTML = msgs.map(m => {
     const senderLabel = phase === 'revealed'
       ? `${m.alias} <span style="color:#f59e0b;font-size:0.7rem">(실제: ${aliasToReal[m.alias] || '?'})</span>`
       : m.alias;
     const isMine = m.realName === myName;
+    const aliasEsc = m.alias.replace(/'/g, "\\'");
+    const textEsc  = m.text.replace(/'/g, "\\'").replace(/`/g, '\\`');
     const adminPushBtn = isAdmin() && phase !== 'revealed'
-      ? `<button onclick="_bzSendPush('${m.alias.replace(/'/g,"\\'")}','${m.text.replace(/'/g,"\\'")}','manual')" title="이 메시지 전체 푸시"
+      ? `<button onclick="_bzSendPush('${aliasEsc}','${textEsc}','manual')" title="이 메시지 전체 푸시"
           style="background:none;border:1.5px solid #fde68a;border-radius:8px;padding:1px 5px;font-size:0.7rem;cursor:pointer;color:#b45309;flex-shrink:0">📢</button>` : '';
+    const replyBtn = canReply
+      ? `<button onclick="bzSetReply('${aliasEsc}','${textEsc}')"
+          style="background:none;border:none;font-size:0.75rem;color:#94a3b8;cursor:pointer;padding:0 2px;line-height:1" title="답글">↩</button>` : '';
+    // 인용 박스 (replyTo 있을 때)
+    const replyBox = m.replyTo
+      ? `<div style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden">
+          <span style="font-weight:700">${phase==='revealed' ? `${m.replyTo.alias}(${aliasToReal[m.replyTo.alias]||'?'})` : m.replyTo.alias}</span>
+          <span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.replyTo.text}</span>
+        </div>` : '';
     return `<div style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
       <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
+        ${!isMine ? replyBtn : ''}
         ${!isMine && isAdmin() ? adminPushBtn : ''}
         <span style="font-size:0.68rem;color:#94a3b8">${senderLabel}</span>
         ${isMine && isAdmin() ? adminPushBtn : ''}
+        ${isMine ? replyBtn : ''}
       </div>
-      <div style="max-width:75%;padding:8px 12px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:1px solid ${isMine ? 'transparent' : '#e2e8f0'};word-break:break-all">${m.text}</div>
+      <div style="max-width:75%;padding:8px 12px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:1px solid ${isMine ? 'transparent' : '#e2e8f0'};word-break:break-all">
+        ${replyBox}${m.text}
+      </div>
     </div>`;
   }).join('');
   // 최신 메시지로 스크롤
