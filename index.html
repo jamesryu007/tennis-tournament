@@ -11267,13 +11267,38 @@ function _bzRender() {
   resultSection.style.display = phase === 'revealed' ? 'block' : 'none';
   if (phase === 'revealed') {
     const results = _bzState.results || {};
+    const aliases = _bzState.aliases || {};
     const total = Object.keys(results).length;
     const correct = Object.values(results).filter(r => r.correct).length;
     document.getElementById('bz-result-summary').innerHTML =
       `🔓 결과 공개! ${correct}/${total}명 성공 ${correct === total && total > 0 ? '🎉' : '😅'}`;
-    document.getElementById('bz-result-list').innerHTML = Object.entries(results)
-      .map(([m, r]) => `<div style="padding:3px 0">${r.correct ? '✅' : '❌'} <b>${m}</b>: "${r.fake}"은 실제로 ${r.actualReal} (내 답: ${r.guessedReal})</div>`)
-      .join('');
+
+    // 가명 공개 표: 실제이름 → 사용한 가명들
+    const aliasRevealRows = Object.entries(aliases).map(([real, list]) => {
+      const chips = (list || []).map(a =>
+        `<span style="background:#fef3c7;color:#92400e;border-radius:8px;padding:2px 8px;font-size:0.72rem;font-weight:700">${a}</span>`
+      ).join(' ');
+      return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:0.78rem">
+        <span style="font-weight:700;min-width:48px">${real}</span>
+        <span style="color:#94a3b8;font-size:0.7rem">→ 가명:</span>
+        ${chips || '<span style="color:#94a3b8;font-size:0.7rem">나 자신으로 채팅</span>'}
+      </div>`;
+    }).join('');
+
+    // 맞추기 결과: 누가 어떤 가명을 누구로 추측했는지
+    const resultRows = Object.entries(results).map(([m, r]) => {
+      const actual = r.actualReal || '?';
+      const label = r.correct
+        ? `✅ <b>${m}</b>: "<b>${r.fake}</b>" 가명을 <b>${r.guessedReal}</b>로 정확히 맞춤!`
+        : `❌ <b>${m}</b>: "<b>${r.fake}</b>" = ${r.guessedReal}라고 추측 → 실제: <b style="color:#b45309">${actual}</b>`;
+      return `<div style="padding:4px 0;font-size:0.78rem;border-bottom:1px solid #fef3c7">${label}</div>`;
+    }).join('');
+
+    document.getElementById('bz-result-list').innerHTML =
+      (aliasRevealRows ? `<div style="background:#fffbeb;border-radius:10px;padding:8px 10px;margin-bottom:8px">
+        <div style="font-size:0.7rem;font-weight:800;color:#b45309;margin-bottom:4px">🎭 가명 공개</div>
+        ${aliasRevealRows}
+      </div>` : '') + resultRows;
   }
 
   // 입력 영역 — revealed 단계 비활성
