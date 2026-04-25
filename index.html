@@ -11336,7 +11336,7 @@ function _bzRender() {
 
     // 맞추기 결과: 누가 어떤 가명을 누구로 추측했는지
     const resultRows = Object.entries(results).map(([m, r]) => {
-      const actual = r.actualReal || '?';
+      const actual = r.actualReal || r.fake; // null = 나자신 이름으로 채팅 = fake가 실제이름
       const label = r.correct
         ? `✅ <b>${m}</b>: "<b>${r.fake}</b>" 가명을 <b>${r.guessedReal}</b>로 정확히 맞춤!`
         : `❌ <b>${m}</b>: "<b>${r.fake}</b>" = ${r.guessedReal}라고 추측 → 실제: <b style="color:#b45309">${actual}</b>`;
