@@ -11174,7 +11174,7 @@ function bzNewGame() {
 }
 
 function _bzOnInputFocus() {
-  // 키보드 팝업 시 하단 네비 숨기고, 채팅영역 높이 동적 조정
+  // 키보드 팝업 시 하단 네비 숨기고, 채팅영역 축소 + 스크롤로 입력창을 키보드 위에 위치
   const nav = document.querySelector('.bottom-nav');
   if (nav) nav.style.display = 'none';
 
@@ -11184,30 +11184,43 @@ function _bzOnInputFocus() {
     }, 400);
     return;
   }
+
   const _handler = () => {
     const area = document.getElementById('bz-chat-area');
     const inputArea = document.getElementById('bz-input-area');
-    if (!area) return;
-    const vvh = window.visualViewport.height;
+    if (!area || !inputArea) return;
+    const vv = window.visualViewport;
+
+    // 채팅 영역 높이: visual viewport 내 입력창 위 공간만큼
     const chatTop = area.getBoundingClientRect().top;
-    const inputH = inputArea ? inputArea.offsetHeight + 10 : 60;
-    const newMax = Math.max(60, vvh - chatTop - inputH - 8);
+    const inputH = inputArea.offsetHeight + 10;
+    const newMax = Math.max(60, vv.height - Math.max(chatTop, 0) - inputH - 16);
     area.style.maxHeight = newMax + 'px';
     area.scrollTop = area.scrollHeight;
+
+    // 채팅 영역 축소 후 입력창이 vv 하단(키보드 바로 위)에 오도록 스크롤
+    requestAnimationFrame(() => {
+      const inputBottom = inputArea.getBoundingClientRect().bottom;
+      const overshoot = inputBottom - (vv.height - 4);
+      if (overshoot > 0) window.scrollBy({ top: overshoot, behavior: 'instant' });
+    });
   };
+
   window.visualViewport.addEventListener('resize', _handler);
+  window.visualViewport.addEventListener('scroll', _handler);
   window._bzVpHandler = _handler;
   setTimeout(_handler, 300);
 }
 
 function _bzOnInputBlur() {
-  // 키보드 내려가면 하단 네비 복원
+  // 키보드 내려가면 하단 네비 복원 + 채팅영역 원복
   setTimeout(() => {
     const nav = document.querySelector('.bottom-nav');
     if (nav) nav.style.display = '';
   }, 150);
   if (window._bzVpHandler && window.visualViewport) {
     window.visualViewport.removeEventListener('resize', window._bzVpHandler);
+    window.visualViewport.removeEventListener('scroll', window._bzVpHandler);
     window._bzVpHandler = null;
   }
   const area = document.getElementById('bz-chat-area');
