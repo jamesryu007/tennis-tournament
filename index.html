@@ -1404,7 +1404,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           </select>
           <div id="bz-alias-chips" style="display:flex;flex-wrap:wrap;gap:4px;flex:1"></div>
         </div>
-        <div id="bz-alias-limit-msg" style="display:none;font-size:0.72rem;color:#dc2626;margin-bottom:4px">⚠️ 최대 3개의 가명만 사용할 수 있습니다.</div>
+        <div id="bz-alias-limit-msg" style="display:none;font-size:0.72rem;color:#dc2626;margin-bottom:4px">⚠️ 최대 2개의 가명만 사용할 수 있습니다.</div>
         <!-- 채팅중인 멤버 -->
         <div id="bz-active-members" style="font-size:0.75rem;color:#64748b;margin-bottom:6px"></div>
 
@@ -9274,10 +9274,54 @@ function _loadBetHistory() {
   if (!el) return;
   el.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:0.85rem">불러오는 중...</div>';
   if (!db) return;
-  db.ref('jmt/betHistory').orderByChild('createdAt').once('value').then(snap => {
-    const data = snap.val();
-    if (!data) {
+
+  // 범찾게 이력과 일반 내기 이력 병렬 로드
+  Promise.all([
+    db.ref('jmt/betHistory').orderByChild('createdAt').once('value'),
+    db.ref('jmt/banzige/history').once('value')
+  ]).then(([betSnap, bzSnap]) => {
+    const betData = betSnap.val();
+    const bzData  = bzSnap.val();
+    if (!betData && !bzData) {
       el.innerHTML = '<div style="text-align:center;padding:32px;color:#94a3b8;font-size:0.85rem">아직 내기 기록이 없습니다.</div>';
+      return;
+    }
+
+    // 범찾게 이력 HTML
+    let bzHtml = '';
+    if (bzData) {
+      const bzItems = Object.entries(bzData).reverse();
+      bzHtml = `<div style="font-size:0.72rem;font-weight:800;color:#b45309;letter-spacing:0.08em;margin:14px 0 7px;padding-left:2px">🕵️ 범찾게 이력</div>` +
+        bzItems.map(([, g]) => {
+          const dt = g.archivedAt ? new Date(g.archivedAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'}) : '';
+          const results = g.results || {};
+          const aliases = g.aliases || {};
+          // alias → realName 맵
+          const aliasMap = {};
+          Object.entries(aliases).forEach(([real, list]) => {
+            (list || []).forEach(alias => { aliasMap[alias] = real; });
+          });
+          const revealRows = Object.entries(aliasMap).map(([alias, real]) =>
+            `<span style="font-size:0.68rem;background:#fef3c7;color:#92400e;border-radius:8px;padding:2px 7px;margin:2px;display:inline-block">${alias} = ${real}</span>`
+          ).join('');
+          const resultRows = Object.entries(results).map(([member, r]) =>
+            `<span style="font-size:0.68rem;padding:2px 7px;border-radius:8px;margin:2px;display:inline-block;background:${r.correct?'#dcfce7':'#fee2e2'};color:${r.correct?'#16a34a':'#dc2626'}">${member} ${r.correct?'✅':'❌'}</span>`
+          ).join('');
+          return `<div class="bet-history-item" style="border-color:#fde68a;background:linear-gradient(135deg,#fffbeb,#fff)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <span style="font-size:0.65rem;background:#fef3c7;color:#b45309;border-radius:6px;padding:2px 7px;font-weight:700">🕵️ 범찾게</span>
+              <span style="font-size:0.65rem;color:#94a3b8">${dt}</span>
+            </div>
+            ${revealRows ? `<div style="margin-bottom:5px">${revealRows}</div>` : ''}
+            ${resultRows ? `<div style="font-size:0.7rem;color:#64748b;margin-top:3px">맞추기 결과: ${resultRows}</div>` : '<div style="font-size:0.7rem;color:#94a3b8">맞추기 없이 종료</div>'}
+          </div>`;
+        }).join('');
+    }
+
+    const snap = betSnap;
+    const data = betData;
+    if (!data) {
+      el.innerHTML = bzHtml || '';
       return;
     }
     const mgr = isManager();
@@ -9348,6 +9392,7 @@ function _loadBetHistory() {
         <div style="font-size:0.62rem;color:#94a3b8;margin-top:4px">${(r.participants||[]).length}명 참여</div>
       </div>`;
     }).join('');
+    if (bzHtml) el.innerHTML = bzHtml + el.innerHTML;
   }).catch(() => {
     el.innerHTML = '<div style="text-align:center;padding:24px;color:#ef4444;font-size:0.85rem">불러오기 실패</div>';
   });
@@ -10959,7 +11004,7 @@ function bzSelectAlias(name) {
     return;
   }
   // 새 가명 — 최대 2개 초과 시 차단
-  if (_bzMyAliases.length >= 3) {
+  if (_bzMyAliases.length >= 2) {
     document.getElementById('bz-alias-limit-msg').style.display = 'block';
     document.getElementById('bz-alias-select').value = _bzCurrentAlias || '';
     return;
@@ -11125,16 +11170,18 @@ function _bzRender() {
   // 인원
   document.getElementById('bz-count').textContent = entrantCount;
 
-  // 나의 가명 복원 (재입실 / 새로고침 시 DB에서 복원)
+  // 나의 가명 복원 — DB가 항상 정답 (새 게임 시 aliases={} 로 초기화되므로 자동 리셋)
   const myAliasesFromDb = Array.isArray(aliases[myName]) ? aliases[myName] : [];
-  if (myAliasesFromDb.length > 0) {
-    _bzMyAliases = [...myAliasesFromDb];
+  _bzMyAliases = [...myAliasesFromDb];
+  if (_bzMyAliases.length > 0) {
     if (!_bzCurrentAlias || !_bzMyAliases.includes(_bzCurrentAlias)) {
       _bzCurrentAlias = _bzMyAliases[_bzMyAliases.length - 1];
     }
-    const sel = document.getElementById('bz-alias-select');
-    if (sel && sel.value !== _bzCurrentAlias) sel.value = _bzCurrentAlias;
+  } else {
+    _bzCurrentAlias = '';
   }
+  const sel = document.getElementById('bz-alias-select');
+  if (sel) sel.value = _bzCurrentAlias || '';
   _bzUpdateAliasBadge();
 
   // 채팅중인 멤버 (메시지에 등장한 가명 목록)
