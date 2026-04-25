@@ -3036,7 +3036,7 @@ function _renderDailyCard(id){
       <div class="dc-card-bg" style="background-image:url('${bgImg}');background-size:cover;background-position:center;background-repeat:no-repeat"></div>
       <div class="dc-card-header">
         <span class="dc-num">${numLabel}</span>
-        ${d.phase==='setup'?`<button class="dc-del-btn" onclick="removeDailyCard('${id}')">✕</button>`:''}
+        ${(d.phase==='setup'||isAdmin())?`<button class="dc-del-btn" onclick="adminRemoveDailyCard('${id}')" title="카드 삭제">✕</button>`:''}
       </div>
       <div class="dc-body">
         ${leftCol}
@@ -3551,6 +3551,20 @@ async function saveDailyScore(){
 
 function removeDailyCard(id){
   // setup phase only — not yet in Firebase
+  delete _dailyCards[id];
+  const el=document.getElementById(`daily-card-${id}`);
+  if(el) el.remove();
+}
+
+function adminRemoveDailyCard(id){
+  const d=_dailyCards[id];
+  if(!d) return;
+  const label=d.label||`경기${d.num}`;
+  if(!confirm(`"${label}" 카드를 삭제하시겠습니까?`)) return;
+  // Firebase 삭제
+  db.ref(`jmt/dailyCards/${id}`).remove().catch(fbErr);
+  if(d.matchKey) db.ref(`jmt/matches/${d.matchKey}`).remove().catch(fbErr);
+  // 로컬 + DOM 삭제
   delete _dailyCards[id];
   const el=document.getElementById(`daily-card-${id}`);
   if(el) el.remove();
