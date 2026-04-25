@@ -11099,10 +11099,14 @@ function bzReveal() {
   const guesses = (_bzState && _bzState.guesses) || {};
   const results = {};
   Object.entries(guesses).forEach(([member, g]) => {
-    const actualReal = aliasToReal[g.fake];
+    const actualReal = aliasToReal[g.fake] || null; // undefined → null (Firebase 허용)
     results[member] = { fake: g.fake, guessedReal: g.real, actualReal, correct: actualReal === g.real };
   });
-  db.ref(BZ_REF).update({ phase: 'revealed', results }).catch(fbErr);
+  // phase와 results를 분리해서 저장 — results 실패해도 phase는 반드시 변경
+  db.ref(`${BZ_REF}/phase`).set('revealed').catch(fbErr);
+  if (Object.keys(results).length > 0) {
+    db.ref(`${BZ_REF}/results`).set(results).catch(fbErr);
+  }
   const alias = _bzPickRandomAlias();
   if (alias) _bzSendPush(alias, `${alias}의 정체가 밝혀졌습니다!`, 'reveal');
 }
