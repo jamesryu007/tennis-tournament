@@ -11070,6 +11070,10 @@ function bzSend() {
   const phase = (_bzState && _bzState.phase) || 'chatting';
   if (phase === 'revealed') { alert('게임이 종료되었습니다.'); return; }
   const senderAlias = _bzCurrentAlias || myName;
+  // entrants에 없으면 자동 등록 (새 게임 후 재진입 없이 메시지 보낸 경우)
+  if (!(_bzState && _bzState.entrants && _bzState.entrants[myName])) {
+    db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
+  }
   db.ref(`${BZ_REF}/messages`).push({
     alias: senderAlias,
     realName: myName,
@@ -11187,7 +11191,8 @@ function _bzRender() {
   if (!_bzState) return;
   const phase = _bzState.phase || 'chatting';
   const myName = (state.identity && state.identity.name) || '';
-  const entrantCount = _bzState.entrantCount || 0;
+  const entrants = _bzState.entrants || {};
+  const entrantCount = Object.keys(entrants).length; // entrants 객체 기준으로 계산
   const aliases = _bzState.aliases || {};
   const guesses = _bzState.guesses || {};
 
