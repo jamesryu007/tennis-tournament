@@ -11065,14 +11065,17 @@ function _bzRender() {
   // 인원
   document.getElementById('bz-count').textContent = entrantCount;
 
-  // 나의 가명 복원 (재입실 시)
-  const myAliasesFromDb = (aliases[myName] || []);
-  if (myAliasesFromDb.length > 0 && _bzMyAliases.length === 0) {
+  // 나의 가명 복원 (재입실 / 새로고침 시 DB에서 복원)
+  const myAliasesFromDb = Array.isArray(aliases[myName]) ? aliases[myName] : [];
+  if (myAliasesFromDb.length > 0) {
     _bzMyAliases = [...myAliasesFromDb];
-    if (!_bzCurrentAlias && _bzMyAliases.length > 0) _bzCurrentAlias = _bzMyAliases[_bzMyAliases.length - 1];
+    if (!_bzCurrentAlias || !_bzMyAliases.includes(_bzCurrentAlias)) {
+      _bzCurrentAlias = _bzMyAliases[_bzMyAliases.length - 1];
+    }
     const sel = document.getElementById('bz-alias-select');
-    if (sel) sel.value = _bzCurrentAlias || '';
+    if (sel && sel.value !== _bzCurrentAlias) sel.value = _bzCurrentAlias;
   }
+  _bzUpdateAliasBadge();
 
   // 채팅중인 멤버 (메시지에 등장한 가명 목록)
   const msgs = _bzState.messages ? Object.values(_bzState.messages) : [];
