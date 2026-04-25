@@ -1057,7 +1057,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           <div style="font-size:0.65rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;text-align:center;padding:2px 0 7px;border-bottom:1px solid #f1f5f9;margin-bottom:7px">🎲 내기 게임 선택</div>
           <button onclick="bzShowRoom()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #fde68a;background:linear-gradient(135deg,#fffbeb,#fef3c7);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
             <span style="font-size:1.4rem">🕵️</span>
-            <div><div style="font-weight:800">범찾게</div><div style="font-size:0.68rem;color:#b45309;font-weight:600">채팅 속 진짜 범인을 찾아라!</div></div>
+            <div><div style="font-weight:800">범.찾.게.</div><div style="font-size:0.68rem;color:#b45309;font-weight:600">채팅 속 진짜 범인을 찾아라!</div></div>
           </button>
           <button onclick="betShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #ede9fe;background:linear-gradient(135deg,#f5f3ff,#ede9fe);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
             <span style="font-size:1.4rem">🎈</span>
@@ -1385,7 +1385,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <!-- 헤더 -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <button onclick="bzLeaveRoom()" style="border:none;background:none;font-size:1.4rem;cursor:pointer;padding:0;color:#64748b">←</button>
-        <div style="font-size:0.95rem;font-weight:800;color:#1e293b">🕵️ 범찾게 (범인 찾기 게임)</div>
+        <div style="font-size:0.95rem;font-weight:800;color:#1e293b">🕵️ 범.찾.게. (범인 찾기 게임)</div>
         <button onclick="bzLeaveRoom()" style="border:none;background:none;font-size:1.1rem;cursor:pointer;padding:0;color:#94a3b8">✕</button>
       </div>
 
@@ -1410,7 +1410,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
         <!-- 관리자 컨트롤 -->
         <div id="bz-admin-controls" style="display:none;gap:8px;flex-wrap:wrap">
-          <button id="bz-btn-start" onclick="bzStartGuessing()" style="padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer">🕵️ 범찾게 시작</button>
+          <button id="bz-btn-start" onclick="bzStartGuessing()" style="padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer">🕵️ 범.찾.게. 시작</button>
           <button id="bz-btn-reveal" onclick="bzReveal()" style="display:none;padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer">🔓 최종 오픈</button>
           <button onclick="bzNewGame()" style="padding:7px 14px;border-radius:10px;border:none;background:#f1f5f9;color:#64748b;font-size:0.8rem;font-weight:700;cursor:pointer">🔄 새 게임</button>
           <!-- 관리자: 맞추기 참여 현황 (guessing phase에서만 표시) -->
@@ -9303,7 +9303,7 @@ function _loadBetHistory() {
     let bzHtml = '';
     if (bzData) {
       const bzItems = Object.entries(bzData).reverse();
-      bzHtml = `<div style="font-size:0.72rem;font-weight:800;color:#b45309;letter-spacing:0.08em;margin:14px 0 7px;padding-left:2px">🕵️ 범찾게 이력</div>` +
+      bzHtml = `<div style="font-size:0.72rem;font-weight:800;color:#b45309;letter-spacing:0.08em;margin:14px 0 7px;padding-left:2px">🕵️ 범.찾.게. 이력</div>` +
         bzItems.map(([, g]) => {
           const dt = g.archivedAt ? new Date(g.archivedAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'}) : '';
           const results = g.results || {};
@@ -9334,7 +9334,7 @@ function _loadBetHistory() {
 
           return `<div class="bet-history-item" style="border-color:#fde68a;background:linear-gradient(135deg,#fffbeb,#fff)">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <span style="font-size:0.65rem;background:#fef3c7;color:#b45309;border-radius:6px;padding:2px 7px;font-weight:700">🕵️ 범찾게</span>
+              <span style="font-size:0.65rem;background:#fef3c7;color:#b45309;border-radius:6px;padding:2px 7px;font-weight:700">🕵️ 범.찾.게.</span>
               <span style="font-size:0.75rem;font-weight:800;color:#1e293b">${total > 0 ? `${correct}/${total}명 성공 ${correct===total&&total>0?'🎉':'😅'}` : '맞추기 없이 종료'}</span>
               <span style="font-size:0.65rem;color:#94a3b8">${dt}</span>
             </div>
