@@ -11178,18 +11178,6 @@ function _bzOnInputFocus() {
   const nav = document.querySelector('.bottom-nav');
   if (nav) nav.style.display = 'none';
 
-  const inputArea = document.getElementById('bz-input-area');
-  if (inputArea) {
-    // env(keyboard-inset-height): iOS 15.4+ Safari가 키보드 높이를 CSS에 직접 주입
-    // JS 타이밍 문제 없이 브라우저 CSS 엔진이 키보드 애니메이션과 동기화
-    inputArea.style.position = 'fixed';
-    inputArea.style.left = '0';
-    inputArea.style.right = '0';
-    inputArea.style.bottom = 'env(keyboard-inset-height, 0px)';
-    inputArea.style.padding = '4px 12px 6px';
-    inputArea.style.zIndex = '200';
-  }
-
   if (!window.visualViewport) {
     setTimeout(() => {
       document.getElementById('bz-input')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -11197,23 +11185,48 @@ function _bzOnInputFocus() {
     return;
   }
 
-  const _handler = () => {
+  const _adjustLayout = (doScroll) => {
     const area = document.getElementById('bz-chat-area');
     const ia = document.getElementById('bz-input-area');
+    const screen = document.getElementById('bet-screen-banzige');
     if (!area || !ia) return;
     const vv = window.visualViewport;
-    // 채팅 영역: visual viewport 높이에서 입력창 높이 제외
-    const chatTop = area.getBoundingClientRect().top;
-    const inputH = ia.offsetHeight + 10;
-    const newMax = Math.max(60, vv.height - Math.max(chatTop, 0) - inputH - 16);
-    area.style.maxHeight = newMax + 'px';
-    area.scrollTop = area.scrollHeight;
+
+    // 올바른 키보드 높이: window.innerHeight - vv.height (offsetTop 제외)
+    // iOS Safari: innerHeight 고정, vv.height만 줄어듦
+    // iOS PWA: innerHeight도 줄어들어 keyboardH≈0 (viewport가 이미 수축)
+    const keyboardH = Math.max(0, window.innerHeight - vv.height);
+
+    // 입력창을 키보드 바로 위에 fixed 고정
+    ia.style.position = 'fixed';
+    ia.style.left = '0';
+    ia.style.right = '0';
+    ia.style.bottom = keyboardH + 'px';
+    ia.style.padding = '4px 12px 6px';
+    ia.style.zIndex = '200';
+
+    if (doScroll && screen) {
+      // bz 화면 상단(헤더+정보 프레임)이 viewport 상단에 오도록 스크롤
+      const screenDocTop = screen.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({ top: screenDocTop, behavior: 'instant' });
+    }
+
+    // 스크롤 반영 후 채팅 영역 높이 계산
+    requestAnimationFrame(() => {
+      const chatTop = area.getBoundingClientRect().top;
+      const inputH = ia.offsetHeight + 10;
+      const newMax = Math.max(60, vv.height - Math.max(chatTop, 0) - inputH - 16);
+      area.style.maxHeight = newMax + 'px';
+      area.scrollTop = area.scrollHeight;
+    });
   };
 
+  const _handler = () => _adjustLayout(false);
   window.visualViewport.addEventListener('resize', _handler);
   window.visualViewport.addEventListener('scroll', _handler);
   window._bzVpHandler = _handler;
-  setTimeout(_handler, 300);
+  // 키보드 완전히 올라온 후 스크롤 + 높이 조정
+  setTimeout(() => _adjustLayout(true), 300);
 }
 
 function _bzOnInputBlur() {
