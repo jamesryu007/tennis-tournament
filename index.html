@@ -11395,16 +11395,18 @@ function _bzRenderMessages(phase) {
           <span style="font-weight:700">${phase==='revealed' ? `${m.replyTo.alias}(${aliasToReal[m.replyTo.alias]||'?'})` : m.replyTo.alias}</span>
           <span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.replyTo.text}</span>
         </div>` : '';
+    const bubble = `<div style="max-width:75%;padding:8px 12px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:1px solid ${isMine ? 'transparent' : '#e2e8f0'};word-break:break-all">
+        ${replyBox}${m.text}
+      </div>`;
     return `<div style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
       <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
-        ${!isMine ? replyBtn : ''}
         ${!isMine && isAdmin() ? adminPushBtn : ''}
         <span style="font-size:0.68rem;color:#94a3b8">${senderLabel}</span>
         ${isMine && isAdmin() ? adminPushBtn : ''}
-        ${isMine ? replyBtn : ''}
       </div>
-      <div style="max-width:75%;padding:8px 12px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:1px solid ${isMine ? 'transparent' : '#e2e8f0'};word-break:break-all">
-        ${replyBox}${m.text}
+      <div style="display:flex;align-items:center;gap:4px;flex-direction:${isMine ? 'row-reverse' : 'row'}">
+        ${bubble}
+        ${replyBtn}
       </div>
     </div>`;
   }).join('');
