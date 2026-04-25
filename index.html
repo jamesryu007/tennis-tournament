@@ -1405,7 +1405,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           </select>
           <span id="bz-alias-badge" style="display:none;background:#fef3c7;border:1.5px solid #fde68a;border-radius:8px;padding:3px 8px;font-size:0.75rem;font-weight:700;color:#b45309;white-space:nowrap"></span>
         </div>
-        <div id="bz-alias-limit-msg" style="display:none;font-size:0.72rem;color:#dc2626;margin-bottom:6px">⚠️ 최대 2개의 가명만 사용할 수 있습니다.</div>
+        <div id="bz-alias-chips" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px"></div>
+        <div id="bz-alias-limit-msg" style="display:none;font-size:0.72rem;color:#dc2626;margin-bottom:6px">⚠️ 최대 3개의 가명만 사용할 수 있습니다.</div>
 
         <!-- 관리자 컨트롤 -->
         <div id="bz-admin-controls" style="display:none;gap:8px;flex-wrap:wrap">
@@ -10946,7 +10947,7 @@ function bzSelectAlias(name) {
     return;
   }
   // 새 가명 — 최대 2개 초과 시 차단
-  if (_bzMyAliases.length >= 2) {
+  if (_bzMyAliases.length >= 3) {
     document.getElementById('bz-alias-limit-msg').style.display = 'block';
     document.getElementById('bz-alias-select').value = _bzCurrentAlias || '';
     return;
@@ -10968,6 +10969,26 @@ function _bzUpdateAliasBadge() {
   } else {
     badge.style.display = 'none';
   }
+  // 선택된 가명 칩 목록 렌더
+  const chipsEl = document.getElementById('bz-alias-chips');
+  if (!chipsEl) return;
+  if (_bzMyAliases.length === 0) { chipsEl.innerHTML = ''; return; }
+  chipsEl.innerHTML = _bzMyAliases.map(name => {
+    const active = name === _bzCurrentAlias;
+    return `<button onclick="bzSwitchAlias('${name}')"
+      style="padding:4px 11px;border-radius:20px;border:1.5px solid ${active ? '#f59e0b' : '#e2e8f0'};
+      background:${active ? 'linear-gradient(135deg,#fef3c7,#fde68a)' : '#f8fafc'};
+      color:${active ? '#b45309' : '#64748b'};font-size:0.75rem;font-weight:700;cursor:pointer">
+      ${active ? '✓ ' : ''}${name}
+    </button>`;
+  }).join('');
+}
+
+function bzSwitchAlias(name) {
+  _bzCurrentAlias = name;
+  document.getElementById('bz-alias-select').value = name;
+  document.getElementById('bz-alias-limit-msg').style.display = 'none';
+  _bzUpdateAliasBadge();
 }
 
 function bzSend() {
