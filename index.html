@@ -11107,6 +11107,8 @@ function bzSwitchAlias(name) {
   document.getElementById('bz-alias-select').value = name;
   document.getElementById('bz-alias-limit-msg').style.display = 'none';
   _bzUpdateAliasBadge();
+  // 칩 버튼은 직접 탭 → focus() 가 키보드를 유지함 (iOS 지원)
+  document.getElementById('bz-input')?.focus();
 }
 
 function bzSend() {
