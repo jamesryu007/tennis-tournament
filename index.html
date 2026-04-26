@@ -1456,7 +1456,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           </div>
           <button onclick="bzCancelReply()" style="border:none;background:none;font-size:1rem;color:#94a3b8;cursor:pointer;flex-shrink:0;padding:0">✕</button>
         </div>
-        <input type="file" id="bz-photo-input" accept="image/*" capture="environment" style="display:none" onchange="bzSendPhoto(event)">
+        <input type="file" id="bz-photo-input" accept="image/*" style="display:none" onchange="bzSendPhoto(event)">
         <div style="display:flex;gap:8px;align-items:center">
           <button id="bz-btn-photo" onclick="bzOpenPhotoInput()" style="padding:9px 11px;border-radius:12px;border:1.5px solid #e2e8f0;background:#fff;font-size:1rem;cursor:pointer;flex-shrink:0">📷</button>
           <input id="bz-input" type="text" placeholder="메시지 입력..." maxlength="100"
