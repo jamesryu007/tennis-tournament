@@ -11210,6 +11210,11 @@ function bzSendPhoto(e) {
   reader.readAsDataURL(file);
 }
 
+function bzDeleteMsg(msgKey) {
+  if (!confirm('메시지를 삭제할까요?')) return;
+  db.ref(`${BZ_REF}/messages/${msgKey}`).remove().catch(fbErr);
+}
+
 function bzViewPhoto(ts) {
   const dataUrl = window._bzPhotoMap && window._bzPhotoMap[ts];
   if (!dataUrl) return;
@@ -11498,7 +11503,9 @@ function _bzRenderMessages(phase) {
   const area = document.getElementById('bz-chat-area');
   if (!area) return;
   const msgs = _bzState && _bzState.messages
-    ? Object.values(_bzState.messages).sort((a, b) => (a.ts || 0) - (b.ts || 0))
+    ? Object.entries(_bzState.messages)
+        .map(([k, m]) => ({ ...m, _key: k }))
+        .sort((a, b) => (a.ts || 0) - (b.ts || 0))
     : [];
   const aliases = (_bzState && _bzState.aliases) || {};
   // alias → real 역맵
@@ -11531,7 +11538,11 @@ function _bzRenderMessages(phase) {
           style="background:none;border:1.5px solid #fde68a;border-radius:8px;padding:1px 5px;font-size:0.7rem;cursor:pointer;color:#b45309;flex-shrink:0">📢</button>` : '';
     const replyBtn = canReply
       ? `<button onclick="bzSetReply('${aliasEsc}','${textEsc}')"
-          style="background:none;border:none;font-size:0.75rem;color:#94a3b8;cursor:pointer;padding:0 2px;line-height:1" title="답글">↩</button>` : '';
+          style="background:none;border:none;font-size:0.75rem;color:#94a3b8;cursor:pointer;padding:2px 4px;line-height:1;flex-shrink:0" title="답글">↩</button>` : '';
+    const canDelete = isMine || isAdmin();
+    const deleteBtn = canDelete
+      ? `<button onclick="bzDeleteMsg('${m._key}')"
+          style="background:none;border:none;font-size:0.72rem;color:#fca5a5;cursor:pointer;padding:2px 4px;line-height:1;flex-shrink:0" title="삭제">🗑</button>` : '';
     // 인용 박스 (replyTo 있을 때)
     const replyBox = m.replyTo
       ? `<div style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden">
@@ -11551,9 +11562,10 @@ function _bzRenderMessages(phase) {
         <span style="font-size:0.68rem;color:#94a3b8">${senderLabel}</span>
         ${isMine && isAdmin() ? adminPushBtn : ''}
       </div>
-      <div style="display:flex;align-items:center;gap:4px;flex-direction:${isMine ? 'row-reverse' : 'row'}">
+      <div style="display:flex;align-items:center;gap:4px;flex-direction:${isMine ? 'row-reverse' : 'row'};width:100%">
         ${bubble}
         ${replyBtn}
+        ${deleteBtn}
       </div>
     </div>`;
   }).join('');
