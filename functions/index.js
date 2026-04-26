@@ -677,12 +677,12 @@ exports.sendBanzigePush = onCall(
     const { alias, text, type } = request.data || {};
     if (!alias || !text) return { success: false, error: 'missing params' };
     const titleMap = {
-      start:    `🕵️ 범찾게 — ${alias}`,
-      guessing: `🎯 범찾게 — ${alias}`,
-      reveal:   `🔓 범찾게 — ${alias}`,
-      manual:   `🕵️ 범찾게 — ${alias}`,
+      start:    `🗣️ 막무가내 톡방 — ${alias}`,
+      guessing: `🎯 막무가내 톡방 — ${alias}`,
+      reveal:   `🔓 막무가내 톡방 — ${alias}`,
+      manual:   `🗣️ 막무가내 톡방 — ${alias}`,
     };
-    const title = titleMap[type] || `🕵️ 범찾게 — ${alias}`;
+    const title = titleMap[type] || `🗣️ 막무가내 톡방 — ${alias}`;
     const tokens = await getAllTokens();
     if (tokens.length) {
       await sendPush(tokens, title, text, 'setup', '', '', { subScreen: 'banzige' });
