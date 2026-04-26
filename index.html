@@ -1383,14 +1383,14 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     <!-- ══ 범찾게 채팅방 화면 ══ -->
     <div id="bet-screen-banzige" style="display:none">
       <!-- 헤더 -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:10px 12px">
         <button onclick="bzLeaveRoom()" style="border:none;background:none;font-size:1.4rem;cursor:pointer;padding:0;color:#64748b">←</button>
         <div style="font-size:0.95rem;font-weight:800;color:#1e293b">🕵️ 범.찾.게. (범인 찾기 게임)</div>
         <button onclick="bzLeaveRoom()" style="border:none;background:none;font-size:1.1rem;cursor:pointer;padding:0;color:#94a3b8">✕</button>
       </div>
 
       <!-- 상단 정보 프레임 -->
-      <div style="background:#fff;border:1.5px solid #fde68a;border-radius:14px;padding:12px 14px;margin-bottom:10px">
+      <div style="flex-shrink:0;background:#fff;border:1.5px solid #fde68a;border-radius:14px;padding:12px 14px;margin:0 12px 8px;overflow-y:auto">
         <!-- 입실 인원 -->
         <div style="font-size:0.78rem;color:#64748b;margin-bottom:8px">
           👥 입실 인원: <span id="bz-count" style="font-weight:800;color:#1e293b">0</span>명
@@ -1441,12 +1441,12 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       </div>
 
       <!-- 채팅 영역 -->
-      <div id="bz-chat-area" style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:14px;min-height:120px;max-height:340px;overflow-y:auto;padding:10px 12px;margin-bottom:6px;display:flex;flex-direction:column;gap:6px">
+      <div id="bz-chat-area" style="flex:1;min-height:60px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:14px;overflow-y:auto;padding:10px 12px;margin:0 12px 6px;display:flex;flex-direction:column;gap:6px">
         <div id="bz-chat-empty" style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:30px 0">아직 대화가 없습니다.<br>가명을 선택하고 첫 메시지를 남겨보세요!</div>
       </div>
 
-      <!-- 입력 영역 (키보드 위 고정) -->
-      <div id="bz-input-area" style="background:#f0f4fb;padding:4px 0 6px">
+      <!-- 입력 영역 -->
+      <div id="bz-input-area" style="flex-shrink:0;background:#f0f4fb;padding:4px 12px env(safe-area-inset-bottom,6px)">
         <!-- 답글 미리보기 바 -->
         <div id="bz-reply-bar" style="display:none;background:#fef3c7;border-left:3px solid #f59e0b;border-radius:8px;padding:5px 10px;margin-bottom:5px;align-items:center;justify-content:space-between;gap:8px">
           <div style="flex:1;overflow:hidden">
@@ -10990,9 +10990,30 @@ function bzShowRoom() {
   const myName = state.identity && state.identity.name;
   if (!myName) { alert('로그인 후 이용하세요.'); return; }
   betShowScreen('banzige');
+
+  // 풀스크린 모달로 전환: flex 컬럼 레이아웃, visualViewport 높이에 맞춤
+  const modal = document.getElementById('bet-screen-banzige');
+  const nav = document.querySelector('.bottom-nav');
+  if (nav) nav.style.display = 'none';
+  const vv = window.visualViewport;
+  const initH = vv ? vv.height : window.innerHeight;
+  modal.style.cssText = `position:fixed;top:0;left:0;right:0;height:${initH}px;z-index:500;display:flex;flex-direction:column;background:#f0f4fb;overflow:hidden`;
+
+  if (vv) {
+    window._bzModalVpHandler = () => {
+      modal.style.height = vv.height + 'px';
+      modal.style.top = vv.offsetTop + 'px';
+      // 채팅 최신 메시지 유지
+      const area = document.getElementById('bz-chat-area');
+      if (area) area.scrollTop = area.scrollHeight;
+    };
+    vv.addEventListener('resize', window._bzModalVpHandler);
+    vv.addEventListener('scroll', window._bzModalVpHandler);
+  }
+
   _bzSetupAliasList();
   _bzSetupListener();
-  // 입실 기록 (처음 입실 시에만 카운트 증가)
+  // 입실 기록 (처음 입실 시에만)
   db.ref(`${BZ_REF}/entrants/${myName}`).once('value').then(snap => {
     if (!snap.val()) {
       db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
@@ -11006,6 +11027,18 @@ function bzLeaveRoom() {
   _bzState = null;
   _bzCurrentAlias = null;
   bzCancelReply();
+
+  // 모달 해제
+  const modal = document.getElementById('bet-screen-banzige');
+  if (modal) modal.style.cssText = '';
+  const nav = document.querySelector('.bottom-nav');
+  if (nav) nav.style.display = '';
+  if (window._bzModalVpHandler && window.visualViewport) {
+    window.visualViewport.removeEventListener('resize', window._bzModalVpHandler);
+    window.visualViewport.removeEventListener('scroll', window._bzModalVpHandler);
+    window._bzModalVpHandler = null;
+  }
+
   betShowHome();
 }
 
@@ -11027,12 +11060,13 @@ function _bzSetupListener() {
 }
 
 function bzSelectAlias(name) {
-  if (!name) { _bzCurrentAlias = ''; _bzUpdateAliasBadge(); return; } // 나 자신 선택
+  if (!name) { _bzCurrentAlias = ''; _bzUpdateAliasBadge(); document.getElementById('bz-input')?.focus(); return; }
   // 이미 사용한 가명이면 그냥 선택
   if (_bzMyAliases.includes(name)) {
     _bzCurrentAlias = name;
     _bzUpdateAliasBadge();
     document.getElementById('bz-alias-limit-msg').style.display = 'none';
+    document.getElementById('bz-input')?.focus();
     return;
   }
   // 새 가명 — 최대 2개 초과 시 차단
@@ -11048,6 +11082,8 @@ function bzSelectAlias(name) {
   const myName = (state.identity && state.identity.name) || '';
   db.ref(`${BZ_REF}/aliases/${myName}`).set(_bzMyAliases).catch(fbErr);
   _bzUpdateAliasBadge();
+  // 가명 선택 후 입력창으로 포커스 복귀 → 키보드 유지
+  document.getElementById('bz-input')?.focus();
 }
 
 function _bzUpdateAliasBadge() {
@@ -11071,6 +11107,8 @@ function bzSwitchAlias(name) {
   document.getElementById('bz-alias-select').value = name;
   document.getElementById('bz-alias-limit-msg').style.display = 'none';
   _bzUpdateAliasBadge();
+  // 칩 버튼은 직접 탭 → focus() 가 키보드를 유지함 (iOS 지원)
+  document.getElementById('bz-input')?.focus();
 }
 
 function bzSend() {
@@ -11174,83 +11212,16 @@ function bzNewGame() {
 }
 
 function _bzOnInputFocus() {
-  // 키보드 팝업 시 하단 네비 숨기고, 입력창을 키보드 바로 위에 고정
-  const nav = document.querySelector('.bottom-nav');
-  if (nav) nav.style.display = 'none';
-
-  if (!window.visualViewport) {
-    setTimeout(() => {
-      document.getElementById('bz-input')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }, 400);
-    return;
-  }
-
-  const _adjustLayout = (doScroll) => {
+  // 풀스크린 모달 구조에서는 visualViewport �핸들러가 이미 등록되어 있음
+  // 채팅 영역 최신 메시지로 스크롤만 유지
+  setTimeout(() => {
     const area = document.getElementById('bz-chat-area');
-    const ia = document.getElementById('bz-input-area');
-    const screen = document.getElementById('bet-screen-banzige');
-    if (!area || !ia) return;
-    const vv = window.visualViewport;
-
-    // 올바른 키보드 높이: window.innerHeight - vv.height (offsetTop 제외)
-    // iOS Safari: innerHeight 고정, vv.height만 줄어듦
-    // iOS PWA: innerHeight도 줄어들어 keyboardH≈0 (viewport가 이미 수축)
-    const keyboardH = Math.max(0, window.innerHeight - vv.height);
-
-    // 입력창을 키보드 바로 위에 fixed 고정
-    ia.style.position = 'fixed';
-    ia.style.left = '0';
-    ia.style.right = '0';
-    ia.style.bottom = keyboardH + 'px';
-    ia.style.padding = '4px 12px 6px';
-    ia.style.zIndex = '200';
-
-    if (doScroll && screen) {
-      // bz 화면 상단(헤더+정보 프레임)이 viewport 상단에 오도록 스크롤
-      const screenDocTop = screen.getBoundingClientRect().top + window.scrollY;
-      window.scrollTo({ top: screenDocTop, behavior: 'instant' });
-    }
-
-    // 스크롤 반영 후 채팅 영역 높이 계산
-    requestAnimationFrame(() => {
-      const chatTop = area.getBoundingClientRect().top;
-      const inputH = ia.offsetHeight + 10;
-      const newMax = Math.max(60, vv.height - Math.max(chatTop, 0) - inputH - 16);
-      area.style.maxHeight = newMax + 'px';
-      area.scrollTop = area.scrollHeight;
-    });
-  };
-
-  const _handler = () => _adjustLayout(false);
-  window.visualViewport.addEventListener('resize', _handler);
-  window.visualViewport.addEventListener('scroll', _handler);
-  window._bzVpHandler = _handler;
-  // 키보드 완전히 올라온 후 스크롤 + 높이 조정
-  setTimeout(() => _adjustLayout(true), 300);
+    if (area) area.scrollTop = area.scrollHeight;
+  }, 100);
 }
 
 function _bzOnInputBlur() {
-  // 키보드 내려가면 입력창 fixed 해제 + 하단 네비 복원
-  setTimeout(() => {
-    const nav = document.querySelector('.bottom-nav');
-    if (nav) nav.style.display = '';
-    const inputArea = document.getElementById('bz-input-area');
-    if (inputArea) {
-      inputArea.style.position = '';
-      inputArea.style.left = '';
-      inputArea.style.right = '';
-      inputArea.style.bottom = '';
-      inputArea.style.padding = '4px 0 6px';
-      inputArea.style.zIndex = '';
-    }
-  }, 150);
-  if (window._bzVpHandler && window.visualViewport) {
-    window.visualViewport.removeEventListener('resize', window._bzVpHandler);
-    window.visualViewport.removeEventListener('scroll', window._bzVpHandler);
-    window._bzVpHandler = null;
-  }
-  const area = document.getElementById('bz-chat-area');
-  if (area) area.style.maxHeight = '340px';
+  // 풀스크린 모달 구조에서는 별도 처리 불필요
 }
 
 function _bzRender() {
