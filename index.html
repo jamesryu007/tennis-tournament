@@ -1456,7 +1456,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           </div>
           <button onclick="bzCancelReply()" style="border:none;background:none;font-size:1rem;color:#94a3b8;cursor:pointer;flex-shrink:0;padding:0">✕</button>
         </div>
+        <input type="file" id="bz-photo-input" accept="image/*" capture="environment" style="display:none" onchange="bzSendPhoto(event)">
         <div style="display:flex;gap:8px;align-items:center">
+          <button id="bz-btn-photo" onclick="bzOpenPhotoInput()" style="padding:9px 11px;border-radius:12px;border:1.5px solid #e2e8f0;background:#fff;font-size:1rem;cursor:pointer;flex-shrink:0">📷</button>
           <input id="bz-input" type="text" placeholder="메시지 입력..." maxlength="100"
             onkeydown="if(event.key==='Enter'&&!event.isComposing)bzSend()"
             onfocus="_bzOnInputFocus()"
@@ -11156,6 +11158,108 @@ function bzCancelReply() {
   if (bar) bar.style.display = 'none';
 }
 
+function bzOpenPhotoInput() {
+  const phase = (_bzState && _bzState.phase) || '';
+  if (phase === 'revealed') return;
+  document.getElementById('bz-photo-input').click();
+}
+
+function bzSendPhoto(e) {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  const myName = (state.identity && state.identity.name) || '';
+  if (!myName) { alert('로그인 후 이용하세요.'); return; }
+  const phase = (_bzState && _bzState.phase) || 'chatting';
+  if (phase === 'revealed') { alert('게임이 종료되었습니다.'); return; }
+  // 세션 내 사진 30장 제한
+  const photoCount = _bzState && _bzState.messages
+    ? Object.values(_bzState.messages).filter(m => m.imageData).length
+    : 0;
+  if (photoCount >= 30) { alert('세션당 최대 30장까지 전송할 수 있습니다.'); return; }
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const img = new Image();
+    img.onload = function() {
+      // 최대 600px 리사이즈
+      const MAX = 600;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const imageData = canvas.toDataURL('image/jpeg', 0.7);
+      const senderAlias = _bzCurrentAlias || myName;
+      if (!(_bzState && _bzState.entrants && _bzState.entrants[myName])) {
+        db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
+      }
+      const msgData = { alias: senderAlias, realName: myName, imageData, ts: Date.now() };
+      if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text };
+      db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
+      if (!phase || phase === 'waiting') {
+        db.ref(`${BZ_REF}/phase`).set('chatting').catch(fbErr);
+        _bzSendPush(senderAlias, `${senderAlias}이(가) 사진을 보냈어요!`, 'start');
+      }
+      bzCancelReply();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function bzViewPhoto(ts) {
+  const dataUrl = window._bzPhotoMap && window._bzPhotoMap[ts];
+  if (!dataUrl) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'bz-photo-viewer';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:600;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1.1rem;width:36px;height:36px;border-radius:50%;cursor:pointer;z-index:1';
+  closeBtn.onclick = () => overlay.remove();
+
+  const img = document.createElement('img');
+  img.src = dataUrl;
+  img.style.cssText = 'max-width:100%;max-height:78vh;object-fit:contain;border-radius:10px';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.textContent = '⬇ 갤러리에 저장';
+  saveBtn.style.cssText = 'margin-top:16px;padding:11px 28px;border-radius:12px;border:none;background:#f59e0b;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer';
+  saveBtn.onclick = () => _bzDownloadPhoto(dataUrl);
+
+  overlay.appendChild(closeBtn);
+  overlay.appendChild(img);
+  overlay.appendChild(saveBtn);
+  document.body.appendChild(overlay);
+}
+
+function _bzDownloadPhoto(dataUrl) {
+  // iOS Safari: Web Share API로 갤러리 저장 (iOS 15+)
+  if (navigator.share && navigator.canShare) {
+    const arr = dataUrl.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) u8arr[n] = bstr.charCodeAt(n);
+    const file = new File([u8arr], 'banzige-photo.jpg', { type: mime });
+    if (navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file] }).catch(() => {});
+      return;
+    }
+  }
+  // Android / desktop: anchor download
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = 'banzige-photo.jpg';
+  a.click();
+}
+
 function bzStartGuessing() {
   if (!isAdmin()) return;
   const msgs = (_bzState && _bzState.messages) ? Object.values(_bzState.messages) : [];
@@ -11384,6 +11488,7 @@ function _bzRender() {
   // 입력 영역 — revealed 단계 비활성
   document.getElementById('bz-input-area').style.opacity = phase === 'revealed' ? '0.4' : '1';
   document.getElementById('bz-input').disabled = phase === 'revealed';
+  document.getElementById('bz-btn-photo').disabled = phase === 'revealed';
 
   // 채팅 메시지 렌더
   _bzRenderMessages(phase);
@@ -11407,7 +11512,10 @@ function _bzRenderMessages(phase) {
   }
   const myName = (state.identity && state.identity.name) || '';
   const canReply = phase !== 'revealed';
+  // 전체화면 뷰어용 사진 맵 (onclick에 base64 직접 삽입 불가 → ts 키로 참조)
+  window._bzPhotoMap = {};
   area.innerHTML = msgs.map(m => {
+    if (m.imageData) window._bzPhotoMap[m.ts] = m.imageData;
     // m.realName 우선 사용 — 타인이 같은 이름을 가명으로 쓸 경우 aliasToReal이 오염되는 문제 방지
     const realOfAlias = m.realName || aliasToReal[m.alias] || m.alias;
     const showRealNames = phase === 'revealed' || !!(_bzState && _bzState.showRealNames);
@@ -11416,7 +11524,8 @@ function _bzRenderMessages(phase) {
       : m.alias;
     const isMine = m.realName === myName;
     const aliasEsc = m.alias.replace(/'/g, "\\'");
-    const textEsc  = m.text.replace(/'/g, "\\'").replace(/`/g, '\\`');
+    const msgText  = m.text || (m.imageData ? '[사진]' : '');
+    const textEsc  = msgText.replace(/'/g, "\\'").replace(/`/g, '\\`');
     const adminPushBtn = isAdmin() && phase !== 'revealed'
       ? `<button onclick="_bzSendPush('${aliasEsc}','${textEsc}','manual')" title="이 메시지 전체 푸시"
           style="background:none;border:1.5px solid #fde68a;border-radius:8px;padding:1px 5px;font-size:0.7rem;cursor:pointer;color:#b45309;flex-shrink:0">📢</button>` : '';
@@ -11429,9 +11538,13 @@ function _bzRenderMessages(phase) {
           <span style="font-weight:700">${phase==='revealed' ? `${m.replyTo.alias}(${aliasToReal[m.replyTo.alias]||m.replyTo.alias})` : m.replyTo.alias}</span>
           <span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.replyTo.text}</span>
         </div>` : '';
-    const bubble = `<div style="max-width:75%;padding:8px 12px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:1px solid ${isMine ? 'transparent' : '#e2e8f0'};word-break:break-all">
-        ${replyBox}${m.text}
-      </div>`;
+    const bubble = m.imageData
+      ? `<div style="max-width:75%;padding:4px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};border:1px solid ${isMine ? 'transparent' : '#e2e8f0'}">
+          ${replyBox}<img src="${m.imageData}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" loading="lazy" onclick="bzViewPhoto(${m.ts})">
+        </div>`
+      : `<div style="max-width:75%;padding:8px 12px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:1px solid ${isMine ? 'transparent' : '#e2e8f0'};word-break:break-all">
+          ${replyBox}${m.text}
+        </div>`;
     return `<div style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
       <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
         ${!isMine && isAdmin() ? adminPushBtn : ''}
