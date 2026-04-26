@@ -1057,7 +1057,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           <div style="font-size:0.65rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;text-align:center;padding:2px 0 7px;border-bottom:1px solid #f1f5f9;margin-bottom:7px">🎲 내기 게임 선택</div>
           <button onclick="bzShowRoom()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #fde68a;background:linear-gradient(135deg,#fffbeb,#fef3c7);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
             <span style="font-size:1.4rem">🕵️</span>
-            <div><div style="font-weight:800">범.찾.게.</div><div style="font-size:0.68rem;color:#b45309;font-weight:600">채팅 속 진짜 범인을 찾아라!</div></div>
+            <div><div style="font-weight:800">막무가내 톡방</div><div style="font-size:0.68rem;color:#b45309;font-weight:600">채팅 속 진짜 범인을 찾아라!</div></div>
           </button>
           <button onclick="betShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #ede9fe;background:linear-gradient(135deg,#f5f3ff,#ede9fe);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
             <span style="font-size:1.4rem">🎈</span>
@@ -1385,7 +1385,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <!-- 헤더 -->
       <div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:10px 12px">
         <button onclick="bzLeaveRoom()" style="border:none;background:none;font-size:1.4rem;cursor:pointer;padding:0;color:#64748b">←</button>
-        <div style="font-size:0.95rem;font-weight:800;color:#1e293b">🕵️ 범.찾.게. (범인 찾기 게임)</div>
+        <div style="font-size:0.95rem;font-weight:800;color:#1e293b">🕵️ 막무가내 톡방 (범인 찾기 게임)</div>
         <button onclick="bzLeaveRoom()" style="border:none;background:none;font-size:1.1rem;cursor:pointer;padding:0;color:#94a3b8">✕</button>
       </div>
 
@@ -1393,7 +1393,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div style="flex-shrink:0;background:#fff;border:1.5px solid #fde68a;border-radius:14px;padding:12px 14px;margin:0 12px 8px;overflow-y:auto">
         <!-- 입실 인원 -->
         <div style="font-size:0.78rem;color:#64748b;margin-bottom:8px">
-          👥 입실 인원: <span id="bz-count" style="font-weight:800;color:#1e293b">0</span>명
+          👥 입실 인원: <span id="bz-count" style="font-weight:800;color:#1e293b">0</span>명<span id="bz-entrant-names" style="color:#94a3b8;font-size:0.72rem;margin-left:4px"></span>
         </div>
 
         <!-- 가명 선택 -->
@@ -1410,8 +1410,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
         <!-- 관리자 컨트롤 -->
         <div id="bz-admin-controls" style="display:none;gap:8px;flex-wrap:wrap">
-          <button id="bz-btn-start" onclick="bzStartGuessing()" style="padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer">🕵️ 범.찾.게. 시작</button>
+          <button id="bz-btn-start" onclick="bzStartGuessing()" style="padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer">🕵️ 막무가내 톡방 시작</button>
           <button id="bz-btn-reveal" onclick="bzReveal()" style="display:none;padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer">🔓 최종 오픈</button>
+          <button id="bz-btn-realnames" onclick="bzToggleRealNames()" style="padding:7px 14px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#64748b;font-size:0.8rem;font-weight:700;cursor:pointer">👁 실명 공개</button>
           <button onclick="bzNewGame()" style="padding:7px 14px;border-radius:10px;border:none;background:#f1f5f9;color:#64748b;font-size:0.8rem;font-weight:700;cursor:pointer">🔄 새 게임</button>
           <!-- 관리자: 맞추기 참여 현황 (guessing phase에서만 표시) -->
           <div id="bz-guess-status" style="display:none;width:100%;margin-top:4px"></div>
@@ -9297,7 +9298,7 @@ function _loadBetHistory() {
     let bzHtml = '';
     if (bzData) {
       const bzItems = Object.entries(bzData).reverse();
-      bzHtml = `<div style="font-size:0.72rem;font-weight:800;color:#b45309;letter-spacing:0.08em;margin:14px 0 7px;padding-left:2px">🕵️ 범.찾.게. 이력</div>` +
+      bzHtml = `<div style="font-size:0.72rem;font-weight:800;color:#b45309;letter-spacing:0.08em;margin:14px 0 7px;padding-left:2px">🕵️ 막무가내 톡방 이력</div>` +
         bzItems.map(([, g]) => {
           const dt = g.archivedAt ? new Date(g.archivedAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'}) : '';
           const results = g.results || {};
@@ -9328,7 +9329,7 @@ function _loadBetHistory() {
 
           return `<div class="bet-history-item" style="border-color:#fde68a;background:linear-gradient(135deg,#fffbeb,#fff)">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <span style="font-size:0.65rem;background:#fef3c7;color:#b45309;border-radius:6px;padding:2px 7px;font-weight:700">🕵️ 범.찾.게.</span>
+              <span style="font-size:0.65rem;background:#fef3c7;color:#b45309;border-radius:6px;padding:2px 7px;font-weight:700">🕵️ 막무가내 톡방</span>
               <span style="font-size:0.75rem;font-weight:800;color:#1e293b">${total > 0 ? `${correct}/${total}명 성공 ${correct===total&&total>0?'🎉':'😅'}` : '맞추기 없이 종료'}</span>
               <span style="font-size:0.65rem;color:#94a3b8">${dt}</span>
             </div>
@@ -10960,11 +10961,12 @@ function _bombCleanup() {
 
 // ══ 범찾게 (범인 찾기 게임) ════════════════════════════════════════
 
-let _bzMyAliases = [];       // 내가 사용한 가명 목록 (max 2)
-let _bzCurrentAlias = null; // null=미초기화, ''=나자신, 'name'=가명
-let _bzListener = null;     // Firebase 리스너
-let _bzState = null;        // 현재 게임 상태
-let _bzReplyTo = null;      // 현재 답글 대상 { alias, text }
+let _bzMyAliases = [];        // 내가 사용한 가명 목록 (max 2)
+let _bzCurrentAlias = null;  // null=미초기화, ''=나자신, 'name'=가명
+let _bzListener = null;      // Firebase 리스너
+let _bzState = null;         // 현재 게임 상태
+let _bzReplyTo = null;       // 현재 답글 대상 { alias, text }
+let _bzShowRealNames = false; // 관리자 실명 공개 토글
 
 const BZ_REF = 'jmt/banzige/current';
 
@@ -11028,6 +11030,7 @@ function bzLeaveRoom() {
   if (_bzListener) { db.ref(BZ_REF).off('value', _bzListener); _bzListener = null; }
   _bzState = null;
   _bzCurrentAlias = null;
+  _bzShowRealNames = false;
   bzCancelReply();
 
   // 모달 해제
@@ -11208,9 +11211,24 @@ function bzNewGame() {
   db.ref(BZ_REF).set({ phase: 'chatting', entrants: {}, entrantCount: 0, messages: {}, aliases: {}, guesses: {}, results: {} }).catch(fbErr);
   _bzMyAliases = [];
   _bzCurrentAlias = null; // 새 게임 후 _bzRender에서 DB 기준으로 복원
+  _bzShowRealNames = false;
   _bzUpdateAliasBadge();
   document.getElementById('bz-alias-select').value = '';
   document.getElementById('bz-alias-limit-msg').style.display = 'none';
+}
+
+function bzToggleRealNames() {
+  if (!isAdmin()) return;
+  _bzShowRealNames = !_bzShowRealNames;
+  _bzRenderMessages((_bzState && _bzState.phase) || 'chatting');
+  // 버튼 상태는 _bzRender 호출 없이 직접 업데이트
+  const rnBtn = document.getElementById('bz-btn-realnames');
+  if (rnBtn) {
+    rnBtn.style.background = _bzShowRealNames ? 'linear-gradient(135deg,#fef3c7,#fde68a)' : '#f1f5f9';
+    rnBtn.style.color = _bzShowRealNames ? '#b45309' : '#64748b';
+    rnBtn.style.border = _bzShowRealNames ? '1.5px solid #f59e0b' : '1.5px solid #e2e8f0';
+    rnBtn.textContent = _bzShowRealNames ? '👁 실명 ON' : '👁 실명 공개';
+  }
 }
 
 function _bzOnInputFocus() {
@@ -11235,8 +11253,10 @@ function _bzRender() {
   const aliases = _bzState.aliases || {};
   const guesses = _bzState.guesses || {};
 
-  // 인원
+  // 인원 (관리자에게만 실명 표시)
   document.getElementById('bz-count').textContent = entrantCount;
+  const namesEl = document.getElementById('bz-entrant-names');
+  if (namesEl) namesEl.textContent = isAdmin() && entrantCount > 0 ? `(${Object.keys(entrants).join(', ')})` : '';
 
   // 나의 가명 복원 — null=첫입실(DB복원), ''=나자신(유지), 'name'=가명(유지)
   const myAliasesFromDb = Array.isArray(aliases[myName]) ? aliases[myName] : [];
@@ -11270,6 +11290,14 @@ function _bzRender() {
     document.getElementById('bz-btn-start').style.display = phase === 'chatting' ? 'inline-block' : 'none';
     // 최종오픈: guessing 단계에서 미참여자 있어도 항상 가능
     document.getElementById('bz-btn-reveal').style.display = phase === 'guessing' ? 'inline-block' : 'none';
+    // 실명공개 버튼 상태 동기화
+    const rnBtn = document.getElementById('bz-btn-realnames');
+    if (rnBtn) {
+      rnBtn.style.background = _bzShowRealNames ? 'linear-gradient(135deg,#fef3c7,#fde68a)' : '#f1f5f9';
+      rnBtn.style.color = _bzShowRealNames ? '#b45309' : '#64748b';
+      rnBtn.style.border = _bzShowRealNames ? '1.5px solid #f59e0b' : '1.5px solid #e2e8f0';
+      rnBtn.textContent = _bzShowRealNames ? '👁 실명 ON' : '👁 실명 공개';
+    }
 
     // 맞추기 참여 현황 (guessing 단계에서만)
     const guessStatusEl = document.getElementById('bz-guess-status');
@@ -11391,8 +11419,8 @@ function _bzRenderMessages(phase) {
   area.innerHTML = msgs.map(m => {
     // aliasToReal에 없으면 = 나 자신 이름으로 채팅 = alias가 곧 실제 이름
     const realOfAlias = aliasToReal[m.alias] || m.alias;
-    const senderLabel = phase === 'revealed'
-      ? `${m.alias} <span style="color:#f59e0b;font-size:0.7rem">(실제: ${realOfAlias})</span>`
+    const senderLabel = (phase === 'revealed' || _bzShowRealNames)
+      ? `${m.alias} <span style="color:#f59e0b;font-size:0.7rem">(${realOfAlias})</span>`
       : m.alias;
     const isMine = m.realName === myName;
     const aliasEsc = m.alias.replace(/'/g, "\\'");
