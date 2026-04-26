@@ -6136,7 +6136,7 @@ function selectIdentity(name) {
   localStorage.setItem(LS_IDENTITY, JSON.stringify(state.identity));
   document.getElementById('identity-modal').classList.remove('open');
   // 푸시 알림으로 진입한 경우 해당 탭으로 이동
-  if (window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; setTimeout(() => { switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); }, 100); }
+  if (window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; setTimeout(() => { switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchSetupTab('bet'); bzShowRoom(); },300); }, 100); }
   // FCM: 처음 로그인이면 초기화(권한 요청 포함), 이미 초기화됐으면 토큰 재매핑
   if (!_fcmMessaging) {
     initFCM(true); // 사용자 클릭 제스처 시점이므로 권한 요청 가능
@@ -6363,7 +6363,7 @@ initBirthdaySelects();
 // FCM 초기화 (접속자 선택 후 실행 — identity 모달 닫힐 때 호출)
 setTimeout(() => {
   if(state.identity) initFCM();
-  if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); }
+  if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchSetupTab('bet'); bzShowRoom(); },300); }
 }, 1500);
 document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
 // 랜덤 사진 변경 함수 (탭 클릭 또는 초기 로드 시 사용)
@@ -8463,24 +8463,26 @@ async function triggerAtpRefresh() {
     // SW postMessage로 탭 이동
     navigator.serviceWorker.addEventListener('message', e => {
       if (e.data && e.data.type === 'NAVIGATE_TAB') {
-        const { tab, commentId, betId, isWinner } = e.data;
+        const { tab, commentId, betId, isWinner, subScreen } = e.data;
         const isWinnerHint = isWinner === 'true' ? true : isWinner === 'false' ? false : undefined;
         if (state.identity) {
           switchPage(tab);
           if (commentId) setTimeout(() => scrollToComment(commentId), 400);
           if (betId) setTimeout(() => { switchAtpTab('bet'); showBetResultCelebration(betId, isWinnerHint); }, 500);
+          if (subScreen === 'banzige') setTimeout(() => { switchSetupTab('bet'); bzShowRoom(); }, 300);
         } else {
           window._pendingTab = tab;
           window._pendingCommentId = commentId;
           window._pendingBetId = betId || null;
           window._pendingIsWinner = isWinnerHint;
+          window._pendingSubScreen = subScreen || null;
         }
       }
     });
   }
   // URL 파라미터로 탭 이동 (?tab=checkin 등)
   const _urlParams = new URLSearchParams(location.search);
-  if (_urlParams.get('tab')) { window._pendingTab = _urlParams.get('tab'); window._pendingCommentId = _urlParams.get('commentId') || null; window._pendingBetId = _urlParams.get('betId') || null; const _iw = _urlParams.get('isWinner'); window._pendingIsWinner = _iw === 'true' ? true : _iw === 'false' ? false : undefined; }
+  if (_urlParams.get('tab')) { window._pendingTab = _urlParams.get('tab'); window._pendingCommentId = _urlParams.get('commentId') || null; window._pendingBetId = _urlParams.get('betId') || null; const _iw = _urlParams.get('isWinner'); window._pendingIsWinner = _iw === 'true' ? true : _iw === 'false' ? false : undefined; window._pendingSubScreen = _urlParams.get('subScreen') || null; }
   // iOS PWA는 start_url로 열려 URL 파라미터가 없으므로 SW가 Cache에 저장한 탭 정보를 읽음
   if ('caches' in window && !window._pendingTab) {
     caches.open('jamite-nav').then(c => c.match('/pending-nav')).then(res => {
@@ -8492,6 +8494,7 @@ async function triggerAtpRefresh() {
           window._pendingCommentId = nav.commentId || null;
           window._pendingBetId = nav.betId || null;
           window._pendingIsWinner = nav.isWinner === 'true' ? true : nav.isWinner === 'false' ? false : undefined;
+          window._pendingSubScreen = nav.subScreen || null;
         }
       });
     }).catch(() => {});

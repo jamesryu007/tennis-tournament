@@ -685,7 +685,7 @@ exports.sendBanzigePush = onCall(
     const title = titleMap[type] || `🕵️ 범찾게 — ${alias}`;
     const tokens = await getAllTokens();
     if (tokens.length) {
-      await sendPush(tokens, title, text, 'setup');
+      await sendPush(tokens, title, text, 'setup', '', '', { subScreen: 'banzige' });
     }
     return { success: true, sent: tokens.length };
   }
