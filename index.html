@@ -1386,7 +1386,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:10px 12px">
         <button onclick="bzLeaveRoom()" style="border:none;background:none;font-size:1.4rem;cursor:pointer;padding:0;color:#64748b">←</button>
         <div style="font-size:0.95rem;font-weight:800;color:#1e293b">🗣️ 막무가내 톡방</div>
-        <button onclick="bzLeaveRoom()" style="border:none;background:none;font-size:1.1rem;cursor:pointer;padding:0;color:#94a3b8">✕</button>
+        <div style="width:28px"></div>
       </div>
 
       <!-- 상단 정보 프레임 -->
@@ -10976,7 +10976,7 @@ const BZ_CONFIG = {
 
 function _bzSendPush(alias, text, type) {
   const fn = firebase.app().functions('asia-southeast1').httpsCallable('sendBanzigePush');
-  fn({ alias, text, type }).catch(e => console.warn('범찾게 푸시 실패:', e));
+  fn({ alias, text, type }).catch(e => console.warn('막무가내 톡방 푸시 실패:', e));
   if (type === 'manual') {
     const toast = document.createElement('div');
     toast.textContent = '📢 푸시를 보냈습니다!';
@@ -11017,6 +11017,24 @@ function bzShowRoom() {
     };
     vv.addEventListener('resize', window._bzModalVpHandler);
     vv.addEventListener('scroll', window._bzModalVpHandler);
+  }
+
+  // 오른쪽 스와이프로 방 탈출 (최초 1회만 등록)
+  if (!modal._bzSwipeAdded) {
+    modal._bzSwipeAdded = true;
+    let _bzSX = null, _bzSY = null;
+    modal.addEventListener('touchstart', ev => {
+      _bzSX = ev.touches[0].clientX;
+      _bzSY = ev.touches[0].clientY;
+    }, { passive: true });
+    modal.addEventListener('touchend', ev => {
+      if (_bzSX === null) return;
+      const dx = ev.changedTouches[0].clientX - _bzSX;
+      const dy = ev.changedTouches[0].clientY - _bzSY;
+      _bzSX = _bzSY = null;
+      // 오른쪽으로 충분히 스와이프 + 수평 방향이 우세할 때 탈출
+      if (dx > window.innerWidth * 0.3 && Math.abs(dx) > Math.abs(dy) * 1.5) bzLeaveRoom();
+    }, { passive: true });
   }
 
   _bzSetupAliasList();
@@ -12885,7 +12903,9 @@ function deleteMpHistory(pollId, event) {
 
   // ── 터치를 무시할 영역 판별 ───────────────────────────────────
   function shouldIgnore(target) {
+    const bz = document.getElementById('bet-screen-banzige');
     return !!(
+      (bz && bz.style.position === 'fixed') ||
       document.querySelector('.modal-overlay.open') ||
       document.getElementById('logo-popup').style.display === 'flex' ||
       target.closest('.carousel-container') ||
