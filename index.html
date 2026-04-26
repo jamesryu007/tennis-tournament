@@ -1057,7 +1057,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           <div style="font-size:0.65rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;text-align:center;padding:2px 0 7px;border-bottom:1px solid #f1f5f9;margin-bottom:7px">🎲 내기 게임 선택</div>
           <button onclick="bzShowRoom()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #fde68a;background:linear-gradient(135deg,#fffbeb,#fef3c7);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
             <span style="font-size:1.4rem">🕵️</span>
-            <div><div style="font-weight:800">막무가내 톡방</div><div style="font-size:0.68rem;color:#b45309;font-weight:600">채팅 속 진짜 범인을 찾아라!</div></div>
+            <div><div style="font-weight:800">막무가내 톡방</div></div>
           </button>
           <button onclick="betShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #ede9fe;background:linear-gradient(135deg,#f5f3ff,#ede9fe);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
             <span style="font-size:1.4rem">🎈</span>
@@ -1385,7 +1385,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <!-- 헤더 -->
       <div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:10px 12px">
         <button onclick="bzLeaveRoom()" style="border:none;background:none;font-size:1.4rem;cursor:pointer;padding:0;color:#64748b">←</button>
-        <div style="font-size:0.95rem;font-weight:800;color:#1e293b">🕵️ 막무가내 톡방 (범인 찾기 게임)</div>
+        <div style="font-size:0.95rem;font-weight:800;color:#1e293b">🗣️ 막무가내 톡방</div>
         <button onclick="bzLeaveRoom()" style="border:none;background:none;font-size:1.1rem;cursor:pointer;padding:0;color:#94a3b8">✕</button>
       </div>
 
@@ -10966,7 +10966,6 @@ let _bzCurrentAlias = null;  // null=미초기화, ''=나자신, 'name'=가명
 let _bzListener = null;      // Firebase 리스너
 let _bzState = null;         // 현재 게임 상태
 let _bzReplyTo = null;       // 현재 답글 대상 { alias, text }
-let _bzShowRealNames = false; // 관리자 실명 공개 토글
 
 const BZ_REF = 'jmt/banzige/current';
 
@@ -11030,7 +11029,6 @@ function bzLeaveRoom() {
   if (_bzListener) { db.ref(BZ_REF).off('value', _bzListener); _bzListener = null; }
   _bzState = null;
   _bzCurrentAlias = null;
-  _bzShowRealNames = false;
   bzCancelReply();
 
   // 모달 해제
@@ -11211,7 +11209,6 @@ function bzNewGame() {
   db.ref(BZ_REF).set({ phase: 'chatting', entrants: {}, entrantCount: 0, messages: {}, aliases: {}, guesses: {}, results: {} }).catch(fbErr);
   _bzMyAliases = [];
   _bzCurrentAlias = null; // 새 게임 후 _bzRender에서 DB 기준으로 복원
-  _bzShowRealNames = false;
   _bzUpdateAliasBadge();
   document.getElementById('bz-alias-select').value = '';
   document.getElementById('bz-alias-limit-msg').style.display = 'none';
@@ -11219,16 +11216,9 @@ function bzNewGame() {
 
 function bzToggleRealNames() {
   if (!isAdmin()) return;
-  _bzShowRealNames = !_bzShowRealNames;
-  _bzRenderMessages((_bzState && _bzState.phase) || 'chatting');
-  // 버튼 상태는 _bzRender 호출 없이 직접 업데이트
-  const rnBtn = document.getElementById('bz-btn-realnames');
-  if (rnBtn) {
-    rnBtn.style.background = _bzShowRealNames ? 'linear-gradient(135deg,#fef3c7,#fde68a)' : '#f1f5f9';
-    rnBtn.style.color = _bzShowRealNames ? '#b45309' : '#64748b';
-    rnBtn.style.border = _bzShowRealNames ? '1.5px solid #f59e0b' : '1.5px solid #e2e8f0';
-    rnBtn.textContent = _bzShowRealNames ? '👁 실명 ON' : '👁 실명 공개';
-  }
+  // Firebase에 저장 → 리스너로 전체 클라이언트에 실시간 반영
+  const next = !(_bzState && _bzState.showRealNames);
+  db.ref(`${BZ_REF}/showRealNames`).set(next).catch(fbErr);
 }
 
 function _bzOnInputFocus() {
@@ -11293,10 +11283,11 @@ function _bzRender() {
     // 실명공개 버튼 상태 동기화
     const rnBtn = document.getElementById('bz-btn-realnames');
     if (rnBtn) {
-      rnBtn.style.background = _bzShowRealNames ? 'linear-gradient(135deg,#fef3c7,#fde68a)' : '#f1f5f9';
-      rnBtn.style.color = _bzShowRealNames ? '#b45309' : '#64748b';
-      rnBtn.style.border = _bzShowRealNames ? '1.5px solid #f59e0b' : '1.5px solid #e2e8f0';
-      rnBtn.textContent = _bzShowRealNames ? '👁 실명 ON' : '👁 실명 공개';
+      const showRN = !!(_bzState && _bzState.showRealNames);
+      rnBtn.style.background = showRN ? 'linear-gradient(135deg,#fef3c7,#fde68a)' : '#f1f5f9';
+      rnBtn.style.color = showRN ? '#b45309' : '#64748b';
+      rnBtn.style.border = showRN ? '1.5px solid #f59e0b' : '1.5px solid #e2e8f0';
+      rnBtn.textContent = showRN ? '👁 실명 ON' : '👁 실명 공개';
     }
 
     // 맞추기 참여 현황 (guessing 단계에서만)
@@ -11419,7 +11410,8 @@ function _bzRenderMessages(phase) {
   area.innerHTML = msgs.map(m => {
     // aliasToReal에 없으면 = 나 자신 이름으로 채팅 = alias가 곧 실제 이름
     const realOfAlias = aliasToReal[m.alias] || m.alias;
-    const senderLabel = (phase === 'revealed' || _bzShowRealNames)
+    const showRealNames = phase === 'revealed' || !!(_bzState && _bzState.showRealNames);
+    const senderLabel = showRealNames
       ? `${m.alias} <span style="color:#f59e0b;font-size:0.7rem">(${realOfAlias})</span>`
       : m.alias;
     const isMine = m.realName === myName;
