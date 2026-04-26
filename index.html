@@ -11060,12 +11060,13 @@ function _bzSetupListener() {
 }
 
 function bzSelectAlias(name) {
-  if (!name) { _bzCurrentAlias = ''; _bzUpdateAliasBadge(); return; } // 나 자신 선택
+  if (!name) { _bzCurrentAlias = ''; _bzUpdateAliasBadge(); document.getElementById('bz-input')?.focus(); return; }
   // 이미 사용한 가명이면 그냥 선택
   if (_bzMyAliases.includes(name)) {
     _bzCurrentAlias = name;
     _bzUpdateAliasBadge();
     document.getElementById('bz-alias-limit-msg').style.display = 'none';
+    document.getElementById('bz-input')?.focus();
     return;
   }
   // 새 가명 — 최대 2개 초과 시 차단
@@ -11081,6 +11082,8 @@ function bzSelectAlias(name) {
   const myName = (state.identity && state.identity.name) || '';
   db.ref(`${BZ_REF}/aliases/${myName}`).set(_bzMyAliases).catch(fbErr);
   _bzUpdateAliasBadge();
+  // 가명 선택 후 입력창으로 포커스 복귀 → 키보드 유지
+  document.getElementById('bz-input')?.focus();
 }
 
 function _bzUpdateAliasBadge() {
