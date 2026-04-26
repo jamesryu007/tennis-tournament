@@ -11019,21 +11019,59 @@ function bzShowRoom() {
     vv.addEventListener('scroll', window._bzModalVpHandler);
   }
 
-  // 오른쪽 스와이프로 방 탈출 (최초 1회만 등록)
+  // 오른쪽 스와이프로 방 탈출 — 드래그 시각 효과 포함 (최초 1회만 등록)
   if (!modal._bzSwipeAdded) {
     modal._bzSwipeAdded = true;
-    let _bzSX = null, _bzSY = null;
+    let _bzSX = null, _bzSY = null, _bzDragging = false, _bzIsHoriz = null;
+
     modal.addEventListener('touchstart', ev => {
+      if (ev.touches.length !== 1) return;
       _bzSX = ev.touches[0].clientX;
       _bzSY = ev.touches[0].clientY;
+      _bzDragging = false;
+      _bzIsHoriz = null;
     }, { passive: true });
+
+    modal.addEventListener('touchmove', ev => {
+      if (_bzSX === null) return;
+      const dx = ev.touches[0].clientX - _bzSX;
+      const dy = ev.touches[0].clientY - _bzSY;
+      // 방향 확정 — 오른쪽 수평 스와이프일 때만 드래그 활성화
+      if (_bzIsHoriz === null) {
+        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+        _bzIsHoriz = Math.abs(dx) > Math.abs(dy) * 1.1 && dx > 0;
+      }
+      if (!_bzIsHoriz) return;
+      _bzDragging = true;
+      modal.style.transition = 'none';
+      modal.style.transform = `translateX(${dx}px)`;
+    }, { passive: true });
+
+    const doSnapBack = () => {
+      modal.style.transition = 'transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)';
+      modal.style.transform = 'translateX(0)';
+      setTimeout(() => { modal.style.transition = ''; modal.style.transform = ''; }, 340);
+    };
+
     modal.addEventListener('touchend', ev => {
       if (_bzSX === null) return;
       const dx = ev.changedTouches[0].clientX - _bzSX;
-      const dy = ev.changedTouches[0].clientY - _bzSY;
       _bzSX = _bzSY = null;
-      // 오른쪽으로 충분히 스와이프 + 수평 방향이 우세할 때 탈출
-      if (dx > window.innerWidth * 0.3 && Math.abs(dx) > Math.abs(dy) * 1.5) bzLeaveRoom();
+      if (!_bzDragging) { _bzDragging = false; _bzIsHoriz = null; return; }
+      _bzDragging = false; _bzIsHoriz = null;
+      if (dx > window.innerWidth * 0.3) {
+        // 오른쪽으로 슬라이드 아웃 → 탈출
+        modal.style.transition = 'transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)';
+        modal.style.transform = `translateX(${window.innerWidth}px)`;
+        setTimeout(() => { modal.style.transition = ''; modal.style.transform = ''; bzLeaveRoom(); }, 280);
+      } else {
+        doSnapBack();
+      }
+    }, { passive: true });
+
+    modal.addEventListener('touchcancel', () => {
+      if (_bzDragging) doSnapBack();
+      _bzSX = _bzSY = null; _bzDragging = false; _bzIsHoriz = null;
     }, { passive: true });
   }
 
