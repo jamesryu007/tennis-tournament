@@ -5190,6 +5190,10 @@ let _lastCheckinPhotoIdx = -1;
 })();
 
 function switchPage(id) {
+  // 범찾게 풀스크린 모달이 열려있으면 정리 (스와이프로 탭 전환 시 nav 복원)
+  if (window._bzModalVpHandler || (document.querySelector('.bottom-nav') && document.querySelector('.bottom-nav').style.display === 'none')) {
+    bzLeaveRoom(true); // betShowHome() 생략 — 원하는 탭으로 이동
+  }
   // 오늘의경기 탭을 벗어날 때 캐러셀 정지
   if (document.getElementById('page-matches').classList.contains('active') && id !== 'matches') {
     if (_carouselTimer) { clearInterval(_carouselTimer); _carouselTimer = null; }
@@ -11017,7 +11021,7 @@ function bzShowRoom() {
   }).catch(fbErr);
 }
 
-function bzLeaveRoom() {
+function bzLeaveRoom(skipHome) {
   if (_bzListener) { db.ref(BZ_REF).off('value', _bzListener); _bzListener = null; }
   _bzState = null;
   _bzCurrentAlias = null;
@@ -11034,7 +11038,7 @@ function bzLeaveRoom() {
     window._bzModalVpHandler = null;
   }
 
-  betShowHome();
+  if (!skipHome) betShowHome();
 }
 
 function _bzSetupAliasList() {
