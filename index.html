@@ -13007,7 +13007,10 @@ function deleteMpHistory(pollId, event) {
       target.closest('.bracket-container') ||
       target.closest('.modal-overlay') ||
       target.closest('#atp-round-tabs-row') ||
-      target.closest('#atp-draw-content')
+      target.closest('#atp-draw-content') ||
+      target.closest('#bet-screen-setup') ||
+      target.closest('#bet-screen-bomb-setup') ||
+      target.closest('#bet-screen-ladder-setup')
     );
   }
 
@@ -13172,7 +13175,7 @@ function deleteMpHistory(pollId, event) {
 
   // ── 페이지 이동 헬퍼 ──
   function setPageY(el, y, animated) {
-    if (!el) return;
+    if (!el || el.id === 'page-setup') return; // 행모탭은 PTR 이동 완전 차단
     el.style.transition = animated
       ? 'transform 0.42s cubic-bezier(0.34,1.48,0.64,1)'
       : 'none';
