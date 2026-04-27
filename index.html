@@ -1048,7 +1048,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   </div>
 
   <!-- 릴레이 풍선 터치 패널 -->
-  <div id="setup-panel-bet" style="display:none">
+  <div id="setup-panel-bet" style="display:none;overflow-x:hidden">
 
     <!-- 화면1: 홈 -->
     <div id="bet-screen-home">
@@ -8723,6 +8723,63 @@ function betShowScreen(id) {
   });
 }
 function betShowHome() { betShowScreen('home'); betRenderHome(); }
+
+// ── 내기 설정 화면 오른쪽 스와이프 탈출 — 드래그 효과 ─────────────
+(function() {
+  const SETUP_SCREENS = ['bet-screen-setup', 'bet-screen-bomb-setup', 'bet-screen-ladder-setup'];
+  SETUP_SCREENS.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    let sx = null, sy = null, dragging = false, isHoriz = null;
+
+    el.addEventListener('touchstart', ev => {
+      if (ev.touches.length !== 1) return;
+      sx = ev.touches[0].clientX; sy = ev.touches[0].clientY;
+      dragging = false; isHoriz = null;
+    }, { passive: true });
+
+    el.addEventListener('touchmove', ev => {
+      if (sx === null) return;
+      const dx = ev.touches[0].clientX - sx;
+      const dy = ev.touches[0].clientY - sy;
+      if (isHoriz === null) {
+        if (Math.abs(dx) < 5 && Math.abs(dy) < 5) return;
+        isHoriz = Math.abs(dx) > Math.abs(dy) * 1.1 && dx > 0;
+      }
+      if (!isHoriz) return;
+      dragging = true;
+      el.style.transition = 'none';
+      el.style.transform = `translateX(${dx}px)`;
+    }, { passive: true });
+
+    const snapBack = () => {
+      el.style.transition = 'transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)';
+      el.style.transform = 'translateX(0)';
+      setTimeout(() => { el.style.transition = ''; el.style.transform = ''; }, 340);
+    };
+
+    el.addEventListener('touchend', ev => {
+      if (sx === null) return;
+      const dx = ev.changedTouches[0].clientX - sx;
+      sx = sy = null;
+      if (!dragging) { dragging = false; isHoriz = null; return; }
+      dragging = false; isHoriz = null;
+      if (dx > window.innerWidth * 0.3) {
+        el.style.transition = 'transform 0.28s cubic-bezier(0.25,0.46,0.45,0.94)';
+        el.style.transform = `translateX(${window.innerWidth}px)`;
+        setTimeout(() => { el.style.transition = ''; el.style.transform = ''; betShowHome(); }, 280);
+      } else {
+        snapBack();
+      }
+    }, { passive: true });
+
+    el.addEventListener('touchcancel', () => {
+      if (dragging) snapBack();
+      sx = sy = null; dragging = false; isHoriz = null;
+    }, { passive: true });
+  });
+})();
+
 function betShowSetup() {
   betShowScreen('setup');
   _betState.participants = [];
@@ -13139,9 +13196,11 @@ function deleteMpHistory(pollId, event) {
   document.addEventListener('touchstart', function(e) {
     if (ptrRefreshing || e.touches.length !== 1) return;
     if (window.scrollY > 4) return;
+    const page = activePageEl();
+    if (page && page.id === 'page-setup') return; // 행모탭은 PTR 비활성화
     startY = e.touches[0].clientY;
     startX = e.touches[0].clientX;
-    activePage = activePageEl();
+    activePage = page;
     ptrActive = true;
   }, { passive: true });
 
