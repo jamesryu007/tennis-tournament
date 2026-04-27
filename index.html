@@ -13129,6 +13129,22 @@ function deleteMpHistory(pollId, event) {
     startX = startY = null; dragging = false; isHoriz = null;
   }, { passive: true });
 
+  // ── touchcancel — 앱 전환/인터럽트 시 중간 상태 초기화 ───────────
+  document.addEventListener('touchcancel', function() {
+    if (dragging && activePage) snapBack();
+    startX = startY = null; dragging = false; isHoriz = null; animating = false;
+  }, { passive: true });
+
+  // ── visibilitychange — 포그라운드 복귀 시 잔류 transform 강제 초기화 ──
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState !== 'visible') return;
+    if (activePage) {
+      activePage.style.transition = '';
+      activePage.style.transform  = '';
+    }
+    startX = startY = null; dragging = false; isHoriz = null; animating = false;
+  });
+
 })();
 </script>
 
@@ -13263,6 +13279,13 @@ function deleteMpHistory(pollId, event) {
       pill.classList.remove('visible');
       setTimeout(() => { setPillState('pull'); ptrRefreshing = false; }, 350);
     }, 1000);
+  }, { passive: true });
+
+  // ── touchcancel — 앱 전환 시 PTR 중간 상태 초기화 ─────────────────
+  document.addEventListener('touchcancel', function() {
+    if (ptrActive && activePage) snapBack(activePage);
+    ptrActive = false; activePage = null;
+    getPill().classList.remove('visible');
   }, { passive: true });
 
   // ── 페이지별 새로고침 로직 ──
