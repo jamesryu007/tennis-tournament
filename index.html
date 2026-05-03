@@ -3236,13 +3236,17 @@ async function submitPhotoUpload() {
   try {
     const storage = firebase.storage();
     const isVideo = _photoUploadFile.type.startsWith('video/');
+    console.log('[사진업로드] 파일타입:', _photoUploadFile.type, '크기:', _photoUploadFile.size, '영상여부:', isVideo);
     if (!isVideo && _photoUploadFile.size > 20 * 1024 * 1024) throw new Error('사진 크기가 20MB를 초과합니다.');
     if (isVideo && _photoUploadFile.size > 20 * 1024 * 1024) throw new Error('영상 크기가 20MB를 초과합니다.');
     let uploadBlob = isVideo ? _photoUploadFile : await _compressImage(_photoUploadFile);
+    console.log('[사진업로드] 업로드 블롭 크기:', uploadBlob.size);
     const ext = isVideo ? 'mp4' : 'jpg';
     const path = `photos/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
     const ref = storage.ref(path);
+    console.log('[사진업로드] Storage ref 경로:', path);
     await ref.put(uploadBlob);
+    console.log('[사진업로드] put 완료');
     const url = await ref.getDownloadURL();
     const record = {
       url,
