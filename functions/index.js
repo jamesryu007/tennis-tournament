@@ -414,13 +414,26 @@ async function autoProcessWinnerBet(matches) {
   const matchList = matches || [];
   const now = new Date().toISOString();
 
-  // Final 경기: 시작됐거나 완료된 것 (winner 베팅 close용)
-  const finalStarted = matchList.find(m => {
+  // TBD가 아닌 실제 결승 경기 전체 (ATP/WTA 복합 대회 대응)
+  const allRealFinals = matchList.filter(m => {
     const rn = (m.roundName || '').toLowerCase();
     return (rn === 'final' || rn === 'the final')
       && !rn.includes('semi') && !rn.includes('qualify')
-      && (m.status === 'STATUS_IN_PROGRESS' || m.status === 'STATUS_FINAL');
+      && m.player1Name && m.player1Name !== 'TBD'
+      && m.player2Name && m.player2Name !== 'TBD';
   });
+
+  // 아직 시작 안 한 실제 결승이 있으면 winner 베팅 처리 보류
+  // (예: Madrid Open처럼 ATP/WTA 복합 대회에서 여자 결승이 먼저 끝나도 남자 결승 대기)
+  const hasPendingFinal = allRealFinals.some(m =>
+    m.status !== 'STATUS_IN_PROGRESS' && m.status !== 'STATUS_FINAL'
+  );
+
+  // 진행중이거나 완료된 결승 중 가장 늦게 예정된 경기 선택
+  const finalStarted = hasPendingFinal ? null : allRealFinals
+    .filter(m => m.status === 'STATUS_IN_PROGRESS' || m.status === 'STATUS_FINAL')
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0] || null;
+
   // Final 경기: 완료된 것 (winner 베팅 결과 처리용)
   const finalDone = finalStarted && finalStarted.status === 'STATUS_FINAL'
     && (finalStarted.player1Winner === true || finalStarted.player2Winner === true)
