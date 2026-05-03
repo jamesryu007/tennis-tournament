@@ -150,6 +150,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .vote-btn.late.active { background:#d97706; color:#fff; border-color:#92400e; box-shadow:0 4px 0 #92400e; }
 .vote-btn.absent { background:#fee2e2; color:#dc2626; border-color:#fca5a5; box-shadow:0 4px 0 #fca5a5; }
 .vote-btn.absent.active { background:#dc2626; color:#fff; border-color:#991b1b; box-shadow:0 4px 0 #991b1b; }
+.vote-btn.undecided { background:#f3e8ff; color:#7c3aed; border-color:#c4b5fd; box-shadow:0 4px 0 #c4b5fd; }
+.vote-btn.undecided.active { background:#7c3aed; color:#fff; border-color:#5b21b6; box-shadow:0 4px 0 #5b21b6; }
 .poll-group { margin-bottom:10px; }
 .poll-group-hdr { font-size:0.72rem; font-weight:700; color:#64748b; padding:5px 0 4px; border-bottom:1px solid #e2e8f0; margin-bottom:5px; display:flex; align-items:center; gap:5px; }
 .poll-voter { display:flex; align-items:center; gap:7px; padding:6px 10px; background:#f8fafc; border-radius:8px; margin-bottom:4px; font-size:0.85rem; }
@@ -159,6 +161,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .poll-pill.late { background:#fef3c7; color:#b45309; }
 .poll-pill.absent { background:#fee2e2; color:#dc2626; }
 .poll-pill.guest { background:#ede9fe; color:#7c3aed; }
+.poll-pill.undecided { background:#f3e8ff; color:#7c3aed; }
 .poll-pill.notvoted { background:#f1f5f9; color:#64748b; }
 .comment-item { padding:8px 10px; border-radius:10px; background:#f8fafc; margin-bottom:6px; }
 .comment-author { font-size:0.72rem; font-weight:700; color:#2563eb; }
@@ -5531,11 +5534,12 @@ function renderCheckinPage() {
   const myName = state.identity && state.identity.name;
   const myVote = myName ? (votes.find(v => v.name === myName) || {}).vote : null;
 
-  const attendVoters = votes.filter(v => v.vote === 'attend');
-  const lateVoters   = votes.filter(v => v.vote === 'late');
-  const absentVoters = votes.filter(v => v.vote === 'absent');
-  const votedNames   = votes.map(v => v.name);
-  const notVoted     = state.members.filter(m => !votedNames.includes(m.name));
+  const attendVoters   = votes.filter(v => v.vote === 'attend');
+  const lateVoters     = votes.filter(v => v.vote === 'late');
+  const absentVoters   = votes.filter(v => v.vote === 'absent');
+  const undecidedVoters = votes.filter(v => v.vote === 'undecided');
+  const votedNames     = votes.map(v => v.name);
+  const notVoted       = state.members.filter(m => !votedNames.includes(m.name));
   const totalAttending = attendVoters.length + lateVoters.length + guestEntries.length;
 
   const [y, mo, d] = (ps.satDate || '----').split('-');
@@ -5593,6 +5597,11 @@ function renderCheckinPage() {
           <div style="font-size:0.8rem;font-weight:700;margin-top:3px">불참</div>
           <div style="font-size:0.7rem;margin-top:1px;opacity:0.8">${absentVoters.length}명</div>
         </button>
+        <button class="vote-btn undecided${myVote==='undecided'?' active':''}" onclick="castVote('undecided')">
+          <div style="font-size:1.3rem">🤔</div>
+          <div style="font-size:0.8rem;font-weight:700;margin-top:3px">미정</div>
+          <div style="font-size:0.7rem;margin-top:1px;opacity:0.8">${undecidedVoters.length}명</div>
+        </button>
       </div>
     </div>`;
   }
@@ -5605,6 +5614,7 @@ function renderCheckinPage() {
       <span class="poll-pill attend">✅ 참석 ${attendVoters.length}명</span>
       <span class="poll-pill late">⏰ 늦참 ${lateVoters.length}명</span>
       <span class="poll-pill absent">❌ 불참 ${absentVoters.length}명</span>
+      ${undecidedVoters.length?`<span class="poll-pill undecided">🤔 미정 ${undecidedVoters.length}명</span>`:''}
       ${guestEntries.length?`<span class="poll-pill guest">👤 게스트 ${guestEntries.length}명</span>`:''}
       ${notVoted.length?`<span class="poll-pill notvoted">❓ 미투표 ${notVoted.length}명</span>`:''}
     </div>
@@ -5613,9 +5623,10 @@ function renderCheckinPage() {
       : `<button class="btn btn-success btn-full" style="margin:8px 0 10px" onclick="createBracketFromPoll()">🎾 ${totalAttending}명으로 확정되어 모임만들기로 토스</button>`)
     :''}`;
   }
-  html += voterGroup(attendVoters, '✅ 참석');
-  html += voterGroup(lateVoters,   '⏰ 늦참');
-  html += voterGroup(absentVoters, '❌ 불참');
+  html += voterGroup(attendVoters,   '✅ 참석');
+  html += voterGroup(lateVoters,     '⏰ 늦참');
+  html += voterGroup(absentVoters,   '❌ 불참');
+  html += voterGroup(undecidedVoters,'🤔 미정');
   if(guestEntries.length) {
     html += `<div class="poll-group">
       <div class="poll-group-hdr">👤 게스트 <span style="color:#94a3b8;font-weight:400">(${guestEntries.length}명)</span></div>
@@ -5678,9 +5689,13 @@ function renderCheckinPage() {
       }).join('');
       return `<div class="comment-item" id="comment-${c._key}">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <span class="comment-author">${c.author}</span><span class="comment-at">${t}</span>
+          <span class="comment-author">${c.author}</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            ${c.author === me ? `<button onclick="editPollComment('${c._key}')" style="font-size:0.68rem;padding:2px 7px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">수정</button>` : ''}
+            <span class="comment-at">${t}</span>
+          </div>
         </div>
-        <div class="comment-text">${c.text.replace(/</g,'&lt;')}</div>
+        <div class="comment-text" id="poll-cmt-text-${c._key}">${c.text.replace(/</g,'&lt;')}</div>
         <div class="comment-reactions">${rxHtml}</div>
         ${replies.map(r=>{
           const rt=r.at?new Date(r.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
@@ -5803,6 +5818,30 @@ function addPollComment() {
     db.ref(`jmt/poll/${weekId}/comments`).push({ author, text, at: new Date().toISOString() }).catch(fbErr);
     if(input) { input.value = ''; input.style.height = 'auto'; }
   }
+}
+
+// ── 출첵 댓글 수정 ──────────────────────────────────────────────────
+function editPollComment(key) {
+  const el = document.getElementById(`poll-cmt-text-${key}`);
+  if (!el) return;
+  const orig = el.innerText;
+  el.innerHTML = `<textarea id="poll-cmt-edit-${key}" style="width:100%;box-sizing:border-box;font-size:0.82rem;padding:8px 10px;border:1.5px solid #2563eb;border-radius:8px;outline:none;resize:none;background:#eff6ff;line-height:1.5;font-family:inherit" rows="2"></textarea>
+    <div style="display:flex;gap:6px;margin-top:5px;justify-content:flex-end">
+      <button onclick="renderCheckinPage()" style="font-size:0.72rem;padding:3px 10px;border-radius:7px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer">취소</button>
+      <button onclick="savePollComment('${key}')" style="font-size:0.72rem;padding:3px 10px;border-radius:7px;border:none;background:#2563eb;color:#fff;cursor:pointer;font-weight:700">저장</button>
+    </div>`;
+  const ta = document.getElementById(`poll-cmt-edit-${key}`);
+  if (ta) { ta.value = orig; ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; ta.focus(); }
+}
+
+function savePollComment(key) {
+  const ta = document.getElementById(`poll-cmt-edit-${key}`);
+  if (!ta) return;
+  const text = ta.value.trim();
+  if (!text) return;
+  if (!state.pollState || !state.pollState.weekId) return;
+  const weekId = state.pollState.weekId;
+  db.ref(`jmt/poll/${weekId}/comments/${key}/text`).set(text).catch(fbErr);
 }
 
 function createBracketFromPoll() {
@@ -8035,7 +8074,10 @@ function renderBetComments(betId, bet, myName) {
     const isMe = c.author === myIdentity;
     return `<div style="display:flex;gap:6px;margin-bottom:5px;align-items:flex-start">
       <div style="font-size:0.7rem;font-weight:700;color:${isMe?'#2563eb':'#64748b'};flex-shrink:0;padding-top:1px">${c.author}</div>
-      <div style="flex:1;font-size:0.78rem;color:#1e293b;background:${isMe?'#eff6ff':'#f8fafc'};border-radius:8px;padding:5px 8px;word-break:break-word">${escHtml(c.text)}</div>
+      <div style="flex:1">
+        <div id="bet-cmt-text-${betId}-${cid}" style="font-size:0.78rem;color:#1e293b;background:${isMe?'#eff6ff':'#f8fafc'};border-radius:8px;padding:5px 8px;word-break:break-word">${escHtml(c.text)}</div>
+        ${isMe ? `<button onclick="editBetComment('${betId}','${cid}')" style="font-size:0.65rem;padding:1px 6px;border-radius:5px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer;margin-top:2px">수정</button>` : ''}
+      </div>
     </div>`;
   }).join('');
   return `
@@ -8071,6 +8113,30 @@ function postBetComment(betId) {
   input.value = '';
   input.style.height = 'auto';
   db.ref(`jmt/atpBets/${betId}/comments`).push({ author, text, at: new Date().toISOString() }).catch(fbErr);
+}
+
+// ── 베팅 댓글 수정 ──────────────────────────────────────────────────
+function editBetComment(betId, cid) {
+  const el = document.getElementById(`bet-cmt-text-${betId}-${cid}`);
+  if (!el) return;
+  const orig = el.innerText;
+  el.outerHTML = `<div id="bet-cmt-text-${betId}-${cid}">
+    <textarea id="bet-cmt-edit-${betId}-${cid}" style="width:100%;box-sizing:border-box;font-size:0.78rem;padding:6px 8px;border:1.5px solid #2563eb;border-radius:8px;outline:none;resize:none;background:#eff6ff;line-height:1.5;font-family:inherit" rows="2"></textarea>
+    <div style="display:flex;gap:6px;margin-top:4px;justify-content:flex-end">
+      <button onclick="renderAtpBetPanel()" style="font-size:0.68rem;padding:2px 8px;border-radius:6px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer">취소</button>
+      <button onclick="saveBetComment('${betId}','${cid}')" style="font-size:0.68rem;padding:2px 8px;border-radius:6px;border:none;background:#2563eb;color:#fff;cursor:pointer;font-weight:700">저장</button>
+    </div>
+  </div>`;
+  const ta = document.getElementById(`bet-cmt-edit-${betId}-${cid}`);
+  if (ta) { ta.value = orig; ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; ta.focus(); }
+}
+
+function saveBetComment(betId, cid) {
+  const ta = document.getElementById(`bet-cmt-edit-${betId}-${cid}`);
+  if (!ta) return;
+  const text = ta.value.trim();
+  if (!text) return;
+  db.ref(`jmt/atpBets/${betId}/comments/${cid}/text`).set(text).catch(fbErr);
 }
 
 // ── 베팅 히스토리 ─────────────────────────────────────────────────
@@ -12421,14 +12487,19 @@ function _mpCommentsHtml(poll) {
   const comments = poll.comments||{};
   const commArr  = Object.entries(comments).map(([k,c])=>({...c,_key:k})).sort((a,b)=>(a.at||'').localeCompare(b.at||''));
   const fmt = at => at ? new Date(at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+  const me = (state.identity && state.identity.name) || '';
 
   const items = commArr.map(c => {
     const replies = c.replies ? Object.values(c.replies).sort((a,b)=>(a.at||'').localeCompare(b.at||'')) : [];
     return `<div class="comment-item" id="mp-comment-${c._key}">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <span class="comment-author">${c.author}</span><span class="comment-at">${fmt(c.at)}</span>
+        <span class="comment-author">${c.author}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          ${c.author === me ? `<button onclick="editMpComment('${c._key}')" style="font-size:0.68rem;padding:2px 7px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">수정</button>` : ''}
+          <span class="comment-at">${fmt(c.at)}</span>
+        </div>
       </div>
-      <div class="comment-text">${c.text.replace(/</g,'&lt;')}</div>
+      <div class="comment-text" id="mp-cmt-text-${c._key}">${c.text.replace(/</g,'&lt;')}</div>
       ${replies.map(r=>`<div class="reply-item">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span class="comment-author" style="font-size:0.68rem">↩ ${r.author}</span><span class="comment-at">${fmt(r.at)}</span>
@@ -12877,6 +12948,28 @@ function mpAddReply(cid) {
   db.ref(`jmt/meetingPoll/comments/${cid}/replies`).push({author,text,at:new Date().toISOString()}).catch(fbErr);
   if (input) input.value='';
   mpToggleReplyInput(cid);
+}
+
+// ── 모임정하기 댓글 수정 ─────────────────────────────────────────
+function editMpComment(key) {
+  const el = document.getElementById(`mp-cmt-text-${key}`);
+  if (!el) return;
+  const orig = el.innerText;
+  el.innerHTML = `<textarea id="mp-cmt-edit-${key}" style="width:100%;box-sizing:border-box;font-size:0.82rem;padding:8px 10px;border:1.5px solid #2563eb;border-radius:8px;outline:none;resize:none;background:#eff6ff;line-height:1.5;font-family:inherit" rows="2"></textarea>
+    <div style="display:flex;gap:6px;margin-top:5px;justify-content:flex-end">
+      <button onclick="renderMeetingPoll()" style="font-size:0.72rem;padding:3px 10px;border-radius:7px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer">취소</button>
+      <button onclick="saveMpComment('${key}')" style="font-size:0.72rem;padding:3px 10px;border-radius:7px;border:none;background:#2563eb;color:#fff;cursor:pointer;font-weight:700">저장</button>
+    </div>`;
+  const ta = document.getElementById(`mp-cmt-edit-${key}`);
+  if (ta) { ta.value = orig; ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; ta.focus(); }
+}
+
+function saveMpComment(key) {
+  const ta = document.getElementById(`mp-cmt-edit-${key}`);
+  if (!ta) return;
+  const text = ta.value.trim();
+  if (!text) return;
+  db.ref(`jmt/meetingPoll/comments/${key}/text`).set(text).catch(fbErr);
 }
 
 // ── 모임정하기 히스토리 모달 ─────────────────────────────────────
