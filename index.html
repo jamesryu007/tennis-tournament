@@ -7102,6 +7102,8 @@ function getTournamentPlayersSorted() {
   const seen = new Set();
   const players = [];
   for (const m of atpState.matches) {
+    // WTA 경기는 베팅 선수 목록에서 제외
+    if (isWtaMatch(m)) continue;
     const pairs = [
       [m.player1Name, m.player1Country, m.player1Id],
       [m.player2Name, m.player2Country, m.player2Id]
