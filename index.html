@@ -1539,7 +1539,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <div id="matches-section-memory" style="display:none">
     <!-- 필터 + 업로드 액션 바 -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:0 12px 10px">
-      <button onclick="openPhotoFilter()" style="display:flex;align-items:center;gap:5px;padding:7px 13px;border:1.5px solid #e2e8f0;border-radius:20px;background:#fff;font-size:0.78rem;font-weight:700;color:#475569;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
+      <button onclick="openPhotoFilter()" id="photo-filter-btn" style="display:flex;align-items:center;gap:5px;padding:7px 13px;border:1.5px solid #e2e8f0;border-radius:20px;background:#fff;font-size:0.78rem;font-weight:700;color:#475569;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
         <span id="photo-filter-label">전체</span> <span style="color:#94a3b8;font-size:0.7rem">▼</span>
       </button>
       <button onclick="openPhotoUpload()" style="display:flex;align-items:center;gap:5px;padding:7px 15px;border:none;border-radius:20px;background:#2563eb;font-size:0.78rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
@@ -1581,8 +1581,17 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       </div>
       <input type="file" id="photo-file-input" accept="image/jpeg,image/png,video/mp4,video/quicktime" style="display:none" onchange="onPhotoFileSelected(this)">
 
+      <!-- 카테고리 -->
+      <div class="field-label" style="margin-bottom:6px">구분 <span style="color:#dc2626">*</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px" id="photo-category-chips">
+        <div class="member-chip selected" id="pcat-경기사진" onclick="_selectPhotoCategory('경기사진')">경기사진</div>
+        <div class="member-chip" id="pcat-단체사진" onclick="_selectPhotoCategory('단체사진')">단체사진</div>
+        <div class="member-chip" id="pcat-행사사진" onclick="_selectPhotoCategory('행사사진')">행사사진</div>
+        <div class="member-chip" id="pcat-기타" onclick="_selectPhotoCategory('기타')">기타</div>
+      </div>
+
       <!-- 인원 태그 -->
-      <div class="field-label" style="margin-bottom:6px">함께한 멤버 <span style="color:#dc2626">*</span></div>
+      <div class="field-label" style="margin-bottom:6px">함께한 멤버 <span style="color:#94a3b8;font-size:0.7rem">(선택)</span></div>
       <div id="photo-member-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px"></div>
 
       <!-- 메모 -->
@@ -1596,14 +1605,35 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
 <!-- ══ PHOTO FILTER MODAL ══ -->
 <div class="modal-overlay" id="photo-filter-modal">
-  <div class="modal" style="max-height:70vh;display:flex;flex-direction:column;">
+  <div class="modal" style="max-height:80vh;display:flex;flex-direction:column;">
     <div class="modal-handle"></div>
     <div class="modal-header">
-      <span class="modal-round">멤버 필터</span>
+      <span class="modal-round">사진 필터</span>
       <button class="modal-close" onclick="closePhotoFilter()">✕</button>
     </div>
     <div style="overflow-y:auto;flex:1;padding:14px 16px 24px">
+      <!-- 연도/월 -->
+      <div class="field-label" style="margin-bottom:6px">날짜</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <select id="pf-year" style="flex:1;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.82rem;font-family:inherit;background:#fff;color:#374151" onchange="_applyPhotoFilter()">
+          <option value="">연도 전체</option>
+        </select>
+        <select id="pf-month" style="flex:1;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.82rem;font-family:inherit;background:#fff;color:#374151" onchange="_applyPhotoFilter()">
+          <option value="">월 전체</option>
+          <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
+          <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
+          <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
+          <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+        </select>
+      </div>
+      <!-- 카테고리 -->
+      <div class="field-label" style="margin-bottom:6px">구분</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px" id="photo-filter-cat-chips"></div>
+      <!-- 멤버 -->
+      <div class="field-label" style="margin-bottom:6px">멤버</div>
       <div id="photo-filter-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      <!-- 초기화 -->
+      <button onclick="_resetPhotoFilter()" style="margin-top:16px;width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;font-size:0.82rem;font-weight:700;color:#64748b;cursor:pointer;font-family:inherit">필터 초기화</button>
     </div>
   </div>
 </div>
@@ -3012,12 +3042,16 @@ async function updateMatchStats(team0,team1,winner,nick0,nick1){
 }
 
 // ══ 오늘의 추억 (사진첩) ══════════════════════════════════════════
-let _photoAllItems = [];       // DB에서 불러온 전체 사진 배열 [{key,data}]
+let _photoAllItems = [];         // DB에서 불러온 전체 사진 배열 [{key,data}]
 let _photoPageSize = 20;
-let _photoShown = 0;           // 현재 표시 중인 수
-let _photoFilterMember = null; // null=전체, 또는 멤버명 문자열
-let _photoViewerIdx = -1;      // 현재 뷰어에서 보고 있는 인덱스
-let _photoUploadFile = null;   // 업로드 선택 파일
+let _photoShown = 0;             // 현재 표시 중인 수
+let _photoFilterMember = null;   // null=전체, 또는 멤버명
+let _photoFilterCategory = null; // null=전체, 또는 카테고리
+let _photoFilterYear = '';       // '' = 전체
+let _photoFilterMonth = '';      // '' = 전체
+let _photoViewerIdx = -1;        // 현재 뷰어에서 보고 있는 인덱스
+let _photoUploadFile = null;     // 업로드 선택 파일
+const PHOTO_CATEGORIES = ['경기사진', '단체사진', '행사사진', '기타'];
 
 function switchMatchesTab(tab) {
   document.getElementById('mstab-game').classList.toggle('active', tab === 'game');
@@ -3041,10 +3075,20 @@ function loadPhotos() {
 }
 
 function _filteredPhotos() {
-  if (!_photoFilterMember) return _photoAllItems;
-  return _photoAllItems.filter(p =>
-    Array.isArray(p.data.members) && p.data.members.includes(_photoFilterMember)
-  );
+  return _photoAllItems.filter(p => {
+    const d = p.data;
+    if (_photoFilterMember && !(Array.isArray(d.members) && d.members.includes(_photoFilterMember))) return false;
+    if (_photoFilterCategory && d.category !== _photoFilterCategory) return false;
+    if (_photoFilterYear) {
+      const y = d.createdAt ? new Date(d.createdAt).getFullYear() : 0;
+      if (String(y) !== _photoFilterYear) return false;
+    }
+    if (_photoFilterMonth) {
+      const mo = d.createdAt ? new Date(d.createdAt).getMonth() + 1 : 0;
+      if (String(mo) !== _photoFilterMonth) return false;
+    }
+    return true;
+  });
 }
 
 function _renderPhotoGrid() {
@@ -3080,11 +3124,13 @@ function _photoItemHtml(p, idx) {
   const d = p.data;
   const isVideo = d.type === 'video';
   const members = (d.members || []).join(', ');
-  const dateStr = d.createdAt ? new Date(d.createdAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'}) : '';
+  const cat = d.category || '';
+  const catColor = {경기사진:'#2563eb',단체사진:'#059669',행사사진:'#d97706',기타:'#64748b'}[cat] || '#64748b';
   return `<div class="photo-item" onclick="openPhotoViewer(${idx})">
     ${isVideo
       ? `<video src="${d.url}" muted playsinline preload="metadata" style="width:100%;height:100%;object-fit:cover;display:block"></video><span class="video-badge">동영상</span>`
       : `<img src="${d.url}" loading="lazy" alt="추억 사진">`}
+    ${cat ? `<div style="position:absolute;top:6px;left:6px;background:${catColor};color:#fff;font-size:0.58rem;font-weight:800;padding:2px 7px;border-radius:6px">${cat}</div>` : ''}
     <div class="photo-overlay">
       <div class="photo-meta">${members || ''}</div>
     </div>
@@ -3100,6 +3146,8 @@ function openPhotoUpload() {
   document.getElementById('photo-preview-vid').style.display = 'none';
   document.getElementById('photo-drop-hint').style.display = '';
   document.getElementById('photo-memo-input').value = '';
+  // 카테고리 칩 초기화 (경기사진 기본 선택)
+  _selectPhotoCategory('경기사진');
   // 멤버 칩 렌더링
   const chips = document.getElementById('photo-member-chips');
   chips.innerHTML = state.members.map(m =>
@@ -3110,6 +3158,20 @@ function openPhotoUpload() {
 
 function closePhotoUpload() {
   document.getElementById('photo-upload-modal').classList.remove('open');
+}
+
+function _selectPhotoCategory(cat) {
+  PHOTO_CATEGORIES.forEach(c => {
+    const el = document.getElementById('pcat-' + c);
+    if (el) el.classList.toggle('selected', c === cat);
+  });
+}
+
+function _getSelectedCategory() {
+  return PHOTO_CATEGORIES.find(c => {
+    const el = document.getElementById('pcat-' + c);
+    return el && el.classList.contains('selected');
+  }) || '기타';
 }
 
 function _togglePhotoMemberChip(name) {
@@ -3163,8 +3225,8 @@ async function _compressImage(file) {
 
 async function submitPhotoUpload() {
   if (!_photoUploadFile) { alert('사진 또는 영상을 선택해 주세요.'); return; }
+  const category = _getSelectedCategory();
   const selectedMembers = Array.from(document.querySelectorAll('#photo-member-chips .member-chip.selected')).map(el => el.textContent);
-  if (!selectedMembers.length) { alert('함께한 멤버를 한 명 이상 선택해 주세요.'); return; }
   const memo = document.getElementById('photo-memo-input').value.trim();
   const btn = document.getElementById('photo-submit-btn');
   btn.disabled = true;
@@ -3172,8 +3234,8 @@ async function submitPhotoUpload() {
   try {
     const storage = firebase.storage();
     const isVideo = _photoUploadFile.type.startsWith('video/');
-    if (!isVideo && _photoUploadFile.size > 10 * 1024 * 1024) throw new Error('파일 크기가 10MB를 초과합니다.');
-    if (isVideo && _photoUploadFile.size > 50 * 1024 * 1024) throw new Error('영상 크기가 50MB를 초과합니다.');
+    if (!isVideo && _photoUploadFile.size > 20 * 1024 * 1024) throw new Error('사진 크기가 20MB를 초과합니다.');
+    if (isVideo && _photoUploadFile.size > 100 * 1024 * 1024) throw new Error('영상 크기가 100MB를 초과합니다.');
     let uploadBlob = isVideo ? _photoUploadFile : await _compressImage(_photoUploadFile);
     const ext = isVideo ? 'mp4' : 'jpg';
     const path = `photos/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
@@ -3183,7 +3245,8 @@ async function submitPhotoUpload() {
     const record = {
       url,
       type: isVideo ? 'video' : 'image',
-      members: selectedMembers,
+      category,
+      members: selectedMembers.length ? selectedMembers : null,
       memo: memo || null,
       uploader: (state.identity && state.identity.name) || '익명',
       createdAt: Date.now(),
@@ -3202,10 +3265,20 @@ async function submitPhotoUpload() {
 
 // ── 사진 필터 ──────────────────────────────────────────────────
 function openPhotoFilter() {
+  // 연도 옵션: 사진 데이터에서 추출
+  const years = [...new Set(_photoAllItems.map(p => p.data.createdAt ? new Date(p.data.createdAt).getFullYear() : null).filter(Boolean))].sort((a,b)=>b-a);
+  const yearSel = document.getElementById('pf-year');
+  yearSel.innerHTML = '<option value="">연도 전체</option>' + years.map(y => `<option value="${y}"${_photoFilterYear===String(y)?' selected':''}>${y}년</option>`).join('');
+  document.getElementById('pf-month').value = _photoFilterMonth;
+  // 카테고리 칩
+  const catChips = document.getElementById('photo-filter-cat-chips');
+  catChips.innerHTML = PHOTO_CATEGORIES.map(c =>
+    `<div class="member-chip${_photoFilterCategory===c?' selected':''}" onclick="_togglePhotoFilterCat('${c}')">${c}</div>`
+  ).join('');
+  // 멤버 칩
   const chips = document.getElementById('photo-filter-chips');
-  chips.innerHTML = [{ name: '전체' }, ...state.members].map(m =>
-    `<div class="member-chip${(_photoFilterMember === m.name || (!_photoFilterMember && m.name === '전체')) ? ' selected' : ''}"
-      onclick="_setPhotoFilter(${m.name === '전체' ? 'null' : `'${m.name}'`})">${m.name}</div>`
+  chips.innerHTML = state.members.map(m =>
+    `<div class="member-chip${_photoFilterMember===m.name?' selected':''}" onclick="_togglePhotoFilterMember('${m.name}')">${m.name}</div>`
   ).join('');
   document.getElementById('photo-filter-modal').classList.add('open');
 }
@@ -3214,10 +3287,48 @@ function closePhotoFilter() {
   document.getElementById('photo-filter-modal').classList.remove('open');
 }
 
-function _setPhotoFilter(name) {
-  _photoFilterMember = name;
-  document.getElementById('photo-filter-label').textContent = name || '전체';
+function _togglePhotoFilterCat(cat) {
+  _photoFilterCategory = _photoFilterCategory === cat ? null : cat;
+  _applyPhotoFilter();
+  // 칩 UI 갱신
+  document.querySelectorAll('#photo-filter-cat-chips .member-chip').forEach(el => {
+    el.classList.toggle('selected', el.textContent === _photoFilterCategory);
+  });
+}
+
+function _togglePhotoFilterMember(name) {
+  _photoFilterMember = _photoFilterMember === name ? null : name;
+  _applyPhotoFilter();
+  document.querySelectorAll('#photo-filter-chips .member-chip').forEach(el => {
+    el.classList.toggle('selected', el.textContent === _photoFilterMember);
+  });
+}
+
+function _applyPhotoFilter() {
+  _photoFilterYear = document.getElementById('pf-year') ? document.getElementById('pf-year').value : _photoFilterYear;
+  _photoFilterMonth = document.getElementById('pf-month') ? document.getElementById('pf-month').value : _photoFilterMonth;
+  _updatePhotoFilterLabel();
+  _renderPhotoGrid();
+}
+
+function _updatePhotoFilterLabel() {
+  const parts = [];
+  if (_photoFilterYear) parts.push(_photoFilterYear + '년');
+  if (_photoFilterMonth) parts.push(_photoFilterMonth + '월');
+  if (_photoFilterCategory) parts.push(_photoFilterCategory);
+  if (_photoFilterMember) parts.push(_photoFilterMember);
+  document.getElementById('photo-filter-label').textContent = parts.length ? parts.join(' · ') : '전체';
+  const btn = document.getElementById('photo-filter-btn');
+  if (btn) btn.style.borderColor = parts.length ? '#2563eb' : '#e2e8f0';
+}
+
+function _resetPhotoFilter() {
+  _photoFilterMember = null;
+  _photoFilterCategory = null;
+  _photoFilterYear = '';
+  _photoFilterMonth = '';
   closePhotoFilter();
+  _updatePhotoFilterLabel();
   _renderPhotoGrid();
 }
 
@@ -3233,7 +3344,8 @@ function openPhotoViewer(idx) {
     ? `<video src="${d.url}" controls playsinline style="max-width:100%;max-height:100%"></video>`
     : `<img src="${d.url}" alt="사진">`;
   const dateStr = d.createdAt ? new Date(d.createdAt).toLocaleDateString('ko-KR', {year:'numeric',month:'numeric',day:'numeric'}) : '';
-  document.getElementById('pv-meta').textContent = `${dateStr}  ${(d.members||[]).join(', ')}`;
+  const metaParts = [dateStr, d.category, (d.members||[]).join(', ')].filter(Boolean);
+  document.getElementById('pv-meta').textContent = metaParts.join('  ·  ');
   document.getElementById('pv-caption').textContent = d.memo || '';
   const me = (state.identity && state.identity.name) || '';
   const pvDel = document.getElementById('pv-delete-btn');

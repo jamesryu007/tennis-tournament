@@ -4,7 +4,7 @@ service firebase.storage {
     // 사진첩: 로그인 없이 읽기 허용, 쓰기/삭제는 누구나 (커스텀 auth 없음)
     match /photos/{allPaths=**} {
       allow read: if true;
-      allow write: if request.resource.size < 52428800; // 50MB 이하
+      allow write: if request.resource.size < 104857600; // 100MB 이하
       allow delete: if true;
     }
   }
