@@ -7053,6 +7053,14 @@ function toKSTStr(dateStr) {
   } catch(e) { return ''; }
 }
 
+function isWtaMatch(m) {
+  if (!m.player1Name || m.player1Name === 'TBD') return false;
+  const rankSource = atpState.rankingsFromDb.length ? atpState.rankingsFromDb : ATP_TOP_PLAYERS;
+  const p1InAtp = rankSource.some(p => p.name.toLowerCase() === m.player1Name.toLowerCase());
+  const p2InAtp = rankSource.some(p => p.name.toLowerCase() === (m.player2Name || '').toLowerCase());
+  return !p1InAtp && !p2InAtp;
+}
+
 function renderMatchRow(m) {
   const fav1 = isFavPlayer(m.player1Name);
   const fav2 = isFavPlayer(m.player2Name);
@@ -7061,10 +7069,14 @@ function renderMatchRow(m) {
   const score2  = m.player2Score || '';
   const p1Name  = m.player1Name || 'TBD';
   const p2Name  = m.player2Name || 'TBD';
+  const wta     = isWtaMatch(m);
 
   return `
     <div class="atp-match-row">
       <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:1px">
+          ${wta ? '<span style="font-size:0.58rem;font-weight:800;background:#fce7f3;color:#be185d;border-radius:4px;padding:1px 5px;flex-shrink:0">WTA</span>' : ''}
+        </div>
         <div class="atp-player ${m.player1Winner ? 'winner' : ''}" style="${fav1 ? 'color:#f59e0b;font-weight:800' : ''}">
           ${p1Name}${m.player1Country ? ` <span style="font-size:0.65rem;color:#94a3b8">${m.player1Country}</span>` : ''}
           ${m.player1Winner && isDone ? ' <span style="font-size:0.65rem;color:#22c55e">✓</span>' : ''}
