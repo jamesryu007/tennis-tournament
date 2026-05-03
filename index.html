@@ -1547,11 +1547,11 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       </button>
     </div>
     <!-- 사진 그리드 -->
+    <!-- PTR 인디케이터 -->
+    <div id="memory-ptr-indicator" style="display:none;text-align:center;padding:10px 0;color:#2563eb;font-size:0.78rem;font-weight:700">새로고침 중...</div>
     <div class="photo-grid" id="photo-grid"></div>
-    <!-- 더 보기 -->
-    <div id="photo-load-more" style="display:none;text-align:center;padding:10px 0 20px">
-      <button onclick="loadMorePhotos()" style="padding:8px 24px;border:1.5px solid #e2e8f0;border-radius:20px;background:#fff;font-size:0.78rem;font-weight:700;color:#475569;cursor:pointer;font-family:inherit">더 보기</button>
-    </div>
+    <!-- 무한스크롤 센티넬 -->
+    <div id="photo-load-sentinel" style="height:40px"></div>
     <!-- 빈 상태 -->
     <div id="photo-empty" style="display:none;text-align:center;padding:40px 0;color:#94a3b8;font-size:0.85rem;font-weight:600">
       <div style="font-size:2.5rem;margin-bottom:8px">📸</div>
@@ -3051,15 +3051,17 @@ async function updateMatchStats(team0,team1,winner,nick0,nick1){
 }
 
 // ══ 오늘의 추억 (사진첩) ══════════════════════════════════════════
-let _photoAllItems = [];         // DB에서 불러온 전체 사진 배열 [{key,data}]
+let _photoAllItems = [];          // DB에서 불러온 전체 사진 배열 [{key,data}]
 let _photoPageSize = 20;
-let _photoShown = 0;             // 현재 표시 중인 수
-let _photoFilterMember = null;   // null=전체, 또는 멤버명
-let _photoFilterCategory = null; // null=전체, 또는 카테고리
-let _photoFilterYear = '';       // '' = 전체
-let _photoFilterMonth = '';      // '' = 전체
-let _photoViewerIdx = -1;        // 현재 뷰어에서 보고 있는 인덱스
-let _photoUploadFile = null;     // 업로드 선택 파일
+let _photoShown = 0;              // 현재 표시 중인 수
+let _photoFilterMember = null;    // null=전체, 또는 멤버명
+let _photoFilterCategory = null;  // null=전체, 또는 카테고리
+let _photoFilterYear = '';        // '' = 전체
+let _photoFilterMonth = '';       // '' = 전체
+let _photoViewerIdx = -1;         // 현재 뷰어에서 보고 있는 인덱스
+let _photoUploadFile = null;      // 업로드 선택 파일
+let _photoVideoThumbBlob = null;  // 영상 선택 시 캡처한 첫프레임 (재사용)
+let _photoScrollObserver = null;  // IntersectionObserver
 const PHOTO_CATEGORIES = ['경기사진', '단체사진', '행사사진', '기타'];
 
 function switchMatchesTab(tab) {
@@ -3067,7 +3069,10 @@ function switchMatchesTab(tab) {
   document.getElementById('mstab-memory').classList.toggle('active', tab === 'memory');
   document.getElementById('matches-section-game').style.display = tab === 'game' ? '' : 'none';
   document.getElementById('matches-section-memory').style.display = tab === 'memory' ? '' : 'none';
-  if (tab === 'memory') loadPhotos();
+  if (tab === 'memory') {
+    loadPhotos();
+    _initMemoryPTR();
+  }
 }
 
 // ── 사진 목록 로드 ──────────────────────────────────────────────
@@ -3080,7 +3085,51 @@ function loadPhotos() {
       .sort((a, b) => (b.data.createdAt || 0) - (a.data.createdAt || 0));
     _photoShown = 0;
     _renderPhotoGrid();
+    _initPhotoScrollObserver();
   }).catch(fbErr);
+}
+
+function _initPhotoScrollObserver() {
+  if (_photoScrollObserver) _photoScrollObserver.disconnect();
+  const sentinel = document.getElementById('photo-load-sentinel');
+  if (!sentinel) return;
+  _photoScrollObserver = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting) {
+      const list = _filteredPhotos();
+      if (_photoShown < list.length) loadMorePhotos();
+    }
+  }, { rootMargin: '0px 0px 100px 0px', threshold: 0 });
+  _photoScrollObserver.observe(sentinel);
+}
+
+// ── PTR (당겨서 새로고침) ────────────────────────────────────────
+let _memPtrY0 = 0, _memPtrActive = false;
+function _initMemoryPTR() {
+  const page = document.getElementById('page-matches');
+  if (!page || page._memPtrBound) return;
+  page._memPtrBound = true;
+  page.addEventListener('touchstart', e => {
+    if (page.scrollTop === 0 && document.getElementById('matches-section-memory').style.display !== 'none') {
+      _memPtrY0 = e.touches[0].clientY;
+      _memPtrActive = true;
+    }
+  }, { passive: true });
+  page.addEventListener('touchend', () => {
+    if (!_memPtrActive) return;
+    _memPtrActive = false;
+    _memPtrY0 = 0;
+  }, { passive: true });
+  page.addEventListener('touchmove', e => {
+    if (!_memPtrActive) return;
+    const dy = e.touches[0].clientY - _memPtrY0;
+    if (dy > 70) {
+      _memPtrActive = false;
+      const ind = document.getElementById('memory-ptr-indicator');
+      ind.style.display = '';
+      loadPhotos();
+      setTimeout(() => { ind.style.display = 'none'; }, 1200);
+    }
+  }, { passive: true });
 }
 
 function _filteredPhotos() {
@@ -3103,41 +3152,41 @@ function _filteredPhotos() {
 function _renderPhotoGrid() {
   const grid = document.getElementById('photo-grid');
   const empty = document.getElementById('photo-empty');
-  const more = document.getElementById('photo-load-more');
   const list = _filteredPhotos();
   if (!list.length) {
     grid.innerHTML = '';
     empty.style.display = '';
-    more.style.display = 'none';
     return;
   }
   empty.style.display = 'none';
   _photoShown = Math.min(_photoPageSize, list.length);
   grid.innerHTML = list.slice(0, _photoShown).map((p, i) => _photoItemHtml(p, i)).join('');
-  more.style.display = _photoShown < list.length ? '' : 'none';
 }
 
 function loadMorePhotos() {
   const list = _filteredPhotos();
+  if (_photoShown >= list.length) return;
   const nextEnd = Math.min(_photoShown + _photoPageSize, list.length);
   const grid = document.getElementById('photo-grid');
-  const more = document.getElementById('photo-load-more');
   for (let i = _photoShown; i < nextEnd; i++) {
     grid.insertAdjacentHTML('beforeend', _photoItemHtml(list[i], i));
   }
   _photoShown = nextEnd;
-  more.style.display = _photoShown < list.length ? '' : 'none';
 }
 
 function _photoItemHtml(p, idx) {
   const d = p.data;
   const isVideo = d.type === 'video';
-  const thumbSrc = d.thumbUrl || d.url;
+  // 영상은 thumbUrl 없으면 이미지 태그 사용 안 함 (빈 칸 방지)
+  const thumbSrc = isVideo ? (d.thumbUrl || null) : (d.thumbUrl || d.url);
   const members = (d.members || []).join(', ');
   const cat = d.category || '';
   const catColor = {경기사진:'#2563eb',단체사진:'#059669',행사사진:'#d97706',기타:'#64748b'}[cat] || '#64748b';
+  const mediaHtml = thumbSrc
+    ? `<img src="${thumbSrc}" loading="lazy" alt="추억 사진">`
+    : `<div style="width:100%;height:100%;background:#1e293b;display:flex;align-items:center;justify-content:center"><span style="font-size:2rem;opacity:0.4">🎬</span></div>`;
   return `<div class="photo-item" onclick="openPhotoViewer(${idx})">
-    <img src="${thumbSrc}" loading="lazy" alt="추억 사진">
+    ${mediaHtml}
     ${isVideo ? `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,0.52);display:flex;align-items:center;justify-content:center"><span style="color:#fff;font-size:1rem;margin-left:3px">▶</span></div></div>` : ''}
     ${cat ? `<div style="position:absolute;top:6px;left:6px;background:${catColor};color:#fff;font-size:0.58rem;font-weight:800;padding:2px 7px;border-radius:6px">${cat}</div>` : ''}
     <div class="photo-overlay">
@@ -3206,6 +3255,7 @@ function onPhotoFileSelected(input) {
     return;
   }
   _photoUploadFile = file;
+  _photoVideoThumbBlob = null; // 캐시 초기화
   const wrap = document.getElementById('photo-preview-wrap');
   const imgEl = document.getElementById('photo-preview-img');
   const vidEl = document.getElementById('photo-preview-vid');
@@ -3218,14 +3268,13 @@ function onPhotoFileSelected(input) {
     document.getElementById('photo-drop-hint').style.display = '';
     document.getElementById('photo-drop-hint').textContent = '⏳ 첫 프레임 추출 중...';
     _extractVideoFrame(file).then(blob => {
+      _photoVideoThumbBlob = blob; // 캐시 저장 — 업로드 시 재사용
       imgEl.src = URL.createObjectURL(blob);
       imgEl.style.display = '';
       document.getElementById('photo-drop-hint').style.display = 'none';
     }).catch(() => {
-      // 캡처 실패 시 영상 엘리먼트 fallback
-      vidEl.src = URL.createObjectURL(file);
-      vidEl.style.display = '';
-      document.getElementById('photo-drop-hint').style.display = 'none';
+      document.getElementById('photo-drop-hint').textContent = '📹 영상 선택됨';
+      document.getElementById('photo-drop-hint').style.display = '';
     });
   } else {
     imgEl.src = URL.createObjectURL(file);
@@ -3332,12 +3381,12 @@ async function submitPhotoUpload() {
     const id = Date.now() + '_' + Math.random().toString(36).slice(2);
     const ext = isVideo ? 'mp4' : 'jpg';
 
-    // 1. 썸네일 생성
+    // 1. 썸네일 — 영상은 선택 시 이미 캐시됨(재사용), 이미지는 새로 생성
     btn.textContent = '썸네일 생성 중...';
     let thumbBlob = null;
     try {
       thumbBlob = isVideo
-        ? await _extractVideoFrame(_photoUploadFile)
+        ? (_photoVideoThumbBlob || await _extractVideoFrame(_photoUploadFile))
         : await _createImageThumbnail(_photoUploadFile);
     } catch(e) { /* 썸네일 실패해도 계속 진행 */ }
 
