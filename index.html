@@ -3051,9 +3051,11 @@ async function updateMatchStats(team0,team1,winner,nick0,nick1){
 }
 
 // ══ 오늘의 추억 (사진첩) ══════════════════════════════════════════
-let _photoAllItems = [];          // DB에서 불러온 전체 사진 배열 [{key,data}]
+let _photoAllItems = [];          // 로드된 사진 누적 배열 [{key,data}]
 let _photoPageSize = 20;
-let _photoShown = 0;              // 현재 표시 중인 수
+let _photoHasMore = true;         // DB에 더 가져올 항목 있는지
+let _photoOldestTs = null;        // 페이지네이션 커서 (가장 오래된 createdAt)
+let _photoLoading = false;        // 중복 요청 방지
 let _photoFilterMember = null;    // null=전체, 또는 멤버명
 let _photoFilterCategory = null;  // null=전체, 또는 카테고리
 let _photoFilterYear = '';        // '' = 전체
@@ -3075,29 +3077,59 @@ function switchMatchesTab(tab) {
   }
 }
 
-// ── 사진 목록 로드 ──────────────────────────────────────────────
-function loadPhotos() {
-  if (!db) return;
-  db.ref('jmt/photos').orderByChild('createdAt').once('value').then(snap => {
+// ── 사진 목록 로드 (서버사이드 페이지네이션) ──────────────────────
+async function loadPhotos(reset = true) {
+  if (!db || _photoLoading) return;
+  if (!reset && !_photoHasMore) return;
+  _photoLoading = true;
+  if (reset) {
+    _photoAllItems = [];
+    _photoOldestTs = null;
+    _photoHasMore = true;
+  }
+  try {
+    let q = db.ref('jmt/photos').orderByChild('createdAt').limitToLast(_photoPageSize);
+    if (_photoOldestTs !== null) {
+      q = db.ref('jmt/photos').orderByChild('createdAt').endAt(_photoOldestTs - 1).limitToLast(_photoPageSize);
+    }
+    const snap = await q.once('value');
     const val = snap.val() || {};
-    _photoAllItems = Object.entries(val)
+    const newItems = Object.entries(val)
       .map(([key, data]) => ({ key, data }))
       .sort((a, b) => (b.data.createdAt || 0) - (a.data.createdAt || 0));
-    _photoShown = 0;
-    _renderPhotoGrid();
+    if (newItems.length < _photoPageSize) _photoHasMore = false;
+    if (newItems.length) {
+      _photoOldestTs = newItems[newItems.length - 1].data.createdAt || 0;
+      if (reset) {
+        _photoAllItems = newItems;
+        _renderPhotoGrid();
+      } else {
+        const startIdx = _photoAllItems.length;
+        _photoAllItems = _photoAllItems.concat(newItems);
+        const grid = document.getElementById('photo-grid');
+        newItems.forEach((p, i) => grid.insertAdjacentHTML('beforeend', _photoItemHtml(p, startIdx + i)));
+      }
+    } else if (reset) {
+      _renderPhotoGrid(); // 빈 상태 표시
+    }
+  } catch(e) { fbErr(e); }
+  finally {
+    _photoLoading = false;
     _initPhotoScrollObserver();
-  }).catch(fbErr);
+  }
+}
+
+async function loadMorePhotos() {
+  await loadPhotos(false);
 }
 
 function _initPhotoScrollObserver() {
   if (_photoScrollObserver) _photoScrollObserver.disconnect();
+  if (!_photoHasMore) return;
   const sentinel = document.getElementById('photo-load-sentinel');
   if (!sentinel) return;
   _photoScrollObserver = new IntersectionObserver(entries => {
-    if (entries[0].isIntersecting) {
-      const list = _filteredPhotos();
-      if (_photoShown < list.length) loadMorePhotos();
-    }
+    if (entries[0].isIntersecting) loadMorePhotos();
   }, { rootMargin: '0px 0px 100px 0px', threshold: 0 });
   _photoScrollObserver.observe(sentinel);
 }
@@ -3159,19 +3191,7 @@ function _renderPhotoGrid() {
     return;
   }
   empty.style.display = 'none';
-  _photoShown = Math.min(_photoPageSize, list.length);
-  grid.innerHTML = list.slice(0, _photoShown).map((p, i) => _photoItemHtml(p, i)).join('');
-}
-
-function loadMorePhotos() {
-  const list = _filteredPhotos();
-  if (_photoShown >= list.length) return;
-  const nextEnd = Math.min(_photoShown + _photoPageSize, list.length);
-  const grid = document.getElementById('photo-grid');
-  for (let i = _photoShown; i < nextEnd; i++) {
-    grid.insertAdjacentHTML('beforeend', _photoItemHtml(list[i], i));
-  }
-  _photoShown = nextEnd;
+  grid.innerHTML = list.map((p, i) => _photoItemHtml(p, i)).join('');
 }
 
 function _photoItemHtml(p, idx) {
