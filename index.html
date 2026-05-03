@@ -3213,16 +3213,19 @@ function onPhotoFileSelected(input) {
   document.getElementById('photo-drop-hint').style.display = 'none';
   vidEl.style.display = 'none';
   if (isVideo) {
-    // 첫 프레임 캡처해서 미리보기로 표시
-    imgEl.src = '';
-    imgEl.style.display = '';
+    // 프레임 준비될 때까지 숨긴 상태로 대기
+    imgEl.style.display = 'none';
+    document.getElementById('photo-drop-hint').style.display = '';
+    document.getElementById('photo-drop-hint').textContent = '⏳ 첫 프레임 추출 중...';
     _extractVideoFrame(file).then(blob => {
       imgEl.src = URL.createObjectURL(blob);
+      imgEl.style.display = '';
+      document.getElementById('photo-drop-hint').style.display = 'none';
     }).catch(() => {
       // 캡처 실패 시 영상 엘리먼트 fallback
-      imgEl.style.display = 'none';
       vidEl.src = URL.createObjectURL(file);
       vidEl.style.display = '';
+      document.getElementById('photo-drop-hint').style.display = 'none';
     });
   } else {
     imgEl.src = URL.createObjectURL(file);
@@ -3253,21 +3256,21 @@ async function _compressImage(file) {
   });
 }
 
-// 이미지 썸네일 생성 (300px)
+// 이미지 썸네일 생성 (200px, 그리드 2열 표시에 충분)
 async function _createImageThumbnail(file) {
   return new Promise(resolve => {
     const reader = new FileReader();
     reader.onload = e => {
       const img = new Image();
       img.onload = () => {
-        const MAX = 300;
+        const MAX = 200;
         let w = img.width, h = img.height;
         if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
         else { w = Math.round(w * MAX / h); h = MAX; }
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.75);
+        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.65);
       };
       img.src = e.target.result;
     };
@@ -3288,14 +3291,14 @@ function _extractVideoFrame(file) {
     const fail = e => { if (done) return; done = true; URL.revokeObjectURL(objUrl); reject(e); };
     video.addEventListener('seeked', () => {
       try {
-        const MAX = 300;
+        const MAX = 200;
         let w = video.videoWidth || 320, h = video.videoHeight || 240;
         if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
         else { w = Math.round(w * MAX / h); h = MAX; }
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(video, 0, 0, w, h);
-        canvas.toBlob(blob => finish(blob), 'image/jpeg', 0.80);
+        canvas.toBlob(blob => finish(blob), 'image/jpeg', 0.65);
       } catch(e) { fail(e); }
     }, { once: true });
     video.addEventListener('loadedmetadata', () => {
