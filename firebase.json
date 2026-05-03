@@ -1,6 +1,24 @@
 {
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "database.rules.json",
+      "**/.*",
+      "**/node_modules/**",
+      "functions/**",
+      "*.sh",
+      "recalc-stats.js",
+      "seed-*.js",
+      "backfill-*.js"
+    ],
+    "rewrites": [{ "source": "**", "destination": "/index.html" }]
+  },
   "database": {
     "rules": "database.rules.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
   },
   "functions": [
     {

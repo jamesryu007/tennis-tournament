@@ -73,6 +73,10 @@
       "pairNicknames": {
         ".write": true
       },
+      "photos": {
+        ".write": true,
+        ".indexOn": "createdAt"
+      },
       "$other": {
         ".write": "$other !== 'atpNews'"
       }
