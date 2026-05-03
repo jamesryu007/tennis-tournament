@@ -3070,7 +3070,7 @@ function switchMatchesTab(tab) {
   document.getElementById('matches-section-game').style.display = tab === 'game' ? '' : 'none';
   document.getElementById('matches-section-memory').style.display = tab === 'memory' ? '' : 'none';
   if (tab === 'memory') {
-    loadPhotos();
+    if (!_photoAllItems.length) loadPhotos(); // 최초 1회만 — 이후 PTR로 갱신
     _initMemoryPTR();
   }
 }
