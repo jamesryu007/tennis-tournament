@@ -3184,8 +3184,21 @@ function _togglePhotoMemberChip(name) {
 function onPhotoFileSelected(input) {
   const file = input.files[0];
   if (!file) return;
-  _photoUploadFile = file;
   const isVideo = file.type.startsWith('video/');
+  const isImage = file.type.startsWith('image/');
+  // 즉시 유효성 체크
+  if (!isVideo && !isImage) {
+    alert('사진(JPG/PNG/HEIC) 또는 영상(MP4/MOV) 파일만 올릴 수 있어요.');
+    input.value = '';
+    return;
+  }
+  if (isVideo && file.size > 20 * 1024 * 1024) {
+    const mb = (file.size / 1024 / 1024).toFixed(1);
+    alert(`영상이 너무 커요 (${mb}MB). 20MB 이하의 짧은 클립을 선택해 주세요.`);
+    input.value = '';
+    return;
+  }
+  _photoUploadFile = file;
   const wrap = document.getElementById('photo-preview-wrap');
   const imgEl = document.getElementById('photo-preview-img');
   const vidEl = document.getElementById('photo-preview-vid');
