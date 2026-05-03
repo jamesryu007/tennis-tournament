@@ -1579,7 +1579,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         <div id="photo-drop-hint" style="color:#7c3aed;font-size:0.85rem;font-weight:700">📂 사진 / 영상 선택</div>
         <div style="color:#94a3b8;font-size:0.72rem;margin-top:4px">최대 10MB · 사진(JPG/PNG) 또는 영상(MP4)</div>
       </div>
-      <input type="file" id="photo-file-input" accept="image/jpeg,image/png,video/mp4,video/quicktime" style="display:none" onchange="onPhotoFileSelected(this)">
+      <input type="file" id="photo-file-input" accept="image/jpeg,image/png,image/heic,image/heif,video/*" style="display:none" onchange="onPhotoFileSelected(this)">
 
       <!-- 카테고리 -->
       <div class="field-label" style="margin-bottom:6px">구분 <span style="color:#dc2626">*</span></div>
@@ -1611,14 +1611,14 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <span class="modal-round">사진 필터</span>
       <button class="modal-close" onclick="closePhotoFilter()">✕</button>
     </div>
-    <div style="overflow-y:auto;flex:1;padding:14px 16px 24px">
+    <div style="overflow-y:auto;flex:1;padding:14px 16px 8px">
       <!-- 연도/월 -->
       <div class="field-label" style="margin-bottom:6px">날짜</div>
       <div style="display:flex;gap:8px;margin-bottom:14px">
-        <select id="pf-year" style="flex:1;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.82rem;font-family:inherit;background:#fff;color:#374151" onchange="_applyPhotoFilter()">
+        <select id="pf-year" style="flex:1;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.82rem;font-family:inherit;background:#fff;color:#374151">
           <option value="">연도 전체</option>
         </select>
-        <select id="pf-month" style="flex:1;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.82rem;font-family:inherit;background:#fff;color:#374151" onchange="_applyPhotoFilter()">
+        <select id="pf-month" style="flex:1;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.82rem;font-family:inherit;background:#fff;color:#374151">
           <option value="">월 전체</option>
           <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
           <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
@@ -1631,9 +1631,11 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px" id="photo-filter-cat-chips"></div>
       <!-- 멤버 -->
       <div class="field-label" style="margin-bottom:6px">멤버</div>
-      <div id="photo-filter-chips" style="display:flex;flex-wrap:wrap;gap:8px"></div>
-      <!-- 초기화 -->
-      <button onclick="_resetPhotoFilter()" style="margin-top:16px;width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;font-size:0.82rem;font-weight:700;color:#64748b;cursor:pointer;font-family:inherit">필터 초기화</button>
+      <div id="photo-filter-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px"></div>
+    </div>
+    <!-- 조회 버튼 (하단 고정) -->
+    <div style="padding:12px 16px max(env(safe-area-inset-bottom,0px),16px);border-top:1px solid #f1f5f9">
+      <button onclick="_applyPhotoFilterAndClose()" style="width:100%;padding:13px;background:#2563eb;color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">조회</button>
     </div>
   </div>
 </div>
@@ -3264,22 +3266,37 @@ async function submitPhotoUpload() {
 }
 
 // ── 사진 필터 ──────────────────────────────────────────────────
+// _pf* 변수: 모달 내 임시 선택값 (조회 버튼 누를 때 실제 필터로 반영)
+let _pfYear = '', _pfMonth = '', _pfCategory = null, _pfMember = null;
+
 function openPhotoFilter() {
-  // 연도 옵션: 사진 데이터에서 추출
-  const years = [...new Set(_photoAllItems.map(p => p.data.createdAt ? new Date(p.data.createdAt).getFullYear() : null).filter(Boolean))].sort((a,b)=>b-a);
+  const now = new Date();
+  // 임시값 현재 필터 상태로 초기화 (없으면 현재 연/월 기본값)
+  _pfYear     = _photoFilterYear     || String(now.getFullYear());
+  _pfMonth    = _photoFilterMonth    || String(now.getMonth() + 1);
+  _pfCategory = _photoFilterCategory;
+  _pfMember   = _photoFilterMember;
+
+  // 연도 옵션: 사진 데이터 연도 + 현재 연도 포함
+  const dataYears = [...new Set(_photoAllItems.map(p => p.data.createdAt ? new Date(p.data.createdAt).getFullYear() : null).filter(Boolean))];
+  if (!dataYears.includes(now.getFullYear())) dataYears.push(now.getFullYear());
+  dataYears.sort((a, b) => b - a);
   const yearSel = document.getElementById('pf-year');
-  yearSel.innerHTML = '<option value="">연도 전체</option>' + years.map(y => `<option value="${y}"${_photoFilterYear===String(y)?' selected':''}>${y}년</option>`).join('');
-  document.getElementById('pf-month').value = _photoFilterMonth;
+  yearSel.innerHTML = '<option value="">연도 전체</option>' + dataYears.map(y =>
+    `<option value="${y}"${_pfYear===String(y)?' selected':''}>${y}년</option>`
+  ).join('');
+
+  document.getElementById('pf-month').value = _pfMonth;
+
   // 카테고리 칩
-  const catChips = document.getElementById('photo-filter-cat-chips');
-  catChips.innerHTML = PHOTO_CATEGORIES.map(c =>
-    `<div class="member-chip${_photoFilterCategory===c?' selected':''}" onclick="_togglePhotoFilterCat('${c}')">${c}</div>`
+  document.getElementById('photo-filter-cat-chips').innerHTML = PHOTO_CATEGORIES.map(c =>
+    `<div class="member-chip${_pfCategory===c?' selected':''}" onclick="_pfToggleCat('${c}')">${c}</div>`
   ).join('');
   // 멤버 칩
-  const chips = document.getElementById('photo-filter-chips');
-  chips.innerHTML = state.members.map(m =>
-    `<div class="member-chip${_photoFilterMember===m.name?' selected':''}" onclick="_togglePhotoFilterMember('${m.name}')">${m.name}</div>`
+  document.getElementById('photo-filter-chips').innerHTML = state.members.map(m =>
+    `<div class="member-chip${_pfMember===m.name?' selected':''}" onclick="_pfToggleMember('${m.name}')">${m.name}</div>`
   ).join('');
+
   document.getElementById('photo-filter-modal').classList.add('open');
 }
 
@@ -3287,26 +3304,35 @@ function closePhotoFilter() {
   document.getElementById('photo-filter-modal').classList.remove('open');
 }
 
-function _togglePhotoFilterCat(cat) {
-  _photoFilterCategory = _photoFilterCategory === cat ? null : cat;
-  _applyPhotoFilter();
-  // 칩 UI 갱신
+// 모달 내 칩 토글 — UI만, 실제 필터 미반영
+function _pfToggleCat(cat) {
+  _pfCategory = _pfCategory === cat ? null : cat;
   document.querySelectorAll('#photo-filter-cat-chips .member-chip').forEach(el => {
-    el.classList.toggle('selected', el.textContent === _photoFilterCategory);
+    el.classList.toggle('selected', el.textContent === _pfCategory);
+  });
+}
+function _pfToggleMember(name) {
+  _pfMember = _pfMember === name ? null : name;
+  document.querySelectorAll('#photo-filter-chips .member-chip').forEach(el => {
+    el.classList.toggle('selected', el.textContent === _pfMember);
   });
 }
 
-function _togglePhotoFilterMember(name) {
-  _photoFilterMember = _photoFilterMember === name ? null : name;
-  _applyPhotoFilter();
-  document.querySelectorAll('#photo-filter-chips .member-chip').forEach(el => {
-    el.classList.toggle('selected', el.textContent === _photoFilterMember);
-  });
+// 조회 버튼 클릭 시 실제 필터 반영 + 모달 닫기
+function _applyPhotoFilterAndClose() {
+  _photoFilterYear     = document.getElementById('pf-year').value;
+  _photoFilterMonth    = document.getElementById('pf-month').value;
+  _photoFilterCategory = _pfCategory;
+  _photoFilterMember   = _pfMember;
+  closePhotoFilter();
+  _updatePhotoFilterLabel();
+  _renderPhotoGrid();
 }
 
 function _applyPhotoFilter() {
-  _photoFilterYear = document.getElementById('pf-year') ? document.getElementById('pf-year').value : _photoFilterYear;
-  _photoFilterMonth = document.getElementById('pf-month') ? document.getElementById('pf-month').value : _photoFilterMonth;
+  // 하위 호환 — 직접 호출 시 즉시 반영
+  _photoFilterYear     = document.getElementById('pf-year') ? document.getElementById('pf-year').value : _photoFilterYear;
+  _photoFilterMonth    = document.getElementById('pf-month') ? document.getElementById('pf-month').value : _photoFilterMonth;
   _updatePhotoFilterLabel();
   _renderPhotoGrid();
 }
@@ -3320,16 +3346,6 @@ function _updatePhotoFilterLabel() {
   document.getElementById('photo-filter-label').textContent = parts.length ? parts.join(' · ') : '전체';
   const btn = document.getElementById('photo-filter-btn');
   if (btn) btn.style.borderColor = parts.length ? '#2563eb' : '#e2e8f0';
-}
-
-function _resetPhotoFilter() {
-  _photoFilterMember = null;
-  _photoFilterCategory = null;
-  _photoFilterYear = '';
-  _photoFilterMonth = '';
-  closePhotoFilter();
-  _updatePhotoFilterLabel();
-  _renderPhotoGrid();
 }
 
 // ── 사진 뷰어 ──────────────────────────────────────────────────
