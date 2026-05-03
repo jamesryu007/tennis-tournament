@@ -1577,7 +1577,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           <video id="photo-preview-vid" src="" style="max-width:100%;max-height:180px;border-radius:10px;display:none" playsinline muted></video>
         </div>
         <div id="photo-drop-hint" style="color:#7c3aed;font-size:0.85rem;font-weight:700">📂 사진 / 영상 선택</div>
-        <div style="color:#94a3b8;font-size:0.72rem;margin-top:4px">최대 10MB · 사진(JPG/PNG) 또는 영상(MP4)</div>
+        <div style="color:#94a3b8;font-size:0.72rem;margin-top:4px">사진(압축 자동) · 영상 최대 20MB</div>
       </div>
       <input type="file" id="photo-file-input" accept="image/jpeg,image/png,image/heic,image/heif,video/*" style="display:none" onchange="onPhotoFileSelected(this)">
 
@@ -3237,7 +3237,7 @@ async function submitPhotoUpload() {
     const storage = firebase.storage();
     const isVideo = _photoUploadFile.type.startsWith('video/');
     if (!isVideo && _photoUploadFile.size > 20 * 1024 * 1024) throw new Error('사진 크기가 20MB를 초과합니다.');
-    if (isVideo && _photoUploadFile.size > 100 * 1024 * 1024) throw new Error('영상 크기가 100MB를 초과합니다.');
+    if (isVideo && _photoUploadFile.size > 20 * 1024 * 1024) throw new Error('영상 크기가 20MB를 초과합니다.');
     let uploadBlob = isVideo ? _photoUploadFile : await _compressImage(_photoUploadFile);
     const ext = isVideo ? 'mp4' : 'jpg';
     const path = `photos/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
