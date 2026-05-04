@@ -381,10 +381,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .member-chip { display:inline-flex;align-items:center;padding:5px 11px;border-radius:20px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:0.75rem;font-weight:600;color:#475569;cursor:pointer;user-select:none;transition:all 0.12s;-webkit-tap-highlight-color:transparent; }
 .member-chip.selected { background:#2563eb;border-color:#1d4ed8;color:#fff; }
 /* ── 사진 뷰어 풀스크린 ─────────────────────────────────────────── */
-#photo-viewer-modal { position:fixed;inset:0;background:rgba(0,0,0,0.96);z-index:10000;display:none;flex-direction:column;touch-action:manipulation; }
+#photo-viewer-modal { position:fixed;inset:0;background:rgba(0,0,0,0.96);z-index:10000;display:none;flex-direction:column;touch-action:pan-y; }
 #photo-viewer-modal.open { display:flex; }
-#pv-content { flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0 8px; }
-#pv-content img { width:100%;height:100%;object-fit:contain;border-radius:4px; }
+#pv-content { flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0 8px;touch-action:pinch-zoom; }
+#pv-content img { width:100%;height:100%;object-fit:contain;border-radius:4px;touch-action:pinch-zoom; }
 #pv-content video { width:100%;height:100%;object-fit:contain; }
 .daily-page-header { background:linear-gradient(135deg,#4c1d95,#7c3aed,#1d4ed8); border-radius:16px; padding:18px 16px 14px; margin:0 0 12px; position:relative; overflow:hidden; }
 .daily-page-header::before { content:''; position:absolute; top:-25px;right:-25px; width:90px;height:90px; background:rgba(255,255,255,0.07); border-radius:50%; pointer-events:none; }
@@ -3347,14 +3347,14 @@ async function _createImageThumbnail(file) {
       const img = new Image();
       img.onload = () => {
         const origW = img.width, origH = img.height;
-        const MAX = 200;
+        const MAX = 600;
         let w = origW, h = origH;
         if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
         else { w = Math.round(w * MAX / h); h = MAX; }
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        canvas.toBlob(blob => resolve({ blob, origW, origH }), 'image/jpeg', 0.65);
+        canvas.toBlob(blob => resolve({ blob, origW, origH }), 'image/jpeg', 0.82);
       };
       img.src = e.target.result;
     };
@@ -3375,14 +3375,14 @@ function _extractVideoFrame(file) {
     const fail = e => { if (done) return; done = true; URL.revokeObjectURL(objUrl); reject(e); };
     video.addEventListener('seeked', () => {
       try {
-        const MAX = 200;
+        const MAX = 600;
         let w = video.videoWidth || 320, h = video.videoHeight || 240;
         if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
         else { w = Math.round(w * MAX / h); h = MAX; }
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(video, 0, 0, w, h);
-        canvas.toBlob(blob => finish(blob), 'image/jpeg', 0.65);
+        canvas.toBlob(blob => finish(blob), 'image/jpeg', 0.82);
       } catch(e) { fail(e); }
     }, { once: true });
     video.addEventListener('loadedmetadata', () => {
@@ -3603,9 +3603,24 @@ function _renderViewerContent(idx) {
   const p = list[idx];
   const d = p.data;
   const isVideo = d.type === 'video';
-  document.getElementById('pv-content').innerHTML = isVideo
-    ? `<video src="${d.url}" controls playsinline poster="${d.thumbUrl || ''}" style="width:100%;height:100%;object-fit:contain"></video>`
-    : `<img src="${d.url}" alt="사진" style="width:100%;height:100%;object-fit:contain;border-radius:4px">`;
+  if (isVideo) {
+    document.getElementById('pv-content').innerHTML =
+      `<video src="${d.url}" controls playsinline poster="${d.thumbUrl || ''}" style="width:100%;height:100%;object-fit:contain"></video>`;
+  } else {
+    // 썸네일 먼저 표시 → 원본 로드 완료 시 교체
+    const pvContent = document.getElementById('pv-content');
+    const img = document.createElement('img');
+    img.alt = '사진';
+    img.style.cssText = 'width:100%;height:100%;object-fit:contain;border-radius:4px;touch-action:pinch-zoom';
+    img.src = d.thumbUrl || d.url;
+    pvContent.innerHTML = '';
+    pvContent.appendChild(img);
+    if (d.thumbUrl && d.url !== d.thumbUrl) {
+      const full = new Image();
+      full.onload = () => { if (pvContent.contains(img)) img.src = d.url; };
+      full.src = d.url;
+    }
+  }
   const dateStr = d.createdAt ? new Date(d.createdAt).toLocaleDateString('ko-KR', {year:'numeric',month:'numeric',day:'numeric'}) : '';
   const metaParts = [dateStr, d.category, (d.members||[]).join(', ')].filter(Boolean);
   document.getElementById('pv-meta').textContent = metaParts.join('  ·  ');
