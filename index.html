@@ -384,8 +384,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 #photo-viewer-modal { position:fixed;inset:0;background:rgba(0,0,0,0.96);z-index:10000;display:none;flex-direction:column;touch-action:manipulation; }
 #photo-viewer-modal.open { display:flex; }
 #pv-content { flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0 8px; }
-#pv-content img { max-width:100%;max-height:100%;object-fit:contain;border-radius:4px; }
-#pv-content video { max-width:100%;max-height:100%; }
+#pv-content img { width:100%;height:100%;object-fit:contain;border-radius:4px; }
+#pv-content video { width:100%;height:100%;object-fit:contain; }
 .daily-page-header { background:linear-gradient(135deg,#4c1d95,#7c3aed,#1d4ed8); border-radius:16px; padding:18px 16px 14px; margin:0 0 12px; position:relative; overflow:hidden; }
 .daily-page-header::before { content:''; position:absolute; top:-25px;right:-25px; width:90px;height:90px; background:rgba(255,255,255,0.07); border-radius:50%; pointer-events:none; }
 .daily-page-header::after { content:''; position:absolute; bottom:-30px;left:-10px; width:110px;height:110px; background:rgba(255,255,255,0.05); border-radius:50%; pointer-events:none; }
@@ -1654,7 +1654,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     <button id="pv-delete-btn" onclick="deleteCurrentPhoto()" style="background:rgba(220,38,38,0.7);border:none;color:#fff;font-size:0.75rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit;display:none">삭제</button>
   </div>
   <div id="pv-content"></div>
-  <div id="pv-caption" style="padding:10px 20px max(env(safe-area-inset-bottom,0px),20px);font-size:0.82rem;color:rgba(255,255,255,0.85);text-align:center;font-weight:600"></div>
+  <div id="pv-caption" style="padding:10px 20px max(env(safe-area-inset-bottom,0px),20px);font-size:1.05rem;color:#fff;text-align:center;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,0.5)"></div>
 </div>
 
 <!-- ══ PAGE: 랭킹 ══ -->
@@ -3522,8 +3522,8 @@ function _renderViewerContent(idx) {
   const d = p.data;
   const isVideo = d.type === 'video';
   document.getElementById('pv-content').innerHTML = isVideo
-    ? `<video src="${d.url}" controls playsinline poster="${d.thumbUrl || ''}" style="max-width:100%;max-height:100%"></video>`
-    : `<img src="${d.url}" alt="사진" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:4px">`;
+    ? `<video src="${d.url}" controls playsinline poster="${d.thumbUrl || ''}" style="width:100%;height:100%;object-fit:contain"></video>`
+    : `<img src="${d.url}" alt="사진" style="width:100%;height:100%;object-fit:contain;border-radius:4px">`;
   const dateStr = d.createdAt ? new Date(d.createdAt).toLocaleDateString('ko-KR', {year:'numeric',month:'numeric',day:'numeric'}) : '';
   const metaParts = [dateStr, d.category, (d.members||[]).join(', ')].filter(Boolean);
   document.getElementById('pv-meta').textContent = metaParts.join('  ·  ');
@@ -3620,9 +3620,9 @@ async function saveCurrentPhoto() {
   const isVideo = d.type === 'video';
   const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-  // iOS + 영상: 영상 요소를 꾹 눌러 저장 (fetch시 URL 이탈 문제 방지)
+  // iOS + 영상: 네이티브 영상 플레이어 공유 버튼으로 저장 안내
   if (isIos && isVideo) {
-    _pvShowToast('영상을 꾹 눌러 "비디오 저장"을 탭하세요');
+    _pvShowToast('▶ 재생 → 우하단 공유(↑) → 비디오 저장');
     return;
   }
 
