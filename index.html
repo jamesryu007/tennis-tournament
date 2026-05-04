@@ -508,6 +508,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 /* ── MODALS ── */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 100; align-items: flex-end; justify-content: center; }
 #participant-modal { z-index: 110; }
+#photo-edit-modal { z-index: 10001; }
 .modal-overlay.open { display: flex; }
 .modal { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
 .modal-sheet { background: #ffffff; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
@@ -1646,7 +1647,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 </div>
 
 <!-- ══ PHOTO VIEWER MODAL ══ -->
-<div id="photo-viewer-modal">
+<div id="photo-viewer-modal" onclick="event.stopPropagation()" ontouchstart="event.stopPropagation()">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:env(safe-area-inset-top,0px) 16px 12px;padding-top:max(env(safe-area-inset-top,0px),16px)">
     <button onclick="closePhotoViewer()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit">닫기</button>
     <div id="pv-meta" style="font-size:0.75rem;color:rgba(255,255,255,0.75);text-align:center;flex:1;padding:0 8px"></div>
