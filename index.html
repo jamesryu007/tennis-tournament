@@ -1547,8 +1547,6 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       </button>
     </div>
     <!-- 사진 그리드 -->
-    <!-- PTR 인디케이터 -->
-    <div id="memory-ptr-indicator" style="display:none;text-align:center;padding:10px 0;color:#2563eb;font-size:0.78rem;font-weight:700">새로고침 중...</div>
     <div class="photo-grid" id="photo-grid"></div>
     <!-- 무한스크롤 센티넬 -->
     <div id="photo-load-sentinel" style="height:40px"></div>
@@ -3071,10 +3069,7 @@ function switchMatchesTab(tab) {
   document.getElementById('mstab-memory').classList.toggle('active', tab === 'memory');
   document.getElementById('matches-section-game').style.display = tab === 'game' ? '' : 'none';
   document.getElementById('matches-section-memory').style.display = tab === 'memory' ? '' : 'none';
-  if (tab === 'memory') {
-    if (!_photoAllItems.length) loadPhotos(); // 최초 1회만 — 이후 PTR로 갱신
-    _initMemoryPTR();
-  }
+  if (tab === 'memory' && !_photoAllItems.length) loadPhotos(); // 최초 1회만 — 이후 PTR로 갱신
 }
 
 // ── 사진 목록 로드 (서버사이드 페이지네이션) ──────────────────────
@@ -3100,22 +3095,18 @@ async function loadPhotos(reset = true) {
     if (newItems.length < _photoPageSize) _photoHasMore = false;
     if (newItems.length) {
       _photoOldestTs = newItems[newItems.length - 1].data.createdAt || 0;
-      if (reset) {
-        _photoAllItems = newItems;
-        _renderPhotoGrid();
-      } else {
-        const startIdx = _photoAllItems.length;
-        _photoAllItems = _photoAllItems.concat(newItems);
-        const grid = document.getElementById('photo-grid');
-        newItems.forEach((p, i) => grid.insertAdjacentHTML('beforeend', _photoItemHtml(p, startIdx + i)));
-      }
-    } else if (reset) {
-      _renderPhotoGrid(); // 빈 상태 표시
+      _photoAllItems = _photoAllItems.concat(newItems);
     }
+    _renderPhotoGrid();
   } catch(e) { fbErr(e); }
   finally {
     _photoLoading = false;
-    _initPhotoScrollObserver();
+    // Observer는 reset 시에만 새로 설정, load-more 시에는 더 이상 없으면 해제만
+    if (reset) {
+      _initPhotoScrollObserver();
+    } else if (!_photoHasMore && _photoScrollObserver) {
+      _photoScrollObserver.disconnect();
+    }
   }
 }
 
@@ -3129,40 +3120,11 @@ function _initPhotoScrollObserver() {
   const sentinel = document.getElementById('photo-load-sentinel');
   if (!sentinel) return;
   _photoScrollObserver = new IntersectionObserver(entries => {
-    if (entries[0].isIntersecting) loadMorePhotos();
+    if (entries[0].isIntersecting && !_photoLoading) loadMorePhotos();
   }, { rootMargin: '0px 0px 100px 0px', threshold: 0 });
   _photoScrollObserver.observe(sentinel);
 }
 
-// ── PTR (당겨서 새로고침) ────────────────────────────────────────
-let _memPtrY0 = 0, _memPtrActive = false;
-function _initMemoryPTR() {
-  const page = document.getElementById('page-matches');
-  if (!page || page._memPtrBound) return;
-  page._memPtrBound = true;
-  page.addEventListener('touchstart', e => {
-    if (page.scrollTop === 0 && document.getElementById('matches-section-memory').style.display !== 'none') {
-      _memPtrY0 = e.touches[0].clientY;
-      _memPtrActive = true;
-    }
-  }, { passive: true });
-  page.addEventListener('touchend', () => {
-    if (!_memPtrActive) return;
-    _memPtrActive = false;
-    _memPtrY0 = 0;
-  }, { passive: true });
-  page.addEventListener('touchmove', e => {
-    if (!_memPtrActive) return;
-    const dy = e.touches[0].clientY - _memPtrY0;
-    if (dy > 70) {
-      _memPtrActive = false;
-      const ind = document.getElementById('memory-ptr-indicator');
-      ind.style.display = '';
-      loadPhotos();
-      setTimeout(() => { ind.style.display = 'none'; }, 1200);
-    }
-  }, { passive: true });
-}
 
 function _filteredPhotos() {
   return _photoAllItems.filter(p => {
@@ -3185,9 +3147,10 @@ function _renderPhotoGrid() {
   const grid = document.getElementById('photo-grid');
   const empty = document.getElementById('photo-empty');
   const list = _filteredPhotos();
+  // 빈 상태: 필터 결과 없고 DB에서도 더 가져올 게 없을 때만 표시
   if (!list.length) {
     grid.innerHTML = '';
-    empty.style.display = '';
+    empty.style.display = _photoHasMore ? 'none' : '';
     return;
   }
   empty.style.display = 'none';
@@ -14091,7 +14054,13 @@ function deleteMpHistory(pollId, event) {
   window._ptrRefreshPage = async function(pageId) {
     switch (pageId) {
       case 'matches':
-        // daily cards 강제 재로드
+        // 오늘의 추억 서브탭이면 사진 새로고침
+        if (document.getElementById('matches-section-memory') &&
+            document.getElementById('matches-section-memory').style.display !== 'none') {
+          if (typeof loadPhotos === 'function') await loadPhotos(true);
+          break;
+        }
+        // 오늘의 경기 서브탭: daily cards + 캐러셀 재로드
         if (typeof _dailyCardsListenerSet !== 'undefined') {
           _dailyCardsListenerSet = false;
           const con = document.getElementById('daily-match-cards');
@@ -14099,7 +14068,6 @@ function deleteMpHistory(pollId, event) {
           Object.keys(_dailyCards || {}).forEach(k => delete _dailyCards[k]);
           if (typeof _setupDailyCardsListener === 'function') _setupDailyCardsListener();
         }
-        // 캐러셀 재로드
         if (typeof renderRecentMatchesCarousel === 'function') await renderRecentMatchesCarousel();
         break;
 
