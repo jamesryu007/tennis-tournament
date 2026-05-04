@@ -3295,14 +3295,15 @@ async function _createImageThumbnail(file) {
     reader.onload = e => {
       const img = new Image();
       img.onload = () => {
+        const origW = img.width, origH = img.height;
         const MAX = 200;
-        let w = img.width, h = img.height;
+        let w = origW, h = origH;
         if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
         else { w = Math.round(w * MAX / h); h = MAX; }
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.65);
+        canvas.toBlob(blob => resolve({ blob, origW, origH }), 'image/jpeg', 0.65);
       };
       img.src = e.target.result;
     };
@@ -3367,10 +3368,16 @@ async function submitPhotoUpload() {
     // 1. 썸네일 — 영상은 선택 시 이미 캐시됨(재사용), 이미지는 새로 생성
     btn.textContent = '썸네일 생성 중...';
     let thumbBlob = null;
+    let imgW = null, imgH = null;
     try {
-      thumbBlob = isVideo
-        ? (_photoVideoThumbBlob || await _extractVideoFrame(_photoUploadFile))
-        : await _createImageThumbnail(_photoUploadFile);
+      if (isVideo) {
+        thumbBlob = _photoVideoThumbBlob || await _extractVideoFrame(_photoUploadFile);
+      } else {
+        const result = await _createImageThumbnail(_photoUploadFile);
+        thumbBlob = result.blob;
+        imgW = result.origW;
+        imgH = result.origH;
+      }
     } catch(e) { /* 썸네일 실패해도 계속 진행 */ }
 
     // 2. 원본 압축 (이미지만)
@@ -3413,9 +3420,12 @@ async function submitPhotoUpload() {
       uploader: (state.identity && state.identity.name) || '익명',
       createdAt: Date.now(),
       path: `photos/${id}.${ext}`,
-      thumbPath: thumbUrl ? `photos/thumbs/${id}_thumb.jpg` : null
+      thumbPath: thumbUrl ? `photos/thumbs/${id}_thumb.jpg` : null,
+      imgW: imgW || null,
+      imgH: imgH || null
     };
     await db.ref('jmt/photos').push(record);
+    _landscapePhotoCache = null; // 랭킹탭 사진 캐시 무효화
     closePhotoUpload();
     loadPhotos();
   } catch(e) {
@@ -5848,6 +5858,7 @@ function showBracketSection(type) {
 const _teamPhotos  = ['images/team1.jpeg', 'images/team2.jpeg', 'images/team3.jpeg'];
 let _lastPhotoIdx = -1;
 let _lastCheckinPhotoIdx = -1;
+let _landscapePhotoCache = null; // { list: [...], ts: timestamp }
 
 // ── 댓글/답글 입력창: 포커스 시 탭바 숨기고 버튼 바로 위에 키보드 위치 ────
 (function() {
@@ -7125,13 +7136,40 @@ setTimeout(() => {
   if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchSetupTab('bet'); bzShowRoom(); },300); }
 }, 1500);
 document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
-// 랜덤 사진 변경 함수 (탭 클릭 또는 초기 로드 시 사용)
-function changeTeamPhotoRandom() {
-  let idx;
-  do { idx = Math.floor(Math.random() * _teamPhotos.length); } while(idx === _lastPhotoIdx && _teamPhotos.length > 1);
-  _lastPhotoIdx = idx;
-  const p = document.getElementById('team-photo');
-  if(p) p.src = _teamPhotos[idx];
+// 랜덤 사진 변경 — 자.만.추. landscape 이미지 우선, 없으면 팀 사진 fallback
+async function changeTeamPhotoRandom() {
+  const el = document.getElementById('team-photo');
+  if (!el) return;
+
+  // 캐시 유효성 확인 (5분)
+  if (!_landscapePhotoCache || Date.now() - _landscapePhotoCache.ts > 300000) {
+    if (db) {
+      try {
+        const snap = await db.ref('jmt/photos').orderByChild('createdAt').limitToLast(20).once('value');
+        const list = Object.values(snap.val() || {})
+          .filter(p => p.type === 'image' && p.imgW && p.imgH && p.imgW > p.imgH && p.url);
+        _landscapePhotoCache = { list, ts: Date.now() };
+      } catch(e) {
+        _landscapePhotoCache = { list: [], ts: Date.now() };
+      }
+    } else {
+      _landscapePhotoCache = { list: [], ts: Date.now() };
+    }
+  }
+
+  const candidates = _landscapePhotoCache.list;
+  if (candidates.length > 0) {
+    let idx;
+    do { idx = Math.floor(Math.random() * candidates.length); } while(idx === _lastPhotoIdx && candidates.length > 1);
+    _lastPhotoIdx = idx;
+    el.src = candidates[idx].url;
+  } else {
+    // fallback: 기존 팀 사진
+    let idx;
+    do { idx = Math.floor(Math.random() * _teamPhotos.length); } while(idx === _lastPhotoIdx && _teamPhotos.length > 1);
+    _lastPhotoIdx = idx;
+    el.src = _teamPhotos[idx];
+  }
 }
 // 출첵 탭 사진 랜덤 변경
 function changeCheckinPhotoRandom() {
