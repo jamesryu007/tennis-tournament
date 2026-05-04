@@ -506,7 +506,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .edit-mode-notice { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; color: #1d4ed8; margin-bottom: 8px; text-align: center; }
 
 /* ── MODALS ── */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 100; align-items: flex-end; justify-content: center; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 100; align-items: flex-end; justify-content: center; overscroll-behavior: none; }
 #participant-modal { z-index: 110; }
 #photo-edit-modal { z-index: 10001; }
 .modal-overlay.open { display: flex; }
@@ -1566,7 +1566,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
 <!-- ══ PHOTO UPLOAD MODAL ══ -->
 <div class="modal-overlay" id="photo-upload-modal">
-  <div class="modal" style="max-height:90vh;display:flex;flex-direction:column;">
+  <div class="modal" style="max-height:90vh;display:flex;flex-direction:column;overscroll-behavior:contain;">
     <div class="modal-handle"></div>
     <div class="modal-header">
       <span class="modal-round">📷 사진 올리기</span>
@@ -3238,10 +3238,12 @@ function openPhotoUpload() {
     `<div class="member-chip" id="pchip-${m.name}" onclick="_togglePhotoMemberChip('${m.name}')">${m.name}</div>`
   ).join('');
   document.getElementById('photo-upload-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
 
 function closePhotoUpload() {
   document.getElementById('photo-upload-modal').classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 function _selectPhotoCategory(cat) {
