@@ -1546,9 +1546,14 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <button onclick="openPhotoFilter()" id="photo-filter-btn" style="display:flex;align-items:center;gap:5px;padding:7px 13px;border:1.5px solid #e2e8f0;border-radius:20px;background:#fff;font-size:0.78rem;font-weight:700;color:#475569;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
         <span id="photo-filter-label">필터</span> <span style="color:#94a3b8;font-size:0.7rem">▼</span>
       </button>
-      <button onclick="openPhotoUpload()" style="display:flex;align-items:center;gap:5px;padding:7px 15px;border:none;border-radius:20px;background:#2563eb;font-size:0.78rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
-        📷 사진 올리기
-      </button>
+      <div style="display:flex;gap:7px">
+        <button onclick="bzShowRoomFromMemory()" style="display:flex;align-items:center;gap:5px;padding:7px 13px;border:none;border-radius:20px;background:linear-gradient(135deg,#f59e0b,#d97706);font-size:0.78rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
+          🗣️ 톡방
+        </button>
+        <button onclick="openPhotoUpload()" style="display:flex;align-items:center;gap:5px;padding:7px 15px;border:none;border-radius:20px;background:#2563eb;font-size:0.78rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
+          📷 사진 올리기
+        </button>
+      </div>
     </div>
     <!-- 사진 그리드 -->
     <div class="photo-grid" id="photo-grid"></div>
@@ -12037,6 +12042,13 @@ function _bzPickRandomAlias() {
   return msgs[Math.floor(Math.random() * msgs.length)].alias;
 }
 
+let _bzFromMemory = false; // 자만추에서 진입한 경우 플래그
+
+function bzShowRoomFromMemory() {
+  _bzFromMemory = true;
+  bzShowRoom();
+}
+
 function bzShowRoom() {
   const myName = state.identity && state.identity.name;
   if (!myName) { alert('로그인 후 이용하세요.'); return; }
@@ -12146,7 +12158,14 @@ function bzLeaveRoom() {
     window._bzModalVpHandler = null;
   }
 
-  betShowHome();
+  if (_bzFromMemory) {
+    _bzFromMemory = false;
+    // 자만추에서 진입했으므로 자록탭 → 자만추 서브탭으로 복귀
+    switchPage('matches');
+    setTimeout(() => switchMatchesTab('memory'), 50);
+  } else {
+    betShowHome();
+  }
 }
 
 function _bzSetupAliasList() {
