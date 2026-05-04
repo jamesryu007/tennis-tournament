@@ -1502,7 +1502,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <!-- 오늘의 기록 헤더 -->
   <div class="daily-page-header">
     <div style="position:relative;display:flex;align-items:flex-end;justify-content:space-between;margin-top:10px">
-      <div class="daily-page-title">⚡ 오늘의 기록</div>
+      <div class="daily-page-title">⚡ 자록</div>
       <div id="daily-today-date" style="font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.85);white-space:nowrap;padding-bottom:2px"></div>
     </div>
     <div class="daily-page-sub">경기 결과와 오늘의 추억을 기록하세요</div>
@@ -1511,7 +1511,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <!-- 서브탭 -->
   <div class="matches-subtab-bar">
     <button class="matches-subtab active" id="mstab-game" onclick="switchMatchesTab('game')">오늘의 경기</button>
-    <button class="matches-subtab" id="mstab-memory" onclick="switchMatchesTab('memory')">오늘의 추억</button>
+    <button class="matches-subtab" id="mstab-memory" onclick="switchMatchesTab('memory')">자.만.추.</button>
   </div>
 
   <!-- ── 오늘의 경기 섹션 ── -->
@@ -1650,6 +1650,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <div style="display:flex;align-items:center;justify-content:space-between;padding:env(safe-area-inset-top,0px) 16px 12px;padding-top:max(env(safe-area-inset-top,0px),16px)">
     <button onclick="closePhotoViewer()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit">닫기</button>
     <div id="pv-meta" style="font-size:0.75rem;color:rgba(255,255,255,0.75);text-align:center;flex:1;padding:0 8px"></div>
+    <a id="pv-save-btn" target="_blank" rel="noopener" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:0.75rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit;text-decoration:none;display:none">저장</a>
     <button id="pv-delete-btn" onclick="deleteCurrentPhoto()" style="background:rgba(220,38,38,0.7);border:none;color:#fff;font-size:0.75rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit;display:none">삭제</button>
   </div>
   <div id="pv-content"></div>
@@ -2085,7 +2086,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     <span class="ni">✋</span><span>출첵</span>
   </div>
   <div class="nav-item" id="nav-matches" onclick="switchPage('matches')">
-    <span class="ni">⚡</span><span>오늘의기록</span>
+    <span class="ni">⚡</span><span>자록</span>
   </div>
   <div class="nav-item" id="nav-setup" onclick="switchPage('setup')">
     <span class="ni">🏆</span><span>행모</span>
@@ -3512,6 +3513,8 @@ function _updatePhotoFilterLabel() {
 }
 
 // ── 사진 뷰어 ──────────────────────────────────────────────────
+let _pvSwipeX0 = 0, _pvSwipeY0 = 0;
+
 function openPhotoViewer(idx) {
   const list = _filteredPhotos();
   if (idx < 0 || idx >= list.length) return;
@@ -3519,17 +3522,21 @@ function openPhotoViewer(idx) {
   const p = list[idx];
   const d = p.data;
   const isVideo = d.type === 'video';
+  const pvModal = document.getElementById('photo-viewer-modal');
   document.getElementById('pv-content').innerHTML = isVideo
     ? `<video src="${d.url}" controls playsinline style="max-width:100%;max-height:100%"></video>`
-    : `<img src="${d.url}" alt="사진">`;
+    : `<img src="${d.url}" alt="사진" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:4px">`;
   const dateStr = d.createdAt ? new Date(d.createdAt).toLocaleDateString('ko-KR', {year:'numeric',month:'numeric',day:'numeric'}) : '';
   const metaParts = [dateStr, d.category, (d.members||[]).join(', ')].filter(Boolean);
   document.getElementById('pv-meta').textContent = metaParts.join('  ·  ');
   document.getElementById('pv-caption').textContent = d.memo || '';
   const me = (state.identity && state.identity.name) || '';
-  const pvDel = document.getElementById('pv-delete-btn');
-  pvDel.style.display = (me === d.uploader || me === 'Admin' || me === '유지원') ? '' : 'none';
-  document.getElementById('photo-viewer-modal').classList.add('open');
+  document.getElementById('pv-delete-btn').style.display =
+    (me === d.uploader || me === '유지원') ? '' : 'none';
+  // 저장 버튼: 새 탭에서 원본 열기 (iOS 사진 저장)
+  const saveBtn = document.getElementById('pv-save-btn');
+  if (saveBtn) { saveBtn.href = d.url; saveBtn.style.display = ''; }
+  pvModal.classList.add('open');
 }
 
 function closePhotoViewer() {
@@ -3537,6 +3544,32 @@ function closePhotoViewer() {
   if (vid) vid.pause();
   document.getElementById('photo-viewer-modal').classList.remove('open');
 }
+
+// 뷰어 스와이프 — 좌우로 다음/이전 이미지
+(function() {
+  function onPvTouchStart(e) {
+    _pvSwipeX0 = e.touches[0].clientX;
+    _pvSwipeY0 = e.touches[0].clientY;
+  }
+  function onPvTouchEnd(e) {
+    const dx = e.changedTouches[0].clientX - _pvSwipeX0;
+    const dy = e.changedTouches[0].clientY - _pvSwipeY0;
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
+    const list = _filteredPhotos();
+    if (dx < 0 && _photoViewerIdx < list.length - 1) {
+      openPhotoViewer(_photoViewerIdx + 1); // 왼쪽 → 다음
+    } else if (dx > 0 && _photoViewerIdx > 0) {
+      openPhotoViewer(_photoViewerIdx - 1); // 오른쪽 → 이전
+    }
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    const pv = document.getElementById('photo-viewer-modal');
+    if (pv) {
+      pv.addEventListener('touchstart', onPvTouchStart, { passive: true });
+      pv.addEventListener('touchend', onPvTouchEnd, { passive: true });
+    }
+  });
+})();
 
 async function deleteCurrentPhoto() {
   const list = _filteredPhotos();
@@ -5877,6 +5910,9 @@ function switchPage(id) {
     changeCheckinPhotoRandom();
   }
   if(id === 'matches') {
+    // 금/토/일(0,5,6): 오늘의 경기 우선, 그 외: 자.만.추. 우선
+    const _dow = new Date().getDay();
+    switchMatchesTab((_dow === 0 || _dow === 5 || _dow === 6) ? 'game' : 'memory');
     if(state.currentHistoryId) {
       const t = visibleMatchTab();
       if(state.tournaments[t]) renderTournament(t);
@@ -13761,8 +13797,10 @@ function deleteMpHistory(pollId, event) {
   // ── 터치를 무시할 영역 판별 ───────────────────────────────────
   function shouldIgnore(target) {
     const bz = document.getElementById('bet-screen-banzige');
+    const pv = document.getElementById('photo-viewer-modal');
     return !!(
       (bz && bz.style.position === 'fixed') ||
+      (pv && pv.classList.contains('open')) ||
       document.querySelector('.modal-overlay.open') ||
       document.getElementById('logo-popup').style.display === 'flex' ||
       target.closest('.carousel-container') ||
