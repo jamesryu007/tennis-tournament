@@ -1503,10 +1503,13 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <!-- 오늘의 기록 헤더 -->
   <div class="daily-page-header">
     <div style="position:relative;display:flex;align-items:flex-end;justify-content:space-between;margin-top:10px">
-      <div class="daily-page-title">⚡ 자록</div>
+      <div style="display:flex;align-items:baseline;gap:10px">
+        <div class="daily-page-title">⚡ 자록</div>
+        <div style="font-size:0.95rem;font-weight:800;color:rgba(255,255,255,0.9);letter-spacing:0.04em;text-shadow:0 1px 4px rgba(0,0,0,0.2);position:relative">자미터의 기록</div>
+      </div>
       <div id="daily-today-date" style="font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.85);white-space:nowrap;padding-bottom:2px"></div>
     </div>
-    <div class="daily-page-sub">경기 결과와 오늘의 추억을 기록하세요</div>
+    <div class="daily-page-sub" style="font-size:0.8rem;margin-top:5px">오늘의 경기 결과와 자미터만의 추억을 기록하세요</div>
   </div>
 
   <!-- 서브탭 -->
