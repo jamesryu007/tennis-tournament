@@ -198,6 +198,50 @@ exports.notifyNewComment = onValueCreated(
   }
 );
 
+// ══ 자만추 사진/영상 업로드 알림 — DB 트리거 ══════════════════════
+exports.notifyPhotoUploaded = onValueCreated(
+  { ref: 'jmt/photos/{photoId}', region: 'asia-southeast1' },
+  async (event) => {
+    const photo = event.data.val();
+    if (!photo) return;
+    const { uploader, type, members } = photo;
+    if (!uploader) return;
+
+    // 1분 쿨다운 — 업로더별 마지막 푸시 시각 확인
+    const cooldownRef = db.ref(`jmt/photoPushCooldown/${uploader}`);
+    const cooldownSnap = await cooldownRef.once('value');
+    const lastTs = cooldownSnap.val() || 0;
+    if (Date.now() - lastTs < 60000) return; // 1분 이내면 생략
+    await cooldownRef.set(Date.now());
+
+    // FCM 토큰 전체 조회
+    const tokenSnap = await db.ref('jmt/fcmTokens').once('value');
+    const tokenData = tokenSnap.val() || {};
+    const allEntries = Object.values(tokenData).filter(v => v.token);
+
+    const isVideo = type === 'video';
+    const taggedMembers = Array.isArray(members) ? members : [];
+
+    // 태그된 멤버 → 태그 알림 (업로더 본인 제외)
+    const tagTargets = taggedMembers.filter(name => name !== uploader);
+    if (tagTargets.length > 0) {
+      const tagTokens = allEntries.filter(v => tagTargets.includes(v.name)).map(v => v.token);
+      if (tagTokens.length > 0) {
+        const tagTitle = isVideo ? `🎬 ${uploader}님이 영상에 나를 태그했어요` : `🏷️ ${uploader}님이 사진에 나를 태그했어요`;
+        await sendPush(tagTokens, tagTitle, '자만추 탭에서 확인해 보세요!', 'matches');
+      }
+    }
+
+    // 나머지 멤버 → 업로드 알림 (업로더 본인 + 태그된 멤버 제외)
+    const excludeNames = new Set([uploader, ...tagTargets]);
+    const otherTokens = allEntries.filter(v => !excludeNames.has(v.name)).map(v => v.token);
+    if (otherTokens.length > 0) {
+      const uploadTitle = isVideo ? `🎬 ${uploader}님이 영상을 올렸어요` : `📸 ${uploader}님이 사진을 올렸어요`;
+      await sendPush(otherTokens, uploadTitle, '자만추 탭에서 확인해 보세요!', 'matches');
+    }
+  }
+);
+
 // ══ 6. 답글 알림 — DB 트리거 ══════════════════════════════════════
 exports.notifyCommentReply = onValueCreated(
   { ref: 'jmt/poll/{weekId}/comments/{commentId}/replies/{replyId}', region: 'asia-southeast1' },
