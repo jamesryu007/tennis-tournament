@@ -3522,7 +3522,7 @@ function _renderViewerContent(idx) {
   const d = p.data;
   const isVideo = d.type === 'video';
   document.getElementById('pv-content').innerHTML = isVideo
-    ? `<video src="${d.url}" controls playsinline style="max-width:100%;max-height:100%"></video>`
+    ? `<video src="${d.url}" controls playsinline poster="${d.thumbUrl || ''}" style="max-width:100%;max-height:100%"></video>`
     : `<img src="${d.url}" alt="사진" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:4px">`;
   const dateStr = d.createdAt ? new Date(d.createdAt).toLocaleDateString('ko-KR', {year:'numeric',month:'numeric',day:'numeric'}) : '';
   const metaParts = [dateStr, d.category, (d.members||[]).join(', ')].filter(Boolean);
@@ -3542,22 +3542,22 @@ function openPhotoViewer(idx, dir) {
   const pvModal = document.getElementById('photo-viewer-modal');
 
   if (dir && pvModal.classList.contains('open')) {
-    // 현재 컨텐츠 슬라이드 아웃
-    pvContent.style.transition = 'transform 0.18s ease, opacity 0.18s ease';
-    pvContent.style.transform = dir === 'left' ? 'translateX(-40px)' : 'translateX(40px)';
+    // 현재 컨텐츠 슬라이드 아웃 (스케일 + 이동 + 페이드)
+    pvContent.style.transition = 'transform 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease';
+    pvContent.style.transform = dir === 'left' ? 'translateX(-110px) scale(0.92)' : 'translateX(110px) scale(0.92)';
     pvContent.style.opacity = '0';
     setTimeout(() => {
       _renderViewerContent(idx);
       // 반대편에서 슬라이드 인
       pvContent.style.transition = 'none';
-      pvContent.style.transform = dir === 'left' ? 'translateX(40px)' : 'translateX(-40px)';
+      pvContent.style.transform = dir === 'left' ? 'translateX(110px) scale(0.92)' : 'translateX(-110px) scale(0.92)';
       pvContent.style.opacity = '0';
       requestAnimationFrame(() => requestAnimationFrame(() => {
-        pvContent.style.transition = 'transform 0.18s ease, opacity 0.18s ease';
-        pvContent.style.transform = 'translateX(0)';
+        pvContent.style.transition = 'transform 0.25s cubic-bezier(0.2,0,0,1), opacity 0.25s ease';
+        pvContent.style.transform = 'translateX(0) scale(1)';
         pvContent.style.opacity = '1';
       }));
-    }, 160);
+    }, 190);
   } else {
     pvContent.style.transition = 'none';
     pvContent.style.transform = 'translateX(0)';
@@ -3618,6 +3618,14 @@ async function saveCurrentPhoto() {
   if (_photoViewerIdx < 0 || _photoViewerIdx >= list.length) return;
   const d = list[_photoViewerIdx].data;
   const isVideo = d.type === 'video';
+  const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  // iOS + 영상: 영상 요소를 꾹 눌러 저장 (fetch시 URL 이탈 문제 방지)
+  if (isIos && isVideo) {
+    _pvShowToast('영상을 꾹 눌러 "비디오 저장"을 탭하세요');
+    return;
+  }
+
   const ext = isVideo ? 'mp4' : 'jpg';
   const mimeType = isVideo ? 'video/mp4' : 'image/jpeg';
   const fileName = `jamite_${Date.now()}.${ext}`;
@@ -3642,9 +3650,7 @@ async function saveCurrentPhoto() {
     if (e.name === 'AbortError') {
       _pvShowToast('저장 취소됨');
     } else {
-      // 제스처 만료 등 fallback — 새 탭에서 열기
-      window.open(d.url, '_blank');
-      _pvShowToast('새 탭에서 길게 눌러 저장하세요');
+      _pvShowToast('저장 실패 — 영상을 꾹 눌러 저장해보세요');
     }
   }
 }
