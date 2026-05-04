@@ -3238,12 +3238,19 @@ function openPhotoUpload() {
     `<div class="member-chip" id="pchip-${m.name}" onclick="_togglePhotoMemberChip('${m.name}')">${m.name}</div>`
   ).join('');
   document.getElementById('photo-upload-modal').classList.add('open');
-  document.body.style.overflow = 'hidden';
+  // iOS PWA 키보드 오픈 시 배경 비침 방지
+  document.querySelectorAll('.page.active').forEach(p => {
+    p.dataset.puHidden = '1';
+    p.style.visibility = 'hidden';
+  });
 }
 
 function closePhotoUpload() {
   document.getElementById('photo-upload-modal').classList.remove('open');
-  document.body.style.overflow = '';
+  document.querySelectorAll('.page[data-pu-hidden]').forEach(p => {
+    p.style.visibility = '';
+    delete p.dataset.puHidden;
+  });
 }
 
 function _selectPhotoCategory(cat) {
