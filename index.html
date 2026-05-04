@@ -12183,10 +12183,12 @@ function bzShowRoom() {
         _bzIsHoriz = Math.abs(dx) > Math.abs(dy) * 1.1 && dx > 0;
       }
       if (!_bzIsHoriz) return;
+      // 수평 스와이프 확정 — 수직 스크롤 차단 (비틀림 방지)
+      ev.preventDefault();
       _bzDragging = true;
       modal.style.transition = 'none';
       modal.style.transform = `translateX(${dx}px)`;
-    }, { passive: true });
+    }, { passive: false });
 
     const doSnapBack = () => {
       modal.style.transition = 'transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)';
