@@ -7303,7 +7303,7 @@ async function changeTeamPhotoRandom() {
         _landscapePhotoCache = { list: [], ts: Date.now() };
       }
     } else {
-      _landscapePhotoCache = { list: [], ts: Date.now() };
+      // db 미초기화 상태 — 캐시 저장 안 함, 추후 재시도
     }
   }
 
@@ -7340,6 +7340,7 @@ changeCheckinPhotoRandom();
       firebase.initializeApp(firebaseConfig);
       db = firebase.database();
       setupFirebaseListeners(); // 리스너가 초기 데이터 로드 + 렌더링 처리
+      changeTeamPhotoRandom(); // db 초기화 후 랜드스케이프 사진 재로드
     } else {
       // ── localStorage 폴백 모드 (Firebase 미설정) ───────────────
       setConnStatus(false);
