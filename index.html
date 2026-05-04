@@ -1650,10 +1650,37 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <div style="display:flex;align-items:center;justify-content:space-between;padding:env(safe-area-inset-top,0px) 16px 12px;padding-top:max(env(safe-area-inset-top,0px),16px)">
     <button onclick="closePhotoViewer()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit">닫기</button>
     <div id="pv-meta" style="font-size:0.75rem;color:rgba(255,255,255,0.75);text-align:center;flex:1;padding:0 8px"></div>
+    <button id="pv-edit-btn" onclick="openPhotoEdit()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:0.75rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit;display:none;margin-right:6px">수정</button>
     <button id="pv-delete-btn" onclick="deleteCurrentPhoto()" style="background:rgba(220,38,38,0.7);border:none;color:#fff;font-size:0.75rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit;display:none">삭제</button>
   </div>
   <div id="pv-content"></div>
   <div id="pv-caption" style="padding:10px 20px max(env(safe-area-inset-bottom,0px),20px);font-size:1.05rem;color:#fff;text-align:center;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,0.5)"></div>
+</div>
+
+<!-- ══ PHOTO EDIT MODAL ══ -->
+<div class="modal-overlay" id="photo-edit-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-round">사진 정보 수정</span>
+      <button class="modal-close" onclick="closePhotoEdit()">✕</button>
+    </div>
+    <div style="padding:14px 16px 24px">
+      <div style="margin-bottom:14px">
+        <div style="font-size:0.78rem;font-weight:700;color:#475569;margin-bottom:8px">분류 <span style="color:#dc2626">*</span></div>
+        <div id="pe-category-chips" style="display:flex;flex-wrap:wrap;gap:7px"></div>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:0.78rem;font-weight:700;color:#475569;margin-bottom:8px">멤버 (선택)</div>
+        <div id="pe-member-chips" style="display:flex;flex-wrap:wrap;gap:7px"></div>
+      </div>
+      <div style="margin-bottom:16px">
+        <div style="font-size:0.78rem;font-weight:700;color:#475569;margin-bottom:8px">한줄 메모 (선택)</div>
+        <input id="pe-memo-input" type="text" maxlength="60" placeholder="짧은 메모..." style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.9rem;font-family:inherit;outline:none">
+      </div>
+      <button onclick="submitPhotoEdit()" style="width:100%;padding:13px;background:#2563eb;color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit">저장</button>
+    </div>
+  </div>
 </div>
 
 <!-- ══ PAGE: 랭킹 ══ -->
@@ -3542,6 +3569,7 @@ function _renderViewerContent(idx) {
   const me = (state.identity && state.identity.name) || '';
   document.getElementById('pv-delete-btn').style.display =
     (me === d.uploader || me === '유지원') ? '' : 'none';
+  document.getElementById('pv-edit-btn').style.display = isManager() ? '' : 'none';
 }
 
 function openPhotoViewer(idx, dir) {
@@ -3582,16 +3610,24 @@ function closePhotoViewer() {
   document.getElementById('photo-viewer-modal').classList.remove('open');
 }
 
-// 뷰어 스와이프 — 좌우로 다음/이전 이미지
+// 뷰어 스와이프 — 좌우로 다음/이전 이미지 (핀치줌 중에는 무시)
+let _pvIsPinch = false;
 (function() {
   function onPvTouchStart(e) {
+    _pvIsPinch = e.touches.length > 1;
+    if (_pvIsPinch) return;
     _pvSwipeX0 = e.touches[0].clientX;
     _pvSwipeY0 = e.touches[0].clientY;
   }
+  function onPvTouchMove(e) {
+    if (e.touches.length > 1) _pvIsPinch = true; // 도중에 핀치 발생 감지
+  }
   function onPvTouchEnd(e) {
+    if (_pvIsPinch) { _pvIsPinch = false; return; }
     const dx = e.changedTouches[0].clientX - _pvSwipeX0;
     const dy = e.changedTouches[0].clientY - _pvSwipeY0;
-    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
+    // 120px 이상 + 수평 이동이 수직의 2배 이상이어야 전환
+    if (Math.abs(dx) < 120 || Math.abs(dx) < Math.abs(dy) * 2) return;
     const list = _filteredPhotos();
     if (dx < 0 && _photoViewerIdx < list.length - 1) {
       openPhotoViewer(_photoViewerIdx + 1, 'left'); // 왼쪽 → 다음
@@ -3603,11 +3639,71 @@ function closePhotoViewer() {
     const pv = document.getElementById('photo-viewer-modal');
     if (pv) {
       pv.addEventListener('touchstart', onPvTouchStart, { passive: true });
+      pv.addEventListener('touchmove', onPvTouchMove, { passive: true });
       pv.addEventListener('touchend', onPvTouchEnd, { passive: true });
     }
   });
 })();
 
+
+// ── 사진 수정 (관리자) ───────────────────────────────────────────
+let _photoEditKey = null;
+let _peCategory = null;
+
+function openPhotoEdit() {
+  const list = _filteredPhotos();
+  if (_photoViewerIdx < 0 || _photoViewerIdx >= list.length) return;
+  const p = list[_photoViewerIdx];
+  _photoEditKey = p.key;
+  const d = p.data;
+
+  // 분류 칩 렌더링
+  _peCategory = d.category || null;
+  document.getElementById('pe-category-chips').innerHTML = PHOTO_CATEGORIES.map(c =>
+    `<span class="member-chip${c === _peCategory ? ' selected' : ''}" onclick="_peSelectCategory('${c}')">${c}</span>`
+  ).join('');
+
+  // 멤버 칩 렌더링
+  const members = d.members || [];
+  const allMembers = [...(state.members || []).map(m => m.name), ...(state.guests || []).map(g => g.name)].filter(Boolean);
+  document.getElementById('pe-member-chips').innerHTML = allMembers.map(name =>
+    `<span class="member-chip${members.includes(name) ? ' selected' : ''}" onclick="this.classList.toggle('selected')">${name}</span>`
+  ).join('');
+
+  document.getElementById('pe-memo-input').value = d.memo || '';
+  document.getElementById('photo-edit-modal').classList.add('open');
+}
+
+function _peSelectCategory(cat) {
+  _peCategory = cat;
+  document.querySelectorAll('#pe-category-chips .member-chip').forEach(el => {
+    el.classList.toggle('selected', el.textContent === cat);
+  });
+}
+
+function closePhotoEdit() {
+  document.getElementById('photo-edit-modal').classList.remove('open');
+}
+
+async function submitPhotoEdit() {
+  if (!_photoEditKey) return;
+  if (!_peCategory) { alert('분류를 선택해주세요.'); return; }
+  const selectedMembers = Array.from(document.querySelectorAll('#pe-member-chips .member-chip.selected')).map(el => el.textContent);
+  const memo = document.getElementById('pe-memo-input').value.trim();
+  try {
+    await db.ref('jmt/photos/' + _photoEditKey).update({
+      category: _peCategory,
+      members: selectedMembers.length ? selectedMembers : null,
+      memo: memo || null
+    });
+    closePhotoEdit();
+    // 뷰어 메타 즉시 갱신
+    document.getElementById('pv-caption').textContent = memo;
+    loadPhotos();
+  } catch(e) {
+    alert('수정 실패: ' + (e.message || e));
+  }
+}
 
 async function deleteCurrentPhoto() {
   const list = _filteredPhotos();
@@ -13876,7 +13972,8 @@ function deleteMpHistory(pollId, event) {
       target.closest('#atp-draw-content') ||
       target.closest('#bet-screen-setup') ||
       target.closest('#bet-screen-bomb-setup') ||
-      target.closest('#bet-screen-ladder-setup')
+      target.closest('#bet-screen-ladder-setup') ||
+      target.closest('#photo-edit-modal')
     );
   }
 
