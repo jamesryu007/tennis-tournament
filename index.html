@@ -1659,9 +1659,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <!-- ══ PAGE: 랭킹 ══ -->
 <div class="page active" id="page-history">
   <!-- 모임 사진 프레임 (탭하면 랜덤 변경) -->
-  <div onclick="changeTeamPhotoRandom()" style="margin-bottom:14px;border-radius:18px;overflow:hidden;box-shadow:0 4px 20px rgba(37,99,235,0.13),0 1px 4px rgba(0,0,0,0.08);background:#fff;border:1px solid #e2e8f0;cursor:pointer;-webkit-tap-highlight-color:transparent">
+  <div onclick="changeTeamPhotoRandom()" style="margin-bottom:14px;border-radius:18px;overflow:hidden;box-shadow:0 4px 20px rgba(37,99,235,0.13),0 1px 4px rgba(0,0,0,0.08);background:#111827;border:1px solid #e2e8f0;cursor:pointer;-webkit-tap-highlight-color:transparent">
     <div style="position:relative;">
-      <img id="team-photo" src="" alt="자미터 테니스 모임" style="width:100%;display:block;max-height:220px;object-fit:cover;object-position:center top;">
+      <img id="team-photo" src="" alt="자미터 테니스 모임" style="width:100%;display:block;height:220px;object-fit:contain;object-position:center center;">
       <div style="position:absolute;bottom:0;left:0;right:0;height:72px;background:linear-gradient(to top,rgba(15,23,42,0.72),transparent);pointer-events:none;"></div>
       <div style="position:absolute;bottom:0;left:0;right:0;padding:10px 14px;">
         <div style="color:#fff;font-size:0.82rem;font-weight:700;letter-spacing:0.3px;text-shadow:0 1px 4px rgba(0,0,0,0.4)">🎾 자미터 테니스</div>
@@ -3427,6 +3427,8 @@ async function submitPhotoUpload() {
     await db.ref('jmt/photos').push(record);
     _landscapePhotoCache = null; // 랭킹탭 사진 캐시 무효화
     closePhotoUpload();
+    switchMatchesTab('memory');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     loadPhotos();
   } catch(e) {
     alert('업로드 실패: ' + (e.message || e));
