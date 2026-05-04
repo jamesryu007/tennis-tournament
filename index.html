@@ -1650,7 +1650,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <div style="display:flex;align-items:center;justify-content:space-between;padding:env(safe-area-inset-top,0px) 16px 12px;padding-top:max(env(safe-area-inset-top,0px),16px)">
     <button onclick="closePhotoViewer()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit">닫기</button>
     <div id="pv-meta" style="font-size:0.75rem;color:rgba(255,255,255,0.75);text-align:center;flex:1;padding:0 8px"></div>
-    <a id="pv-save-btn" target="_blank" rel="noopener" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:0.75rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit;text-decoration:none;display:none">저장</a>
+    <button id="pv-save-btn" onclick="saveCurrentPhoto()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:0.75rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit;display:none">저장</button>
     <button id="pv-delete-btn" onclick="deleteCurrentPhoto()" style="background:rgba(220,38,38,0.7);border:none;color:#fff;font-size:0.75rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit;display:none">삭제</button>
   </div>
   <div id="pv-content"></div>
@@ -3515,14 +3515,12 @@ function _updatePhotoFilterLabel() {
 // ── 사진 뷰어 ──────────────────────────────────────────────────
 let _pvSwipeX0 = 0, _pvSwipeY0 = 0;
 
-function openPhotoViewer(idx) {
+function _renderViewerContent(idx) {
   const list = _filteredPhotos();
-  if (idx < 0 || idx >= list.length) return;
   _photoViewerIdx = idx;
   const p = list[idx];
   const d = p.data;
   const isVideo = d.type === 'video';
-  const pvModal = document.getElementById('photo-viewer-modal');
   document.getElementById('pv-content').innerHTML = isVideo
     ? `<video src="${d.url}" controls playsinline style="max-width:100%;max-height:100%"></video>`
     : `<img src="${d.url}" alt="사진" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:4px">`;
@@ -3533,10 +3531,40 @@ function openPhotoViewer(idx) {
   const me = (state.identity && state.identity.name) || '';
   document.getElementById('pv-delete-btn').style.display =
     (me === d.uploader || me === '유지원') ? '' : 'none';
-  // 저장 버튼: 새 탭에서 원본 열기 (iOS 사진 저장)
   const saveBtn = document.getElementById('pv-save-btn');
-  if (saveBtn) { saveBtn.href = d.url; saveBtn.style.display = ''; }
-  pvModal.classList.add('open');
+  if (saveBtn) saveBtn.style.display = '';
+}
+
+function openPhotoViewer(idx, dir) {
+  const list = _filteredPhotos();
+  if (idx < 0 || idx >= list.length) return;
+  const pvContent = document.getElementById('pv-content');
+  const pvModal = document.getElementById('photo-viewer-modal');
+
+  if (dir && pvModal.classList.contains('open')) {
+    // 현재 컨텐츠 슬라이드 아웃
+    pvContent.style.transition = 'transform 0.18s ease, opacity 0.18s ease';
+    pvContent.style.transform = dir === 'left' ? 'translateX(-40px)' : 'translateX(40px)';
+    pvContent.style.opacity = '0';
+    setTimeout(() => {
+      _renderViewerContent(idx);
+      // 반대편에서 슬라이드 인
+      pvContent.style.transition = 'none';
+      pvContent.style.transform = dir === 'left' ? 'translateX(40px)' : 'translateX(-40px)';
+      pvContent.style.opacity = '0';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        pvContent.style.transition = 'transform 0.18s ease, opacity 0.18s ease';
+        pvContent.style.transform = 'translateX(0)';
+        pvContent.style.opacity = '1';
+      }));
+    }, 160);
+  } else {
+    pvContent.style.transition = 'none';
+    pvContent.style.transform = 'translateX(0)';
+    pvContent.style.opacity = '1';
+    _renderViewerContent(idx);
+    pvModal.classList.add('open');
+  }
 }
 
 function closePhotoViewer() {
@@ -3557,9 +3585,9 @@ function closePhotoViewer() {
     if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
     const list = _filteredPhotos();
     if (dx < 0 && _photoViewerIdx < list.length - 1) {
-      openPhotoViewer(_photoViewerIdx + 1); // 왼쪽 → 다음
+      openPhotoViewer(_photoViewerIdx + 1, 'left'); // 왼쪽 → 다음
     } else if (dx > 0 && _photoViewerIdx > 0) {
-      openPhotoViewer(_photoViewerIdx - 1); // 오른쪽 → 이전
+      openPhotoViewer(_photoViewerIdx - 1, 'right'); // 오른쪽 → 이전
     }
   }
   document.addEventListener('DOMContentLoaded', () => {
@@ -3570,6 +3598,56 @@ function closePhotoViewer() {
     }
   });
 })();
+
+function _pvShowToast(msg) {
+  let el = document.getElementById('pv-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'pv-toast';
+    el.style.cssText = 'position:fixed;bottom:110px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:10px 22px;border-radius:20px;font-size:0.88rem;z-index:10001;pointer-events:none;white-space:nowrap;transition:opacity 0.4s';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.opacity = '0'; }, 1800);
+}
+
+async function saveCurrentPhoto() {
+  const list = _filteredPhotos();
+  if (_photoViewerIdx < 0 || _photoViewerIdx >= list.length) return;
+  const d = list[_photoViewerIdx].data;
+  const isVideo = d.type === 'video';
+  const ext = isVideo ? 'mp4' : 'jpg';
+  const mimeType = isVideo ? 'video/mp4' : 'image/jpeg';
+  const fileName = `jamite_${Date.now()}.${ext}`;
+  _pvShowToast('저장 중...');
+  try {
+    const resp = await fetch(d.url);
+    const blob = await resp.blob();
+    const file = new File([blob], fileName, { type: blob.type || mimeType });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: '자미터 추억' });
+      _pvShowToast('저장 완료!');
+    } else {
+      // Android/데스크탑: 다운로드 링크
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl; a.download = fileName;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+      _pvShowToast('저장 완료!');
+    }
+  } catch(e) {
+    if (e.name === 'AbortError') {
+      _pvShowToast('저장 취소됨');
+    } else {
+      // 제스처 만료 등 fallback — 새 탭에서 열기
+      window.open(d.url, '_blank');
+      _pvShowToast('새 탭에서 길게 눌러 저장하세요');
+    }
+  }
+}
 
 async function deleteCurrentPhoto() {
   const list = _filteredPhotos();
