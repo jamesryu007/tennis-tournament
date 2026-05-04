@@ -1544,7 +1544,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     <!-- 필터 + 업로드 액션 바 -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:0 12px 10px">
       <button onclick="openPhotoFilter()" id="photo-filter-btn" style="display:flex;align-items:center;gap:5px;padding:7px 13px;border:1.5px solid #e2e8f0;border-radius:20px;background:#fff;font-size:0.78rem;font-weight:700;color:#475569;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
-        <span id="photo-filter-label">전체</span> <span style="color:#94a3b8;font-size:0.7rem">▼</span>
+        <span id="photo-filter-label">필터</span> <span style="color:#94a3b8;font-size:0.7rem">▼</span>
       </button>
       <button onclick="openPhotoUpload()" style="display:flex;align-items:center;gap:5px;padding:7px 15px;border:none;border-radius:20px;background:#2563eb;font-size:0.78rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
         📷 사진 올리기
@@ -1586,9 +1586,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <!-- 카테고리 -->
       <div class="field-label" style="margin-bottom:6px">구분 <span style="color:#dc2626">*</span></div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px" id="photo-category-chips">
-        <div class="member-chip selected" id="pcat-경기사진" onclick="_selectPhotoCategory('경기사진')">경기사진</div>
-        <div class="member-chip" id="pcat-단체사진" onclick="_selectPhotoCategory('단체사진')">단체사진</div>
-        <div class="member-chip" id="pcat-행사사진" onclick="_selectPhotoCategory('행사사진')">행사사진</div>
+        <div class="member-chip selected" id="pcat-모임" onclick="_selectPhotoCategory('모임')">모임</div>
+        <div class="member-chip" id="pcat-단체" onclick="_selectPhotoCategory('단체')">단체</div>
+        <div class="member-chip" id="pcat-경기" onclick="_selectPhotoCategory('경기')">경기</div>
         <div class="member-chip" id="pcat-기타" onclick="_selectPhotoCategory('기타')">기타</div>
       </div>
 
@@ -3093,7 +3093,7 @@ let _photoViewerIdx = -1;         // 현재 뷰어에서 보고 있는 인덱스
 let _photoUploadFile = null;      // 업로드 선택 파일
 let _photoVideoThumbBlob = null;  // 영상 선택 시 캡처한 첫프레임 (재사용)
 let _photoScrollObserver = null;  // IntersectionObserver
-const PHOTO_CATEGORIES = ['경기사진', '단체사진', '행사사진', '기타'];
+const PHOTO_CATEGORIES = ['모임', '단체', '경기', '기타'];
 
 function switchMatchesTab(tab) {
   document.getElementById('mstab-game').classList.toggle('active', tab === 'game');
@@ -3195,7 +3195,7 @@ function _photoItemHtml(p, idx) {
   const thumbSrc = isVideo ? (d.thumbUrl || null) : (d.thumbUrl || d.url);
   const members = (d.members || []).join(', ');
   const cat = d.category || '';
-  const catColor = {경기사진:'#2563eb',단체사진:'#059669',행사사진:'#d97706',기타:'#64748b'}[cat] || '#64748b';
+  const catColor = {모임:'#d97706',단체:'#059669',경기:'#2563eb',기타:'#64748b'}[cat] || '#64748b';
   const mediaHtml = thumbSrc
     ? `<img src="${thumbSrc}" loading="lazy" alt="추억 사진">`
     : `<div style="width:100%;height:100%;background:#1e293b;display:flex;align-items:center;justify-content:center"><span style="font-size:2rem;opacity:0.4">🎬</span></div>`;
@@ -3218,8 +3218,8 @@ function openPhotoUpload() {
   document.getElementById('photo-preview-vid').style.display = 'none';
   document.getElementById('photo-drop-hint').style.display = '';
   document.getElementById('photo-memo-input').value = '';
-  // 카테고리 칩 초기화 (경기사진 기본 선택)
-  _selectPhotoCategory('경기사진');
+  // 카테고리 칩 초기화 (모임 기본 선택)
+  _selectPhotoCategory('모임');
   // 멤버 칩 렌더링
   const chips = document.getElementById('photo-member-chips');
   chips.innerHTML = state.members.map(m =>
@@ -3569,7 +3569,7 @@ function _updatePhotoFilterLabel() {
   if (_photoFilterMonth) parts.push(_photoFilterMonth + '월');
   if (_photoFilterCategory) parts.push(_photoFilterCategory);
   if (_photoFilterMember) parts.push(_photoFilterMember);
-  document.getElementById('photo-filter-label').textContent = parts.length ? parts.join(' · ') : '전체';
+  document.getElementById('photo-filter-label').textContent = parts.length ? parts.join(' · ') : '필터';
   const btn = document.getElementById('photo-filter-btn');
   if (btn) btn.style.borderColor = parts.length ? '#2563eb' : '#e2e8f0';
 }
