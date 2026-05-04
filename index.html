@@ -1080,10 +1080,6 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div id="bet-home-header" style="margin-bottom:20px">
         <div style="background:#fff;border-radius:14px;border:1.5px solid #e2e8f0;padding:8px;box-shadow:0 2px 10px rgba(0,0,0,0.06)">
           <div style="font-size:0.65rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;text-align:center;padding:2px 0 7px;border-bottom:1px solid #f1f5f9;margin-bottom:7px">🎲 내기 게임 선택</div>
-          <button onclick="bzShowRoom()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #fde68a;background:linear-gradient(135deg,#fffbeb,#fef3c7);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
-            <span style="font-size:1.4rem">🕵️</span>
-            <div><div style="font-weight:800">막무가내 톡방</div></div>
-          </button>
           <button onclick="betShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #ede9fe;background:linear-gradient(135deg,#f5f3ff,#ede9fe);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
             <span style="font-size:1.4rem">🎈</span>
             <div><div style="font-weight:800">릴레이 풍선 터치</div><div style="font-size:0.68rem;color:#7c3aed;font-weight:600">순서대로 터치 — 끝까지 살아남아라!</div></div>
@@ -2355,7 +2351,7 @@ function applyLastFinished(data) {
       const contentEl = document.getElementById(`${type === 'ladder' ? 'ladder-panel-content' : type + '-content'}`);
       if(emptyEl) emptyEl.style.display = 'none';
       if(contentEl) contentEl.style.display = 'block';
-      renderTournament(type);
+      renderTournament(type, { noConfetti: true });
     }
   });
   return true;
