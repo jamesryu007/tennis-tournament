@@ -73,6 +73,13 @@
       "pairNicknames": {
         ".write": true
       },
+      "photos": {
+        ".write": true,
+        ".indexOn": "createdAt"
+      },
+      "videoUploadCounts": {
+        ".write": true
+      },
       "$other": {
         ".write": "$other !== 'atpNews'"
       }

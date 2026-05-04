@@ -366,6 +366,26 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .rank-detail-row { display:flex; align-items:center; gap:6px; padding:5px 0; border-bottom:1px solid rgba(186,230,253,0.6); font-size:0.78rem; }
 .rank-detail-row:last-child { border-bottom:none; }
 /* ── 오늘의 경기 페이지 헤더 ── */
+/* ── 오늘의 기록 서브탭 ─────────────────────────────────────────── */
+.matches-subtab-bar { display:flex; gap:0; background:#f1f5f9; border-radius:12px; padding:3px; margin:0 12px 10px; }
+.matches-subtab { flex:1; padding:8px 4px; border:none; background:transparent; border-radius:9px; font-size:0.82rem; font-weight:700; color:#64748b; cursor:pointer; font-family:inherit; transition:background 0.15s,color 0.15s; -webkit-tap-highlight-color:transparent; }
+.matches-subtab.active { background:#fff; color:#2563eb; box-shadow:0 1px 4px rgba(0,0,0,0.12); }
+/* ── 사진 그리드 ─────────────────────────────────────────────────── */
+.photo-grid { display:grid; grid-template-columns:1fr 1fr; gap:3px; padding:0 12px 12px; }
+.photo-item { position:relative; aspect-ratio:1; border-radius:10px; overflow:hidden; background:#f1f5f9; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+.photo-item img,.photo-item video { width:100%;height:100%;object-fit:cover;display:block; }
+.photo-item .photo-overlay { position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.55));padding:18px 6px 5px; }
+.photo-item .photo-meta { font-size:0.6rem;color:rgba(255,255,255,0.92);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.photo-item .video-badge { position:absolute;top:6px;right:6px;background:rgba(0,0,0,0.55);color:#fff;font-size:0.6rem;padding:2px 6px;border-radius:5px;font-weight:700; }
+/* ── 멤버 태그 칩 ─────────────────────────────────────────────── */
+.member-chip { display:inline-flex;align-items:center;padding:5px 11px;border-radius:20px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:0.75rem;font-weight:600;color:#475569;cursor:pointer;user-select:none;transition:all 0.12s;-webkit-tap-highlight-color:transparent; }
+.member-chip.selected { background:#2563eb;border-color:#1d4ed8;color:#fff; }
+/* ── 사진 뷰어 풀스크린 ─────────────────────────────────────────── */
+#photo-viewer-modal { position:fixed;inset:0;background:rgba(0,0,0,0.96);z-index:10000;display:none;flex-direction:column;touch-action:manipulation; }
+#photo-viewer-modal.open { display:flex; }
+#pv-content { flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0 8px; }
+#pv-content img { width:100%;height:100%;object-fit:contain;border-radius:4px; }
+#pv-content video { width:100%;height:100%;object-fit:contain; }
 .daily-page-header { background:linear-gradient(135deg,#4c1d95,#7c3aed,#1d4ed8); border-radius:16px; padding:18px 16px 14px; margin:0 0 12px; position:relative; overflow:hidden; }
 .daily-page-header::before { content:''; position:absolute; top:-25px;right:-25px; width:90px;height:90px; background:rgba(255,255,255,0.07); border-radius:50%; pointer-events:none; }
 .daily-page-header::after { content:''; position:absolute; bottom:-30px;left:-10px; width:110px;height:110px; background:rgba(255,255,255,0.05); border-radius:50%; pointer-events:none; }
@@ -488,6 +508,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 /* ── MODALS ── */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 100; align-items: flex-end; justify-content: center; }
 #participant-modal { z-index: 110; }
+#photo-edit-modal { z-index: 10001; }
 .modal-overlay.open { display: flex; }
 .modal { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
 .modal-sheet { background: #ffffff; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
@@ -649,6 +670,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="firebase-config.js"></script>
 </head>
 <body>
@@ -1476,42 +1498,201 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 
 </div>
 
-<!-- ══ PAGE: 오늘의 경기 ══ -->
+<!-- ══ PAGE: 오늘의 기록 ══ -->
 <div class="page" id="page-matches">
-  <!-- 오늘의 경기 헤더 -->
+  <!-- 오늘의 기록 헤더 -->
   <div class="daily-page-header">
     <div style="position:relative;display:flex;align-items:flex-end;justify-content:space-between;margin-top:10px">
-      <div class="daily-page-title">⚡ 오늘의 경기</div>
+      <div style="display:flex;align-items:baseline;gap:10px">
+        <div class="daily-page-title">⚡ 자록</div>
+        <div style="font-size:0.95rem;font-weight:800;color:rgba(255,255,255,0.9);letter-spacing:0.04em;text-shadow:0 1px 4px rgba(0,0,0,0.2);position:relative">자미터의 기록</div>
+      </div>
       <div id="daily-today-date" style="font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.85);white-space:nowrap;padding-bottom:2px"></div>
     </div>
-    <div class="daily-page-sub">경기를 추가하고 실시간으로 결과를 기록하세요</div>
+    <div class="daily-page-sub" style="font-size:0.8rem;margin-top:5px">오늘의 경기 결과와 자미터만의 추억을 기록하세요</div>
   </div>
 
-  <!-- 최근 경기 요약 캐러셀 -->
-  <div id="recent-matches-carousel-wrap" style="padding:0 12px 10px">
-    <div class="carousel-section-title">📅 최근 경기 요약</div>
-    <div class="carousel-container" id="recent-carousel">
-      <div class="carousel-track" id="carousel-track"></div>
-      <button class="carousel-arrow carousel-arrow-left" onclick="goCarousel((_carouselIdx-1+_carouselData.length)%Math.max(1,_carouselData.length),true)">‹</button>
-      <button class="carousel-arrow carousel-arrow-right" onclick="goCarousel((_carouselIdx+1)%Math.max(1,_carouselData.length),true)">›</button>
+  <!-- 서브탭 -->
+  <div class="matches-subtab-bar">
+    <button class="matches-subtab active" id="mstab-game" onclick="switchMatchesTab('game')">오늘의 경기</button>
+    <button class="matches-subtab" id="mstab-memory" onclick="switchMatchesTab('memory')">자.만.추.</button>
+  </div>
+
+  <!-- ── 오늘의 경기 섹션 ── -->
+  <div id="matches-section-game">
+    <!-- 최근 경기 요약 캐러셀 -->
+    <div id="recent-matches-carousel-wrap" style="padding:0 12px 10px">
+      <div class="carousel-section-title">📅 최근 경기 요약</div>
+      <div class="carousel-container" id="recent-carousel">
+        <div class="carousel-track" id="carousel-track"></div>
+        <button class="carousel-arrow carousel-arrow-left" onclick="goCarousel((_carouselIdx-1+_carouselData.length)%Math.max(1,_carouselData.length),true)">‹</button>
+        <button class="carousel-arrow carousel-arrow-right" onclick="goCarousel((_carouselIdx+1)%Math.max(1,_carouselData.length),true)">›</button>
+      </div>
+      <div class="carousel-dots" id="carousel-dots"></div>
     </div>
-    <div class="carousel-dots" id="carousel-dots"></div>
+
+    <!-- 경기 안내 + 추가 -->
+    <div id="match-panel-daily" style="padding:4px 12px 0">
+      <div id="daily-guide-row" style="text-align:center;padding:10px 0 8px;color:#94a3b8;font-size:0.82rem;font-weight:600;letter-spacing:0.02em">🎾 오늘의 멋진 경기를 만드세요</div>
+      <button class="daily-add-btn" onclick="addDailyMatchCard()">⊕</button>
+      <div id="daily-match-cards"></div>
+    </div>
   </div>
 
-  <!-- 경기 안내 + 추가 -->
-  <div id="match-panel-daily" style="padding:4px 12px 0">
-    <div id="daily-guide-row" style="text-align:center;padding:10px 0 8px;color:#94a3b8;font-size:0.82rem;font-weight:600;letter-spacing:0.02em">🎾 오늘의 멋진 경기를 만드세요</div>
-    <button class="daily-add-btn" onclick="addDailyMatchCard()">⊕</button>
-    <div id="daily-match-cards"></div>
+  <!-- ── 오늘의 추억 섹션 ── -->
+  <div id="matches-section-memory" style="display:none">
+    <!-- 필터 + 업로드 액션 바 -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:0 12px 10px">
+      <button onclick="openPhotoFilter()" id="photo-filter-btn" style="display:flex;align-items:center;gap:5px;padding:7px 13px;border:1.5px solid #e2e8f0;border-radius:20px;background:#fff;font-size:0.78rem;font-weight:700;color:#475569;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
+        <span id="photo-filter-label">필터</span> <span style="color:#94a3b8;font-size:0.7rem">▼</span>
+      </button>
+      <button onclick="openPhotoUpload()" style="display:flex;align-items:center;gap:5px;padding:7px 15px;border:none;border-radius:20px;background:#2563eb;font-size:0.78rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
+        📷 사진 올리기
+      </button>
+    </div>
+    <!-- 사진 그리드 -->
+    <div class="photo-grid" id="photo-grid"></div>
+    <!-- 무한스크롤 센티넬 -->
+    <div id="photo-load-sentinel" style="height:40px"></div>
+    <!-- 빈 상태 -->
+    <div id="photo-empty" style="display:none;text-align:center;padding:40px 0;color:#94a3b8;font-size:0.85rem;font-weight:600">
+      <div style="font-size:2.5rem;margin-bottom:8px">📸</div>
+      아직 올라온 사진이 없어요<br>
+      <span style="font-size:0.75rem">첫 번째 추억을 기록해 보세요</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PHOTO UPLOAD MODAL ══ -->
+<div class="modal-overlay" id="photo-upload-modal">
+  <div class="modal" style="max-height:90vh;display:flex;flex-direction:column;">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-round">📷 사진 올리기</span>
+      <button class="modal-close" onclick="closePhotoUpload()">✕</button>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding:14px 16px 24px">
+      <!-- 파일 선택 -->
+      <div id="photo-drop-area" onclick="document.getElementById('photo-file-input').click()" style="border:2px dashed #c7d2fe;border-radius:14px;padding:28px 16px;text-align:center;cursor:pointer;background:#f5f7ff;margin-bottom:14px;-webkit-tap-highlight-color:transparent">
+        <div id="photo-preview-wrap" style="display:none;margin-bottom:10px">
+          <img id="photo-preview-img" src="" style="max-width:100%;max-height:180px;object-fit:contain;border-radius:10px;display:none">
+          <video id="photo-preview-vid" src="" style="max-width:100%;max-height:180px;border-radius:10px;display:none" playsinline muted></video>
+        </div>
+        <div id="photo-drop-hint" style="color:#7c3aed;font-size:0.85rem;font-weight:700">📂 사진 / 영상 선택</div>
+        <div style="color:#94a3b8;font-size:0.72rem;margin-top:4px">사진(압축 자동) · 영상 최대 20MB</div>
+      </div>
+      <input type="file" id="photo-file-input" accept="image/jpeg,image/png,image/heic,image/heif,video/*" style="display:none" onchange="onPhotoFileSelected(this)">
+
+      <!-- 카테고리 -->
+      <div class="field-label" style="margin-bottom:6px">구분 <span style="color:#dc2626">*</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px" id="photo-category-chips">
+        <div class="member-chip selected" id="pcat-모임" onclick="_selectPhotoCategory('모임')">모임</div>
+        <div class="member-chip" id="pcat-단체" onclick="_selectPhotoCategory('단체')">단체</div>
+        <div class="member-chip" id="pcat-경기" onclick="_selectPhotoCategory('경기')">경기</div>
+        <div class="member-chip" id="pcat-기타" onclick="_selectPhotoCategory('기타')">기타</div>
+      </div>
+
+      <!-- 인원 태그 -->
+      <div class="field-label" style="margin-bottom:6px">함께한 멤버 <span style="color:#94a3b8;font-size:0.7rem">(선택)</span></div>
+      <div id="photo-member-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px"></div>
+
+      <!-- 메모 -->
+      <div class="field-label" style="margin-bottom:4px">한 줄 메모 <span style="color:#94a3b8;font-size:0.7rem">(선택)</span></div>
+      <input type="text" id="photo-memo-input" placeholder="오늘의 한 마디..." maxlength="50" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.85rem;font-family:inherit;outline:none">
+
+      <!-- 업로드 진행률 -->
+      <div id="photo-upload-progress" style="display:none;margin-top:12px">
+        <div style="background:#e2e8f0;border-radius:99px;height:6px;overflow:hidden">
+          <div id="photo-upload-bar" style="height:100%;background:#2563eb;width:0%;transition:width 0.3s ease;border-radius:99px"></div>
+        </div>
+        <div id="photo-upload-pct" style="text-align:center;font-size:0.75rem;color:#2563eb;margin-top:5px;font-weight:700"></div>
+      </div>
+      <button onclick="submitPhotoUpload()" id="photo-submit-btn" style="width:100%;margin-top:12px;padding:13px;background:#2563eb;color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">올리기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PHOTO FILTER MODAL ══ -->
+<div class="modal-overlay" id="photo-filter-modal">
+  <div class="modal" style="max-height:80vh;display:flex;flex-direction:column;">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-round">사진 필터</span>
+      <button class="modal-close" onclick="closePhotoFilter()">✕</button>
+    </div>
+    <div style="overflow-y:auto;flex:1;padding:14px 16px 8px">
+      <!-- 연도/월 -->
+      <div class="field-label" style="margin-bottom:6px">날짜</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <select id="pf-year" style="flex:1;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.82rem;font-family:inherit;background:#fff;color:#374151">
+          <option value="">연도 전체</option>
+        </select>
+        <select id="pf-month" style="flex:1;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.82rem;font-family:inherit;background:#fff;color:#374151">
+          <option value="">월 전체</option>
+          <option value="1">1월</option><option value="2">2월</option><option value="3">3월</option>
+          <option value="4">4월</option><option value="5">5월</option><option value="6">6월</option>
+          <option value="7">7월</option><option value="8">8월</option><option value="9">9월</option>
+          <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+        </select>
+      </div>
+      <!-- 카테고리 -->
+      <div class="field-label" style="margin-bottom:6px">구분</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px" id="photo-filter-cat-chips"></div>
+      <!-- 멤버 -->
+      <div class="field-label" style="margin-bottom:6px">멤버</div>
+      <div id="photo-filter-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px"></div>
+    </div>
+    <!-- 조회 버튼 (하단 고정) -->
+    <div style="padding:12px 16px max(env(safe-area-inset-bottom,0px),16px);border-top:1px solid #f1f5f9">
+      <button onclick="_applyPhotoFilterAndClose()" style="width:100%;padding:13px;background:#2563eb;color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">조회</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PHOTO VIEWER MODAL ══ -->
+<div id="photo-viewer-modal" onclick="event.stopPropagation()" ontouchstart="event.stopPropagation()">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:env(safe-area-inset-top,0px) 16px 12px;padding-top:max(env(safe-area-inset-top,0px),16px)">
+    <button onclick="closePhotoViewer()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit">닫기</button>
+    <div id="pv-meta" style="font-size:0.75rem;color:rgba(255,255,255,0.75);text-align:center;flex:1;padding:0 8px"></div>
+    <button id="pv-edit-btn" onclick="openPhotoEdit()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:0.75rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit;display:none;margin-right:6px">수정</button>
+    <button id="pv-delete-btn" onclick="deleteCurrentPhoto()" style="background:rgba(220,38,38,0.7);border:none;color:#fff;font-size:0.75rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit;display:none">삭제</button>
+  </div>
+  <div id="pv-content"></div>
+  <div id="pv-caption" style="padding:10px 20px max(env(safe-area-inset-bottom,0px),20px);font-size:1.05rem;color:#fff;text-align:center;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,0.5)"></div>
+</div>
+
+<!-- ══ PHOTO EDIT MODAL ══ -->
+<div class="modal-overlay" id="photo-edit-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-round">사진 정보 수정</span>
+      <button class="modal-close" onclick="closePhotoEdit()">✕</button>
+    </div>
+    <div style="padding:14px 16px 24px">
+      <div style="margin-bottom:14px">
+        <div style="font-size:0.78rem;font-weight:700;color:#475569;margin-bottom:8px">분류 <span style="color:#dc2626">*</span></div>
+        <div id="pe-category-chips" style="display:flex;flex-wrap:wrap;gap:7px"></div>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:0.78rem;font-weight:700;color:#475569;margin-bottom:8px">멤버 (선택)</div>
+        <div id="pe-member-chips" style="display:flex;flex-wrap:wrap;gap:7px"></div>
+      </div>
+      <div style="margin-bottom:16px">
+        <div style="font-size:0.78rem;font-weight:700;color:#475569;margin-bottom:8px">한줄 메모 (선택)</div>
+        <input id="pe-memo-input" type="text" maxlength="60" placeholder="짧은 메모..." style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:0.9rem;font-family:inherit;outline:none">
+      </div>
+      <button onclick="submitPhotoEdit()" style="width:100%;padding:13px;background:#2563eb;color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit">저장</button>
+    </div>
   </div>
 </div>
 
 <!-- ══ PAGE: 랭킹 ══ -->
 <div class="page active" id="page-history">
   <!-- 모임 사진 프레임 (탭하면 랜덤 변경) -->
-  <div onclick="changeTeamPhotoRandom()" style="margin-bottom:14px;border-radius:18px;overflow:hidden;box-shadow:0 4px 20px rgba(37,99,235,0.13),0 1px 4px rgba(0,0,0,0.08);background:#fff;border:1px solid #e2e8f0;cursor:pointer;-webkit-tap-highlight-color:transparent">
+  <div onclick="changeTeamPhotoRandom()" style="margin-bottom:14px;border-radius:18px;overflow:hidden;box-shadow:0 4px 20px rgba(37,99,235,0.13),0 1px 4px rgba(0,0,0,0.08);background:#111827;border:1px solid #e2e8f0;cursor:pointer;-webkit-tap-highlight-color:transparent">
     <div style="position:relative;">
-      <img id="team-photo" src="" alt="자미터 테니스 모임" style="width:100%;display:block;max-height:220px;object-fit:cover;object-position:center top;">
+      <img id="team-photo" src="" alt="자미터 테니스 모임" style="width:100%;display:block;height:220px;object-fit:contain;object-position:center center;">
       <div style="position:absolute;bottom:0;left:0;right:0;height:72px;background:linear-gradient(to top,rgba(15,23,42,0.72),transparent);pointer-events:none;"></div>
       <div style="position:absolute;bottom:0;left:0;right:0;padding:10px 14px;">
         <div style="color:#fff;font-size:0.82rem;font-weight:700;letter-spacing:0.3px;text-shadow:0 1px 4px rgba(0,0,0,0.4)">🎾 자미터 테니스</div>
@@ -1935,7 +2116,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
     <span class="ni">✋</span><span>출첵</span>
   </div>
   <div class="nav-item" id="nav-matches" onclick="switchPage('matches')">
-    <span class="ni">⚡</span><span>오늘의경기</span>
+    <span class="ni">⚡</span><span>자록</span>
   </div>
   <div class="nav-item" id="nav-setup" onclick="switchPage('setup')">
     <span class="ni">🏆</span><span>행모</span>
@@ -2896,6 +3077,685 @@ async function updateMatchStats(team0,team1,winner,nick0,nick1){
     u[`jmt/playerMatchups/${yr}/${p1}/${p0}/wins`]=INC(w1);u[`jmt/playerMatchups/${yr}/${p1}/${p0}/losses`]=INC(w0);u[`jmt/playerMatchups/${yr}/${p1}/${p0}/draws`]=INC(dr);
   }
   await db.ref().update(u).catch(fbErr);
+}
+
+// ══ 오늘의 추억 (사진첩) ══════════════════════════════════════════
+let _photoAllItems = [];          // 로드된 사진 누적 배열 [{key,data}]
+let _photoPageSize = 20;
+let _photoHasMore = true;         // DB에 더 가져올 항목 있는지
+let _photoOldestTs = null;        // 페이지네이션 커서 (가장 오래된 createdAt)
+let _photoLatestTs = null;        // PTR 최적화: 마지막으로 동기화된 최신 createdAt
+let _photoLoading = false;        // 중복 요청 방지
+let _photoFilterMember = null;    // null=전체, 또는 멤버명
+let _photoFilterCategory = null;  // null=전체, 또는 카테고리
+let _photoFilterYear = '';        // '' = 전체
+let _photoFilterMonth = '';       // '' = 전체
+let _photoViewerIdx = -1;         // 현재 뷰어에서 보고 있는 인덱스
+let _photoUploadFile = null;      // 업로드 선택 파일
+let _photoVideoThumbBlob = null;  // 영상 선택 시 캡처한 첫프레임 (재사용)
+let _photoScrollObserver = null;  // IntersectionObserver
+const PHOTO_CATEGORIES = ['모임', '단체', '경기', '기타'];
+
+function switchMatchesTab(tab) {
+  document.getElementById('mstab-game').classList.toggle('active', tab === 'game');
+  document.getElementById('mstab-memory').classList.toggle('active', tab === 'memory');
+  document.getElementById('matches-section-game').style.display = tab === 'game' ? '' : 'none';
+  document.getElementById('matches-section-memory').style.display = tab === 'memory' ? '' : 'none';
+  if (tab === 'memory' && !_photoAllItems.length) loadPhotos(); // 최초 1회만 — 이후 PTR로 갱신
+}
+
+// ── 사진 목록 로드 (서버사이드 페이지네이션) ──────────────────────
+async function loadPhotos(reset = true) {
+  if (!db || _photoLoading) return;
+  if (!reset && !_photoHasMore) return;
+  _photoLoading = true;
+  if (reset) {
+    _photoAllItems = [];
+    _photoOldestTs = null;
+    _photoHasMore = true;
+  }
+  try {
+    let q = db.ref('jmt/photos').orderByChild('createdAt').limitToLast(_photoPageSize);
+    if (_photoOldestTs !== null) {
+      q = db.ref('jmt/photos').orderByChild('createdAt').endAt(_photoOldestTs - 1).limitToLast(_photoPageSize);
+    }
+    const snap = await q.once('value');
+    const val = snap.val() || {};
+    const newItems = Object.entries(val)
+      .map(([key, data]) => ({ key, data }))
+      .sort((a, b) => (b.data.createdAt || 0) - (a.data.createdAt || 0));
+    if (newItems.length < _photoPageSize) _photoHasMore = false;
+    if (newItems.length) {
+      _photoOldestTs = newItems[newItems.length - 1].data.createdAt || 0;
+      _photoAllItems = _photoAllItems.concat(newItems);
+    }
+    // PTR 최적화: reset 시 최신 타임스탬프 갱신
+    if (reset && _photoAllItems.length) {
+      _photoLatestTs = _photoAllItems[0].data.createdAt || null;
+    }
+    _renderPhotoGrid();
+  } catch(e) { fbErr(e); }
+  finally {
+    _photoLoading = false;
+    // Observer는 reset 시에만 새로 설정, load-more 시에는 더 이상 없으면 해제만
+    if (reset) {
+      _initPhotoScrollObserver();
+    } else if (!_photoHasMore && _photoScrollObserver) {
+      _photoScrollObserver.disconnect();
+    }
+  }
+}
+
+async function loadMorePhotos() {
+  await loadPhotos(false);
+}
+
+function _initPhotoScrollObserver() {
+  if (_photoScrollObserver) _photoScrollObserver.disconnect();
+  if (!_photoHasMore) return;
+  const sentinel = document.getElementById('photo-load-sentinel');
+  if (!sentinel) return;
+  _photoScrollObserver = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting && !_photoLoading) loadMorePhotos();
+  }, { rootMargin: '0px 0px 100px 0px', threshold: 0 });
+  _photoScrollObserver.observe(sentinel);
+}
+
+
+function _filteredPhotos() {
+  return _photoAllItems.filter(p => {
+    const d = p.data;
+    if (_photoFilterMember && !(Array.isArray(d.members) && d.members.includes(_photoFilterMember))) return false;
+    if (_photoFilterCategory && d.category !== _photoFilterCategory) return false;
+    if (_photoFilterYear) {
+      const y = d.createdAt ? new Date(d.createdAt).getFullYear() : 0;
+      if (String(y) !== _photoFilterYear) return false;
+    }
+    if (_photoFilterMonth) {
+      const mo = d.createdAt ? new Date(d.createdAt).getMonth() + 1 : 0;
+      if (String(mo) !== _photoFilterMonth) return false;
+    }
+    return true;
+  });
+}
+
+function _renderPhotoGrid() {
+  const grid = document.getElementById('photo-grid');
+  const empty = document.getElementById('photo-empty');
+  const list = _filteredPhotos();
+  // 빈 상태: 필터 결과 없고 DB에서도 더 가져올 게 없을 때만 표시
+  if (!list.length) {
+    grid.innerHTML = '';
+    empty.style.display = _photoHasMore ? 'none' : '';
+    return;
+  }
+  empty.style.display = 'none';
+  grid.innerHTML = list.map((p, i) => _photoItemHtml(p, i)).join('');
+}
+
+function _photoItemHtml(p, idx) {
+  const d = p.data;
+  const isVideo = d.type === 'video';
+  // 영상은 thumbUrl 없으면 이미지 태그 사용 안 함 (빈 칸 방지)
+  const thumbSrc = isVideo ? (d.thumbUrl || null) : (d.thumbUrl || d.url);
+  const members = (d.members || []).join(', ');
+  const cat = d.category || '';
+  const catColor = {모임:'#d97706',단체:'#059669',경기:'#2563eb',기타:'#64748b'}[cat] || '#64748b';
+  const mediaHtml = thumbSrc
+    ? `<img src="${thumbSrc}" loading="lazy" alt="추억 사진">`
+    : `<div style="width:100%;height:100%;background:#1e293b;display:flex;align-items:center;justify-content:center"><span style="font-size:2rem;opacity:0.4">🎬</span></div>`;
+  return `<div class="photo-item" onclick="openPhotoViewer(${idx})">
+    ${mediaHtml}
+    ${isVideo ? `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none"><div style="width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,0.52);display:flex;align-items:center;justify-content:center"><span style="color:#fff;font-size:1rem;margin-left:3px">▶</span></div></div>` : ''}
+    ${cat ? `<div style="position:absolute;top:6px;left:6px;background:${catColor};color:#fff;font-size:0.58rem;font-weight:800;padding:2px 7px;border-radius:6px">${cat}</div>` : ''}
+    <div class="photo-overlay">
+      <div class="photo-meta">${members || ''}</div>
+    </div>
+  </div>`;
+}
+
+// ── 사진 업로드 모달 ──────────────────────────────────────────────
+function openPhotoUpload() {
+  _photoUploadFile = null;
+  document.getElementById('photo-file-input').value = '';
+  document.getElementById('photo-preview-wrap').style.display = 'none';
+  document.getElementById('photo-preview-img').style.display = 'none';
+  document.getElementById('photo-preview-vid').style.display = 'none';
+  document.getElementById('photo-drop-hint').style.display = '';
+  document.getElementById('photo-memo-input').value = '';
+  // 카테고리 칩 초기화 (모임 기본 선택)
+  _selectPhotoCategory('모임');
+  // 멤버 칩 렌더링
+  const chips = document.getElementById('photo-member-chips');
+  chips.innerHTML = state.members.map(m =>
+    `<div class="member-chip" id="pchip-${m.name}" onclick="_togglePhotoMemberChip('${m.name}')">${m.name}</div>`
+  ).join('');
+  document.getElementById('photo-upload-modal').classList.add('open');
+}
+
+function closePhotoUpload() {
+  document.getElementById('photo-upload-modal').classList.remove('open');
+}
+
+function _selectPhotoCategory(cat) {
+  PHOTO_CATEGORIES.forEach(c => {
+    const el = document.getElementById('pcat-' + c);
+    if (el) el.classList.toggle('selected', c === cat);
+  });
+}
+
+function _getSelectedCategory() {
+  return PHOTO_CATEGORIES.find(c => {
+    const el = document.getElementById('pcat-' + c);
+    return el && el.classList.contains('selected');
+  }) || '기타';
+}
+
+function _togglePhotoMemberChip(name) {
+  const el = document.getElementById('pchip-' + name);
+  if (el) el.classList.toggle('selected');
+}
+
+function onPhotoFileSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const isVideo = file.type.startsWith('video/');
+  const isImage = file.type.startsWith('image/');
+  // 즉시 유효성 체크
+  if (!isVideo && !isImage) {
+    alert('사진(JPG/PNG/HEIC) 또는 영상(MP4/MOV) 파일만 올릴 수 있어요.');
+    input.value = '';
+    return;
+  }
+  if (isVideo && file.size > 20 * 1024 * 1024) {
+    const mb = (file.size / 1024 / 1024).toFixed(1);
+    alert(`영상이 너무 커요 (${mb}MB). 20MB 이하의 짧은 클립을 선택해 주세요.`);
+    input.value = '';
+    return;
+  }
+  _photoUploadFile = file;
+  _photoVideoThumbBlob = null; // 캐시 초기화
+  const wrap = document.getElementById('photo-preview-wrap');
+  const imgEl = document.getElementById('photo-preview-img');
+  const vidEl = document.getElementById('photo-preview-vid');
+  wrap.style.display = '';
+  document.getElementById('photo-drop-hint').style.display = 'none';
+  vidEl.style.display = 'none';
+  if (isVideo) {
+    // 프레임 준비될 때까지 숨긴 상태로 대기
+    imgEl.style.display = 'none';
+    document.getElementById('photo-drop-hint').style.display = '';
+    document.getElementById('photo-drop-hint').textContent = '⏳ 첫 프레임 추출 중...';
+    _extractVideoFrame(file).then(blob => {
+      _photoVideoThumbBlob = blob; // 캐시 저장 — 업로드 시 재사용
+      imgEl.src = URL.createObjectURL(blob);
+      imgEl.style.display = '';
+      document.getElementById('photo-drop-hint').style.display = 'none';
+    }).catch(() => {
+      document.getElementById('photo-drop-hint').textContent = '📹 영상 선택됨';
+      document.getElementById('photo-drop-hint').style.display = '';
+    });
+  } else {
+    imgEl.src = URL.createObjectURL(file);
+    imgEl.style.display = '';
+  }
+}
+
+async function _compressImage(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1200;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.82);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// 이미지 썸네일 생성 (200px, 그리드 2열 표시에 충분)
+async function _createImageThumbnail(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const origW = img.width, origH = img.height;
+        const MAX = 200;
+        let w = origW, h = origH;
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(blob => resolve({ blob, origW, origH }), 'image/jpeg', 0.65);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// 영상 첫 프레임 캡처 → 썸네일 blob
+function _extractVideoFrame(file) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'metadata';
+    const objUrl = URL.createObjectURL(file);
+    let done = false;
+    const finish = blob => { if (done) return; done = true; URL.revokeObjectURL(objUrl); resolve(blob); };
+    const fail = e => { if (done) return; done = true; URL.revokeObjectURL(objUrl); reject(e); };
+    video.addEventListener('seeked', () => {
+      try {
+        const MAX = 200;
+        let w = video.videoWidth || 320, h = video.videoHeight || 240;
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+        canvas.toBlob(blob => finish(blob), 'image/jpeg', 0.65);
+      } catch(e) { fail(e); }
+    }, { once: true });
+    video.addEventListener('loadedmetadata', () => {
+      video.currentTime = Math.min(0.5, video.duration || 0);
+    }, { once: true });
+    video.addEventListener('error', fail, { once: true });
+    // iOS에서 loadedmetadata 안 오는 경우 대비
+    setTimeout(() => { if (!done) fail(new Error('timeout')); }, 8000);
+    video.src = objUrl;
+    video.load();
+  });
+}
+
+async function submitPhotoUpload() {
+  if (!_photoUploadFile) { alert('사진 또는 영상을 선택해 주세요.'); return; }
+  const category = _getSelectedCategory();
+  const selectedMembers = Array.from(document.querySelectorAll('#photo-member-chips .member-chip.selected')).map(el => el.textContent);
+  const memo = document.getElementById('photo-memo-input').value.trim();
+  const btn = document.getElementById('photo-submit-btn');
+  const progressWrap = document.getElementById('photo-upload-progress');
+  const progressBar = document.getElementById('photo-upload-bar');
+  const progressPct = document.getElementById('photo-upload-pct');
+  btn.disabled = true;
+  btn.textContent = '준비 중...';
+  progressWrap.style.display = '';
+  progressBar.style.width = '0%';
+  progressPct.textContent = '';
+  try {
+    const storage = firebase.storage();
+    const isVideo = _photoUploadFile.type.startsWith('video/');
+
+    // 영상 하루 전체 업로드 한도 체크 (5개/일)
+    if (isVideo) {
+      const today = new Date().toISOString().slice(0, 10);
+      const countSnap = await db.ref(`jmt/videoUploadCounts/${today}`).once('value');
+      const todayCount = countSnap.val() || 0;
+      if (todayCount >= 5) {
+        alert(`오늘 영상 업로드 한도(5개)에 도달했어요.\n내일 다시 시도해 주세요. 😊`);
+        btn.disabled = false;
+        btn.textContent = '올리기';
+        progressWrap.style.display = 'none';
+        return;
+      }
+    }
+
+    const id = Date.now() + '_' + Math.random().toString(36).slice(2);
+    const ext = isVideo ? 'mp4' : 'jpg';
+
+    // 1. 썸네일 — 영상은 선택 시 이미 캐시됨(재사용), 이미지는 새로 생성
+    btn.textContent = '썸네일 생성 중...';
+    let thumbBlob = null;
+    let imgW = null, imgH = null;
+    try {
+      if (isVideo) {
+        thumbBlob = _photoVideoThumbBlob || await _extractVideoFrame(_photoUploadFile);
+      } else {
+        const result = await _createImageThumbnail(_photoUploadFile);
+        thumbBlob = result.blob;
+        imgW = result.origW;
+        imgH = result.origH;
+      }
+    } catch(e) { /* 썸네일 실패해도 계속 진행 */ }
+
+    // 2. 원본 압축 (이미지만)
+    btn.textContent = '처리 중...';
+    const uploadBlob = isVideo ? _photoUploadFile : await _compressImage(_photoUploadFile);
+
+    // 3. 썸네일 업로드
+    let thumbUrl = null;
+    if (thumbBlob) {
+      const thumbRef = storage.ref(`photos/thumbs/${id}_thumb.jpg`);
+      await thumbRef.put(thumbBlob);
+      thumbUrl = await thumbRef.getDownloadURL();
+    }
+
+    // 4. 원본 업로드 (진행률 표시)
+    const mainRef = storage.ref(`photos/${id}.${ext}`);
+    await new Promise((resolve, reject) => {
+      const task = mainRef.put(uploadBlob);
+      task.on('state_changed',
+        snap => {
+          const pct = Math.round(snap.bytesTransferred / snap.totalBytes * 100);
+          progressBar.style.width = pct + '%';
+          progressPct.textContent = `업로드 중... ${pct}%`;
+          btn.textContent = `${pct}%`;
+        },
+        reject,
+        resolve
+      );
+    });
+    const url = await mainRef.getDownloadURL();
+
+    // 5. DB 저장
+    const record = {
+      url,
+      thumbUrl: thumbUrl || url,
+      type: isVideo ? 'video' : 'image',
+      category,
+      members: selectedMembers.length ? selectedMembers : null,
+      memo: memo || null,
+      uploader: (state.identity && state.identity.name) || '익명',
+      createdAt: Date.now(),
+      path: `photos/${id}.${ext}`,
+      thumbPath: thumbUrl ? `photos/thumbs/${id}_thumb.jpg` : null,
+      imgW: imgW || null,
+      imgH: imgH || null
+    };
+    await db.ref('jmt/photos').push(record);
+    // 영상이면 일일 카운터 증가
+    if (isVideo) {
+      const today = new Date().toISOString().slice(0, 10);
+      db.ref(`jmt/videoUploadCounts/${today}`).transaction(n => (n || 0) + 1).catch(() => {});
+    }
+    _landscapePhotoCache = null; // 랭킹탭 사진 캐시 무효화
+    closePhotoUpload();
+    switchMatchesTab('memory');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    loadPhotos();
+  } catch(e) {
+    alert('업로드 실패: ' + (e.message || e));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '올리기';
+    progressWrap.style.display = 'none';
+    progressBar.style.width = '0%';
+  }
+}
+
+// ── 사진 필터 ──────────────────────────────────────────────────
+// _pf* 변수: 모달 내 임시 선택값 (조회 버튼 누를 때 실제 필터로 반영)
+let _pfYear = '', _pfMonth = '', _pfCategory = null, _pfMember = null;
+
+function openPhotoFilter() {
+  const now = new Date();
+  // 임시값 현재 필터 상태로 초기화 (없으면 현재 연/월 기본값)
+  _pfYear     = _photoFilterYear     || String(now.getFullYear());
+  _pfMonth    = _photoFilterMonth    || String(now.getMonth() + 1);
+  _pfCategory = _photoFilterCategory;
+  _pfMember   = _photoFilterMember;
+
+  // 연도 옵션: 사진 데이터 연도 + 현재 연도 포함
+  const dataYears = [...new Set(_photoAllItems.map(p => p.data.createdAt ? new Date(p.data.createdAt).getFullYear() : null).filter(Boolean))];
+  if (!dataYears.includes(now.getFullYear())) dataYears.push(now.getFullYear());
+  dataYears.sort((a, b) => b - a);
+  const yearSel = document.getElementById('pf-year');
+  yearSel.innerHTML = '<option value="">연도 전체</option>' + dataYears.map(y =>
+    `<option value="${y}"${_pfYear===String(y)?' selected':''}>${y}년</option>`
+  ).join('');
+
+  document.getElementById('pf-month').value = _pfMonth;
+
+  // 카테고리 칩
+  document.getElementById('photo-filter-cat-chips').innerHTML = PHOTO_CATEGORIES.map(c =>
+    `<div class="member-chip${_pfCategory===c?' selected':''}" onclick="_pfToggleCat('${c}')">${c}</div>`
+  ).join('');
+  // 멤버 칩
+  document.getElementById('photo-filter-chips').innerHTML = state.members.map(m =>
+    `<div class="member-chip${_pfMember===m.name?' selected':''}" onclick="_pfToggleMember('${m.name}')">${m.name}</div>`
+  ).join('');
+
+  document.getElementById('photo-filter-modal').classList.add('open');
+}
+
+function closePhotoFilter() {
+  document.getElementById('photo-filter-modal').classList.remove('open');
+}
+
+// 모달 내 칩 토글 — UI만, 실제 필터 미반영
+function _pfToggleCat(cat) {
+  _pfCategory = _pfCategory === cat ? null : cat;
+  document.querySelectorAll('#photo-filter-cat-chips .member-chip').forEach(el => {
+    el.classList.toggle('selected', el.textContent === _pfCategory);
+  });
+}
+function _pfToggleMember(name) {
+  _pfMember = _pfMember === name ? null : name;
+  document.querySelectorAll('#photo-filter-chips .member-chip').forEach(el => {
+    el.classList.toggle('selected', el.textContent === _pfMember);
+  });
+}
+
+// 조회 버튼 클릭 시 실제 필터 반영 + 모달 닫기
+function _applyPhotoFilterAndClose() {
+  _photoFilterYear     = document.getElementById('pf-year').value;
+  _photoFilterMonth    = document.getElementById('pf-month').value;
+  _photoFilterCategory = _pfCategory;
+  _photoFilterMember   = _pfMember;
+  closePhotoFilter();
+  _updatePhotoFilterLabel();
+  _renderPhotoGrid();
+}
+
+function _applyPhotoFilter() {
+  // 하위 호환 — 직접 호출 시 즉시 반영
+  _photoFilterYear     = document.getElementById('pf-year') ? document.getElementById('pf-year').value : _photoFilterYear;
+  _photoFilterMonth    = document.getElementById('pf-month') ? document.getElementById('pf-month').value : _photoFilterMonth;
+  _updatePhotoFilterLabel();
+  _renderPhotoGrid();
+}
+
+function _updatePhotoFilterLabel() {
+  const parts = [];
+  if (_photoFilterYear) parts.push(_photoFilterYear + '년');
+  if (_photoFilterMonth) parts.push(_photoFilterMonth + '월');
+  if (_photoFilterCategory) parts.push(_photoFilterCategory);
+  if (_photoFilterMember) parts.push(_photoFilterMember);
+  document.getElementById('photo-filter-label').textContent = parts.length ? parts.join(' · ') : '필터';
+  const btn = document.getElementById('photo-filter-btn');
+  if (btn) btn.style.borderColor = parts.length ? '#2563eb' : '#e2e8f0';
+}
+
+// ── 사진 뷰어 ──────────────────────────────────────────────────
+let _pvSwipeX0 = 0, _pvSwipeY0 = 0;
+
+function _renderViewerContent(idx) {
+  const list = _filteredPhotos();
+  _photoViewerIdx = idx;
+  const p = list[idx];
+  const d = p.data;
+  const isVideo = d.type === 'video';
+  document.getElementById('pv-content').innerHTML = isVideo
+    ? `<video src="${d.url}" controls playsinline poster="${d.thumbUrl || ''}" style="width:100%;height:100%;object-fit:contain"></video>`
+    : `<img src="${d.url}" alt="사진" style="width:100%;height:100%;object-fit:contain;border-radius:4px">`;
+  const dateStr = d.createdAt ? new Date(d.createdAt).toLocaleDateString('ko-KR', {year:'numeric',month:'numeric',day:'numeric'}) : '';
+  const metaParts = [dateStr, d.category, (d.members||[]).join(', ')].filter(Boolean);
+  document.getElementById('pv-meta').textContent = metaParts.join('  ·  ');
+  document.getElementById('pv-caption').textContent = d.memo || '';
+  const me = (state.identity && state.identity.name) || '';
+  document.getElementById('pv-delete-btn').style.display =
+    (me === d.uploader || me === '유지원') ? '' : 'none';
+  document.getElementById('pv-edit-btn').style.display = isManager() ? '' : 'none';
+}
+
+function openPhotoViewer(idx, dir) {
+  const list = _filteredPhotos();
+  if (idx < 0 || idx >= list.length) return;
+  const pvContent = document.getElementById('pv-content');
+  const pvModal = document.getElementById('photo-viewer-modal');
+
+  if (dir && pvModal.classList.contains('open')) {
+    // 현재 컨텐츠 슬라이드 아웃 (스케일 + 이동 + 페이드)
+    pvContent.style.transition = 'transform 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease';
+    pvContent.style.transform = dir === 'left' ? 'translateX(-110px) scale(0.92)' : 'translateX(110px) scale(0.92)';
+    pvContent.style.opacity = '0';
+    setTimeout(() => {
+      _renderViewerContent(idx);
+      // 반대편에서 슬라이드 인
+      pvContent.style.transition = 'none';
+      pvContent.style.transform = dir === 'left' ? 'translateX(110px) scale(0.92)' : 'translateX(-110px) scale(0.92)';
+      pvContent.style.opacity = '0';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        pvContent.style.transition = 'transform 0.25s cubic-bezier(0.2,0,0,1), opacity 0.25s ease';
+        pvContent.style.transform = 'translateX(0) scale(1)';
+        pvContent.style.opacity = '1';
+      }));
+    }, 190);
+  } else {
+    pvContent.style.transition = 'none';
+    pvContent.style.transform = 'translateX(0)';
+    pvContent.style.opacity = '1';
+    _renderViewerContent(idx);
+    pvModal.classList.add('open');
+  }
+}
+
+function closePhotoViewer() {
+  const vid = document.querySelector('#pv-content video');
+  if (vid) vid.pause();
+  document.getElementById('photo-viewer-modal').classList.remove('open');
+}
+
+// 뷰어 스와이프 — 좌우로 다음/이전 이미지 (핀치줌 중에는 무시)
+let _pvIsPinch = false;
+(function() {
+  function onPvTouchStart(e) {
+    _pvIsPinch = e.touches.length > 1;
+    if (_pvIsPinch) return;
+    _pvSwipeX0 = e.touches[0].clientX;
+    _pvSwipeY0 = e.touches[0].clientY;
+  }
+  function onPvTouchMove(e) {
+    if (e.touches.length > 1) _pvIsPinch = true; // 도중에 핀치 발생 감지
+  }
+  function onPvTouchEnd(e) {
+    if (_pvIsPinch) { _pvIsPinch = false; return; }
+    const dx = e.changedTouches[0].clientX - _pvSwipeX0;
+    const dy = e.changedTouches[0].clientY - _pvSwipeY0;
+    // 120px 이상 + 수평 이동이 수직의 2배 이상이어야 전환
+    if (Math.abs(dx) < 120 || Math.abs(dx) < Math.abs(dy) * 2) return;
+    const list = _filteredPhotos();
+    if (dx < 0 && _photoViewerIdx < list.length - 1) {
+      openPhotoViewer(_photoViewerIdx + 1, 'left'); // 왼쪽 → 다음
+    } else if (dx > 0 && _photoViewerIdx > 0) {
+      openPhotoViewer(_photoViewerIdx - 1, 'right'); // 오른쪽 → 이전
+    }
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    const pv = document.getElementById('photo-viewer-modal');
+    if (pv) {
+      pv.addEventListener('touchstart', onPvTouchStart, { passive: true });
+      pv.addEventListener('touchmove', onPvTouchMove, { passive: true });
+      pv.addEventListener('touchend', onPvTouchEnd, { passive: true });
+    }
+  });
+})();
+
+
+// ── 사진 수정 (관리자) ───────────────────────────────────────────
+let _photoEditKey = null;
+let _peCategory = null;
+
+function openPhotoEdit() {
+  const list = _filteredPhotos();
+  if (_photoViewerIdx < 0 || _photoViewerIdx >= list.length) return;
+  const p = list[_photoViewerIdx];
+  _photoEditKey = p.key;
+  const d = p.data;
+
+  // 분류 칩 렌더링
+  _peCategory = d.category || null;
+  document.getElementById('pe-category-chips').innerHTML = PHOTO_CATEGORIES.map(c =>
+    `<span class="member-chip${c === _peCategory ? ' selected' : ''}" onclick="_peSelectCategory('${c}')">${c}</span>`
+  ).join('');
+
+  // 멤버 칩 렌더링
+  const members = d.members || [];
+  const allMembers = [...(state.members || []).map(m => m.name), ...(state.guests || []).map(g => g.name)].filter(Boolean);
+  document.getElementById('pe-member-chips').innerHTML = allMembers.map(name =>
+    `<span class="member-chip${members.includes(name) ? ' selected' : ''}" onclick="this.classList.toggle('selected')">${name}</span>`
+  ).join('');
+
+  document.getElementById('pe-memo-input').value = d.memo || '';
+  document.getElementById('photo-edit-modal').classList.add('open');
+}
+
+function _peSelectCategory(cat) {
+  _peCategory = cat;
+  document.querySelectorAll('#pe-category-chips .member-chip').forEach(el => {
+    el.classList.toggle('selected', el.textContent === cat);
+  });
+}
+
+function closePhotoEdit() {
+  document.getElementById('photo-edit-modal').classList.remove('open');
+}
+
+async function submitPhotoEdit() {
+  if (!_photoEditKey) return;
+  if (!_peCategory) { alert('분류를 선택해주세요.'); return; }
+  const selectedMembers = Array.from(document.querySelectorAll('#pe-member-chips .member-chip.selected')).map(el => el.textContent);
+  const memo = document.getElementById('pe-memo-input').value.trim();
+  try {
+    await db.ref('jmt/photos/' + _photoEditKey).update({
+      category: _peCategory,
+      members: selectedMembers.length ? selectedMembers : null,
+      memo: memo || null
+    });
+    closePhotoEdit();
+    // 뷰어 메타 즉시 갱신
+    document.getElementById('pv-caption').textContent = memo;
+    loadPhotos();
+  } catch(e) {
+    alert('수정 실패: ' + (e.message || e));
+  }
+}
+
+async function deleteCurrentPhoto() {
+  const list = _filteredPhotos();
+  if (_photoViewerIdx < 0 || _photoViewerIdx >= list.length) return;
+  if (!confirm('이 사진을 삭제할까요?')) return;
+  const p = list[_photoViewerIdx];
+  try {
+    if (p.data.path) await firebase.storage().ref(p.data.path).delete().catch(()=>{});
+    await db.ref('jmt/photos/' + p.key).remove();
+    // _photoAllItems에서 제거 후 _photoLatestTs 갱신
+    const allIdx = _photoAllItems.findIndex(item => item.key === p.key);
+    if (allIdx !== -1) {
+      _photoAllItems.splice(allIdx, 1);
+      // 삭제된 항목이 최신이었을 경우 직전 항목의 ts로 갱신
+      if (allIdx === 0) {
+        _photoLatestTs = _photoAllItems.length ? (_photoAllItems[0].data.createdAt || null) : null;
+      }
+    }
+    closePhotoViewer();
+    loadPhotos();
+  } catch(e) {
+    alert('삭제 실패: ' + (e.message || e));
+  }
 }
 
 // ══ 오늘의 경기 탭 ═══════════════════════════════════════════════
@@ -5134,6 +5994,7 @@ function showBracketSection(type) {
 const _teamPhotos  = ['images/team1.jpeg', 'images/team2.jpeg', 'images/team3.jpeg'];
 let _lastPhotoIdx = -1;
 let _lastCheckinPhotoIdx = -1;
+let _landscapePhotoCache = null; // { list: [...], ts: timestamp }
 
 // ── 댓글/답글 입력창: 포커스 시 탭바 숨기고 버튼 바로 위에 키보드 위치 ────
 (function() {
@@ -5222,6 +6083,9 @@ function switchPage(id) {
     changeCheckinPhotoRandom();
   }
   if(id === 'matches') {
+    // 금/토/일(0,5,6): 오늘의 경기 우선, 그 외: 자.만.추. 우선
+    const _dow = new Date().getDay();
+    switchMatchesTab((_dow === 0 || _dow === 5 || _dow === 6) ? 'game' : 'memory');
     if(state.currentHistoryId) {
       const t = visibleMatchTab();
       if(state.tournaments[t]) renderTournament(t);
@@ -6408,13 +7272,40 @@ setTimeout(() => {
   if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchSetupTab('bet'); bzShowRoom(); },300); }
 }, 1500);
 document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
-// 랜덤 사진 변경 함수 (탭 클릭 또는 초기 로드 시 사용)
-function changeTeamPhotoRandom() {
-  let idx;
-  do { idx = Math.floor(Math.random() * _teamPhotos.length); } while(idx === _lastPhotoIdx && _teamPhotos.length > 1);
-  _lastPhotoIdx = idx;
-  const p = document.getElementById('team-photo');
-  if(p) p.src = _teamPhotos[idx];
+// 랜덤 사진 변경 — 자.만.추. landscape 이미지 우선, 없으면 팀 사진 fallback
+async function changeTeamPhotoRandom() {
+  const el = document.getElementById('team-photo');
+  if (!el) return;
+
+  // 캐시 유효성 확인 (5분)
+  if (!_landscapePhotoCache || Date.now() - _landscapePhotoCache.ts > 300000) {
+    if (db) {
+      try {
+        const snap = await db.ref('jmt/photos').orderByChild('createdAt').limitToLast(20).once('value');
+        const list = Object.values(snap.val() || {})
+          .filter(p => p.type === 'image' && p.imgW && p.imgH && p.imgW > p.imgH && p.url);
+        _landscapePhotoCache = { list, ts: Date.now() };
+      } catch(e) {
+        _landscapePhotoCache = { list: [], ts: Date.now() };
+      }
+    } else {
+      _landscapePhotoCache = { list: [], ts: Date.now() };
+    }
+  }
+
+  const candidates = _landscapePhotoCache.list;
+  if (candidates.length > 0) {
+    let idx;
+    do { idx = Math.floor(Math.random() * candidates.length); } while(idx === _lastPhotoIdx && candidates.length > 1);
+    _lastPhotoIdx = idx;
+    el.src = candidates[idx].url;
+  } else {
+    // fallback: 기존 팀 사진
+    let idx;
+    do { idx = Math.floor(Math.random() * _teamPhotos.length); } while(idx === _lastPhotoIdx && _teamPhotos.length > 1);
+    _lastPhotoIdx = idx;
+    el.src = _teamPhotos[idx];
+  }
 }
 // 출첵 탭 사진 랜덤 변경
 function changeCheckinPhotoRandom() {
@@ -13106,8 +13997,10 @@ function deleteMpHistory(pollId, event) {
   // ── 터치를 무시할 영역 판별 ───────────────────────────────────
   function shouldIgnore(target) {
     const bz = document.getElementById('bet-screen-banzige');
+    const pv = document.getElementById('photo-viewer-modal');
     return !!(
       (bz && bz.style.position === 'fixed') ||
+      (pv && pv.classList.contains('open')) ||
       document.querySelector('.modal-overlay.open') ||
       document.getElementById('logo-popup').style.display === 'flex' ||
       target.closest('.carousel-container') ||
@@ -13117,7 +14010,8 @@ function deleteMpHistory(pollId, event) {
       target.closest('#atp-draw-content') ||
       target.closest('#bet-screen-setup') ||
       target.closest('#bet-screen-bomb-setup') ||
-      target.closest('#bet-screen-ladder-setup')
+      target.closest('#bet-screen-ladder-setup') ||
+      target.closest('#photo-edit-modal')
     );
   }
 
@@ -13399,7 +14293,26 @@ function deleteMpHistory(pollId, event) {
   window._ptrRefreshPage = async function(pageId) {
     switch (pageId) {
       case 'matches':
-        // daily cards 강제 재로드
+        // 오늘의 추억 서브탭이면 사진 새로고침 (PTR 최적화: 최신 ts 비교 후 변경 있을 때만 풀 리로드)
+        if (document.getElementById('matches-section-memory') &&
+            document.getElementById('matches-section-memory').style.display !== 'none') {
+          if (typeof loadPhotos === 'function') {
+            try {
+              const latestSnap = await db.ref('jmt/photos').orderByChild('createdAt').limitToLast(1).once('value');
+              const latestVal = latestSnap.val();
+              const latestTs = latestVal ? Object.values(latestVal)[0].createdAt : null;
+              if (latestTs && latestTs === _photoLatestTs) {
+                // 변경 없음 — 재로드 생략
+              } else {
+                await loadPhotos(true);
+              }
+            } catch(e) {
+              await loadPhotos(true); // 조회 실패 시 풀 리로드 fallback
+            }
+          }
+          break;
+        }
+        // 오늘의 경기 서브탭: daily cards + 캐러셀 재로드
         if (typeof _dailyCardsListenerSet !== 'undefined') {
           _dailyCardsListenerSet = false;
           const con = document.getElementById('daily-match-cards');
@@ -13407,7 +14320,6 @@ function deleteMpHistory(pollId, event) {
           Object.keys(_dailyCards || {}).forEach(k => delete _dailyCards[k]);
           if (typeof _setupDailyCardsListener === 'function') _setupDailyCardsListener();
         }
-        // 캐러셀 재로드
         if (typeof renderRecentMatchesCarousel === 'function') await renderRecentMatchesCarousel();
         break;
 

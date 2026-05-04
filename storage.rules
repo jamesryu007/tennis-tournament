@@ -1,0 +1,13 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // 사진첩: 로그인 없이 읽기 허용, 쓰기/삭제는 누구나 (커스텀 auth 없음)
+    match /photos/{allPaths=**} {
+      allow read: if true;
+      allow read: if true;
+      allow write: if true;
+      allow delete: if true;
+      allow delete: if true;
+    }
+  }
+}
