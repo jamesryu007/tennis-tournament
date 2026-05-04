@@ -1650,7 +1650,6 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   <div style="display:flex;align-items:center;justify-content:space-between;padding:env(safe-area-inset-top,0px) 16px 12px;padding-top:max(env(safe-area-inset-top,0px),16px)">
     <button onclick="closePhotoViewer()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit">닫기</button>
     <div id="pv-meta" style="font-size:0.75rem;color:rgba(255,255,255,0.75);text-align:center;flex:1;padding:0 8px"></div>
-    <button id="pv-save-btn" onclick="saveCurrentPhoto()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:0.75rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit;display:none">저장</button>
     <button id="pv-delete-btn" onclick="deleteCurrentPhoto()" style="background:rgba(220,38,38,0.7);border:none;color:#fff;font-size:0.75rem;font-weight:700;padding:8px 14px;border-radius:20px;cursor:pointer;font-family:inherit;display:none">삭제</button>
   </div>
   <div id="pv-content"></div>
@@ -3531,8 +3530,6 @@ function _renderViewerContent(idx) {
   const me = (state.identity && state.identity.name) || '';
   document.getElementById('pv-delete-btn').style.display =
     (me === d.uploader || me === '유지원') ? '' : 'none';
-  const saveBtn = document.getElementById('pv-save-btn');
-  if (saveBtn) saveBtn.style.display = '';
 }
 
 function openPhotoViewer(idx, dir) {
@@ -3599,61 +3596,6 @@ function closePhotoViewer() {
   });
 })();
 
-function _pvShowToast(msg) {
-  let el = document.getElementById('pv-toast');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = 'pv-toast';
-    el.style.cssText = 'position:fixed;bottom:110px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:10px 22px;border-radius:20px;font-size:0.88rem;z-index:10001;pointer-events:none;white-space:nowrap;transition:opacity 0.4s';
-    document.body.appendChild(el);
-  }
-  el.textContent = msg;
-  el.style.opacity = '1';
-  clearTimeout(el._t);
-  el._t = setTimeout(() => { el.style.opacity = '0'; }, 1800);
-}
-
-async function saveCurrentPhoto() {
-  const list = _filteredPhotos();
-  if (_photoViewerIdx < 0 || _photoViewerIdx >= list.length) return;
-  const d = list[_photoViewerIdx].data;
-  const isVideo = d.type === 'video';
-  const isIos = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-  // iOS + 영상: 네이티브 영상 플레이어 공유 버튼으로 저장 안내
-  if (isIos && isVideo) {
-    _pvShowToast('▶ 재생 → 우하단 공유(↑) → 비디오 저장');
-    return;
-  }
-
-  const ext = isVideo ? 'mp4' : 'jpg';
-  const mimeType = isVideo ? 'video/mp4' : 'image/jpeg';
-  const fileName = `jamite_${Date.now()}.${ext}`;
-  _pvShowToast('저장 중...');
-  try {
-    const resp = await fetch(d.url);
-    const blob = await resp.blob();
-    const file = new File([blob], fileName, { type: blob.type || mimeType });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: '자미터 추억' });
-      _pvShowToast('저장 완료!');
-    } else {
-      // Android/데스크탑: 다운로드 링크
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl; a.download = fileName;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
-      _pvShowToast('저장 완료!');
-    }
-  } catch(e) {
-    if (e.name === 'AbortError') {
-      _pvShowToast('저장 취소됨');
-    } else {
-      _pvShowToast('저장 실패 — 영상을 꾹 눌러 저장해보세요');
-    }
-  }
-}
 
 async function deleteCurrentPhoto() {
   const list = _filteredPhotos();
