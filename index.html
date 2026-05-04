@@ -12042,10 +12042,17 @@ function _bzPickRandomAlias() {
   return msgs[Math.floor(Math.random() * msgs.length)].alias;
 }
 
-let _bzFromMemory = false; // 자만추에서 진입한 경우 플래그
+let _bzFromMemory = false;         // 자만추에서 진입한 경우 플래그
+let _bzModalOrigParent = null;    // body 이동 전 원래 부모 보관
 
 function bzShowRoomFromMemory() {
   _bzFromMemory = true;
+  // page-setup이 display:none이라 자식이 안 보임 → body로 임시 이동
+  const modal = document.getElementById('bet-screen-banzige');
+  if (modal && modal.parentElement !== document.body) {
+    _bzModalOrigParent = modal.parentElement;
+    document.body.appendChild(modal);
+  }
   bzShowRoom();
 }
 
@@ -12160,6 +12167,12 @@ function bzLeaveRoom() {
 
   if (_bzFromMemory) {
     _bzFromMemory = false;
+    // body로 이동했던 modal을 원래 위치로 복원
+    const modal = document.getElementById('bet-screen-banzige');
+    if (modal && _bzModalOrigParent && modal.parentElement === document.body) {
+      _bzModalOrigParent.appendChild(modal);
+      _bzModalOrigParent = null;
+    }
     // 자만추에서 진입했으므로 자록탭 → 자만추 서브탭으로 복귀
     switchPage('matches');
     setTimeout(() => switchMatchesTab('memory'), 50);
