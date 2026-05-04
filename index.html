@@ -1593,7 +1593,13 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       </div>
 
       <!-- 인원 태그 -->
-      <div class="field-label" style="margin-bottom:6px">함께한 멤버 <span style="color:#94a3b8;font-size:0.7rem">(선택)</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div class="field-label">함께한 멤버 <span style="color:#94a3b8;font-size:0.7rem">(선택)</span></div>
+        <div style="display:flex;gap:6px">
+          <button type="button" onclick="_selectAllPhotoMembers()" style="font-size:0.72rem;font-weight:700;color:#2563eb;background:none;border:1px solid #2563eb;border-radius:20px;padding:3px 9px;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">전체선택</button>
+          <button type="button" onclick="_deselectAllPhotoMembers()" style="font-size:0.72rem;font-weight:700;color:#64748b;background:none;border:1px solid #cbd5e1;border-radius:20px;padding:3px 9px;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">전체해제</button>
+        </div>
+      </div>
       <div id="photo-member-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px"></div>
 
       <!-- 메모 -->
@@ -3254,6 +3260,14 @@ function _getSelectedCategory() {
 function _togglePhotoMemberChip(name) {
   const el = document.getElementById('pchip-' + name);
   if (el) el.classList.toggle('selected');
+}
+
+function _selectAllPhotoMembers() {
+  document.querySelectorAll('#photo-member-chips .member-chip').forEach(el => el.classList.add('selected'));
+}
+
+function _deselectAllPhotoMembers() {
+  document.querySelectorAll('#photo-member-chips .member-chip').forEach(el => el.classList.remove('selected'));
 }
 
 function onPhotoFileSelected(input) {
@@ -7289,7 +7303,7 @@ async function changeTeamPhotoRandom() {
         _landscapePhotoCache = { list: [], ts: Date.now() };
       }
     } else {
-      _landscapePhotoCache = { list: [], ts: Date.now() };
+      // db 미초기화 상태 — 캐시 저장 안 함, 추후 재시도
     }
   }
 
@@ -7326,6 +7340,7 @@ changeCheckinPhotoRandom();
       firebase.initializeApp(firebaseConfig);
       db = firebase.database();
       setupFirebaseListeners(); // 리스너가 초기 데이터 로드 + 렌더링 처리
+      changeTeamPhotoRandom(); // db 초기화 후 랜드스케이프 사진 재로드
     } else {
       // ── localStorage 폴백 모드 (Firebase 미설정) ───────────────
       setConnStatus(false);
