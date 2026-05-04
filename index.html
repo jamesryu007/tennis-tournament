@@ -3637,6 +3637,10 @@ function openPhotoViewer(idx, dir) {
   const pvContent = document.getElementById('pv-content');
   const pvModal = document.getElementById('photo-viewer-modal');
 
+  // 뷰어 열릴 때 핀치줌 허용 (viewport user-scalable 해제)
+  const _vp = document.querySelector('meta[name="viewport"]');
+  if (_vp) _vp.content = 'width=device-width, initial-scale=1.0';
+
   if (dir && pvModal.classList.contains('open')) {
     // 현재 컨텐츠 슬라이드 아웃 (스케일 + 이동 + 페이드)
     pvContent.style.transition = 'transform 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease';
@@ -3667,6 +3671,9 @@ function closePhotoViewer() {
   const vid = document.querySelector('#pv-content video');
   if (vid) vid.pause();
   document.getElementById('photo-viewer-modal').classList.remove('open');
+  // 뷰어 닫힐 때 줌 잠금 복원
+  const vp = document.querySelector('meta[name="viewport"]');
+  if (vp) vp.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
 }
 
 // 뷰어 스와이프 — 좌우로 다음/이전 이미지 (핀치줌 중에는 무시)
