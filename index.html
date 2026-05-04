@@ -1080,10 +1080,6 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div id="bet-home-header" style="margin-bottom:20px">
         <div style="background:#fff;border-radius:14px;border:1.5px solid #e2e8f0;padding:8px;box-shadow:0 2px 10px rgba(0,0,0,0.06)">
           <div style="font-size:0.65rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;text-align:center;padding:2px 0 7px;border-bottom:1px solid #f1f5f9;margin-bottom:7px">🎲 내기 게임 선택</div>
-          <button onclick="bzShowRoom()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #fde68a;background:linear-gradient(135deg,#fffbeb,#fef3c7);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
-            <span style="font-size:1.4rem">🕵️</span>
-            <div><div style="font-weight:800">막무가내 톡방</div></div>
-          </button>
           <button onclick="betShowSetup()" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid #ede9fe;background:linear-gradient(135deg,#f5f3ff,#ede9fe);color:#1e293b;font-size:0.82rem;font-weight:700;cursor:pointer;text-align:left;margin-bottom:6px;display:flex;align-items:center;gap:10px">
             <span style="font-size:1.4rem">🎈</span>
             <div><div style="font-weight:800">릴레이 풍선 터치</div><div style="font-size:0.68rem;color:#7c3aed;font-weight:600">순서대로 터치 — 끝까지 살아남아라!</div></div>
@@ -1546,9 +1542,14 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <button onclick="openPhotoFilter()" id="photo-filter-btn" style="display:flex;align-items:center;gap:5px;padding:7px 13px;border:1.5px solid #e2e8f0;border-radius:20px;background:#fff;font-size:0.78rem;font-weight:700;color:#475569;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
         <span id="photo-filter-label">필터</span> <span style="color:#94a3b8;font-size:0.7rem">▼</span>
       </button>
-      <button onclick="openPhotoUpload()" style="display:flex;align-items:center;gap:5px;padding:7px 15px;border:none;border-radius:20px;background:#2563eb;font-size:0.78rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
-        📷 사진 올리기
-      </button>
+      <div style="display:flex;gap:7px">
+        <button onclick="bzShowRoomFromMemory()" style="display:flex;align-items:center;gap:5px;padding:7px 13px;border:none;border-radius:20px;background:linear-gradient(135deg,#f59e0b,#d97706);font-size:0.78rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
+          🗣️ 톡방
+        </button>
+        <button onclick="openPhotoUpload()" style="display:flex;align-items:center;gap:5px;padding:7px 15px;border:none;border-radius:20px;background:#2563eb;font-size:0.78rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
+          📷 사진 올리기
+        </button>
+      </div>
     </div>
     <!-- 사진 그리드 -->
     <div class="photo-grid" id="photo-grid"></div>
@@ -2350,7 +2351,7 @@ function applyLastFinished(data) {
       const contentEl = document.getElementById(`${type === 'ladder' ? 'ladder-panel-content' : type + '-content'}`);
       if(emptyEl) emptyEl.style.display = 'none';
       if(contentEl) contentEl.style.display = 'block';
-      renderTournament(type);
+      renderTournament(type, { noConfetti: true });
     }
   });
   return true;
@@ -12037,6 +12038,23 @@ function _bzPickRandomAlias() {
   return msgs[Math.floor(Math.random() * msgs.length)].alias;
 }
 
+let _bzFromMemory = false;         // 자만추에서 진입한 경우 플래그
+let _bzModalOrigParent = null;    // body 이동 전 원래 부모 보관
+
+function bzShowRoomFromMemory() {
+  _bzFromMemory = true;
+  // page-setup이 display:none이라 자식이 안 보임 → body로 임시 이동
+  const modal = document.getElementById('bet-screen-banzige');
+  if (modal && modal.parentElement !== document.body) {
+    _bzModalOrigParent = modal.parentElement;
+    document.body.appendChild(modal);
+  }
+  // 배경(자만추)이 키보드 뒤로 비치지 않도록 숨김
+  const pageMatches = document.getElementById('page-matches');
+  if (pageMatches) pageMatches.style.visibility = 'hidden';
+  bzShowRoom();
+}
+
 function bzShowRoom() {
   const myName = state.identity && state.identity.name;
   if (!myName) { alert('로그인 후 이용하세요.'); return; }
@@ -12146,7 +12164,23 @@ function bzLeaveRoom() {
     window._bzModalVpHandler = null;
   }
 
-  betShowHome();
+  if (_bzFromMemory) {
+    _bzFromMemory = false;
+    // body로 이동했던 modal을 원래 위치로 복원 후 bet 홈으로 리셋
+    const modal = document.getElementById('bet-screen-banzige');
+    if (modal && _bzModalOrigParent && modal.parentElement === document.body) {
+      _bzModalOrigParent.appendChild(modal);
+      _bzModalOrigParent = null;
+    }
+    betShowScreen('home'); // banzige display:block 상태 초기화
+    // 배경 복원 후 자만추로 복귀
+    const pageMatches = document.getElementById('page-matches');
+    if (pageMatches) pageMatches.style.visibility = '';
+    switchPage('matches');
+    setTimeout(() => switchMatchesTab('memory'), 50);
+  } else {
+    betShowHome();
+  }
 }
 
 function _bzSetupAliasList() {
