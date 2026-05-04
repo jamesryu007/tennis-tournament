@@ -12166,12 +12166,13 @@ function bzLeaveRoom() {
 
   if (_bzFromMemory) {
     _bzFromMemory = false;
-    // body로 이동했던 modal을 원래 위치로 복원
+    // body로 이동했던 modal을 원래 위치로 복원 후 bet 홈으로 리셋
     const modal = document.getElementById('bet-screen-banzige');
     if (modal && _bzModalOrigParent && modal.parentElement === document.body) {
       _bzModalOrigParent.appendChild(modal);
       _bzModalOrigParent = null;
     }
+    betShowScreen('home'); // banzige display:block 상태 초기화
     // 배경 복원 후 자만추로 복귀
     const pageMatches = document.getElementById('page-matches');
     if (pageMatches) pageMatches.style.visibility = '';
