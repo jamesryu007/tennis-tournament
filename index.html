@@ -3262,9 +3262,9 @@ function onPhotoFileSelected(input) {
     input.value = '';
     return;
   }
-  if (isVideo && file.size > 50 * 1024 * 1024) {
+  if (isVideo && file.size > 20 * 1024 * 1024) {
     const mb = (file.size / 1024 / 1024).toFixed(1);
-    alert(`영상이 너무 커요 (${mb}MB). 50MB 이하의 짧은 클립을 선택해 주세요.`);
+    alert(`영상이 너무 커요 (${mb}MB). 20MB 이하의 짧은 클립을 선택해 주세요.`);
     input.value = '';
     return;
   }
@@ -3393,6 +3393,21 @@ async function submitPhotoUpload() {
   try {
     const storage = firebase.storage();
     const isVideo = _photoUploadFile.type.startsWith('video/');
+
+    // 영상 하루 전체 업로드 한도 체크 (5개/일)
+    if (isVideo) {
+      const today = new Date().toISOString().slice(0, 10);
+      const countSnap = await db.ref(`jmt/videoUploadCounts/${today}`).once('value');
+      const todayCount = countSnap.val() || 0;
+      if (todayCount >= 5) {
+        alert(`오늘 영상 업로드 한도(5개)에 도달했어요.\n내일 다시 시도해 주세요. 😊`);
+        btn.disabled = false;
+        btn.textContent = '올리기';
+        progressWrap.style.display = 'none';
+        return;
+      }
+    }
+
     const id = Date.now() + '_' + Math.random().toString(36).slice(2);
     const ext = isVideo ? 'mp4' : 'jpg';
 
@@ -3456,6 +3471,11 @@ async function submitPhotoUpload() {
       imgH: imgH || null
     };
     await db.ref('jmt/photos').push(record);
+    // 영상이면 일일 카운터 증가
+    if (isVideo) {
+      const today = new Date().toISOString().slice(0, 10);
+      db.ref(`jmt/videoUploadCounts/${today}`).transaction(n => (n || 0) + 1).catch(() => {});
+    }
     _landscapePhotoCache = null; // 랭킹탭 사진 캐시 무효화
     closePhotoUpload();
     switchMatchesTab('memory');
