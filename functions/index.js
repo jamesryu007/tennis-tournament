@@ -755,6 +755,21 @@ exports.sendBanzigePush = onCall(
   async (request) => {
     const { alias, text, type } = request.data || {};
     if (!alias || !text) return { success: false, error: 'missing params' };
+
+    // 채팅 메시지(start 타입)는 5분 쿨다운 적용
+    // 사진(start로 호출되나 text에 '사진' 포함), 추측(guessing), 공개(reveal), 수동(manual)은 항상 발송
+    const isChat = type === 'start' && !text.includes('사진을 보냈어요');
+    if (isChat) {
+      const cooldownRef = db.ref('jmt/banzigePushCooldown');
+      const snap = await cooldownRef.once('value');
+      const lastTs = snap.val() || 0;
+      const isFirst = lastTs === 0;
+      if (!isFirst && Date.now() - lastTs < 5 * 60 * 1000) {
+        return { success: false, skipped: 'cooldown' };
+      }
+      await cooldownRef.set(Date.now());
+    }
+
     const titleMap = {
       start:    `🗣️ 막무가내 톡방 — ${alias}`,
       guessing: `🎯 막무가내 톡방 — ${alias}`,
@@ -764,7 +779,7 @@ exports.sendBanzigePush = onCall(
     const title = titleMap[type] || `🗣️ 막무가내 톡방 — ${alias}`;
     const tokens = await getAllTokens();
     if (tokens.length) {
-      await sendPush(tokens, title, text, 'setup', '', '', { subScreen: 'banzige' });
+      await sendPush(tokens, title, text, 'matches', '', '', { subScreen: 'banzige' });
     }
     return { success: true, sent: tokens.length };
   }
