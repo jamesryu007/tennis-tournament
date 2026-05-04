@@ -12053,6 +12053,9 @@ function bzShowRoomFromMemory() {
     _bzModalOrigParent = modal.parentElement;
     document.body.appendChild(modal);
   }
+  // 배경(자만추)이 키보드 뒤로 비치지 않도록 숨김
+  const pageMatches = document.getElementById('page-matches');
+  if (pageMatches) pageMatches.style.visibility = 'hidden';
   bzShowRoom();
 }
 
@@ -12173,7 +12176,9 @@ function bzLeaveRoom() {
       _bzModalOrigParent.appendChild(modal);
       _bzModalOrigParent = null;
     }
-    // 자만추에서 진입했으므로 자록탭 → 자만추 서브탭으로 복귀
+    // 배경 복원 후 자만추로 복귀
+    const pageMatches = document.getElementById('page-matches');
+    if (pageMatches) pageMatches.style.visibility = '';
     switchPage('matches');
     setTimeout(() => switchMatchesTab('memory'), 50);
   } else {
