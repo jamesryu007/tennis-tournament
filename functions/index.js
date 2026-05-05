@@ -753,18 +753,35 @@ exports.notifyBetReminder = onCall(
 exports.sendBanzigePush = onCall(
   { region: 'asia-southeast1' },
   async (request) => {
-    const { alias, text, type } = request.data || {};
+    const { alias, text, type, senderRealName, replyToRealName, replyToAlias, replierRealName } = request.data || {};
     if (!alias || !text) return { success: false, error: 'missing params' };
 
-    // 채팅 메시지(start 타입)는 5분 쿨다운 적용
-    // 사진(start로 호출되나 text에 '사진' 포함), 추측(guessing), 공개(reveal), 수동(manual)은 항상 발송
+    // 답글 — 대상자에게만 타겟 푸시
+    if (type === 'reply') {
+      if (!replyToRealName) return { success: false, error: 'missing replyToRealName' };
+      const tokenSnap = await db.ref('jmt/fcmTokens').once('value');
+      const allEntries = Object.values(tokenSnap.val() || {}).filter(v => v.token);
+      const targetNames = new Set([replyToRealName]);
+      // 가명이 실제 멤버 이름이라면 그 멤버도 포함
+      if (replyToAlias && replyToAlias !== replyToRealName && allEntries.some(v => v.name === replyToAlias)) {
+        targetNames.add(replyToAlias);
+      }
+      // 답글 보낸 사람 본인은 제외
+      if (replierRealName) targetNames.delete(replierRealName);
+      const targetTokens = allEntries.filter(v => targetNames.has(v.name)).map(v => v.token);
+      if (targetTokens.length) {
+        await sendPush(targetTokens, `↩ 막무가내 톡방 — ${alias}`, text, 'matches', '', '', { subScreen: 'banzige' });
+      }
+      return { success: true, sent: targetTokens.length };
+    }
+
+    // 채팅 메시지(start 타입) — 멤버별 2분 쿨다운
     const isChat = type === 'start' && !text.includes('사진을 보냈어요');
-    if (isChat) {
-      const cooldownRef = db.ref('jmt/banzigePushCooldown');
+    if (isChat && senderRealName) {
+      const cooldownRef = db.ref(`jmt/banzigePushCooldown/${senderRealName}`);
       const snap = await cooldownRef.once('value');
       const lastTs = snap.val() || 0;
-      const isFirst = lastTs === 0;
-      if (!isFirst && Date.now() - lastTs < 5 * 60 * 1000) {
+      if (lastTs && Date.now() - lastTs < 2 * 60 * 1000) {
         return { success: false, skipped: 'cooldown' };
       }
       await cooldownRef.set(Date.now());

@@ -12098,9 +12098,9 @@ const BZ_CONFIG = {
   maxPhotos: 100,  // 세션당 사진 최대 전송 수 — 이 값만 바꾸면 전체 적용됨
 };
 
-function _bzSendPush(alias, text, type) {
+function _bzSendPush(alias, text, type, extra) {
   const fn = firebase.app().functions('asia-southeast1').httpsCallable('sendBanzigePush');
-  fn({ alias, text, type }).catch(e => console.warn('막무가내 톡방 푸시 실패:', e));
+  fn({ alias, text, type, ...(extra || {}) }).catch(e => console.warn('막무가내 톡방 푸시 실패:', e));
   if (type === 'manual') {
     const toast = document.createElement('div');
     toast.textContent = '📢 푸시를 보냈습니다!';
@@ -12348,19 +12348,24 @@ function bzSend() {
     db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
   }
   const msgData = { alias: senderAlias, realName: myName, text, ts: Date.now() };
-  if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text };
+  if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '' };
   db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
-  // 채팅 시작 시 phase를 chatting으로 + 게임 시작 푸시 (최초 1회)
+  // phase 변경 (최초 1회)
   if (!phase || phase === 'waiting') {
     db.ref(`${BZ_REF}/phase`).set('chatting').catch(fbErr);
-    _bzSendPush(senderAlias, `${senderAlias}이(가) 수상한 말을 하고 있어요...`, 'start');
+  }
+  // 푸시 — 답글이면 대상자 타겟, 일반이면 멤버별 2분 쿨다운 전체 푸시
+  if (_bzReplyTo && _bzReplyTo.realName) {
+    _bzSendPush(senderAlias, text, 'reply', { replyToRealName: _bzReplyTo.realName, replyToAlias: _bzReplyTo.alias, replierRealName: myName });
+  } else {
+    _bzSendPush(senderAlias, `${senderAlias}이(가) 수상한 말을 하고 있어요...`, 'start', { senderRealName: myName });
   }
   input.value = '';
   bzCancelReply();
 }
 
-function bzSetReply(alias, text) {
-  _bzReplyTo = { alias, text };
+function bzSetReply(alias, text, realName) {
+  _bzReplyTo = { alias, text, realName: realName || '' };
   const bar = document.getElementById('bz-reply-bar');
   if (bar) {
     document.getElementById('bz-reply-label').textContent = `↩ ${alias}에게 답글`;
@@ -12415,11 +12420,15 @@ function bzSendPhoto(e) {
         db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
       }
       const msgData = { alias: senderAlias, realName: myName, imageData, ts: Date.now() };
-      if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text };
+      if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '' };
       db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
       if (!phase || phase === 'waiting') {
         db.ref(`${BZ_REF}/phase`).set('chatting').catch(fbErr);
-        _bzSendPush(senderAlias, `${senderAlias}이(가) 사진을 보냈어요!`, 'start');
+      }
+      if (_bzReplyTo && _bzReplyTo.realName) {
+        _bzSendPush(senderAlias, '사진을 보냈어요', 'reply', { replyToRealName: _bzReplyTo.realName, replyToAlias: _bzReplyTo.alias, replierRealName: myName });
+      } else {
+        _bzSendPush(senderAlias, `${senderAlias}이(가) 사진을 보냈어요!`, 'start', { senderRealName: myName });
       }
       bzCancelReply();
     };
@@ -12749,14 +12758,15 @@ function _bzRenderMessages(phase) {
       ? `${m.alias} <span style="color:#f59e0b;font-size:0.7rem">(${realOfAlias})</span>`
       : m.alias;
     const isMine = m.realName === myName;
-    const aliasEsc = m.alias.replace(/'/g, "\\'");
+    const aliasEsc    = m.alias.replace(/'/g, "\\'");
+    const realNameEsc = (m.realName || '').replace(/'/g, "\\'");
     const msgText  = m.text || (m.imageData ? '[사진]' : '');
     const textEsc  = msgText.replace(/'/g, "\\'").replace(/`/g, '\\`');
     const adminPushBtn = isAdmin() && phase !== 'revealed'
       ? `<button onclick="_bzSendPush('${aliasEsc}','${textEsc}','manual')" title="이 메시지 전체 푸시"
           style="background:none;border:1.5px solid #fde68a;border-radius:8px;padding:1px 5px;font-size:0.7rem;cursor:pointer;color:#b45309;flex-shrink:0">📢</button>` : '';
     const replyBtn = canReply
-      ? `<button onclick="bzSetReply('${aliasEsc}','${textEsc}')"
+      ? `<button onclick="bzSetReply('${aliasEsc}','${textEsc}','${realNameEsc}')"
           style="background:none;border:none;font-size:0.75rem;color:#94a3b8;cursor:pointer;padding:2px 4px;line-height:1;flex-shrink:0" title="답글">↩</button>` : '';
     const canDelete = isMine || isAdmin();
     const deleteBtn = canDelete
