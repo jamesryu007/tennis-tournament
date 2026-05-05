@@ -12589,8 +12589,8 @@ function _bzRender() {
   const myAliasesFromDb = Array.isArray(aliases[myName]) ? aliases[myName] : [];
   _bzMyAliases = [...myAliasesFromDb];
   if (_bzCurrentAlias === null) {
-    // 첫 입실 또는 새 게임 후: DB에서 복원
-    _bzCurrentAlias = _bzMyAliases.length > 0 ? _bzMyAliases[_bzMyAliases.length - 1] : '';
+    // 진입 시 항상 나 자신으로 초기화 (이전 가명은 칩으로 표시됨)
+    _bzCurrentAlias = '';
   } else if (_bzCurrentAlias !== '' && !_bzMyAliases.includes(_bzCurrentAlias)) {
     // 현재 alias가 DB 목록에 없으면 교정 (예: 새 게임으로 aliases 초기화)
     _bzCurrentAlias = _bzMyAliases.length > 0 ? _bzMyAliases[_bzMyAliases.length - 1] : '';
@@ -14357,6 +14357,9 @@ function deleteMpHistory(pollId, event) {
   document.addEventListener('touchstart', function(e) {
     if (ptrRefreshing || e.touches.length !== 1) return;
     if (window.scrollY > 4) return;
+    // 막무가내 톡방 활성 시 PTR 비활성화
+    const _bzEl = document.getElementById('bet-screen-banzige');
+    if (_bzEl && _bzEl.style.position === 'fixed') return;
     const page = activePageEl();
     if (page && page.id === 'page-setup') return; // 행모탭은 PTR 비활성화
     startY = e.touches[0].clientY;
