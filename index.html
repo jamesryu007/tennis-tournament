@@ -12472,6 +12472,28 @@ function bzSendPhoto(e) {
   reader.readAsDataURL(file);
 }
 
+function bzMsgTap(msgKey) {
+  const now = Date.now();
+  if (!window._bzTapMap) window._bzTapMap = {};
+  if (window._bzTapMap[msgKey] && now - window._bzTapMap[msgKey] < 350) {
+    window._bzTapMap[msgKey] = 0;
+    bzToggleLike(msgKey);
+  } else {
+    window._bzTapMap[msgKey] = now;
+  }
+}
+
+function bzToggleLike(msgKey) {
+  const myName = (state.identity && state.identity.name) || '';
+  if (!myName || !msgKey) return;
+  const likes = (_bzState && _bzState.likes && _bzState.likes[msgKey]) || {};
+  if (likes[myName]) {
+    db.ref(`${BZ_REF}/likes/${msgKey}/${myName}`).remove().catch(fbErr);
+  } else {
+    db.ref(`${BZ_REF}/likes/${msgKey}/${myName}`).set(true).catch(fbErr);
+  }
+}
+
 function bzDeleteMsg(msgKey) {
   if (!confirm('메시지를 삭제할까요?')) return;
   db.ref(`${BZ_REF}/messages/${msgKey}`).remove().catch(fbErr);
@@ -12781,6 +12803,7 @@ function _bzRenderMessages(phase) {
   _bzFirstRender = false;
   const myName = (state.identity && state.identity.name) || '';
   const canReply = phase !== 'revealed';
+  const allLikes = (_bzState && _bzState.likes) || {};
   // 전체화면 뷰어용 사진 맵 (onclick에 base64 직접 삽입 불가 → ts 키로 참조)
   window._bzPhotoMap = {};
   area.innerHTML = msgs.map(m => {
@@ -12792,8 +12815,15 @@ function _bzRenderMessages(phase) {
       ? `${m.alias} <span style="color:#f59e0b;font-size:0.7rem">(${realOfAlias})</span>`
       : m.alias;
     const isMine = m.realName === myName;
+    const keyEsc      = m._key.replace(/'/g, "\\'");
     const aliasEsc    = m.alias.replace(/'/g, "\\'");
     const realNameEsc = (m.realName || '').replace(/'/g, "\\'");
+    const msgLikeKeys = allLikes[m._key] ? Object.keys(allLikes[m._key]) : [];
+    const likeCount   = msgLikeKeys.length;
+    const iLiked      = msgLikeKeys.includes(myName);
+    const heartRow    = likeCount > 0
+      ? `<div style="font-size:0.75rem;color:${iLiked?'#ef4444':'#94a3b8'};padding:0 4px;cursor:pointer;user-select:none" onclick="bzToggleLike('${keyEsc}')">❤️ ${likeCount}</div>`
+      : '';
     const msgText  = m.text || (m.imageData ? '[사진]' : '');
     const textEsc  = msgText.replace(/'/g, "\\'").replace(/`/g, '\\`');
     const adminPushBtn = isAdmin() && phase !== 'revealed'
@@ -12816,7 +12846,7 @@ function _bzRenderMessages(phase) {
       ? `<div style="max-width:75%;padding:4px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};border:1px solid ${isMine ? 'transparent' : '#e2e8f0'}">
           ${replyBox}<img src="${m.imageData}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" loading="lazy" onclick="bzViewPhoto(${m.ts})">
         </div>`
-      : `<div style="max-width:75%;padding:8px 12px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:1px solid ${isMine ? 'transparent' : '#e2e8f0'};word-break:break-all">
+      : `<div onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:1px solid ${isMine ? 'transparent' : '#e2e8f0'};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
           ${replyBox}${m.text}
         </div>`;
     return `<div style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
@@ -12830,13 +12860,18 @@ function _bzRenderMessages(phase) {
         ${replyBtn}
         ${deleteBtn}
       </div>
+      ${heartRow}
     </div>`;
   }).join('');
   // 맨 아래 근처에 있던 경우만 자동 스크롤 (위로 스크롤 중이면 유지)
   if (_bzWasAtBottom) {
     area.scrollTop = area.scrollHeight;
     area.querySelectorAll('img').forEach(img => {
-      if (!img.complete) img.addEventListener('load', () => { area.scrollTop = area.scrollHeight; }, { once: true });
+      if (!img.complete) img.addEventListener('load', () => {
+        // 이미지 로드 완료 시점에도 맨 아래 근처일 때만 스크롤 (스크롤 중이면 유지)
+        const stillAtBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
+        if (stillAtBottom) area.scrollTop = area.scrollHeight;
+      }, { once: true });
     });
   }
 }
