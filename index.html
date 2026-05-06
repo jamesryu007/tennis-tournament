@@ -12153,12 +12153,10 @@ function bzShowRoom() {
     window._bzModalVpHandler = () => {
       modal.style.height = vv.height + 'px';
       modal.style.top = vv.offsetTop + 'px';
-      // resize(키보드 열림)시에만 최신 메시지 유지 — scroll 이벤트에서는 사용자 스크롤 방해 금지
+      // 키보드 열림/닫힘(resize) 시 맨 아래로 스크롤
+      // clientHeight가 변한 직후라 atBottom 체크 불가 — rAF로 레이아웃 확정 후 실행
       const area = document.getElementById('bz-chat-area');
-      if (area) {
-        const atBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
-        if (atBottom) area.scrollTop = area.scrollHeight;
-      }
+      if (area) requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; });
     };
     vv.addEventListener('resize', window._bzModalVpHandler);
     vv.addEventListener('scroll', window._bzModalVpHandler);
