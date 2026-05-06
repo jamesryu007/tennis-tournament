@@ -1435,6 +1435,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           <button id="bz-btn-start" onclick="bzStartGuessing()" style="padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer">🕵️ 막무가내 톡방 시작</button>
           <button id="bz-btn-reveal" onclick="bzReveal()" style="display:none;padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer">🔓 최종 오픈</button>
           <button id="bz-btn-realnames" onclick="bzToggleRealNames()" style="padding:7px 14px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#64748b;font-size:0.8rem;font-weight:700;cursor:pointer">👁 실명 공개</button>
+          <button id="bz-btn-gamerestart" onclick="bzGameRestart()" style="display:none;padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer">🔁 게임 재시작</button>
           <button onclick="bzNewGame()" style="padding:7px 14px;border-radius:10px;border:none;background:#f1f5f9;color:#64748b;font-size:0.8rem;font-weight:700;cursor:pointer">🔄 새 게임</button>
           <!-- 관리자: 맞추기 참여 현황 (guessing phase에서만 표시) -->
           <div id="bz-guess-status" style="display:none;width:100%;margin-top:4px"></div>
@@ -12711,6 +12712,18 @@ function bzPressureAll() {
   _bzSendPush('관리자', `아직 ${notDone.length}명이 가명 맞추기를 안 했어요! 빨리 골라주세요 😤`, 'manual');
 }
 
+// 게임만 초기화 — 채팅/메시지/입실인원/가명은 유지, 맞추기 게임 상태만 리셋
+function bzGameRestart() {
+  if (!isAdmin()) return;
+  if (!confirm('게임을 재시작할까요?\n채팅 내용과 가명은 그대로 유지되고,\n맞추기 게임(추측/결과)만 초기화됩니다.')) return;
+  const updates = {};
+  updates[`${BZ_REF}/phase`] = 'chatting';
+  updates[`${BZ_REF}/guesses`] = null;
+  updates[`${BZ_REF}/results`] = null;
+  updates[`${BZ_REF}/showRealNames`] = null;
+  db.ref().update(updates).catch(fbErr);
+}
+
 function bzNewGame() {
   if (!isAdmin()) return;
   if (!confirm('새 게임을 시작하면 현재 게임이 이력으로 이동합니다.')) return;
@@ -12836,6 +12849,8 @@ function _bzRender() {
     document.getElementById('bz-btn-start').style.display = phase === 'chatting' ? 'inline-block' : 'none';
     // 최종오픈: guessing 단계에서 미참여자 있어도 항상 가능
     document.getElementById('bz-btn-reveal').style.display = phase === 'guessing' ? 'inline-block' : 'none';
+    // 게임 재시작: guessing/revealed 단계에서 노출 (채팅 유지, 게임만 초기화)
+    document.getElementById('bz-btn-gamerestart').style.display = (phase === 'guessing' || phase === 'revealed') ? 'inline-block' : 'none';
     // 실명공개 버튼 상태 동기화
     const rnBtn = document.getElementById('bz-btn-realnames');
     if (rnBtn) {
@@ -12885,7 +12900,12 @@ function _bzRender() {
   guessSection.style.display = phase === 'guessing' ? 'block' : 'none';
   if (phase === 'guessing') {
     const alreadyGuessed = !!(guesses[myName]);
-    document.getElementById('bz-guess-done-msg').style.display = alreadyGuessed ? 'block' : 'none';
+    const doneMsgEl = document.getElementById('bz-guess-done-msg');
+    doneMsgEl.style.display = alreadyGuessed ? 'block' : 'none';
+    if (alreadyGuessed) {
+      const myGuess = guesses[myName];
+      doneMsgEl.innerHTML = `✅ 맞추기 완료! <span style="background:#fef3c7;color:#b45309;border-radius:6px;padding:2px 8px;font-size:0.75rem;margin-left:4px">「${myGuess.fake}」→ ${myGuess.real}</span>`;
+    }
     document.getElementById('bz-guess-form').style.display = alreadyGuessed ? 'none' : 'flex';
     if (!alreadyGuessed) {
       // 채팅에 등장한 가명 목록
