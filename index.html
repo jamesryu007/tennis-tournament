@@ -1464,6 +1464,12 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
         </div>
       </div>
 
+      <!-- 가명 스트립 — 정보 프레임 접힌 상태에서 가명 2개 이상일 때만 표시 -->
+      <div id="bz-alias-strip" style="display:none;flex-shrink:0;align-items:center;gap:6px;padding:5px 14px;background:#fffbeb;border-bottom:1px solid #fde68a">
+        <span style="font-size:0.73rem;font-weight:700;color:#92400e;white-space:nowrap">나의 가명:</span>
+        <div id="bz-alias-strip-chips" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+      </div>
+
       <!-- 채팅 영역 — 순백 계열로 대화 구역 명확히 구분 -->
       <div id="bz-chat-area" style="flex:1;min-height:60px;background:#ffffff;overflow-y:auto;padding:12px 14px;margin:0;display:flex;flex-direction:column;gap:6px">
         <div id="bz-chat-empty" style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:30px 0">아직 대화가 없습니다.<br>가명을 선택하고 첫 메시지를 남겨보세요!</div>
@@ -12401,6 +12407,30 @@ function _bzUpdateAliasBadge() {
       ${active ? '✓ ' : ''}${name}
     </button>`;
   }).join('');
+  // 스트립도 동기화
+  _bzUpdateAliasStrip();
+}
+
+// 가명 스트립 — 접힌 상태 + 가명 2개 이상일 때만 표시
+function _bzUpdateAliasStrip() {
+  const strip = document.getElementById('bz-alias-strip');
+  const chipsEl = document.getElementById('bz-alias-strip-chips');
+  if (!strip || !chipsEl) return;
+  // 가명이 2개 미만이거나 프레임이 펼쳐진 상태면 숨김
+  if (!_bzInfoCollapsed || _bzMyAliases.length < 2) {
+    strip.style.display = 'none';
+    return;
+  }
+  strip.style.display = 'flex';
+  chipsEl.innerHTML = _bzMyAliases.map(name => {
+    const active = name === _bzCurrentAlias;
+    return `<button onclick="bzSwitchAlias('${name}')"
+      style="padding:3px 10px;border-radius:20px;border:1.5px solid ${active ? '#f59e0b' : '#e2e8f0'};
+      background:${active ? 'linear-gradient(135deg,#fef3c7,#fde68a)' : '#f8fafc'};
+      color:${active ? '#b45309' : '#64748b'};font-size:0.73rem;font-weight:700;cursor:pointer;white-space:nowrap">
+      ${active ? '✓ ' : ''}${name}
+    </button>`;
+  }).join('');
 }
 
 function bzSwitchAlias(name) {
@@ -12814,6 +12844,7 @@ function _bzCollapseInfoFrame() {
   frame.style.padding = '0';
   frame.style.margin = '0 12px';
   if (btn) btn.textContent = '▲';
+  _bzUpdateAliasStrip();
 }
 
 // 토글 버튼 — 접기/펼치기
@@ -12828,6 +12859,9 @@ function _bzToggleInfoFrame() {
     frame.style.padding = '10px 14px';
     frame.style.margin = '10px 12px 6px';
     if (btn) btn.textContent = '▽';
+    // 가명 스트립 숨김
+    const strip = document.getElementById('bz-alias-strip');
+    if (strip) strip.style.display = 'none';
     // 키보드 내리기 — blur 시 visualViewport resize가 modal 높이 복원 + scroll-to-bottom 처리
     document.getElementById('bz-input')?.blur();
     // 트랜지션(220ms) 완료 후 채팅 영역 스크롤 보정 (안전망)
