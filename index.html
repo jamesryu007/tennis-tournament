@@ -12226,21 +12226,20 @@ function bzShowRoom() {
   _bzSetupAliasList();
   _bzSetupListener();
 
-  // 채팅 맨 위/아래 도달 토스트
+  // 채팅 맨 위/아래 도달 토스트 — position:fixed로 body에 올려 레이아웃 영향 없음
   const _bzChatArea = document.getElementById('bz-chat-area');
   if (_bzChatArea && !_bzChatArea._bzEdgeToastAdded) {
     _bzChatArea._bzEdgeToastAdded = true;
     let _bzEdgeTimer = null;
-    const _bzShowEdgeToast = (msg, atTop) => {
+    const _bzShowEdgeToast = (msg) => {
       let toast = document.getElementById('bz-edge-toast');
       if (!toast) {
         toast = document.createElement('div');
         toast.id = 'bz-edge-toast';
-        toast.style.cssText = 'position:sticky;left:50%;transform:translateX(-50%);width:fit-content;background:rgba(0,0,0,0.55);color:#fff;font-size:0.72rem;padding:4px 14px;border-radius:20px;pointer-events:none;transition:opacity 0.25s;z-index:10;white-space:nowrap';
-        document.getElementById('bz-chat-area').prepend(toast);
+        toast.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:50%;background:rgba(0,0,0,0.55);color:#fff;font-size:0.75rem;padding:6px 18px;border-radius:20px;pointer-events:none;transition:opacity 0.3s;z-index:9999;white-space:nowrap;opacity:0';
+        document.body.appendChild(toast);
       }
       toast.textContent = msg;
-      toast.style.cssText += atTop ? ';top:4px;bottom:auto' : ';bottom:4px;top:auto';
       toast.style.opacity = '1';
       clearTimeout(_bzEdgeTimer);
       _bzEdgeTimer = setTimeout(() => { toast.style.opacity = '0'; }, 1500);
@@ -12248,9 +12247,9 @@ function bzShowRoom() {
     _bzChatArea.addEventListener('scroll', () => {
       const area = _bzChatArea;
       if (area.scrollTop === 0) {
-        _bzShowEdgeToast('채팅방 맨 위입니다', true);
+        _bzShowEdgeToast('채팅방 맨 위입니다');
       } else if (area.scrollHeight - area.scrollTop - area.clientHeight < 2) {
-        _bzShowEdgeToast('최신 메시지입니다', false);
+        _bzShowEdgeToast('최신 메시지입니다');
       }
     }, { passive: true });
   }
@@ -12480,6 +12479,22 @@ function bzMsgTap(msgKey) {
     bzToggleLike(msgKey);
   } else {
     window._bzTapMap[msgKey] = now;
+  }
+}
+
+function bzImgTap(msgKey, ts) {
+  const now = Date.now();
+  if (!window._bzTapMap) window._bzTapMap = {};
+  if (window._bzTapMap[msgKey] && now - window._bzTapMap[msgKey] < 350) {
+    // 더블탭 — 확대 취소, 하트 토글
+    window._bzTapMap[msgKey] = 0;
+    clearTimeout(window._bzImgExpandTimer);
+    bzToggleLike(msgKey);
+  } else {
+    // 첫 탭 — 350ms 대기 후 확대 (더블탭 없으면)
+    window._bzTapMap[msgKey] = now;
+    clearTimeout(window._bzImgExpandTimer);
+    window._bzImgExpandTimer = setTimeout(() => { bzViewPhoto(ts); }, 350);
   }
 }
 
@@ -12844,7 +12859,7 @@ function _bzRenderMessages(phase) {
         </div>` : '';
     const bubble = m.imageData
       ? `<div style="max-width:75%;padding:4px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};border:1px solid ${isMine ? 'transparent' : '#e2e8f0'}">
-          ${replyBox}<img src="${m.imageData}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" loading="lazy" onclick="bzViewPhoto(${m.ts})">
+          ${replyBox}<img src="${m.imageData}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" loading="lazy" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
       : `<div onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:1px solid ${isMine ? 'transparent' : '#e2e8f0'};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
           ${replyBox}${m.text}
@@ -12863,15 +12878,16 @@ function _bzRenderMessages(phase) {
       ${heartRow}
     </div>`;
   }).join('');
-  // 맨 아래 근처에 있던 경우만 자동 스크롤 (위로 스크롤 중이면 유지)
+  // 맨 아래 근처에 있던 경우만 자동 스크롤 — rAF로 레이아웃 확정 후 실행 (jump 방지)
   if (_bzWasAtBottom) {
-    area.scrollTop = area.scrollHeight;
-    area.querySelectorAll('img').forEach(img => {
-      if (!img.complete) img.addEventListener('load', () => {
-        // 이미지 로드 완료 시점에도 맨 아래 근처일 때만 스크롤 (스크롤 중이면 유지)
-        const stillAtBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
-        if (stillAtBottom) area.scrollTop = area.scrollHeight;
-      }, { once: true });
+    requestAnimationFrame(() => {
+      area.scrollTop = area.scrollHeight;
+      area.querySelectorAll('img').forEach(img => {
+        if (!img.complete) img.addEventListener('load', () => {
+          const stillAtBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
+          if (stillAtBottom) area.scrollTop = area.scrollHeight;
+        }, { once: true });
+      });
     });
   }
 }
