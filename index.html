@@ -12370,7 +12370,7 @@ function bzSwitchAlias(name) {
 function _bzTrimMessages() {
   const msgs = (_bzState && _bzState.messages) ? _bzState.messages : {};
   const keys = Object.keys(msgs);
-  if (keys.length <= 200) return;
+  if (keys.length <= 1000) return;
   // ts 오름차순 정렬 후 초과분 삭제
   keys.sort((a, b) => (msgs[a].ts || 0) - (msgs[b].ts || 0));
   const toDelete = keys.slice(0, keys.length - 200);
@@ -12441,9 +12441,9 @@ function bzSendPhoto(e) {
   if (!myName) { alert('로그인 후 이용하세요.'); return; }
   const phase = (_bzState && _bzState.phase) || 'chatting';
   if (phase === 'revealed') { alert('게임이 종료되었습니다.'); return; }
-  // 세션 내 사진 30장 제한
+  // 세션 내 사진 제한
   const photoCount = _bzState && _bzState.messages
-    ? Object.values(_bzState.messages).filter(m => m.imageData).length
+    ? Object.values(_bzState.messages).filter(m => m.imageData || m.imageUrl).length
     : 0;
   if (photoCount >= BZ_CONFIG.maxPhotos) { alert(`세션당 최대 ${BZ_CONFIG.maxPhotos}장까지 전송할 수 있습니다.`); return; }
   const reader = new FileReader();
@@ -12460,24 +12460,36 @@ function bzSendPhoto(e) {
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      const imageData = canvas.toDataURL('image/jpeg', 0.7);
       const senderAlias = _bzCurrentAlias || myName;
-      if (!(_bzState && _bzState.entrants && _bzState.entrants[myName])) {
-        db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
-      }
-      const msgData = { alias: senderAlias, realName: myName, imageData, ts: Date.now() };
-      if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '' };
-      db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
-      _bzTrimMessages();
-      if (!phase || phase === 'waiting') {
-        db.ref(`${BZ_REF}/phase`).set('chatting').catch(fbErr);
-      }
-      if (_bzReplyTo && _bzReplyTo.realName) {
-        _bzSendPush(senderAlias, '사진을 보냈어요', 'reply', { replyToRealName: _bzReplyTo.realName, replyToAlias: _bzReplyTo.alias, replierRealName: myName });
-      } else {
-        _bzSendPush(senderAlias, `${senderAlias}이(가) 사진을 보냈어요!`, 'start', { senderRealName: myName });
-      }
-      bzCancelReply();
+      const ts = Date.now();
+      // Firebase Storage 업로드
+      canvas.toBlob(async (blob) => {
+        const storagePath = `banzige/images/${ts}_${Math.random().toString(36).slice(2, 8)}.jpg`;
+        try {
+          const storageRef = firebase.storage().ref(storagePath);
+          await storageRef.put(blob, { contentType: 'image/jpeg' });
+          const imageUrl = await storageRef.getDownloadURL();
+          if (!(_bzState && _bzState.entrants && _bzState.entrants[myName])) {
+            db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
+          }
+          const msgData = { alias: senderAlias, realName: myName, imageUrl, ts };
+          if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '' };
+          db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
+          _bzTrimMessages();
+          if (!phase || phase === 'waiting') {
+            db.ref(`${BZ_REF}/phase`).set('chatting').catch(fbErr);
+          }
+          if (_bzReplyTo && _bzReplyTo.realName) {
+            _bzSendPush(senderAlias, '사진을 보냈어요', 'reply', { replyToRealName: _bzReplyTo.realName, replyToAlias: _bzReplyTo.alias, replierRealName: myName });
+          } else {
+            _bzSendPush(senderAlias, `${senderAlias}이(가) 사진을 보냈어요!`, 'start', { senderRealName: myName });
+          }
+          bzCancelReply();
+        } catch (err) {
+          console.error('사진 업로드 오류:', err);
+          alert('사진 전송 실패: ' + (err.message || err));
+        }
+      }, 'image/jpeg', 0.7);
     };
     img.src = ev.target.result;
   };
@@ -12556,16 +12568,34 @@ function bzViewPhoto(ts) {
   document.body.appendChild(overlay);
 }
 
-function _bzDownloadPhoto(dataUrl) {
+async function _bzDownloadPhoto(src) {
+  // Storage URL(https://)인 경우 fetch로 blob 가져오기
+  const isStorageUrl = src.startsWith('http');
+  let blob;
+  if (isStorageUrl) {
+    try {
+      const res = await fetch(src);
+      blob = await res.blob();
+    } catch (e) {
+      // fetch 실패 시 새 탭으로 열기
+      window.open(src, '_blank');
+      return;
+    }
+  }
   // iOS Safari: Web Share API로 갤러리 저장 (iOS 15+)
   if (navigator.share && navigator.canShare) {
-    const arr = dataUrl.split(',');
-    const mime = arr[0].match(/:(.*?);/)[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while (n--) u8arr[n] = bstr.charCodeAt(n);
-    const file = new File([u8arr], 'banzige-photo.jpg', { type: mime });
+    let file;
+    if (blob) {
+      file = new File([blob], 'banzige-photo.jpg', { type: 'image/jpeg' });
+    } else {
+      const arr = src.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) u8arr[n] = bstr.charCodeAt(n);
+      file = new File([u8arr], 'banzige-photo.jpg', { type: mime });
+    }
     if (navigator.canShare({ files: [file] })) {
       navigator.share({ files: [file] }).catch(() => {});
       return;
@@ -12573,9 +12603,14 @@ function _bzDownloadPhoto(dataUrl) {
   }
   // Android / desktop: anchor download
   const a = document.createElement('a');
-  a.href = dataUrl;
+  if (blob) {
+    a.href = URL.createObjectURL(blob);
+  } else {
+    a.href = src;
+  }
   a.download = 'banzige-photo.jpg';
   a.click();
+  if (blob) setTimeout(() => URL.revokeObjectURL(a.href), 10000);
 }
 
 function bzStartGuessing() {
@@ -12620,6 +12655,17 @@ function bzReveal() {
   }
   const alias = _bzPickRandomAlias();
   if (alias) _bzSendPush(alias, `${alias}의 정체가 밝혀졌습니다!`, 'reveal');
+}
+
+// 아직 안 고른 전체 입실자에게 압박 푸시
+function bzPressureAll() {
+  if (!isAdmin()) return;
+  const guesses = (_bzState && _bzState.guesses) ? _bzState.guesses : {};
+  const entrants = Object.keys((_bzState && _bzState.entrants) || {});
+  const notDone = entrants.filter(n => !guesses[n]);
+  if (notDone.length === 0) { alert('모두 완료했습니다!'); return; }
+  if (!confirm(`${notDone.length}명(${notDone.join(', ')})에게 전체 압박 푸시를 보낼까요?`)) return;
+  _bzSendPush('관리자', `아직 ${notDone.length}명이 가명 맞추기를 안 했어요! 빨리 골라주세요 😤`, 'manual');
 }
 
 function bzNewGame() {
@@ -12730,14 +12776,16 @@ function _bzRender() {
           `<span style="font-size:0.68rem;background:#dcfce7;color:#16a34a;border-radius:8px;padding:2px 8px;margin:2px;display:inline-block">✅ ${n}</span>`
         ).join('');
         const notDoneChips = notDone.map(n =>
-          `<span style="font-size:0.68rem;background:#fee2e2;color:#dc2626;border-radius:8px;padding:2px 8px;margin:2px;display:inline-block;cursor:pointer"
-            onclick="_bzSendPush('관리자','${n}님 아직 안 골랐어요! 빨리 골라주세요 😤','manual')" title="압박 푸시">⏳ ${n} 📢</span>`
+          `<span style="font-size:0.68rem;background:#fee2e2;color:#dc2626;border-radius:8px;padding:2px 8px;margin:2px;display:inline-block">⏳ ${n}</span>`
         ).join('');
+        const pressureBtn = notDone.length > 0
+          ? `<button onclick="bzPressureAll()" style="margin-top:6px;padding:5px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-size:0.75rem;font-weight:800;cursor:pointer">📢 전체 압박 푸시 (${notDone.length}명)</button>`
+          : '';
         guessStatusEl.style.display = 'block';
         guessStatusEl.innerHTML = `
           <div style="font-size:0.7rem;color:#64748b;margin-bottom:4px">맞추기 현황 (${done.length}/${entrants.length}명 완료)</div>
           <div style="display:flex;flex-wrap:wrap">${doneChips}${notDoneChips}</div>
-          ${notDone.length > 0 ? `<div style="font-size:0.65rem;color:#94a3b8;margin-top:3px">⏳ 칩 탭하면 해당 멤버에게 압박 푸시</div>` : ''}`;
+          ${pressureBtn}`;
       } else {
         guessStatusEl.style.display = 'none';
         guessStatusEl.innerHTML = '';
@@ -12845,7 +12893,9 @@ function _bzRenderMessages(phase) {
   // 전체화면 뷰어용 사진 맵 (onclick에 base64 직접 삽입 불가 → ts 키로 참조)
   window._bzPhotoMap = {};
   area.innerHTML = msgs.map(m => {
-    if (m.imageData) window._bzPhotoMap[m.ts] = m.imageData;
+    // imageUrl(Storage) 우선, 구형 imageData(base64) fallback
+    if (m.imageUrl) window._bzPhotoMap[m.ts] = m.imageUrl;
+    else if (m.imageData) window._bzPhotoMap[m.ts] = m.imageData;
     // m.realName 우선 사용 — 타인이 같은 이름을 가명으로 쓸 경우 aliasToReal이 오염되는 문제 방지
     const realOfAlias = m.realName || aliasToReal[m.alias] || m.alias;
     const showRealNames = phase === 'revealed' || !!(_bzState && _bzState.showRealNames);
@@ -12862,7 +12912,7 @@ function _bzRenderMessages(phase) {
     const heartRow    = likeCount > 0
       ? `<div style="font-size:0.75rem;color:${iLiked?'#ef4444':'#94a3b8'};padding:0 4px;cursor:pointer;user-select:none" onclick="bzToggleLike('${keyEsc}')">❤️ ${likeCount}</div>`
       : '';
-    const msgText  = m.text || (m.imageData ? '[사진]' : '');
+    const msgText  = m.text || (m.imageData || m.imageUrl ? '[사진]' : '');
     const textEsc  = msgText.replace(/'/g, "\\'").replace(/`/g, '\\`');
     const adminPushBtn = isAdmin() && phase !== 'revealed'
       ? `<button onclick="_bzSendPush('${aliasEsc}','${textEsc}','manual')" title="이 메시지 전체 푸시"
@@ -12880,9 +12930,10 @@ function _bzRenderMessages(phase) {
           <span style="font-weight:700">${phase==='revealed' ? `${m.replyTo.alias}(${aliasToReal[m.replyTo.alias]||m.replyTo.alias})` : m.replyTo.alias}</span>
           <span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.replyTo.text}</span>
         </div>` : '';
-    const bubble = m.imageData
+    const imgSrc = m.imageUrl || m.imageData || '';
+    const bubble = imgSrc
       ? `<div style="max-width:75%;padding:4px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};border:1px solid ${isMine ? 'transparent' : '#e2e8f0'}">
-          ${replyBox}<img src="${m.imageData}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" loading="lazy" onclick="bzImgTap('${keyEsc}',${m.ts})">
+          ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" loading="lazy" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
       : `<div onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:1px solid ${isMine ? 'transparent' : '#e2e8f0'};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
           ${replyBox}${m.text}
