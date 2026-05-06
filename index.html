@@ -12416,19 +12416,22 @@ function _bzUpdateAliasStrip() {
   const strip = document.getElementById('bz-alias-strip');
   const chipsEl = document.getElementById('bz-alias-strip-chips');
   if (!strip || !chipsEl) return;
-  // 가명이 2개 미만이거나 프레임이 펼쳐진 상태면 숨김
-  if (!_bzInfoCollapsed || _bzMyAliases.length < 2) {
+  // 가명이 없거나 프레임이 펼쳐진 상태면 숨김
+  if (!_bzInfoCollapsed || _bzMyAliases.length < 1) {
     strip.style.display = 'none';
     return;
   }
+  const myName = (state.identity && state.identity.name) || '';
+  // 나 자신 + 가명 목록 — 나 자신은 _bzCurrentAlias === ''
+  const items = [{ label: myName, value: '' }, ..._bzMyAliases.map(n => ({ label: n, value: n }))];
   strip.style.display = 'flex';
-  chipsEl.innerHTML = _bzMyAliases.map(name => {
-    const active = name === _bzCurrentAlias;
-    return `<button onclick="bzSwitchAlias('${name}')"
+  chipsEl.innerHTML = items.map(({ label, value }) => {
+    const active = value === (_bzCurrentAlias || '');
+    return `<button onclick="bzSwitchAlias('${value}')"
       style="padding:3px 10px;border-radius:20px;border:1.5px solid ${active ? '#f59e0b' : '#e2e8f0'};
       background:${active ? 'linear-gradient(135deg,#fef3c7,#fde68a)' : '#f8fafc'};
       color:${active ? '#b45309' : '#64748b'};font-size:0.73rem;font-weight:700;cursor:pointer;white-space:nowrap">
-      ${active ? '✓ ' : ''}${name}
+      ${active ? '✓ ' : ''}${label}
     </button>`;
   }).join('');
 }
