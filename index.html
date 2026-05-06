@@ -12091,6 +12091,7 @@ let _bzMyAliases = [];        // 내가 사용한 가명 목록 (max 2)
 let _bzCurrentAlias = null;  // null=미초기화, ''=나자신, 'name'=가명
 let _bzListener = null;      // Firebase 리스너
 let _bzState = null;         // 현재 게임 상태
+let _bzFirstRender = false;  // 진입 후 첫 렌더 여부 (초기 스크롤 보장)
 let _bzReplyTo = null;       // 현재 답글 대상 { alias, text }
 
 const BZ_REF = 'jmt/banzige/current';
@@ -12221,6 +12222,7 @@ function bzShowRoom() {
     }, { passive: true });
   }
 
+  _bzFirstRender = true;
   _bzSetupAliasList();
   _bzSetupListener();
 
@@ -12778,8 +12780,9 @@ function _bzRenderMessages(phase) {
     area.innerHTML = `<div id="bz-chat-empty" style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:30px 0">아직 대화가 없습니다.<br>가명을 선택하고 첫 메시지를 남겨보세요!</div>`;
     return;
   }
-  // 렌더 전 스크롤 위치 확인 — 맨 아래 근처(100px 이내)일 때만 렌더 후 자동 스크롤
-  const _bzWasAtBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
+  // 렌더 전 스크롤 위치 확인 — 첫 렌더이거나 맨 아래 근처(100px 이내)일 때만 렌더 후 자동 스크롤
+  const _bzWasAtBottom = _bzFirstRender || (area.scrollHeight - area.scrollTop - area.clientHeight < 100);
+  _bzFirstRender = false;
   const myName = (state.identity && state.identity.name) || '';
   const canReply = phase !== 'revealed';
   // 전체화면 뷰어용 사진 맵 (onclick에 base64 직접 삽입 불가 → ts 키로 참조)
