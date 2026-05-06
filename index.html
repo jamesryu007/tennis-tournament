@@ -1479,7 +1479,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
           </div>
           <button onclick="bzCancelReply()" style="border:none;background:none;font-size:1rem;color:#94a3b8;cursor:pointer;flex-shrink:0;padding:0">✕</button>
         </div>
-        <input type="file" id="bz-photo-input" accept="image/*" style="display:none" onchange="bzSendPhoto(event)">
+        <input type="file" id="bz-photo-input" accept="image/*,video/*" style="display:none" onchange="bzSendPhoto(event)">
         <div style="display:flex;gap:8px;align-items:center">
           <button id="bz-btn-photo" onclick="bzOpenPhotoInput()" style="padding:9px 11px;border-radius:12px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:1rem;cursor:pointer;flex-shrink:0">📷</button>
           <input id="bz-input" type="text" placeholder="메시지 입력..." maxlength="100"
@@ -12100,7 +12100,9 @@ let _bzInfoCollapsed = false; // 상단 정보 프레임 접힘 여부
 
 const BZ_REF = 'jmt/banzige/current';
 const BZ_CONFIG = {
-  maxPhotos: 100,  // 세션당 사진 최대 전송 수 — 이 값만 바꾸면 전체 적용됨
+  maxPhotos: 100,              // 세션당 사진 최대 전송 수
+  maxVideos: 10,               // 현재 메시지 내 동시 유지 가능한 영상 수
+  maxVideoSize: 20 * 1024 * 1024, // 영상 최대 크기 20MB (자만추 동일)
 };
 
 function _bzSendPush(alias, text, type, extra) {
@@ -12485,16 +12487,56 @@ function bzSendPhoto(e) {
   if (!myName) { alert('로그인 후 이용하세요.'); return; }
   const phase = (_bzState && _bzState.phase) || 'chatting';
   if (phase === 'revealed') { alert('게임이 종료되었습니다.'); return; }
-  // 세션 내 사진 제한
+
+  const isVideo = file.type.startsWith('video/');
+  const senderAlias = _bzCurrentAlias || myName;
+  const ts = Date.now();
+  const photoBtn = document.getElementById('bz-btn-photo');
+
+  // ── 영상 전송 ───────────────────────────────────────────────────
+  if (isVideo) {
+    if (file.size > BZ_CONFIG.maxVideoSize) {
+      alert(`영상은 최대 ${BZ_CONFIG.maxVideoSize / 1024 / 1024}MB까지 전송할 수 있습니다.`); return;
+    }
+    const videoCount = _bzState && _bzState.messages
+      ? Object.values(_bzState.messages).filter(m => m.videoUrl).length : 0;
+    if (videoCount >= BZ_CONFIG.maxVideos) {
+      alert(`영상은 최대 ${BZ_CONFIG.maxVideos}개까지 유지됩니다.\n오래된 메시지가 삭제되면 추가 전송 가능합니다.`); return;
+    }
+    if (photoBtn) { photoBtn.disabled = true; photoBtn.textContent = '⏳'; }
+    const storagePath = `banzige/videos/${ts}_${Math.random().toString(36).slice(2, 8)}`;
+    const storageRef = firebase.storage().ref(storagePath);
+    storageRef.put(file, { contentType: file.type })
+      .then(async () => {
+        const videoUrl = await storageRef.getDownloadURL();
+        if (!(_bzState && _bzState.entrants && _bzState.entrants[myName])) {
+          db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
+        }
+        const msgData = { alias: senderAlias, realName: myName, videoUrl, ts };
+        if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '' };
+        db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
+        _bzTrimMessages();
+        if (!phase || phase === 'waiting') db.ref(`${BZ_REF}/phase`).set('chatting').catch(fbErr);
+        if (_bzReplyTo && _bzReplyTo.realName) {
+          _bzSendPush(senderAlias, '영상을 보냈어요', 'reply', { replyToRealName: _bzReplyTo.realName, replyToAlias: _bzReplyTo.alias, replierRealName: myName });
+        } else {
+          _bzSendPush(senderAlias, `${senderAlias}이(가) 영상을 보냈어요!`, 'start', { senderRealName: myName });
+        }
+        bzCancelReply();
+      })
+      .catch(err => { console.error('영상 업로드 오류:', err); alert('영상 전송 실패: ' + (err.message || err)); })
+      .finally(() => { if (photoBtn) { photoBtn.disabled = false; photoBtn.textContent = '📷'; } });
+    return;
+  }
+
+  // ── 사진 전송 ───────────────────────────────────────────────────
   const photoCount = _bzState && _bzState.messages
-    ? Object.values(_bzState.messages).filter(m => m.imageData || m.imageUrl).length
-    : 0;
+    ? Object.values(_bzState.messages).filter(m => m.imageData || m.imageUrl).length : 0;
   if (photoCount >= BZ_CONFIG.maxPhotos) { alert(`세션당 최대 ${BZ_CONFIG.maxPhotos}장까지 전송할 수 있습니다.`); return; }
   const reader = new FileReader();
   reader.onload = function(ev) {
     const img = new Image();
     img.onload = function() {
-      // 최대 600px 리사이즈
       const MAX = 600;
       let w = img.width, h = img.height;
       if (w > MAX || h > MAX) {
@@ -12504,9 +12546,6 @@ function bzSendPhoto(e) {
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      const senderAlias = _bzCurrentAlias || myName;
-      const ts = Date.now();
-      // Firebase Storage 업로드
       canvas.toBlob(async (blob) => {
         const storagePath = `banzige/images/${ts}_${Math.random().toString(36).slice(2, 8)}.jpg`;
         try {
@@ -12520,9 +12559,7 @@ function bzSendPhoto(e) {
           if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '' };
           db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
           _bzTrimMessages();
-          if (!phase || phase === 'waiting') {
-            db.ref(`${BZ_REF}/phase`).set('chatting').catch(fbErr);
-          }
+          if (!phase || phase === 'waiting') db.ref(`${BZ_REF}/phase`).set('chatting').catch(fbErr);
           if (_bzReplyTo && _bzReplyTo.realName) {
             _bzSendPush(senderAlias, '사진을 보냈어요', 'reply', { replyToRealName: _bzReplyTo.realName, replyToAlias: _bzReplyTo.alias, replierRealName: myName });
           } else {
@@ -13016,7 +13053,7 @@ function _bzRenderMessages(phase) {
       ? `<span style="font-size:0.75rem;color:${iLiked?'#ef4444':'#94a3b8'};cursor:pointer;user-select:none" onclick="bzToggleLike('${keyEsc}')">❤️ ${likeCount}</span>`
       : '';
     const heartRow    = `<div data-bzheart="${keyEsc}" style="padding:0 4px">${heartInner}</div>`;
-    const msgText  = m.text || (m.imageData || m.imageUrl ? '[사진]' : '');
+    const msgText  = m.text || (m.videoUrl ? '[영상]' : m.imageData || m.imageUrl ? '[사진]' : '');
     const textEsc  = msgText.replace(/'/g, "\\'").replace(/`/g, '\\`');
     const adminPushBtn = isAdmin() && phase !== 'revealed'
       ? `<button onclick="_bzSendPush('${aliasEsc}','${textEsc}','manual')" title="이 메시지 전체 푸시"
@@ -13035,11 +13072,18 @@ function _bzRenderMessages(phase) {
           <span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.replyTo.text}</span>
         </div>` : '';
     const imgSrc = m.imageUrl || m.imageData || '';
-    const bubble = imgSrc
-      ? `<div style="max-width:75%;padding:4px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};border:1px solid ${isMine ? 'transparent' : '#e2e8f0'}">
+    const bubbleRadius = `${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}`;
+    const bubbleBg = `${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'}`;
+    const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#e2e8f0'}`;
+    const bubble = m.videoUrl
+      ? `<div style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
+          ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" style="max-width:240px;width:100%;border-radius:10px;display:block"></video>
+        </div>`
+      : imgSrc
+      ? `<div style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
           ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" loading="lazy" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
-      : `<div onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'};background:${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:1px solid ${isMine ? 'transparent' : '#e2e8f0'};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
+      : `<div onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
           ${replyBox}${m.text}
         </div>`;
     return `<div style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
