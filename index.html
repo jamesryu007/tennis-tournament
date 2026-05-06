@@ -12101,7 +12101,9 @@ let _bzListener = null;      // Firebase 리스너
 let _bzState = null;         // 현재 게임 상태
 let _bzFirstRender = false;  // 진입 후 첫 렌더 여부 (초기 스크롤 보장)
 let _bzReplyTo = null;       // 현재 답글 대상 { alias, text }
-let _bzLastRenderKey = null; // likes 제외 상태 해시 — likes만 바뀐 경우 전체 재렌더 방지
+let _bzLastRenderKey = null; // 전체 상태 해시
+let _bzLastNonMsgKey = null; // 메시지 제외 상태 해시 — 메시지 증분 업데이트 판별용
+let _bzRenderedMsgKeys = new Set(); // 이미 DOM에 렌더된 메시지 키 집합
 let _bzInfoCollapsed = false; // 상단 정보 프레임 접힘 여부
 
 const BZ_REF = 'jmt/banzige/current';
@@ -12329,11 +12331,12 @@ function _bzSetupAliasList() {
 function _bzSetupListener() {
   if (_bzListener) { db.ref(BZ_REF).off('value', _bzListener); }
   _bzLastRenderKey = null;
+  _bzLastNonMsgKey = null;
+  _bzRenderedMsgKeys = new Set();
   _bzListener = db.ref(BZ_REF).on('value', snap => {
     const newState = snap.val() || {};
-    // likes를 제외한 상태 해시 — likes만 바뀐 경우 전체 재렌더 없이 하트만 업데이트
-    const renderKey = JSON.stringify({
-      messages: newState.messages,
+    // 메시지 제외 상태 해시 — 이게 바뀌면 전체 재렌더 필요
+    const nonMsgKey = JSON.stringify({
       phase: newState.phase,
       entrants: newState.entrants,
       aliases: newState.aliases,
@@ -12341,12 +12344,21 @@ function _bzSetupListener() {
       results: newState.results,
       showRealNames: newState.showRealNames,
     });
+    const fullKey = nonMsgKey + '|' + JSON.stringify(newState.messages);
     _bzState = newState;
-    if (_bzLastRenderKey && renderKey === _bzLastRenderKey) {
+    // likes만 바뀐 경우 — 하트만 부분 업데이트
+    if (_bzLastRenderKey && fullKey === _bzLastRenderKey) {
       _bzUpdateLikesOnly(newState.likes || {});
       return;
     }
-    _bzLastRenderKey = renderKey;
+    _bzLastRenderKey = fullKey;
+    // 메시지만 추가/삭제된 경우 — 증분 업데이트 (video/이미지 요소 유지)
+    if (_bzLastNonMsgKey && nonMsgKey === _bzLastNonMsgKey) {
+      _bzIncrementalUpdateMessages(newState.messages || {});
+      return;
+    }
+    // 전체 재렌더 (phase 변경, 공개 전환 등)
+    _bzLastNonMsgKey = nonMsgKey;
     _bzRender();
   });
 }
@@ -12879,6 +12891,8 @@ function _bzToggleInfoFrame() {
 
 function _bzRender() {
   if (!_bzState) return;
+  // 전체 재렌더 — 증분 키 집합 초기화
+  _bzRenderedMsgKeys = new Set();
   const phase = _bzState.phase || 'chatting';
   const myName = (state.identity && state.identity.name) || '';
   const entrants = _bzState.entrants || {};
@@ -13123,7 +13137,7 @@ function _bzRenderMessages(phase) {
       : `<div onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
           ${replyBox}${m.text}
         </div>`;
-    return `<div style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
+    return `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
       <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
         ${!isMine && isAdmin() ? adminPushBtn : ''}
         <span style="font-size:0.68rem;color:#94a3b8">${senderLabel}</span>
@@ -13137,6 +13151,8 @@ function _bzRenderMessages(phase) {
       ${heartRow}
     </div>`;
   }).join('');
+  // 렌더된 메시지 키 갱신
+  _bzRenderedMsgKeys = new Set(msgs.map(m => m._key));
   // 맨 아래 근처에 있던 경우만 자동 스크롤 — rAF로 레이아웃 확정 후 실행 (jump 방지)
   if (_bzWasAtBottom) {
     requestAnimationFrame(() => {
@@ -13152,6 +13168,121 @@ function _bzRenderMessages(phase) {
 }
 
 // ══════════════════════════════════════════════════════════
+
+// 메시지 증분 업데이트 — 새 메시지만 추가, 삭제된 것만 제거 (video 요소 재생성 없음)
+function _bzIncrementalUpdateMessages(newMessages) {
+  const area = document.getElementById('bz-chat-area');
+  if (!area) return;
+  const phase = (_bzState && _bzState.phase) || 'chatting';
+  const aliases = (_bzState && _bzState.aliases) || {};
+  const aliasToReal = {};
+  Object.entries(aliases).forEach(([real, list]) => {
+    (list || []).forEach(a => { aliasToReal[a] = real; });
+  });
+  const myName = (state.identity && state.identity.name) || '';
+  const allLikes = (_bzState && _bzState.likes) || {};
+
+  const newMsgs = Object.entries(newMessages)
+    .map(([k, m]) => ({ ...m, _key: k }))
+    .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+  const newKeySet = new Set(newMsgs.map(m => m._key));
+
+  // 빈 상태 메시지 제거
+  const emptyEl = document.getElementById('bz-chat-empty');
+  if (emptyEl) emptyEl.remove();
+
+  // 삭제된 메시지 DOM에서 제거
+  _bzRenderedMsgKeys.forEach(key => {
+    if (!newKeySet.has(key)) {
+      const el = area.querySelector(`[data-bzkey="${key}"]`);
+      if (el) el.remove();
+      _bzRenderedMsgKeys.delete(key);
+    }
+  });
+
+  // 새 메시지 추가
+  const wasAtBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
+  let added = false;
+  newMsgs.forEach(m => {
+    if (_bzRenderedMsgKeys.has(m._key)) return;
+    // photoMap 갱신
+    if (!window._bzPhotoMap) window._bzPhotoMap = {};
+    if (m.imageUrl) window._bzPhotoMap[m.ts] = m.imageUrl;
+    else if (m.imageData) window._bzPhotoMap[m.ts] = m.imageData;
+
+    const realOfAlias = m.realName || aliasToReal[m.alias] || m.alias;
+    const showRealNames = phase === 'revealed' || !!(_bzState && _bzState.showRealNames);
+    const senderLabel = showRealNames
+      ? `${m.alias} <span style="color:#f59e0b;font-size:0.7rem">(${realOfAlias})</span>`
+      : m.alias;
+    const isMine = m.realName === myName;
+    const keyEsc      = m._key.replace(/'/g, "\'");
+    const aliasEsc    = m.alias.replace(/'/g, "\'");
+    const realNameEsc = (m.realName || '').replace(/'/g, "\'");
+    const msgLikeKeys = allLikes[m._key] ? Object.keys(allLikes[m._key]) : [];
+    const likeCount   = msgLikeKeys.length;
+    const iLiked      = msgLikeKeys.includes(myName);
+    const heartInner  = likeCount > 0
+      ? `<span style="font-size:0.75rem;color:${iLiked?'#ef4444':'#94a3b8'};cursor:pointer;user-select:none" onclick="bzToggleLike('${keyEsc}')">❤️ ${likeCount}</span>`
+      : '';
+    const heartRow    = `<div data-bzheart="${keyEsc}" style="padding:0 4px">${heartInner}</div>`;
+    const canReply = phase !== 'revealed';
+    const msgText  = m.text || (m.videoUrl ? '[영상]' : m.imageData || m.imageUrl ? '[사진]' : '');
+    const textEsc  = msgText.replace(/'/g, "\'").replace(/`/g, '\`');
+    const adminPushBtn = isAdmin() && phase !== 'revealed'
+      ? `<button onclick="_bzSendPush('${aliasEsc}','${textEsc}','manual')" title="이 메시지 전체 푸시"
+          style="background:none;border:1.5px solid #fde68a;border-radius:8px;padding:1px 5px;font-size:0.7rem;cursor:pointer;color:#b45309;flex-shrink:0">📢</button>` : '';
+    const replyBtn = canReply
+      ? `<button onclick="bzSetReply('${aliasEsc}','${textEsc}','${realNameEsc}')"
+          style="background:none;border:none;font-size:0.75rem;color:#94a3b8;cursor:pointer;padding:2px 4px;line-height:1;flex-shrink:0" title="답글">↩</button>` : '';
+    const canDelete = isMine || isAdmin();
+    const deleteBtn = canDelete
+      ? `<button onclick="bzDeleteMsg('${m._key}')"
+          style="background:none;border:none;font-size:0.72rem;color:#fca5a5;cursor:pointer;padding:2px 4px;line-height:1;flex-shrink:0" title="삭제">🗑</button>` : '';
+    const replyBox = m.replyTo
+      ? `<div style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden">
+          <span style="font-weight:700">${phase==='revealed' ? `${m.replyTo.alias}(${aliasToReal[m.replyTo.alias]||m.replyTo.alias})` : m.replyTo.alias}</span>
+          <span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.replyTo.text}</span>
+        </div>` : '';
+    const imgSrc = m.imageUrl || m.imageData || '';
+    const bubbleRadius = `${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}`;
+    const bubbleBg = `${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'}`;
+    const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#e2e8f0'}`;
+    const bubble = m.videoUrl
+      ? `<div style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
+          ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" style="max-width:240px;width:100%;border-radius:10px;display:block"></video>
+        </div>`
+      : imgSrc
+      ? `<div style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
+          ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" loading="lazy" onclick="bzImgTap('${keyEsc}',${m.ts})">
+        </div>`
+      : `<div onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
+          ${replyBox}${m.text}
+        </div>`;
+    const html = `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
+      <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
+        ${!isMine && isAdmin() ? adminPushBtn : ''}
+        <span style="font-size:0.68rem;color:#94a3b8">${senderLabel}</span>
+        ${isMine && isAdmin() ? adminPushBtn : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;flex-direction:${isMine ? 'row-reverse' : 'row'};width:100%">
+        ${bubble}
+        ${replyBtn}
+        ${deleteBtn}
+      </div>
+      ${heartRow}
+    </div>`;
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    area.appendChild(div.firstElementChild);
+    _bzRenderedMsgKeys.add(m._key);
+    added = true;
+  });
+
+  if (added && wasAtBottom) {
+    requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; });
+  }
+}
 
 function renderMeetingPoll() {
   const el = document.getElementById('meeting-poll-content');
