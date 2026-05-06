@@ -12152,9 +12152,12 @@ function bzShowRoom() {
     window._bzModalVpHandler = () => {
       modal.style.height = vv.height + 'px';
       modal.style.top = vv.offsetTop + 'px';
-      // 채팅 최신 메시지 유지
+      // resize(키보드 열림)시에만 최신 메시지 유지 — scroll 이벤트에서는 사용자 스크롤 방해 금지
       const area = document.getElementById('bz-chat-area');
-      if (area) area.scrollTop = area.scrollHeight;
+      if (area) {
+        const atBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
+        if (atBottom) area.scrollTop = area.scrollHeight;
+      }
     };
     vv.addEventListener('resize', window._bzModalVpHandler);
     vv.addEventListener('scroll', window._bzModalVpHandler);
@@ -12745,6 +12748,8 @@ function _bzRenderMessages(phase) {
     area.innerHTML = `<div id="bz-chat-empty" style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:30px 0">아직 대화가 없습니다.<br>가명을 선택하고 첫 메시지를 남겨보세요!</div>`;
     return;
   }
+  // 렌더 전 스크롤 위치 확인 — 맨 아래 근처(100px 이내)일 때만 렌더 후 자동 스크롤
+  const _bzWasAtBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
   const myName = (state.identity && state.identity.name) || '';
   const canReply = phase !== 'revealed';
   // 전체화면 뷰어용 사진 맵 (onclick에 base64 직접 삽입 불가 → ts 키로 참조)
@@ -12798,12 +12803,13 @@ function _bzRenderMessages(phase) {
       </div>
     </div>`;
   }).join('');
-  // 최신 메시지로 스크롤 (이미지 로드 전이라도 먼저 스크롤)
-  area.scrollTop = area.scrollHeight;
-  // 이미지 로드 완료 후 재스크롤 — lazy loading으로 scrollHeight가 변할 수 있음
-  area.querySelectorAll('img').forEach(img => {
-    if (!img.complete) img.addEventListener('load', () => { area.scrollTop = area.scrollHeight; }, { once: true });
-  });
+  // 맨 아래 근처에 있던 경우만 자동 스크롤 (위로 스크롤 중이면 유지)
+  if (_bzWasAtBottom) {
+    area.scrollTop = area.scrollHeight;
+    area.querySelectorAll('img').forEach(img => {
+      if (!img.complete) img.addEventListener('load', () => { area.scrollTop = area.scrollHeight; }, { once: true });
+    });
+  }
 }
 
 // ══════════════════════════════════════════════════════════
