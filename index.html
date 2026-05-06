@@ -1407,11 +1407,12 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
       <div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:10px 12px">
         <button onclick="bzLeaveRoom()" style="border:none;background:none;font-size:1.4rem;cursor:pointer;padding:0;color:#64748b">←</button>
         <div style="font-size:0.95rem;font-weight:800;color:#1e293b">🗣️ 막무가내 톡방</div>
-        <div style="width:28px"></div>
+        <button id="bz-info-toggle" onclick="_bzToggleInfoFrame()" title="정보 접기/펼치기"
+          style="border:none;background:none;font-size:1rem;color:#94a3b8;cursor:pointer;padding:2px;width:28px;height:28px;flex-shrink:0">▽</button>
       </div>
 
       <!-- 상단 정보 프레임 -->
-      <div style="flex-shrink:0;background:#fff;border:1.5px solid #fde68a;border-radius:14px;padding:12px 14px;margin:0 12px 8px;overflow-y:auto">
+      <div id="bz-info-frame" style="flex-shrink:0;background:#fff;border:1.5px solid #fde68a;border-radius:14px;padding:12px 14px;margin:0 12px 8px;overflow:hidden;max-height:500px;transition:max-height 0.22s ease,padding 0.22s ease,margin 0.22s ease">
         <!-- 입실 인원 -->
         <div style="font-size:0.78rem;color:#64748b;margin-bottom:8px">
           👥 입실 인원: <span id="bz-count" style="font-weight:800;color:#1e293b">0</span>명<span id="bz-entrant-names" style="color:#94a3b8;font-size:0.72rem;margin-left:4px"></span>
@@ -12094,6 +12095,7 @@ let _bzState = null;         // 현재 게임 상태
 let _bzFirstRender = false;  // 진입 후 첫 렌더 여부 (초기 스크롤 보장)
 let _bzReplyTo = null;       // 현재 답글 대상 { alias, text }
 let _bzLastRenderKey = null; // likes 제외 상태 해시 — likes만 바뀐 경우 전체 재렌더 방지
+let _bzInfoCollapsed = false; // 상단 정보 프레임 접힘 여부
 
 const BZ_REF = 'jmt/banzige/current';
 const BZ_CONFIG = {
@@ -12141,6 +12143,13 @@ function bzShowRoom() {
   const myName = state.identity && state.identity.name;
   if (!myName) { alert('로그인 후 이용하세요.'); return; }
   betShowScreen('banzige');
+
+  // 진입 시 정보 프레임 항상 펼쳐진 상태로 초기화
+  _bzInfoCollapsed = false;
+  const _ifr = document.getElementById('bz-info-frame');
+  if (_ifr) { _ifr.style.maxHeight = '500px'; _ifr.style.padding = '12px 14px'; _ifr.style.marginBottom = '8px'; }
+  const _itg = document.getElementById('bz-info-toggle');
+  if (_itg) _itg.textContent = '▽';
 
   // 풀스크린 모달로 전환: flex 컬럼 레이아웃, visualViewport 높이에 맞춤
   const modal = document.getElementById('bet-screen-banzige');
@@ -12266,6 +12275,7 @@ function bzLeaveRoom() {
   if (_bzListener) { db.ref(BZ_REF).off('value', _bzListener); _bzListener = null; }
   _bzState = null;
   _bzCurrentAlias = null;
+  _bzInfoCollapsed = false;
   bzCancelReply();
 
   // 모달 해제
@@ -12733,12 +12743,51 @@ function bzToggleRealNames() {
 }
 
 function _bzOnInputFocus() {
-  // 입력창 포커스 시 강제 스크롤 제거 — 사용자가 위로 스크롤해서 읽는 중일 수 있음
-  // visualViewport resize 핸들러가 키보드 열림을 처리함
+  // 입력창 포커스 시 상단 정보 프레임 자동 접기
+  // 키보드 열림은 visualViewport resize 핸들러가 처리함 (스크롤 scroll-to-bottom 포함)
+  _bzCollapseInfoFrame();
 }
 
 function _bzOnInputBlur() {
   // 풀스크린 모달 구조에서는 별도 처리 불필요
+  // 프레임 펼치기는 _bzToggleInfoFrame()으로만 수행 (blur 시 자동 펼침 없음)
+}
+
+// 상단 정보 프레임 접기 (focus 자동 + 토글)
+function _bzCollapseInfoFrame() {
+  if (_bzInfoCollapsed) return;
+  const frame = document.getElementById('bz-info-frame');
+  const btn = document.getElementById('bz-info-toggle');
+  if (!frame) return;
+  _bzInfoCollapsed = true;
+  frame.style.maxHeight = '0';
+  frame.style.padding = '0';
+  frame.style.marginBottom = '0';
+  if (btn) btn.textContent = '▲';
+}
+
+// 토글 버튼 — 접기/펼치기
+function _bzToggleInfoFrame() {
+  if (_bzInfoCollapsed) {
+    // 펼치기: 프레임 복원 → 키보드 내리기 → 스크롤 보정
+    const frame = document.getElementById('bz-info-frame');
+    const btn = document.getElementById('bz-info-toggle');
+    if (!frame) return;
+    _bzInfoCollapsed = false;
+    frame.style.maxHeight = '500px';
+    frame.style.padding = '12px 14px';
+    frame.style.marginBottom = '8px';
+    if (btn) btn.textContent = '▽';
+    // 키보드 내리기 — blur 시 visualViewport resize가 modal 높이 복원 + scroll-to-bottom 처리
+    document.getElementById('bz-input')?.blur();
+    // 트랜지션(220ms) 완료 후 채팅 영역 스크롤 보정 (안전망)
+    setTimeout(() => {
+      const area = document.getElementById('bz-chat-area');
+      if (area) area.scrollTop = area.scrollHeight;
+    }, 260);
+  } else {
+    _bzCollapseInfoFrame();
+  }
 }
 
 function _bzRender() {
