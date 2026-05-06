@@ -12223,6 +12223,36 @@ function bzShowRoom() {
 
   _bzSetupAliasList();
   _bzSetupListener();
+
+  // 채팅 맨 위/아래 도달 토스트
+  const _bzChatArea = document.getElementById('bz-chat-area');
+  if (_bzChatArea && !_bzChatArea._bzEdgeToastAdded) {
+    _bzChatArea._bzEdgeToastAdded = true;
+    let _bzEdgeTimer = null;
+    const _bzShowEdgeToast = (msg, atTop) => {
+      let toast = document.getElementById('bz-edge-toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'bz-edge-toast';
+        toast.style.cssText = 'position:sticky;left:50%;transform:translateX(-50%);width:fit-content;background:rgba(0,0,0,0.55);color:#fff;font-size:0.72rem;padding:4px 14px;border-radius:20px;pointer-events:none;transition:opacity 0.25s;z-index:10;white-space:nowrap';
+        document.getElementById('bz-chat-area').prepend(toast);
+      }
+      toast.textContent = msg;
+      toast.style.cssText += atTop ? ';top:4px;bottom:auto' : ';bottom:4px;top:auto';
+      toast.style.opacity = '1';
+      clearTimeout(_bzEdgeTimer);
+      _bzEdgeTimer = setTimeout(() => { toast.style.opacity = '0'; }, 1500);
+    };
+    _bzChatArea.addEventListener('scroll', () => {
+      const area = _bzChatArea;
+      if (area.scrollTop === 0) {
+        _bzShowEdgeToast('채팅방 맨 위입니다', true);
+      } else if (area.scrollHeight - area.scrollTop - area.clientHeight < 2) {
+        _bzShowEdgeToast('최신 메시지입니다', false);
+      }
+    }, { passive: true });
+  }
+
   // 입실 기록 (처음 입실 시에만)
   db.ref(`${BZ_REF}/entrants/${myName}`).once('value').then(snap => {
     if (!snap.val()) {
