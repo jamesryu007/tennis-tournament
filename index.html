@@ -12594,12 +12594,8 @@ function bzToggleRealNames() {
 }
 
 function _bzOnInputFocus() {
-  // 풀스크린 모달 구조에서는 visualViewport �핸들러가 이미 등록되어 있음
-  // 채팅 영역 최신 메시지로 스크롤만 유지
-  setTimeout(() => {
-    const area = document.getElementById('bz-chat-area');
-    if (area) area.scrollTop = area.scrollHeight;
-  }, 100);
+  // 입력창 포커스 시 강제 스크롤 제거 — 사용자가 위로 스크롤해서 읽는 중일 수 있음
+  // visualViewport resize 핸들러가 키보드 열림을 처리함
 }
 
 function _bzOnInputBlur() {
