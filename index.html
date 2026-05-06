@@ -12366,6 +12366,19 @@ function bzSwitchAlias(name) {
   document.getElementById('bz-input')?.focus();
 }
 
+// 메시지 200개 초과 시 오래된 것부터 삭제
+function _bzTrimMessages() {
+  const msgs = (_bzState && _bzState.messages) ? _bzState.messages : {};
+  const keys = Object.keys(msgs);
+  if (keys.length <= 200) return;
+  // ts 오름차순 정렬 후 초과분 삭제
+  keys.sort((a, b) => (msgs[a].ts || 0) - (msgs[b].ts || 0));
+  const toDelete = keys.slice(0, keys.length - 200);
+  const updates = {};
+  toDelete.forEach(k => { updates[`${BZ_REF}/messages/${k}`] = null; });
+  db.ref().update(updates).catch(fbErr);
+}
+
 function bzSend() {
   const input = document.getElementById('bz-input');
   const text = (input.value || '').trim();
@@ -12382,6 +12395,7 @@ function bzSend() {
   const msgData = { alias: senderAlias, realName: myName, text, ts: Date.now() };
   if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '' };
   db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
+  _bzTrimMessages();
   // phase 변경 (최초 1회)
   if (!phase || phase === 'waiting') {
     db.ref(`${BZ_REF}/phase`).set('chatting').catch(fbErr);
@@ -12454,6 +12468,7 @@ function bzSendPhoto(e) {
       const msgData = { alias: senderAlias, realName: myName, imageData, ts: Date.now() };
       if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '' };
       db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
+      _bzTrimMessages();
       if (!phase || phase === 'waiting') {
         db.ref(`${BZ_REF}/phase`).set('chatting').catch(fbErr);
       }
@@ -12611,7 +12626,17 @@ function bzNewGame() {
   if (!isAdmin()) return;
   if (!confirm('새 게임을 시작하면 현재 게임이 이력으로 이동합니다.')) return;
   if (_bzState && Object.keys(_bzState).length > 0) {
-    db.ref('jmt/banzige/history').push({ ..._bzState, archivedAt: Date.now() }).catch(fbErr);
+    // imageData(base64) 제거 후 이력 저장 — DB 용량 절감
+    const stateToArchive = { ..._bzState, archivedAt: Date.now() };
+    if (stateToArchive.messages) {
+      const cleanMsgs = {};
+      Object.entries(stateToArchive.messages).forEach(([k, m]) => {
+        cleanMsgs[k] = { ...m };
+        delete cleanMsgs[k].imageData;
+      });
+      stateToArchive.messages = cleanMsgs;
+    }
+    db.ref('jmt/banzige/history').push(stateToArchive).catch(fbErr);
   }
   db.ref(BZ_REF).set({ phase: 'chatting', entrants: {}, entrantCount: 0, messages: {}, aliases: {}, guesses: {}, results: {} }).catch(fbErr);
   _bzMyAliases = [];
