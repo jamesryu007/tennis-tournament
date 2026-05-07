@@ -1,1 +1,3 @@
-# firebase-config.js는 .gitignore로 관리됨 (브랜치별 firebase-config.prod.js / firebase-config.dev.js 사용)
+# firebase-config.js는 브랜치별로 다른 내용을 가짐
+# --no-ff 머지 시 merge=ours 드라이버가 현재 브랜치 버전을 유지
+firebase-config.js merge=ours
