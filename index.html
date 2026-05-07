@@ -671,7 +671,20 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
-<script src="firebase-config.js?v=351"></script>
+<script>
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
+// 운영 배포 시 jamite-tennis 값으로 교체 필요 (SW config와 동일하게 관리)
+const firebaseConfig = {
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+};
+</script>
 </head>
 <body>
 
@@ -7479,6 +7492,16 @@ changeCheckinPhotoRandom();
     updateSummary();
   }
 })();
+
+// Firebase 미초기화 감지 → SW 캐시 삭제 후 새로고침 (구버전 SW 캐시 자가 치료)
+// sessionStorage 플래그로 무한 루프 방지, 온라인 상태에서만 실행
+if (!db && 'caches' in window && navigator.onLine && !sessionStorage.getItem('_jmt_cache_cleared')) {
+  sessionStorage.setItem('_jmt_cache_cleared', '1');
+  console.warn('Firebase 미초기화 감지 — SW 캐시 삭제 후 새로고침');
+  caches.keys()
+    .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+    .then(() => location.reload());
+}
 </script>
 
 <!-- ══ ATP LIVE 스크립트 ══ -->
@@ -9535,7 +9558,17 @@ async function triggerAtpRefresh() {
         ? '/tennis-tournament/firebase-messaging-sw.js'
         : '/firebase-messaging-sw.js';
       navigator.serviceWorker.register(swPath)
-        .then(r => console.log('SW 등록:', r.scope))
+        .then(r => {
+          console.log('SW 등록:', r.scope);
+          // 새 SW 설치 감지 → 활성화 즉시 페이지 새로고침 (구버전 SW로 인한 구버전 HTML 서빙 방지)
+          r.addEventListener('updatefound', () => {
+            const sw = r.installing;
+            if (!sw) return;
+            sw.addEventListener('statechange', () => {
+              if (sw.state === 'activated') window.location.reload();
+            });
+          });
+        })
         .catch(e => console.log('SW 실패:', e));
     });
     // SW postMessage로 탭 이동
@@ -12155,10 +12188,16 @@ function bzShowRoom() {
   if (!myName) { alert('로그인 후 이용하세요.'); return; }
   betShowScreen('banzige');
 
-  // 진입 시 정보 프레임 항상 펼쳐진 상태로 초기화
+  // 진입 시 정보 프레임 즉시 펼침 — transition 없이 (빠른 Firebase 로드 시 layout 변화로 인한 스크롤 drift 방지)
   _bzInfoCollapsed = false;
   const _ifr = document.getElementById('bz-info-frame');
-  if (_ifr) { _ifr.style.maxHeight = '500px'; _ifr.style.padding = '10px 14px'; _ifr.style.margin = '10px 12px 6px'; }
+  if (_ifr) {
+    _ifr.style.transition = 'none';
+    _ifr.style.maxHeight = '500px';
+    _ifr.style.padding = '10px 14px';
+    _ifr.style.margin = '10px 12px 6px';
+    requestAnimationFrame(() => { _ifr.style.transition = ''; }); // 다음 프레임에서 transition 복원
+  }
   const _itg = document.getElementById('bz-info-toggle');
   if (_itg) _itg.textContent = '▽';
 
@@ -13148,7 +13187,7 @@ function _bzRenderMessages(phase) {
         </div>`
       : imgSrc
       ? `<div style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
-          ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" onclick="bzImgTap('${keyEsc}',${m.ts})">
+          ${replyBox}<img src="${imgSrc}" style="width:220px;height:180px;object-fit:cover;border-radius:10px;display:block;cursor:pointer" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
       : `<div onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
           ${replyBox}${m.text}
@@ -13268,7 +13307,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
         </div>`
       : imgSrc
       ? `<div style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
-          ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" onclick="bzImgTap('${keyEsc}',${m.ts})">
+          ${replyBox}<img src="${imgSrc}" style="width:220px;height:180px;object-fit:cover;border-radius:10px;display:block;cursor:pointer" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
       : `<div onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
           ${replyBox}${m.text}
