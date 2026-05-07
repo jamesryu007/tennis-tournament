@@ -12155,10 +12155,16 @@ function bzShowRoom() {
   if (!myName) { alert('로그인 후 이용하세요.'); return; }
   betShowScreen('banzige');
 
-  // 진입 시 정보 프레임 항상 펼쳐진 상태로 초기화
+  // 진입 시 정보 프레임 즉시 펼침 — transition 없이 (빠른 Firebase 로드 시 layout 변화로 인한 스크롤 drift 방지)
   _bzInfoCollapsed = false;
   const _ifr = document.getElementById('bz-info-frame');
-  if (_ifr) { _ifr.style.maxHeight = '500px'; _ifr.style.padding = '10px 14px'; _ifr.style.margin = '10px 12px 6px'; }
+  if (_ifr) {
+    _ifr.style.transition = 'none';
+    _ifr.style.maxHeight = '500px';
+    _ifr.style.padding = '10px 14px';
+    _ifr.style.margin = '10px 12px 6px';
+    requestAnimationFrame(() => { _ifr.style.transition = ''; }); // 다음 프레임에서 transition 복원
+  }
   const _itg = document.getElementById('bz-info-toggle');
   if (_itg) _itg.textContent = '▽';
 
