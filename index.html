@@ -13148,7 +13148,7 @@ function _bzRenderMessages(phase) {
         </div>`
       : imgSrc
       ? `<div style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
-          ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" loading="lazy" onclick="bzImgTap('${keyEsc}',${m.ts})">
+          ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
       : `<div onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
           ${replyBox}${m.text}
@@ -13171,15 +13171,7 @@ function _bzRenderMessages(phase) {
   _bzRenderedMsgKeys = new Set(msgs.map(m => m._key));
   // 맨 아래 근처에 있던 경우만 자동 스크롤 — rAF로 레이아웃 확정 후 실행 (jump 방지)
   if (_bzWasAtBottom) {
-    requestAnimationFrame(() => {
-      area.scrollTop = area.scrollHeight;
-      area.querySelectorAll('img').forEach(img => {
-        if (!img.complete) img.addEventListener('load', () => {
-          const stillAtBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
-          if (stillAtBottom) area.scrollTop = area.scrollHeight;
-        }, { once: true });
-      });
-    });
+    requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; });
   }
 }
 
@@ -13272,7 +13264,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
         </div>`
       : imgSrc
       ? `<div style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
-          ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" loading="lazy" onclick="bzImgTap('${keyEsc}',${m.ts})">
+          ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
       : `<div onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
           ${replyBox}${m.text}
