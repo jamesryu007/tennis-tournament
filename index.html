@@ -13176,6 +13176,12 @@ function _bzRenderMessages(phase) {
       area.scrollTop = area.scrollHeight;
       setTimeout(() => { area.scrollTop = area.scrollHeight; }, 80);
     });
+    // 이미지 비동기 로드 완료 후 재스크롤 — 이미지가 하단에 있을 때 scrollHeight 변화 보정
+    area.querySelectorAll('img').forEach(img => {
+      if (!img.complete) {
+        img.addEventListener('load', () => { area.scrollTop = area.scrollHeight; }, { once: true });
+      }
+    });
   }
 }
 
@@ -13294,7 +13300,15 @@ function _bzIncrementalUpdateMessages(newMessages) {
   });
 
   if (added && wasAtBottom) {
-    requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; });
+    requestAnimationFrame(() => {
+      area.scrollTop = area.scrollHeight;
+      // 새로 추가된 이미지 로드 후 재스크롤
+      area.querySelectorAll('img').forEach(img => {
+        if (!img.complete) {
+          img.addEventListener('load', () => { area.scrollTop = area.scrollHeight; }, { once: true });
+        }
+      });
+    });
   }
 }
 
