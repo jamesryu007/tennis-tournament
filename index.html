@@ -12177,8 +12177,7 @@ function bzShowRoom() {
       const wasAtBottom = area ? (area.scrollHeight - area.scrollTop - area.clientHeight < 100) : true;
       modal.style.height = vv.height + 'px';
       modal.style.top = vv.offsetTop + 'px';
-      // rAF 제거 — 모달 높이 변경 직후 즉시 스크롤 보정 (갭 없애기)
-      if (area && wasAtBottom) area.scrollTop = area.scrollHeight;
+      if (area && wasAtBottom) requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; });
     };
     // scroll: 주소창 숨김/표시 등 뷰포트 위치 변화 — 모달 위치만 보정, 채팅 스크롤 건드리지 않음
     window._bzModalScrollHandler = () => {
@@ -13177,16 +13176,6 @@ function _bzRenderMessages(phase) {
       area.scrollTop = area.scrollHeight;
       setTimeout(() => { area.scrollTop = area.scrollHeight; }, 80);
     });
-    // 이미지 로드마다 실시간 보정 — 200px 이내 드리프트(이미지 로드)만 보정, 수동 스크롤 시 중단
-    area.querySelectorAll('img').forEach(img => {
-      if (!img.complete) {
-        img.addEventListener('load', () => {
-          if (area.scrollHeight - area.scrollTop - area.clientHeight < 200) {
-            area.scrollTop = area.scrollHeight;
-          }
-        }, { once: true });
-      }
-    });
   }
 }
 
@@ -13306,15 +13295,6 @@ function _bzIncrementalUpdateMessages(newMessages) {
 
   if (added && wasAtBottom) {
     requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; });
-    area.querySelectorAll('img').forEach(img => {
-      if (!img.complete) {
-        img.addEventListener('load', () => {
-          if (area.scrollHeight - area.scrollTop - area.clientHeight < 200) {
-            area.scrollTop = area.scrollHeight;
-          }
-        }, { once: true });
-      }
-    });
   }
 }
 
