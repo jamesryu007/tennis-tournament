@@ -1,9 +1,21 @@
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
-importScripts('./firebase-config.js');
+
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) ───────────────────────
+// importScripts('./firebase-config.js') 제거 — HTTP 캐시 오염 방지
+const firebaseConfig = {
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+};
 
 // ── 캐싱 (sw.js 통합) ──────────────────────────────────────────────
-const CACHE = 'jamite-v348';
+const CACHE = 'jamite-v351';
 const BASE = self.location.pathname.startsWith('/tennis-tournament') ? '/tennis-tournament' : '';
 
 // 아이콘만 캐시 — 팀 사진/영상/HTML은 교체 즉시 반영되도록 제외
@@ -31,6 +43,12 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   if (e.request.url.includes('firebaseio.com') || e.request.url.includes('googleapis.com')) return;
 
+  // firebase-config.js → HTTP 캐시 오염 방지, 항상 네트워크에서 직접 (cache: reload)
+  if (e.request.url.includes('firebase-config.js')) {
+    e.respondWith(fetch(e.request, { cache: 'reload' }).catch(() => fetch(e.request)));
+    return;
+  }
+
   // HTML → 네트워크 우선 (배포 즉시 반영)
   if (e.request.mode === 'navigate') {
     e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
@@ -50,7 +68,6 @@ self.addEventListener('fetch', e => {
 });
 
 // ── Firebase Messaging ────────────────────────────────────────────
-// firebaseConfig 는 importScripts('./firebase-config.js') 에서 로드됩니다
 firebase.initializeApp(firebaseConfig);
 
 const messaging = firebase.messaging();
