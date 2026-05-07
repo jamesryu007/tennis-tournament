@@ -13212,7 +13212,7 @@ function _bzRenderMessages(phase) {
   if (_bzWasAtBottom) {
     // 미로드 이미지 onload 시 재스크롤 — 첫 진입 시 이미지 로드 전 scrollHeight로 스크롤하면 로드 후 위로 밀림
     area.querySelectorAll('img').forEach(img => {
-      if (!img.complete) img.addEventListener('load', () => { area.scrollTop = area.scrollHeight; });
+      if (!img.complete) img.addEventListener('load', () => { requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; }); });
     });
     // rAF + setTimeout 이중 실행 — Safari 브라우저에서 flex 레이아웃 확정 타이밍 문제 보완
     requestAnimationFrame(() => {
@@ -13335,7 +13335,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     // 이미지 메시지: 로드 완료 후 스크롤 보정 (로드 전 scrollHeight로 스크롤하면 이미지 로드 후 위로 밀림)
     if (wasAtBottom && imgSrc) {
       const img = newEl.querySelector('img');
-      if (img) img.addEventListener('load', () => { area.scrollTop = area.scrollHeight; });
+      if (img) img.addEventListener('load', () => { requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; }); });
     }
     area.appendChild(newEl);
     _bzRenderedMsgKeys.add(m._key);
