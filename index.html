@@ -12171,16 +12171,21 @@ function bzShowRoom() {
   modal.style.cssText = `position:fixed;top:0;left:0;right:0;height:${initH}px;z-index:500;display:flex;flex-direction:column;background:#f0f4fb;overflow:hidden`;
 
   if (vv) {
-    window._bzModalVpHandler = () => {
+    // resize: 키보드 열림/닫힘 — 모달 높이 조정 + 맨 아래 있었을 때만 스크롤 유지
+    window._bzModalResizeHandler = () => {
+      const area = document.getElementById('bz-chat-area');
+      const wasAtBottom = area ? (area.scrollHeight - area.scrollTop - area.clientHeight < 100) : true;
       modal.style.height = vv.height + 'px';
       modal.style.top = vv.offsetTop + 'px';
-      // 키보드 열림/닫힘(resize) 시 맨 아래로 스크롤
-      // clientHeight가 변한 직후라 atBottom 체크 불가 — rAF로 레이아웃 확정 후 실행
-      const area = document.getElementById('bz-chat-area');
-      if (area) requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; });
+      if (area && wasAtBottom) requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; });
     };
-    vv.addEventListener('resize', window._bzModalVpHandler);
-    vv.addEventListener('scroll', window._bzModalVpHandler);
+    // scroll: 주소창 숨김/표시 등 뷰포트 위치 변화 — 모달 위치만 보정, 채팅 스크롤 건드리지 않음
+    window._bzModalScrollHandler = () => {
+      modal.style.top = vv.offsetTop + 'px';
+    };
+    window._bzModalVpHandler = window._bzModalResizeHandler; // 하위 호환 (removeEventListener용)
+    vv.addEventListener('resize', window._bzModalResizeHandler);
+    vv.addEventListener('scroll', window._bzModalScrollHandler);
   }
 
   // 오른쪽 스와이프로 방 탈출 — 드래그 시각 효과 포함 (최초 1회만 등록)
@@ -12294,9 +12299,15 @@ function bzLeaveRoom() {
   if (modal) modal.style.cssText = '';
   const nav = document.querySelector('.bottom-nav');
   if (nav) nav.style.display = '';
-  if (window._bzModalVpHandler && window.visualViewport) {
-    window.visualViewport.removeEventListener('resize', window._bzModalVpHandler);
-    window.visualViewport.removeEventListener('scroll', window._bzModalVpHandler);
+  if (window.visualViewport) {
+    if (window._bzModalResizeHandler) {
+      window.visualViewport.removeEventListener('resize', window._bzModalResizeHandler);
+      window._bzModalResizeHandler = null;
+    }
+    if (window._bzModalScrollHandler) {
+      window.visualViewport.removeEventListener('scroll', window._bzModalScrollHandler);
+      window._bzModalScrollHandler = null;
+    }
     window._bzModalVpHandler = null;
   }
 
