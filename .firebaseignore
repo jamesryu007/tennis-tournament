@@ -1,0 +1,19 @@
+# Firebase 배포 제외 목록 (.gitignore 대신 이 파일 사용)
+# firebase-config.js 는 의도적으로 포함 — git에서 제외됐지만 배포에는 필요
+firebase.json
+database.rules.json
+.git
+.gitignore
+.gitattributes
+.firebaseignore
+node_modules
+functions
+*.sh
+recalc-stats.js
+seed-*.js
+backfill-*.js
+jamite-dev-service-account.json
+jamite-prod-service-account.json
+firebase-config.dev.js
+firebase-config.prod.js
+.DS_Store
