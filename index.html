@@ -13171,7 +13171,11 @@ function _bzRenderMessages(phase) {
   _bzRenderedMsgKeys = new Set(msgs.map(m => m._key));
   // 맨 아래 근처에 있던 경우만 자동 스크롤 — rAF로 레이아웃 확정 후 실행 (jump 방지)
   if (_bzWasAtBottom) {
-    requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; });
+    // rAF + setTimeout 이중 실행 — Safari 브라우저에서 flex 레이아웃 확정 타이밍 문제 보완
+    requestAnimationFrame(() => {
+      area.scrollTop = area.scrollHeight;
+      setTimeout(() => { area.scrollTop = area.scrollHeight; }, 80);
+    });
   }
 }
 
