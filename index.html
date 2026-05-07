@@ -13176,12 +13176,16 @@ function _bzRenderMessages(phase) {
       area.scrollTop = area.scrollHeight;
       setTimeout(() => { area.scrollTop = area.scrollHeight; }, 80);
     });
-    // 이미지 비동기 로드 완료 후 재스크롤 — 이미지가 하단에 있을 때 scrollHeight 변화 보정
-    area.querySelectorAll('img').forEach(img => {
-      if (!img.complete) {
-        img.addEventListener('load', () => { area.scrollTop = area.scrollHeight; }, { once: true });
-      }
-    });
+    // 미완료 이미지 전부 로드된 후 딱 한 번 재스크롤 — 개별 onload 시 여러번 튀는 현상 방지
+    const pending = Array.from(area.querySelectorAll('img')).filter(img => !img.complete);
+    if (pending.length > 0) {
+      let left = pending.length;
+      const onDone = () => { if (--left === 0) area.scrollTop = area.scrollHeight; };
+      pending.forEach(img => {
+        img.addEventListener('load',  onDone, { once: true });
+        img.addEventListener('error', onDone, { once: true });
+      });
+    }
   }
 }
 
@@ -13300,15 +13304,16 @@ function _bzIncrementalUpdateMessages(newMessages) {
   });
 
   if (added && wasAtBottom) {
-    requestAnimationFrame(() => {
-      area.scrollTop = area.scrollHeight;
-      // 새로 추가된 이미지 로드 후 재스크롤
-      area.querySelectorAll('img').forEach(img => {
-        if (!img.complete) {
-          img.addEventListener('load', () => { area.scrollTop = area.scrollHeight; }, { once: true });
-        }
+    requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; });
+    const pending = Array.from(area.querySelectorAll('img')).filter(img => !img.complete);
+    if (pending.length > 0) {
+      let left = pending.length;
+      const onDone = () => { if (--left === 0) area.scrollTop = area.scrollHeight; };
+      pending.forEach(img => {
+        img.addEventListener('load',  onDone, { once: true });
+        img.addEventListener('error', onDone, { once: true });
       });
-    });
+    }
   }
 }
 
