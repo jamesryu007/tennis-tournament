@@ -13210,14 +13210,22 @@ function _bzRenderMessages(phase) {
   _bzRenderedMsgKeys = new Set(msgs.map(m => m._key));
   // 맨 아래 근처에 있던 경우만 자동 스크롤 — rAF로 레이아웃 확정 후 실행 (jump 방지)
   if (_bzWasAtBottom) {
-    // 미로드 이미지 onload 시 재스크롤 — 첫 진입 시 이미지 로드 전 scrollHeight로 스크롤하면 로드 후 위로 밀림
-    area.querySelectorAll('img').forEach(img => {
-      if (!img.complete) img.addEventListener('load', () => { requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; }); });
-    });
-    // rAF + setTimeout 이중 실행 — Safari 브라우저에서 flex 레이아웃 확정 타이밍 문제 보완
+    const _scrollDown = () => { area.scrollTop = area.scrollHeight; };
+    // 미로드 이미지 전체 로드 완료 후 최종 스크롤 — PWA 첫 진입 시 네트워크에서 이미지 전부 새로 로드하는 경우 대비
+    const _unloadedImgs = [...area.querySelectorAll('img')].filter(img => !img.complete);
+    if (_unloadedImgs.length > 0) {
+      let _remaining = _unloadedImgs.length;
+      _unloadedImgs.forEach(img => {
+        const _done = () => { if (--_remaining === 0) requestAnimationFrame(_scrollDown); };
+        img.addEventListener('load',  _done, { once: true });
+        img.addEventListener('error', _done, { once: true });
+      });
+    }
+    // rAF + 단계적 재시도 — iOS PWA flex 레이아웃 확정 타이밍 + 느린 이미지 로드 대비
     requestAnimationFrame(() => {
-      area.scrollTop = area.scrollHeight;
-      setTimeout(() => { area.scrollTop = area.scrollHeight; }, 80);
+      _scrollDown();
+      setTimeout(_scrollDown, 80);
+      setTimeout(_scrollDown, 1000);
     });
   }
 }
