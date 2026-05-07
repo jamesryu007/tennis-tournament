@@ -12177,7 +12177,8 @@ function bzShowRoom() {
       const wasAtBottom = area ? (area.scrollHeight - area.scrollTop - area.clientHeight < 100) : true;
       modal.style.height = vv.height + 'px';
       modal.style.top = vv.offsetTop + 'px';
-      if (area && wasAtBottom) requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; });
+      // rAF 제거 — 모달 높이 변경 직후 즉시 스크롤 보정 (갭 없애기)
+      if (area && wasAtBottom) area.scrollTop = area.scrollHeight;
     };
     // scroll: 주소창 숨김/표시 등 뷰포트 위치 변화 — 모달 위치만 보정, 채팅 스크롤 건드리지 않음
     window._bzModalScrollHandler = () => {
@@ -13176,16 +13177,16 @@ function _bzRenderMessages(phase) {
       area.scrollTop = area.scrollHeight;
       setTimeout(() => { area.scrollTop = area.scrollHeight; }, 80);
     });
-    // 미완료 이미지 전부 로드된 후 딱 한 번 재스크롤 — 개별 onload 시 여러번 튀는 현상 방지
-    const pending = Array.from(area.querySelectorAll('img')).filter(img => !img.complete);
-    if (pending.length > 0) {
-      let left = pending.length;
-      const onDone = () => { if (--left === 0) area.scrollTop = area.scrollHeight; };
-      pending.forEach(img => {
-        img.addEventListener('load',  onDone, { once: true });
-        img.addEventListener('error', onDone, { once: true });
-      });
-    }
+    // 이미지 로드마다 실시간 보정 — 200px 이내 드리프트(이미지 로드)만 보정, 수동 스크롤 시 중단
+    area.querySelectorAll('img').forEach(img => {
+      if (!img.complete) {
+        img.addEventListener('load', () => {
+          if (area.scrollHeight - area.scrollTop - area.clientHeight < 200) {
+            area.scrollTop = area.scrollHeight;
+          }
+        }, { once: true });
+      }
+    });
   }
 }
 
@@ -13305,15 +13306,15 @@ function _bzIncrementalUpdateMessages(newMessages) {
 
   if (added && wasAtBottom) {
     requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; });
-    const pending = Array.from(area.querySelectorAll('img')).filter(img => !img.complete);
-    if (pending.length > 0) {
-      let left = pending.length;
-      const onDone = () => { if (--left === 0) area.scrollTop = area.scrollHeight; };
-      pending.forEach(img => {
-        img.addEventListener('load',  onDone, { once: true });
-        img.addEventListener('error', onDone, { once: true });
-      });
-    }
+    area.querySelectorAll('img').forEach(img => {
+      if (!img.complete) {
+        img.addEventListener('load', () => {
+          if (area.scrollHeight - area.scrollTop - area.clientHeight < 200) {
+            area.scrollTop = area.scrollHeight;
+          }
+        }, { once: true });
+      }
+    });
   }
 }
 
