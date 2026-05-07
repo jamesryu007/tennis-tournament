@@ -12372,7 +12372,10 @@ function _bzUpdateLikesOnly(allLikes) {
     const count = likeKeys.length;
     const iLiked = likeKeys.includes(myName);
     const keyEsc = key.replace(/'/g, "\\'");
-    el.innerHTML = count > 0
+    const isVideo = el.getAttribute('data-bzvideo') === '1';
+    el.innerHTML = isVideo
+      ? `<span style="font-size:0.8rem;color:${iLiked ? '#ef4444' : '#cbd5e1'};cursor:pointer;user-select:none;padding:2px 4px" onclick="bzToggleLike('${keyEsc}')">❤️${count > 0 ? ' '+count : ''}</span>`
+      : count > 0
       ? `<span style="font-size:0.75rem;color:${iLiked ? '#ef4444' : '#94a3b8'};cursor:pointer;user-select:none" onclick="bzToggleLike('${keyEsc}')">❤️ ${count}</span>`
       : '';
   });
@@ -13100,10 +13103,12 @@ function _bzRenderMessages(phase) {
     const likeCount   = msgLikeKeys.length;
     const iLiked      = msgLikeKeys.includes(myName);
     // data-bzheart: likes만 바뀔 때 전체 재렌더 없이 이 컨테이너만 업데이트
-    const heartInner  = likeCount > 0
+    const heartInner  = m.videoUrl
+      ? `<span style="font-size:0.8rem;color:${iLiked?'#ef4444':'#cbd5e1'};cursor:pointer;user-select:none;padding:2px 4px" onclick="bzToggleLike('${keyEsc}')">❤️${likeCount > 0 ? ' '+likeCount : ''}</span>`
+      : likeCount > 0
       ? `<span style="font-size:0.75rem;color:${iLiked?'#ef4444':'#94a3b8'};cursor:pointer;user-select:none" onclick="bzToggleLike('${keyEsc}')">❤️ ${likeCount}</span>`
       : '';
-    const heartRow    = `<div data-bzheart="${keyEsc}" style="padding:0 4px">${heartInner}</div>`;
+    const heartRow    = `<div data-bzheart="${keyEsc}" data-bzvideo="${m.videoUrl ? '1' : ''}" style="padding:0 4px">${heartInner}</div>`;
     const msgText  = m.text || (m.videoUrl ? '[영상]' : m.imageData || m.imageUrl ? '[사진]' : '');
     const textEsc  = msgText.replace(/'/g, "\\'").replace(/`/g, '\\`');
     const adminPushBtn = isAdmin() && phase !== 'revealed'
@@ -13222,10 +13227,12 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const msgLikeKeys = allLikes[m._key] ? Object.keys(allLikes[m._key]) : [];
     const likeCount   = msgLikeKeys.length;
     const iLiked      = msgLikeKeys.includes(myName);
-    const heartInner  = likeCount > 0
+    const heartInner  = m.videoUrl
+      ? `<span style="font-size:0.8rem;color:${iLiked?'#ef4444':'#cbd5e1'};cursor:pointer;user-select:none;padding:2px 4px" onclick="bzToggleLike('${keyEsc}')">❤️${likeCount > 0 ? ' '+likeCount : ''}</span>`
+      : likeCount > 0
       ? `<span style="font-size:0.75rem;color:${iLiked?'#ef4444':'#94a3b8'};cursor:pointer;user-select:none" onclick="bzToggleLike('${keyEsc}')">❤️ ${likeCount}</span>`
       : '';
-    const heartRow    = `<div data-bzheart="${keyEsc}" style="padding:0 4px">${heartInner}</div>`;
+    const heartRow    = `<div data-bzheart="${keyEsc}" data-bzvideo="${m.videoUrl ? '1' : ''}" style="padding:0 4px">${heartInner}</div>`;
     const canReply = phase !== 'revealed';
     const msgText  = m.text || (m.videoUrl ? '[영상]' : m.imageData || m.imageUrl ? '[사진]' : '');
     const textEsc  = msgText.replace(/'/g, "\'").replace(/`/g, '\`');
