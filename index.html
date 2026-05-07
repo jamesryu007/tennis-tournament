@@ -9548,7 +9548,17 @@ async function triggerAtpRefresh() {
         ? '/tennis-tournament/firebase-messaging-sw.js'
         : '/firebase-messaging-sw.js';
       navigator.serviceWorker.register(swPath)
-        .then(r => console.log('SW 등록:', r.scope))
+        .then(r => {
+          console.log('SW 등록:', r.scope);
+          // 새 SW 설치 감지 → 활성화 즉시 페이지 새로고침 (구버전 SW로 인한 구버전 HTML 서빙 방지)
+          r.addEventListener('updatefound', () => {
+            const sw = r.installing;
+            if (!sw) return;
+            sw.addEventListener('statechange', () => {
+              if (sw.state === 'activated') window.location.reload();
+            });
+          });
+        })
         .catch(e => console.log('SW 실패:', e));
     });
     // SW postMessage로 탭 이동
