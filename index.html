@@ -13327,7 +13327,13 @@ function _bzIncrementalUpdateMessages(newMessages) {
     </div>`;
     const div = document.createElement('div');
     div.innerHTML = html;
-    area.appendChild(div.firstElementChild);
+    const newEl = div.firstElementChild;
+    // 이미지 메시지: 로드 완료 후 스크롤 보정 (로드 전 scrollHeight로 스크롤하면 이미지 로드 후 위로 밀림)
+    if (wasAtBottom && imgSrc) {
+      const img = newEl.querySelector('img');
+      if (img) img.addEventListener('load', () => { area.scrollTop = area.scrollHeight; });
+    }
+    area.appendChild(newEl);
     _bzRenderedMsgKeys.add(m._key);
     added = true;
   });
