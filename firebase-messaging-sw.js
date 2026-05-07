@@ -15,7 +15,7 @@ const firebaseConfig = {
 };
 
 // ── 캐싱 (sw.js 통합) ──────────────────────────────────────────────
-const CACHE = 'jamite-v350';
+const CACHE = 'jamite-v351';
 const BASE = self.location.pathname.startsWith('/tennis-tournament') ? '/tennis-tournament' : '';
 
 // 아이콘만 캐시 — 팀 사진/영상/HTML은 교체 즉시 반영되도록 제외
@@ -42,6 +42,12 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.url.includes('firebaseio.com') || e.request.url.includes('googleapis.com')) return;
+
+  // firebase-config.js → HTTP 캐시 오염 방지, 항상 네트워크에서 직접 (cache: reload)
+  if (e.request.url.includes('firebase-config.js')) {
+    e.respondWith(fetch(e.request, { cache: 'reload' }).catch(() => fetch(e.request)));
+    return;
+  }
 
   // HTML → 네트워크 우선 (배포 즉시 반영)
   if (e.request.mode === 'navigate') {
