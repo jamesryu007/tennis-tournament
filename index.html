@@ -7492,6 +7492,16 @@ changeCheckinPhotoRandom();
     updateSummary();
   }
 })();
+
+// Firebase 미초기화 감지 → SW 캐시 삭제 후 새로고침 (구버전 SW 캐시 자가 치료)
+// sessionStorage 플래그로 무한 루프 방지, 온라인 상태에서만 실행
+if (!db && 'caches' in window && navigator.onLine && !sessionStorage.getItem('_jmt_cache_cleared')) {
+  sessionStorage.setItem('_jmt_cache_cleared', '1');
+  console.warn('Firebase 미초기화 감지 — SW 캐시 삭제 후 새로고침');
+  caches.keys()
+    .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+    .then(() => location.reload());
+}
 </script>
 
 <!-- ══ ATP LIVE 스크립트 ══ -->
