@@ -1502,7 +1502,7 @@ const firebaseConfig = {
         <input type="file" id="bz-photo-input" accept="image/*,video/*" style="display:none" onchange="bzSendPhoto(event)">
         <div style="display:flex;gap:8px;align-items:center">
           <button id="bz-btn-photo" onclick="bzOpenPhotoInput()" style="padding:9px 11px;border-radius:12px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:1rem;cursor:pointer;flex-shrink:0">📷</button>
-          <input id="bz-input" type="text" placeholder="메시지 입력..." maxlength="100"
+          <input id="bz-input" type="text" placeholder="메시지 입력..." maxlength="1000"
             onkeydown="if(event.key==='Enter'&&!event.isComposing)bzSend()"
             onfocus="_bzOnInputFocus()"
             onblur="_bzOnInputBlur()"
@@ -13181,6 +13181,14 @@ function bzToggleJinsil() {
 }
 
 
+// ── URL 자동 링크 변환 ────────────────────────────────────────────
+function _bzLinkify(text) {
+  const escaped = (text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return escaped.replace(/https?:\/\/[^\s<>"'&]+/g, url =>
+    `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline;word-break:break-all" onclick="event.stopPropagation()">${url}</a>`
+  );
+}
+
 // ── 멤버 컬러 맵 (전역 공유) ────────────────────────────────────────
 let _memberColorCache = null;
 function _getMemberColor(name) {
@@ -13276,7 +13284,7 @@ function _bzRenderMessages(phase) {
           ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
       : `<div onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
-          ${replyBox}${m.text}
+          ${replyBox}${_bzLinkify(m.text)}
         </div>`;
     return isMine
       ? `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
@@ -13414,7 +13422,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
           ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
       : `<div onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
-          ${replyBox}${m.text}
+          ${replyBox}${_bzLinkify(m.text)}
         </div>`;
     const html = isMine
       ? `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
