@@ -13161,11 +13161,8 @@ function _bzRenderMessages(phase) {
     // m.realName 우선 사용 — 타인이 같은 이름을 가명으로 쓸 경우 aliasToReal이 오염되는 문제 방지
     const realOfAlias = m.realName || aliasToReal[m.alias] || m.alias;
     const showRealNames = phase === 'revealed' || !!(_bzState && _bzState.showRealNames);
-    const jinsilOn = !!(_bzState && _bzState.jinsilTok);
     const senderLabel = showRealNames
       ? `${m.alias} <span style="color:#f59e0b;font-size:0.7rem">(${realOfAlias})</span>`
-      : jinsilOn
-      ? realOfAlias
       : m.alias;
     const isMine = m.realName === myName;
     const keyEsc      = m._key.replace(/'/g, "\\'");
@@ -13297,11 +13294,8 @@ function _bzIncrementalUpdateMessages(newMessages) {
 
     const realOfAlias = m.realName || aliasToReal[m.alias] || m.alias;
     const showRealNames = phase === 'revealed' || !!(_bzState && _bzState.showRealNames);
-    const jinsilOn = !!(_bzState && _bzState.jinsilTok);
     const senderLabel = showRealNames
       ? `${m.alias} <span style="color:#f59e0b;font-size:0.7rem">(${realOfAlias})</span>`
-      : jinsilOn
-      ? realOfAlias
       : m.alias;
     const isMine = m.realName === myName;
     const keyEsc      = m._key.replace(/'/g, "\'");
