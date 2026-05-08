@@ -13154,8 +13154,8 @@ function _bzRenderMessages(phase) {
   const canReply = phase !== 'revealed';
   const allLikes = (_bzState && _bzState.likes) || {};
   // 멤버별 컬러 맵 — 성별 팔레트에서 인덱스 순 배정 (같은 계열 내 구분)
-  const _bzWarmPalette = ['#f43f5e','#ec4899','#f97316','#d946ef','#fb923c','#e11d48','#c026d3','#db2777','#ef4444','#f59e0b','#a21caf','#be185d','#ea580c','#e879f9','#fb7185','#fbbf24'];
-  const _bzCoolPalette = ['#3b82f6','#06b6d4','#10b981','#6366f1','#0ea5e9','#14b8a6','#8b5cf6','#22d3ee','#2563eb','#0891b2','#059669','#4f46e5','#0284c7','#0d9488','#7c3aed','#38bdf8'];
+  const _bzWarmPalette = ['#fda4af','#f9a8d4','#fdba74','#e879f9','#fcd34d','#f0abfc','#fca5a5','#fb923c','#f472b6','#fbbf24','#c084fc','#fb7185','#d8b4fe','#fed7aa','#f5d0fe','#fde68a'];
+  const _bzCoolPalette = ['#93c5fd','#67e8f9','#6ee7b7','#a5b4fc','#7dd3fc','#5eead4','#c4b5fd','#86efac','#bae6fd','#99f6e4','#818cf8','#6ee7b7','#a78bfa','#7dd3fc','#34d399','#60a5fa'];
   const _bzColorMap = new Map();
   let _bzWi = 0, _bzCi = 0;
   (state.members || []).forEach(mbr => {
@@ -13275,8 +13275,8 @@ function _bzIncrementalUpdateMessages(newMessages) {
   const myName = (state.identity && state.identity.name) || '';
   const allLikes = (_bzState && _bzState.likes) || {};
   // 멤버별 컬러 맵
-  const _bzWarmPalette2 = ['#f43f5e','#ec4899','#f97316','#d946ef','#fb923c','#e11d48','#c026d3','#db2777','#ef4444','#f59e0b','#a21caf','#be185d','#ea580c','#e879f9','#fb7185','#fbbf24'];
-  const _bzCoolPalette2 = ['#3b82f6','#06b6d4','#10b981','#6366f1','#0ea5e9','#14b8a6','#8b5cf6','#22d3ee','#2563eb','#0891b2','#059669','#4f46e5','#0284c7','#0d9488','#7c3aed','#38bdf8'];
+  const _bzWarmPalette2 = ['#fda4af','#f9a8d4','#fdba74','#e879f9','#fcd34d','#f0abfc','#fca5a5','#fb923c','#f472b6','#fbbf24','#c084fc','#fb7185','#d8b4fe','#fed7aa','#f5d0fe','#fde68a'];
+  const _bzCoolPalette2 = ['#93c5fd','#67e8f9','#6ee7b7','#a5b4fc','#7dd3fc','#5eead4','#c4b5fd','#86efac','#bae6fd','#99f6e4','#818cf8','#6ee7b7','#a78bfa','#7dd3fc','#34d399','#60a5fa'];
   const _bzColorMap = new Map();
   let _bzWi = 0, _bzCi = 0;
   (state.members || []).forEach(mbr => {
