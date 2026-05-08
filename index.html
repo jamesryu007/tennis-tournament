@@ -1491,7 +1491,12 @@ const firebaseConfig = {
 
       <!-- 메시지 컨텍스트 메뉴 -->
       <div id="bz-msg-menu" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9100;background:rgba(0,0,0,0.32)" onclick="bzCloseMsgMenu()">
-        <div id="bz-msg-menu-box" style="position:absolute;background:#fff;border-radius:18px;width:220px;box-shadow:0 12px 40px rgba(0,0,0,0.22);overflow:hidden" onclick="event.stopPropagation()">
+        <div id="bz-msg-menu-box" style="position:absolute;background:#fff;border-radius:18px;width:240px;box-shadow:0 12px 40px rgba(0,0,0,0.22);overflow:hidden" onclick="event.stopPropagation()">
+          <!-- 미리보기 -->
+          <div id="bz-menu-preview" style="padding:11px 16px 10px;border-bottom:1.5px solid #e2e8f0">
+            <div id="bz-menu-preview-name" style="font-size:0.72rem;color:#94a3b8;font-weight:700;margin-bottom:2px"></div>
+            <div id="bz-menu-preview-text" style="font-size:0.82rem;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+          </div>
           <div id="bz-menu-copy" onclick="bzMenuCopy()" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent">
             <span style="font-size:0.92rem;color:#1e293b;font-weight:600">복사</span>
             <span style="font-size:1.1rem;color:#64748b">⎘</span>
@@ -1504,10 +1509,10 @@ const firebaseConfig = {
             <span style="font-size:0.92rem;color:#ef4444;font-weight:600">삭제</span>
             <span style="font-size:1.1rem">🗑</span>
           </div>
-          <div style="display:flex;align-items:center;gap:6px;padding:13px 20px">
-            <span onclick="bzMenuEmoji('❤️')" style="font-size:1.5rem;cursor:pointer;-webkit-tap-highlight-color:transparent">❤️</span>
-            <span onclick="bzMenuEmoji('👍')" style="font-size:1.5rem;cursor:pointer;-webkit-tap-highlight-color:transparent">👍</span>
-            <span onclick="bzMenuEmoji('👎')" style="font-size:1.5rem;cursor:pointer;-webkit-tap-highlight-color:transparent">👎</span>
+          <div style="display:flex;align-items:center;justify-content:space-around;padding:14px 20px">
+            <span onclick="bzMenuEmoji('❤️')" style="font-size:1.8rem;cursor:pointer;-webkit-tap-highlight-color:transparent;padding:4px">❤️</span>
+            <span onclick="bzMenuEmoji('👍')" style="font-size:1.8rem;cursor:pointer;-webkit-tap-highlight-color:transparent;padding:4px">👍</span>
+            <span onclick="bzMenuEmoji('👎')" style="font-size:1.8rem;cursor:pointer;-webkit-tap-highlight-color:transparent;padding:4px">👎</span>
           </div>
         </div>
       </div>
@@ -12482,7 +12487,7 @@ function _bzSetupListener() {
     _bzState = newState;
     // likes만 바뀐 경우 — 하트만 부분 업데이트
     if (_bzLastRenderKey && fullKey === _bzLastRenderKey) {
-      _bzUpdateLikesOnly(newState.likes || {});
+      _bzUpdateLikesOnly(newState.likes || {}, newState.reacts || {});
       return;
     }
     _bzLastRenderKey = fullKey;
@@ -12497,8 +12502,9 @@ function _bzSetupListener() {
   });
 }
 
-// likes 변경 시 하트 요소만 부분 업데이트 (전체 재렌더 없이)
-function _bzUpdateLikesOnly(allLikes) {
+// likes/reacts 변경 시 하트 요소만 부분 업데이트 (전체 재렌더 없이)
+function _bzUpdateLikesOnly(allLikes, allReacts) {
+  allReacts = allReacts || {};
   const myName = (state.identity && state.identity.name) || '';
   document.querySelectorAll('[data-bzheart]').forEach(el => {
     const key = el.getAttribute('data-bzheart');
@@ -12508,11 +12514,16 @@ function _bzUpdateLikesOnly(allLikes) {
     const keyEsc = key.replace(/'/g, "\\'");
     const isVideo = el.getAttribute('data-bzvideo') === '1';
     const isUrl   = el.getAttribute('data-bzurl') === '1';
-    el.innerHTML = isVideo
-      ? `<span style="font-size:0.8rem;color:${iLiked ? '#ef4444' : '#cbd5e1'};cursor:pointer;user-select:none;padding:2px 4px" onclick="bzToggleLike('${keyEsc}')">❤️${count > 0 ? ' '+count : ''}</span>`
-      : (isUrl || count > 0)
-      ? `<span style="font-size:0.75rem;color:${iLiked ? '#ef4444' : '#94a3b8'};cursor:pointer;user-select:none" onclick="bzToggleLike('${keyEsc}')">❤️${count > 0 ? ' '+count : ''}</span>`
-      : '';
+    const msgReacts = allReacts[key] || {};
+    const upCount   = msgReacts.up   ? Object.keys(msgReacts.up).length   : 0;
+    const downCount = msgReacts.down ? Object.keys(msgReacts.down).length : 0;
+    let html = '';
+    if (isVideo || isUrl || count > 0) {
+      html += `<span style="font-size:${isVideo?'0.8rem':'0.75rem'};color:${iLiked?'#ef4444':'#cbd5e1'};cursor:pointer;user-select:none;${isVideo?'padding:2px 4px':''}" onclick="bzToggleLike('${keyEsc}')">❤️${count > 0 ? ' '+count : ''}</span>`;
+    }
+    if (upCount > 0) html += `<span style="font-size:0.75rem;color:#22c55e;cursor:pointer;user-select:none;margin-left:6px" onclick="bzToggleReact('${keyEsc}','up')">👍 ${upCount}</span>`;
+    if (downCount > 0) html += `<span style="font-size:0.75rem;color:#94a3b8;cursor:pointer;user-select:none;margin-left:6px" onclick="bzToggleReact('${keyEsc}','down')">👎 ${downCount}</span>`;
+    el.innerHTML = html;
   });
 }
 
@@ -12799,6 +12810,17 @@ function bzToggleLike(msgKey) {
     db.ref(`${BZ_REF}/likes/${msgKey}/${myName}`).remove().catch(fbErr);
   } else {
     db.ref(`${BZ_REF}/likes/${msgKey}/${myName}`).set(true).catch(fbErr);
+  }
+}
+
+function bzToggleReact(msgKey, type) {
+  const myName = (state.identity && state.identity.name) || '';
+  if (!myName || !msgKey) return;
+  const reacts = (_bzState && _bzState.reacts && _bzState.reacts[msgKey] && _bzState.reacts[msgKey][type]) || {};
+  if (reacts[myName]) {
+    db.ref(`${BZ_REF}/reacts/${msgKey}/${type}/${myName}`).remove().catch(fbErr);
+  } else {
+    db.ref(`${BZ_REF}/reacts/${msgKey}/${type}/${myName}`).set(true).catch(fbErr);
   }
 }
 
@@ -13283,6 +13305,9 @@ function bzShowMsgMenu(key, tapX, tapY) {
   const canDel = meta.isMine || isAdmin();
   document.getElementById('bz-menu-delete').style.display = canDel ? 'flex' : 'none';
   document.getElementById('bz-menu-copy').style.display = meta.text ? 'flex' : 'none';
+  // 미리보기 채우기
+  document.getElementById('bz-menu-preview-name').textContent = meta.alias || '';
+  document.getElementById('bz-menu-preview-text').textContent = meta.text || (meta.hasUrl ? '[링크]' : '[미디어]');
   const overlay = document.getElementById('bz-msg-menu');
   const box = document.getElementById('bz-msg-menu-box');
   overlay.style.display = 'block';
@@ -13329,7 +13354,9 @@ function bzMenuDelete() {
 function bzMenuEmoji(emoji) {
   const key = _bzMenuKey;
   bzCloseMsgMenu();
-  if (key) bzToggleLike(key); // 현재는 ❤️ 토글로 통일
+  if (!key) return;
+  if (emoji === '❤️') bzToggleLike(key);
+  else bzToggleReact(key, emoji === '👍' ? 'up' : 'down');
 }
 
 // ── URL 자동 링크 변환 ────────────────────────────────────────────
@@ -13400,23 +13427,21 @@ function _bzRenderMessages(phase) {
     const msgLikeKeys = allLikes[m._key] ? Object.keys(allLikes[m._key]) : [];
     const likeCount   = msgLikeKeys.length;
     const iLiked      = msgLikeKeys.includes(myName);
-    // data-bzheart: likes만 바뀔 때 전체 재렌더 없이 이 컨테이너만 업데이트
+    // data-bzheart: likes/reacts만 바뀔 때 전체 재렌더 없이 이 컨테이너만 업데이트
     const hasUrl      = /https?:\/\//.test(m.text || '');
-    const heartInner  = m.videoUrl
-      ? `<span style="font-size:0.8rem;color:${iLiked?'#ef4444':'#cbd5e1'};cursor:pointer;user-select:none;padding:2px 4px" onclick="bzToggleLike('${keyEsc}')">❤️${likeCount > 0 ? ' '+likeCount : ''}</span>`
-      : (hasUrl || likeCount > 0)
-      ? `<span style="font-size:0.75rem;color:${iLiked?'#ef4444':'#94a3b8'};cursor:pointer;user-select:none" onclick="bzToggleLike('${keyEsc}')">❤️${likeCount > 0 ? ' '+likeCount : ''}</span>`
-      : '';
+    const _allReacts  = (_bzState && _bzState.reacts) || {};
+    const _msgReacts  = _allReacts[m._key] || {};
+    const upCount     = _msgReacts.up   ? Object.keys(_msgReacts.up).length   : 0;
+    const downCount   = _msgReacts.down ? Object.keys(_msgReacts.down).length : 0;
+    let heartInner = '';
+    if (m.videoUrl || hasUrl || likeCount > 0) {
+      heartInner += `<span style="font-size:${m.videoUrl?'0.8rem':'0.75rem'};color:${iLiked?'#ef4444':'#cbd5e1'};cursor:pointer;user-select:none;${m.videoUrl?'padding:2px 4px':''}" onclick="bzToggleLike('${keyEsc}')">❤️${likeCount > 0 ? ' '+likeCount : ''}</span>`;
+    }
+    if (upCount > 0) heartInner += `<span style="font-size:0.75rem;color:#22c55e;cursor:pointer;user-select:none;margin-left:6px" onclick="bzToggleReact('${keyEsc}','up')">👍 ${upCount}</span>`;
+    if (downCount > 0) heartInner += `<span style="font-size:0.75rem;color:#94a3b8;cursor:pointer;user-select:none;margin-left:6px" onclick="bzToggleReact('${keyEsc}','down')">👎 ${downCount}</span>`;
     const heartRow    = `<div data-bzheart="${keyEsc}" data-bzvideo="${m.videoUrl ? '1' : ''}" data-bzurl="${hasUrl ? '1' : ''}" style="padding:0 4px">${heartInner}</div>`;
-    const msgText  = m.text || (m.videoUrl ? '[영상]' : m.imageData || m.imageUrl ? '[사진]' : '');
-    const textEsc  = msgText.replace(/'/g, "\\'").replace(/`/g, '\\`');
-    const replyBtn = canReply
-      ? `<button onclick="bzSetReply('${aliasEsc}','${textEsc}','${realNameEsc}')"
-          style="background:none;border:none;font-size:0.75rem;color:#94a3b8;cursor:pointer;padding:2px 4px;line-height:1;flex-shrink:0" title="답글">↩</button>` : '';
-    const canDelete = isMine || isAdmin();
-    const deleteBtn = canDelete
-      ? `<button onclick="bzDeleteMsg('${m._key}')"
-          style="background:none;border:none;font-size:0.72rem;color:#fca5a5;cursor:pointer;padding:2px 4px;line-height:1;flex-shrink:0" title="삭제">🗑</button>` : '';
+    const replyBtn = '';
+    const deleteBtn = '';
     // 인용 박스 (replyTo 있을 때)
     const replyBox = m.replyTo
       ? `<div style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden">
@@ -13542,22 +13567,19 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const likeCount   = msgLikeKeys.length;
     const iLiked      = msgLikeKeys.includes(myName);
     const hasUrl      = /https?:\/\//.test(m.text || '');
-    const heartInner  = m.videoUrl
-      ? `<span style="font-size:0.8rem;color:${iLiked?'#ef4444':'#cbd5e1'};cursor:pointer;user-select:none;padding:2px 4px" onclick="bzToggleLike('${keyEsc}')">❤️${likeCount > 0 ? ' '+likeCount : ''}</span>`
-      : (hasUrl || likeCount > 0)
-      ? `<span style="font-size:0.75rem;color:${iLiked?'#ef4444':'#94a3b8'};cursor:pointer;user-select:none" onclick="bzToggleLike('${keyEsc}')">❤️${likeCount > 0 ? ' '+likeCount : ''}</span>`
-      : '';
+    const _allReacts2 = (_bzState && _bzState.reacts) || {};
+    const _msgReacts2 = _allReacts2[m._key] || {};
+    const upCount2    = _msgReacts2.up   ? Object.keys(_msgReacts2.up).length   : 0;
+    const downCount2  = _msgReacts2.down ? Object.keys(_msgReacts2.down).length : 0;
+    let heartInner = '';
+    if (m.videoUrl || hasUrl || likeCount > 0) {
+      heartInner += `<span style="font-size:${m.videoUrl?'0.8rem':'0.75rem'};color:${iLiked?'#ef4444':'#cbd5e1'};cursor:pointer;user-select:none;${m.videoUrl?'padding:2px 4px':''}" onclick="bzToggleLike('${keyEsc}')">❤️${likeCount > 0 ? ' '+likeCount : ''}</span>`;
+    }
+    if (upCount2 > 0) heartInner += `<span style="font-size:0.75rem;color:#22c55e;cursor:pointer;user-select:none;margin-left:6px" onclick="bzToggleReact('${keyEsc}','up')">👍 ${upCount2}</span>`;
+    if (downCount2 > 0) heartInner += `<span style="font-size:0.75rem;color:#94a3b8;cursor:pointer;user-select:none;margin-left:6px" onclick="bzToggleReact('${keyEsc}','down')">👎 ${downCount2}</span>`;
     const heartRow    = `<div data-bzheart="${keyEsc}" data-bzvideo="${m.videoUrl ? '1' : ''}" data-bzurl="${hasUrl ? '1' : ''}" style="padding:0 4px">${heartInner}</div>`;
-    const canReply = phase !== 'revealed';
-    const msgText  = m.text || (m.videoUrl ? '[영상]' : m.imageData || m.imageUrl ? '[사진]' : '');
-    const textEsc  = msgText.replace(/'/g, "\'").replace(/`/g, '\`');
-    const replyBtn = canReply
-      ? `<button onclick="bzSetReply('${aliasEsc}','${textEsc}','${realNameEsc}')"
-          style="background:none;border:none;font-size:0.75rem;color:#94a3b8;cursor:pointer;padding:2px 4px;line-height:1;flex-shrink:0" title="답글">↩</button>` : '';
-    const canDelete = isMine || isAdmin();
-    const deleteBtn = canDelete
-      ? `<button onclick="bzDeleteMsg('${m._key}')"
-          style="background:none;border:none;font-size:0.72rem;color:#fca5a5;cursor:pointer;padding:2px 4px;line-height:1;flex-shrink:0" title="삭제">🗑</button>` : '';
+    const replyBtn = '';
+    const deleteBtn = '';
     const replyBox = m.replyTo
       ? `<div style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden">
           <span style="font-weight:700">${phase==='revealed' ? `${m.replyTo.alias}(${aliasToReal[m.replyTo.alias]||m.replyTo.alias})` : m.replyTo.alias}</span>
