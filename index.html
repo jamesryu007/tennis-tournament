@@ -13250,9 +13250,6 @@ function _bzRenderMessages(phase) {
     const heartRow    = `<div data-bzheart="${keyEsc}" data-bzvideo="${m.videoUrl ? '1' : ''}" style="padding:0 4px">${heartInner}</div>`;
     const msgText  = m.text || (m.videoUrl ? '[영상]' : m.imageData || m.imageUrl ? '[사진]' : '');
     const textEsc  = msgText.replace(/'/g, "\\'").replace(/`/g, '\\`');
-    const adminPushBtn = isAdmin() && phase !== 'revealed'
-      ? `<button onclick="_bzSendPush('${aliasEsc}','${textEsc}','manual')" title="이 메시지 전체 푸시"
-          style="background:none;border:1.5px solid #fde68a;border-radius:8px;padding:1px 5px;font-size:0.7rem;cursor:pointer;color:#b45309;flex-shrink:0">📢</button>` : '';
     const replyBtn = canReply
       ? `<button onclick="bzSetReply('${aliasEsc}','${textEsc}','${realNameEsc}')"
           style="background:none;border:none;font-size:0.75rem;color:#94a3b8;cursor:pointer;padding:2px 4px;line-height:1;flex-shrink:0" title="답글">↩</button>` : '';
@@ -13283,9 +13280,8 @@ function _bzRenderMessages(phase) {
         </div>`;
     return isMine
       ? `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
-          <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
+          <div style="padding:0 4px">
             <span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span>
-            ${isAdmin() ? adminPushBtn : ''}
           </div>
           <div style="display:flex;align-items:center;gap:4px;flex-direction:row-reverse;width:100%">
             ${bubble}${replyBtn}${deleteBtn}
@@ -13294,10 +13290,7 @@ function _bzRenderMessages(phase) {
         </div>`
       : `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px">
           <div style="display:flex;gap:4px;align-items:flex-start;width:100%">
-            <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding-top:2px;gap:2px">
-              ${isAdmin() ? adminPushBtn : ''}
-              <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${m.alias[0]}</span>
-            </div>
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${m.alias[0]}</span>
             <div style="flex:1;min-width:0">
               <div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>
               <div style="display:flex;align-items:center;gap:4px">
@@ -13396,9 +13389,6 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const canReply = phase !== 'revealed';
     const msgText  = m.text || (m.videoUrl ? '[영상]' : m.imageData || m.imageUrl ? '[사진]' : '');
     const textEsc  = msgText.replace(/'/g, "\'").replace(/`/g, '\`');
-    const adminPushBtn = isAdmin() && phase !== 'revealed'
-      ? `<button onclick="_bzSendPush('${aliasEsc}','${textEsc}','manual')" title="이 메시지 전체 푸시"
-          style="background:none;border:1.5px solid #fde68a;border-radius:8px;padding:1px 5px;font-size:0.7rem;cursor:pointer;color:#b45309;flex-shrink:0">📢</button>` : '';
     const replyBtn = canReply
       ? `<button onclick="bzSetReply('${aliasEsc}','${textEsc}','${realNameEsc}')"
           style="background:none;border:none;font-size:0.75rem;color:#94a3b8;cursor:pointer;padding:2px 4px;line-height:1;flex-shrink:0" title="답글">↩</button>` : '';
@@ -13428,9 +13418,8 @@ function _bzIncrementalUpdateMessages(newMessages) {
         </div>`;
     const html = isMine
       ? `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
-          <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
+          <div style="padding:0 4px">
             <span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span>
-            ${isAdmin() ? adminPushBtn : ''}
           </div>
           <div style="display:flex;align-items:center;gap:4px;flex-direction:row-reverse;width:100%">
             ${bubble}${replyBtn}${deleteBtn}
@@ -13439,10 +13428,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
         </div>`
       : `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px">
           <div style="display:flex;gap:4px;align-items:flex-start;width:100%">
-            <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding-top:2px;gap:2px">
-              ${isAdmin() ? adminPushBtn : ''}
-              <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${m.alias[0]}</span>
-            </div>
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${m.alias[0]}</span>
             <div style="flex:1;min-width:0">
               <div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>
               <div style="display:flex;align-items:center;gap:4px">
