@@ -12601,10 +12601,8 @@ function _bzUpdateAliasStrip() {
   // 나 자신 + 가명 목록 — 나 자신은 _bzCurrentAlias === ''
   const items = [{ label: myName, value: '' }, ..._bzMyAliases.map(n => ({ label: n, value: n }))];
   strip.style.display = 'flex';
-  // 진실톡 ON이면 스트립 비활성화
-  const _jinsilOn = !!(_bzState && _bzState.jinsilTok);
-  strip.style.opacity = _jinsilOn ? '0.35' : '';
-  strip.style.pointerEvents = _jinsilOn ? 'none' : '';
+  strip.style.opacity = '';
+  strip.style.pointerEvents = '';
   chipsEl.innerHTML = items.map(({ label, value }) => {
     const active = value === (_bzCurrentAlias || '');
     return `<button onclick="bzSwitchAlias('${value}')"
@@ -13148,16 +13146,15 @@ function _bzRender() {
   if (jinsilBadge) jinsilBadge.style.display = (jinsilOn && !_jinsilIsAdmin) ? 'inline-block' : 'none';
   const jinsilBadgeStrip = document.getElementById('bz-jinsil-badge-strip');
   if (jinsilBadgeStrip) jinsilBadgeStrip.style.display = (jinsilOn && !_jinsilIsAdmin) ? 'inline-block' : 'none';
-  const aliasRowEl = document.getElementById('bz-alias-row');
-  if (aliasRowEl) {
-    aliasRowEl.style.opacity = (!_jinsilIsAdmin && jinsilOn) ? '0.35' : '1';
-    aliasRowEl.style.pointerEvents = (!_jinsilIsAdmin && jinsilOn) ? 'none' : '';
-  }
-  const aliasStripEl = document.getElementById('bz-alias-strip');
-  if (aliasStripEl) {
-    aliasStripEl.style.opacity = (!_jinsilIsAdmin && jinsilOn) ? '0.35' : '';
-    aliasStripEl.style.pointerEvents = (!_jinsilIsAdmin && jinsilOn) ? 'none' : '';
-  }
+  // 가명 선택 요소만 비활성화 (녹색점·라벨은 그대로)
+  const _jinsilDisable = !_jinsilIsAdmin && jinsilOn;
+  ['bz-alias-select', 'bz-alias-chips', 'bz-alias-strip-chips'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.style.opacity = _jinsilDisable ? '0.35' : '';
+      el.style.pointerEvents = _jinsilDisable ? 'none' : '';
+    }
+  });
 
   // 채팅중인 멤버 (메시지에 등장한 가명 목록)
   const msgs = _bzState.messages ? Object.values(_bzState.messages) : [];
