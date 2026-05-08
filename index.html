@@ -12633,7 +12633,7 @@ function bzSend() {
     db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
   }
   const msgData = { alias: senderAlias, realName: myName, text, ts: Date.now() };
-  if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '' };
+  if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '', msgKey: _bzReplyTo.msgKey || '' };
   db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
   _bzTrimMessages();
   // phase 변경 (최초 1회)
@@ -12654,8 +12654,8 @@ function bzSend() {
   if (_bzArea) requestAnimationFrame(() => { _bzArea.scrollTop = _bzArea.scrollHeight; });
 }
 
-function bzSetReply(alias, text, realName) {
-  _bzReplyTo = { alias, text, realName: realName || '' };
+function bzSetReply(alias, text, realName, msgKey) {
+  _bzReplyTo = { alias, text, realName: realName || '', msgKey: msgKey || '' };
   const bar = document.getElementById('bz-reply-bar');
   if (bar) {
     document.getElementById('bz-reply-label').textContent = `↩ ${alias}에게 답글`;
@@ -12711,7 +12711,7 @@ function bzSendPhoto(e) {
           db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
         }
         const msgData = { alias: senderAlias, realName: myName, videoUrl, ts };
-        if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '' };
+        if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '', msgKey: _bzReplyTo.msgKey || '' };
         db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
         _bzTrimMessages();
         if (!phase || phase === 'waiting') db.ref(`${BZ_REF}/phase`).set('chatting').catch(fbErr);
@@ -12754,7 +12754,7 @@ function bzSendPhoto(e) {
             db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
           }
           const msgData = { alias: senderAlias, realName: myName, imageUrl, ts };
-          if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '' };
+          if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '', msgKey: _bzReplyTo.msgKey || '' };
           db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
           _bzTrimMessages();
           if (!phase || phase === 'waiting') db.ref(`${BZ_REF}/phase`).set('chatting').catch(fbErr);
@@ -12822,6 +12822,21 @@ function bzToggleReact(msgKey, type) {
   } else {
     db.ref(`${BZ_REF}/reacts/${msgKey}/${type}/${myName}`).set(true).catch(fbErr);
   }
+}
+
+function bzScrollToMsg(key) {
+  if (!key) return;
+  const area = document.getElementById('bz-chat-area');
+  const el = area && area.querySelector(`[data-bzkey="${key}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // 잠깐 하이라이트
+  el.style.transition = 'background 0.3s';
+  el.style.background = 'rgba(245,158,11,0.18)';
+  setTimeout(() => {
+    el.style.background = '';
+    setTimeout(() => { el.style.transition = ''; }, 300);
+  }, 900);
 }
 
 function bzDeleteMsg(msgKey) {
@@ -13291,7 +13306,7 @@ function bzBubbleTouchEnd(e, key) {
     setTimeout(() => { if (_bzSwipeEl) { _bzSwipeEl.style.transition = ''; } }, 220);
     if (dx < -55) {
       const meta = window._bzMsgMeta[key];
-      if (meta) bzSetReply(meta.alias, meta.text, meta.realName);
+      if (meta) bzSetReply(meta.alias, meta.text, meta.realName, key);
     }
   }
   _bzSwipeMoved = false;
@@ -13341,7 +13356,7 @@ function bzMenuCopy() {
 
 function bzMenuReply() {
   const meta = _bzMenuKey && window._bzMsgMeta[_bzMenuKey];
-  if (meta) bzSetReply(meta.alias, meta.text, meta.realName);
+  if (meta) bzSetReply(meta.alias, meta.text, meta.realName, _bzMenuKey);
   bzCloseMsgMenu();
 }
 
@@ -13442,9 +13457,10 @@ function _bzRenderMessages(phase) {
     const heartRow    = `<div data-bzheart="${keyEsc}" data-bzvideo="${m.videoUrl ? '1' : ''}" data-bzurl="${hasUrl ? '1' : ''}" style="padding:0 4px">${heartInner}</div>`;
     const replyBtn = '';
     const deleteBtn = '';
-    // 인용 박스 (replyTo 있을 때)
+    // 인용 박스 (replyTo 있을 때) — 탭 시 원본 메시지로 스크롤
+    const _replyToKeyEsc = m.replyTo ? (m.replyTo.msgKey || '').replace(/'/g, "\\'") : '';
     const replyBox = m.replyTo
-      ? `<div style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden">
+      ? `<div onclick="bzScrollToMsg('${_replyToKeyEsc}')" style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden;cursor:${_replyToKeyEsc?'pointer':'default'}">
           <span style="font-weight:700">${phase==='revealed' ? `${m.replyTo.alias}(${aliasToReal[m.replyTo.alias]||m.replyTo.alias})` : m.replyTo.alias}</span>
           <span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.replyTo.text}</span>
         </div>` : '';
@@ -13580,8 +13596,9 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const heartRow    = `<div data-bzheart="${keyEsc}" data-bzvideo="${m.videoUrl ? '1' : ''}" data-bzurl="${hasUrl ? '1' : ''}" style="padding:0 4px">${heartInner}</div>`;
     const replyBtn = '';
     const deleteBtn = '';
+    const _replyToKeyEsc2 = m.replyTo ? (m.replyTo.msgKey || '').replace(/'/g, "\\'") : '';
     const replyBox = m.replyTo
-      ? `<div style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden">
+      ? `<div onclick="bzScrollToMsg('${_replyToKeyEsc2}')" style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden;cursor:${_replyToKeyEsc2?'pointer':'default'}">
           <span style="font-weight:700">${phase==='revealed' ? `${m.replyTo.alias}(${aliasToReal[m.replyTo.alias]||m.replyTo.alias})` : m.replyTo.alias}</span>
           <span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.replyTo.text}</span>
         </div>` : '';
