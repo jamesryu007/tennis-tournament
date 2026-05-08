@@ -1432,8 +1432,8 @@ const firebaseConfig = {
 
         <!-- 가명 선택 -->
         <div id="bz-alias-row" style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span id="bz-jinsil-badge" style="display:none;color:#00b341;font-size:1.1rem;line-height:1">●</span>
           <span style="font-size:0.75rem;font-weight:700;color:#92400e;white-space:nowrap">나의 가명:</span>
-          <span id="bz-jinsil-badge" style="display:none;color:#22c55e;font-size:1rem;line-height:1">●</span>
           <select id="bz-alias-select" onchange="bzSelectAlias(this.value)" style="width:110px;padding:4px 6px;border-radius:8px;border:1.5px solid #fcd34d;font-size:0.78rem;font-weight:600;background:#fff">
             <option value="">나 자신</option>
           </select>
@@ -1480,6 +1480,7 @@ const firebaseConfig = {
 
       <!-- 가명 스트립 — 정보 프레임 접힌 상태에서 가명 1개 이상일 때만 표시 -->
       <div id="bz-alias-strip" style="display:none;flex-shrink:0;align-items:center;gap:6px;padding:6px 12px;margin:6px 12px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;box-shadow:0 1px 6px rgba(245,158,11,0.1)">
+        <span id="bz-jinsil-badge-strip" style="display:none;color:#00b341;font-size:1.1rem;line-height:1">●</span>
         <span style="font-size:0.73rem;font-weight:700;color:#92400e;white-space:nowrap">나의 가명:</span>
         <div id="bz-alias-strip-chips" style="display:flex;gap:5px;flex-wrap:wrap"></div>
       </div>
@@ -13145,6 +13146,8 @@ function _bzRender() {
   const _jinsilIsAdmin = isAdmin();
   const jinsilBadge = document.getElementById('bz-jinsil-badge');
   if (jinsilBadge) jinsilBadge.style.display = (jinsilOn && !_jinsilIsAdmin) ? 'inline-block' : 'none';
+  const jinsilBadgeStrip = document.getElementById('bz-jinsil-badge-strip');
+  if (jinsilBadgeStrip) jinsilBadgeStrip.style.display = (jinsilOn && !_jinsilIsAdmin) ? 'inline-block' : 'none';
   const aliasRowEl = document.getElementById('bz-alias-row');
   if (aliasRowEl) {
     aliasRowEl.style.opacity = (!_jinsilIsAdmin && jinsilOn) ? '0.35' : '1';
