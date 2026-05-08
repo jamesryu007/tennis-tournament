@@ -1438,6 +1438,7 @@ const firebaseConfig = {
             <option value="">나 자신</option>
           </select>
           <div id="bz-alias-chips" style="display:flex;flex-wrap:wrap;gap:4px;flex:1"></div>
+          <button id="bz-jinsil-btn" onclick="bzToggleJinsil()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#64748b;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">진실톡 OFF</button>
         </div>
         <div id="bz-alias-limit-msg" style="display:none;font-size:0.72rem;color:#dc2626;margin-bottom:4px">⚠️ 최대 2개의 가명만 사용할 수 있습니다.</div>
         <!-- 채팅중인 멤버 -->
@@ -12531,7 +12532,7 @@ function bzSend() {
   if (!myName) { alert('로그인 후 이용하세요.'); return; }
   const phase = (_bzState && _bzState.phase) || 'chatting';
   if (phase === 'revealed') { alert('게임이 종료되었습니다.'); return; }
-  const senderAlias = _bzCurrentAlias || myName;
+  const senderAlias = (_bzState && _bzState.jinsilTok) ? myName : (_bzCurrentAlias || myName);
   // entrants에 없으면 자동 등록 (새 게임 후 재진입 없이 메시지 보낸 경우)
   if (!(_bzState && _bzState.entrants && _bzState.entrants[myName])) {
     db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
@@ -12587,7 +12588,7 @@ function bzSendPhoto(e) {
   if (phase === 'revealed') { alert('게임이 종료되었습니다.'); return; }
 
   const isVideo = file.type.startsWith('video/');
-  const senderAlias = _bzCurrentAlias || myName;
+  const senderAlias = (_bzState && _bzState.jinsilTok) ? myName : (_bzCurrentAlias || myName);
   const ts = Date.now();
   const photoBtn = document.getElementById('bz-btn-photo');
 
@@ -13002,6 +13003,17 @@ function _bzRender() {
       rnBtn.textContent = showRN ? '👁 실명 ON' : '👁 실명 공개';
     }
 
+    // 진실톡 버튼 상태 동기화
+    const jinsilBtn = document.getElementById('bz-jinsil-btn');
+    if (jinsilBtn) {
+      jinsilBtn.style.display = 'inline-block';
+      const jinsilOn = !!(_bzState && _bzState.jinsilTok);
+      jinsilBtn.textContent = jinsilOn ? '진실톡 ON' : '진실톡 OFF';
+      jinsilBtn.style.background = jinsilOn ? 'linear-gradient(135deg,#dcfce7,#bbf7d0)' : '#f1f5f9';
+      jinsilBtn.style.color = jinsilOn ? '#15803d' : '#64748b';
+      jinsilBtn.style.border = jinsilOn ? '1.5px solid #22c55e' : '1.5px solid #e2e8f0';
+    }
+
     // 맞추기 참여 현황 (guessing 단계에서만)
     const guessStatusEl = document.getElementById('bz-guess-status');
     if (guessStatusEl) {
@@ -13109,6 +13121,12 @@ function _bzRender() {
   _bzRenderMessages(phase);
 }
 
+function bzToggleJinsil() {
+  if (!isAdmin()) return;
+  const cur = !!(_bzState && _bzState.jinsilTok);
+  db.ref(BZ_REF + '/jinsilTok').set(cur ? null : true).catch(fbErr);
+}
+
 function _bzRenderMessages(phase) {
   const area = document.getElementById('bz-chat-area');
   if (!area) return;
@@ -13142,8 +13160,11 @@ function _bzRenderMessages(phase) {
     // m.realName 우선 사용 — 타인이 같은 이름을 가명으로 쓸 경우 aliasToReal이 오염되는 문제 방지
     const realOfAlias = m.realName || aliasToReal[m.alias] || m.alias;
     const showRealNames = phase === 'revealed' || !!(_bzState && _bzState.showRealNames);
+    const jinsilOn = !!(_bzState && _bzState.jinsilTok);
     const senderLabel = showRealNames
       ? `${m.alias} <span style="color:#f59e0b;font-size:0.7rem">(${realOfAlias})</span>`
+      : jinsilOn
+      ? realOfAlias
       : m.alias;
     const isMine = m.realName === myName;
     const keyEsc      = m._key.replace(/'/g, "\\'");
@@ -13195,7 +13216,7 @@ function _bzRenderMessages(phase) {
     return `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
       <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
         ${!isMine && isAdmin() ? adminPushBtn : ''}
-        <span style="font-size:0.68rem;color:#94a3b8">${senderLabel}</span>
+        <span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span>
         ${isMine && isAdmin() ? adminPushBtn : ''}
       </div>
       <div style="display:flex;align-items:center;gap:4px;flex-direction:${isMine ? 'row-reverse' : 'row'};width:100%">
@@ -13275,8 +13296,11 @@ function _bzIncrementalUpdateMessages(newMessages) {
 
     const realOfAlias = m.realName || aliasToReal[m.alias] || m.alias;
     const showRealNames = phase === 'revealed' || !!(_bzState && _bzState.showRealNames);
+    const jinsilOn = !!(_bzState && _bzState.jinsilTok);
     const senderLabel = showRealNames
       ? `${m.alias} <span style="color:#f59e0b;font-size:0.7rem">(${realOfAlias})</span>`
+      : jinsilOn
+      ? realOfAlias
       : m.alias;
     const isMine = m.realName === myName;
     const keyEsc      = m._key.replace(/'/g, "\'");
@@ -13327,7 +13351,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const html = `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
       <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
         ${!isMine && isAdmin() ? adminPushBtn : ''}
-        <span style="font-size:0.68rem;color:#94a3b8">${senderLabel}</span>
+        <span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span>
         ${isMine && isAdmin() ? adminPushBtn : ''}
       </div>
       <div style="display:flex;align-items:center;gap:4px;flex-direction:${isMine ? 'row-reverse' : 'row'};width:100%">
