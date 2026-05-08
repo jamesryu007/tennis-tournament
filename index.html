@@ -1489,6 +1489,18 @@ const firebaseConfig = {
         <div id="bz-chat-empty" style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:30px 0">아직 대화가 없습니다.<br>가명을 선택하고 첫 메시지를 남겨보세요!</div>
       </div>
 
+      <!-- 메시지 컨텍스트 메뉴 -->
+      <div id="bz-msg-menu" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9100;background:rgba(0,0,0,0.32)" onclick="bzCloseMsgMenu()">
+        <div id="bz-msg-menu-box" style="position:absolute;background:#fff;border-radius:16px;min-width:160px;box-shadow:0 8px 32px rgba(0,0,0,0.18);overflow:hidden" onclick="event.stopPropagation()">
+          <div style="display:flex;gap:2px;padding:10px 14px;border-bottom:1px solid #f1f5f9;justify-content:center">
+            <span onclick="bzMenuLike()" style="font-size:1.5rem;cursor:pointer;padding:4px 8px;border-radius:10px;-webkit-tap-highlight-color:transparent">❤️</span>
+          </div>
+          <div id="bz-menu-copy" onclick="bzMenuCopy()" style="padding:13px 18px;font-size:0.88rem;color:#1e293b;cursor:pointer;border-bottom:1px solid #f8fafc;-webkit-tap-highlight-color:transparent">복사</div>
+          <div onclick="bzMenuReply()" style="padding:13px 18px;font-size:0.88rem;color:#1e293b;cursor:pointer;border-bottom:1px solid #f8fafc;-webkit-tap-highlight-color:transparent">↩ 답글</div>
+          <div id="bz-menu-delete" onclick="bzMenuDelete()" style="padding:13px 18px;font-size:0.88rem;color:#ef4444;cursor:pointer;-webkit-tap-highlight-color:transparent">삭제</div>
+        </div>
+      </div>
+
       <!-- 입력 영역 -->
       <div id="bz-input-area" style="flex-shrink:0;background:#ffffff;border-top:1.5px solid #e2e8f0;padding:8px 12px max(env(safe-area-inset-bottom,20px),20px)">
         <!-- 답글 미리보기 바 -->
@@ -12190,6 +12202,14 @@ let _bzLastRenderKey = null; // 전체 상태 해시
 let _bzLastNonMsgKey = null; // 메시지 제외 상태 해시 — 메시지 증분 업데이트 판별용
 let _bzRenderedMsgKeys = new Set(); // 이미 DOM에 렌더된 메시지 키 집합
 let _bzInfoCollapsed = false; // 상단 정보 프레임 접힘 여부
+// ── 터치 제스처 상태 ─────────────────────────────────────────────
+let _bzLongPressTimer = null;
+let _bzTouchStartX = 0;
+let _bzTouchStartY = 0;
+let _bzSwipeEl = null;
+let _bzSwipeMoved = false;
+let _bzMenuKey = null;
+window._bzMsgMeta = {}; // 메시지 메타 (터치 핸들러용)
 
 const BZ_REF = 'jmt/banzige/current';
 const BZ_CONFIG = {
@@ -13182,6 +13202,118 @@ function bzToggleJinsil() {
 }
 
 
+// ── 메시지 터치 제스처 (롱프레스 메뉴 + 왼쪽 스와이프 답글) ─────────
+function bzBubbleTouchStart(e, key) {
+  const meta = window._bzMsgMeta[key];
+  if (!meta) return;
+  _bzTouchStartX = e.touches[0].clientX;
+  _bzTouchStartY = e.touches[0].clientY;
+  _bzSwipeEl = e.currentTarget.querySelector('[data-bzbubble]');
+  _bzSwipeMoved = false;
+
+  // 링크 포함 메시지는 롱프레스 메뉴 없음 (iOS Safari에 양보)
+  if (meta.hasUrl) return;
+
+  _bzLongPressTimer = setTimeout(() => {
+    _bzLongPressTimer = null;
+    navigator.vibrate && navigator.vibrate(25);
+    bzShowMsgMenu(key, _bzTouchStartX, _bzTouchStartY);
+  }, 500);
+}
+
+function bzBubbleTouchMove(e, key) {
+  const dx = e.touches[0].clientX - _bzTouchStartX;
+  const dy = e.touches[0].clientY - _bzTouchStartY;
+
+  // 롱프레스 취소 (손가락 움직임)
+  if (_bzLongPressTimer && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+    clearTimeout(_bzLongPressTimer);
+    _bzLongPressTimer = null;
+  }
+
+  if (!_bzSwipeEl) return;
+
+  // 세로 스크롤 우선 — 가로보다 세로가 크면 스와이프 무시
+  if (!_bzSwipeMoved && Math.abs(dy) > Math.abs(dx)) return;
+
+  // 왼쪽 스와이프
+  if (dx < -8) {
+    _bzSwipeMoved = true;
+    e.preventDefault();
+    _bzSwipeEl.style.transition = 'none';
+    _bzSwipeEl.style.transform = `translateX(${Math.max(dx, -72)}px)`;
+  }
+}
+
+function bzBubbleTouchEnd(e, key) {
+  if (_bzLongPressTimer) { clearTimeout(_bzLongPressTimer); _bzLongPressTimer = null; }
+
+  if (_bzSwipeMoved && _bzSwipeEl) {
+    const dx = e.changedTouches[0].clientX - _bzTouchStartX;
+    _bzSwipeEl.style.transition = 'transform 0.2s ease';
+    _bzSwipeEl.style.transform = 'translateX(0)';
+    setTimeout(() => { if (_bzSwipeEl) { _bzSwipeEl.style.transition = ''; } }, 220);
+    if (dx < -55) {
+      const meta = window._bzMsgMeta[key];
+      if (meta) bzSetReply(meta.alias, meta.text, meta.realName);
+    }
+  }
+  _bzSwipeMoved = false;
+  _bzSwipeEl = null;
+}
+
+function bzShowMsgMenu(key, tapX, tapY) {
+  const meta = window._bzMsgMeta[key];
+  if (!meta) return;
+  _bzMenuKey = key;
+  const myName = (state.identity && state.identity.name) || '';
+  const canDel = meta.isMine || isAdmin();
+  document.getElementById('bz-menu-delete').style.display = canDel ? 'block' : 'none';
+  document.getElementById('bz-menu-copy').style.display = meta.text ? 'block' : 'none';
+  const overlay = document.getElementById('bz-msg-menu');
+  const box = document.getElementById('bz-msg-menu-box');
+  overlay.style.display = 'block';
+  requestAnimationFrame(() => {
+    const bw = box.offsetWidth, bh = box.offsetHeight;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let left = tapX - bw / 2;
+    let top = tapY - bh - 16;
+    left = Math.max(8, Math.min(left, vw - bw - 8));
+    if (top < 60) top = tapY + 16;
+    box.style.left = left + 'px';
+    box.style.top = top + 'px';
+  });
+}
+
+function bzCloseMsgMenu() {
+  document.getElementById('bz-msg-menu').style.display = 'none';
+  _bzMenuKey = null;
+}
+
+function bzMenuCopy() {
+  const meta = _bzMenuKey && window._bzMsgMeta[_bzMenuKey];
+  if (meta && meta.text) navigator.clipboard && navigator.clipboard.writeText(meta.text).catch(() => {});
+  bzCloseMsgMenu();
+}
+
+function bzMenuReply() {
+  const meta = _bzMenuKey && window._bzMsgMeta[_bzMenuKey];
+  if (meta) bzSetReply(meta.alias, meta.text, meta.realName);
+  bzCloseMsgMenu();
+}
+
+function bzMenuDelete() {
+  const key = _bzMenuKey;
+  bzCloseMsgMenu();
+  if (key) bzDeleteMsg(key);
+}
+
+function bzMenuLike() {
+  const key = _bzMenuKey;
+  bzCloseMsgMenu();
+  if (key) bzToggleLike(key);
+}
+
 // ── URL 자동 링크 변환 ────────────────────────────────────────────
 function _bzLinkify(text) {
   const escaped = (text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -13278,18 +13410,19 @@ function _bzRenderMessages(phase) {
     const bubbleBg = `${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'}`;
     const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#e2e8f0'}`;
     const bubble = m.videoUrl
-      ? `<div style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
+      ? `<div data-bzbubble="1" style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
           ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" style="max-width:240px;width:100%;border-radius:10px;display:block"></video>
         </div>`
       : imgSrc
-      ? `<div style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
+      ? `<div data-bzbubble="1" style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
           ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
-      : `<div onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
+      : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
           ${replyBox}${_bzLinkify(m.text)}
         </div>`;
+    window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl };
     return isMine
-      ? `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+      ? `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
           <div style="padding:0 4px">
             <span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span>
           </div>
@@ -13298,7 +13431,7 @@ function _bzRenderMessages(phase) {
           </div>
           ${heartRow}
         </div>`
-      : `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px">
+      : `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px">
           <div style="display:flex;gap:4px;align-items:flex-start;width:100%">
             <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${m.alias[0]}</span>
             <div style="flex:1;min-width:0">
@@ -13417,18 +13550,19 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const bubbleBg = `${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'}`;
     const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#e2e8f0'}`;
     const bubble = m.videoUrl
-      ? `<div style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
+      ? `<div data-bzbubble="1" style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
           ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" style="max-width:240px;width:100%;border-radius:10px;display:block"></video>
         </div>`
       : imgSrc
-      ? `<div style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
+      ? `<div data-bzbubble="1" style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
           ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
-      : `<div onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
+      : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
           ${replyBox}${_bzLinkify(m.text)}
         </div>`;
+    window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl };
     const html = isMine
-      ? `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+      ? `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
           <div style="padding:0 4px">
             <span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span>
           </div>
@@ -13437,7 +13571,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
           </div>
           ${heartRow}
         </div>`
-      : `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px">
+      : `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px">
           <div style="display:flex;gap:4px;align-items:flex-start;width:100%">
             <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${m.alias[0]}</span>
             <div style="flex:1;min-width:0">
