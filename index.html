@@ -1499,7 +1499,7 @@ const firebaseConfig = {
           </div>
           <div id="bz-menu-copy" onclick="bzMenuCopy()" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent">
             <span style="font-size:0.92rem;color:#1e293b;font-weight:600">복사</span>
-            <span style="font-size:1.1rem;color:#64748b">⎘</span>
+            <span style="font-size:1.5rem;color:#64748b;line-height:1">⎘</span>
           </div>
           <div onclick="bzMenuReply()" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent">
             <span style="font-size:0.92rem;color:#1e293b;font-weight:600">답글</span>
@@ -12844,20 +12844,19 @@ function bzScrollToMsg(targetKey, returnKey) {
   _bzHighlightEl = el;
   el.style.transition = 'background 0.3s';
   el.style.background = 'rgba(245,158,11,0.18)';
-  // 돌아가기 버튼 (returnKey가 있을 때만)
+  // 돌아가기 버튼 — 하이라이트된 메시지 바로 아랫단에 삽입
   if (returnKey) {
-    const vvTop = window.visualViewport ? window.visualViewport.offsetTop : 0;
     const back = document.createElement('div');
     _bzBackBubbleEl = back;
-    back.textContent = '↩ 돌아가기';
-    back.style.cssText = `position:fixed;top:${vvTop + 62}px;left:50%;transform:translateX(-50%);background:rgba(30,41,59,0.82);color:#fff;border-radius:20px;padding:7px 18px;font-size:0.82rem;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:8500;-webkit-tap-highlight-color:transparent;white-space:nowrap`;
+    back.style.cssText = 'display:flex;justify-content:center;margin:4px 0 2px';
+    back.innerHTML = '<span style="background:rgba(30,41,59,0.82);color:#fff;border-radius:20px;padding:6px 16px;font-size:0.82rem;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.2);-webkit-tap-highlight-color:transparent;white-space:nowrap">↩ 돌아가기</span>';
     back.addEventListener('click', () => {
       const retEl = area && area.querySelector(`[data-bzkey="${returnKey}"]`);
       if (retEl) retEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       if (_bzHighlightEl) { _bzHighlightEl.style.background = ''; _bzHighlightEl.style.transition = ''; _bzHighlightEl = null; }
       back.remove(); _bzBackBubbleEl = null;
     });
-    document.body.appendChild(back);
+    el.insertAdjacentElement('afterend', back);
   }
 }
 
@@ -13094,6 +13093,9 @@ function _bzRender() {
   if (!_bzState) return;
   // 전체 재렌더 — 증분 키 집합 초기화
   _bzRenderedMsgKeys = new Set();
+  // 돌아가기 버튼/하이라이트 초기화 (재렌더 시 DOM 교체되므로)
+  if (_bzBackBubbleEl) { _bzBackBubbleEl.remove(); _bzBackBubbleEl = null; }
+  _bzHighlightEl = null;
   const phase = _bzState.phase || 'chatting';
   const myName = (state.identity && state.identity.name) || '';
   const entrants = _bzState.entrants || {};
