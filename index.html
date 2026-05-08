@@ -6666,31 +6666,39 @@ function renderCheckinPage() {
       const loveCnt = Object.keys(loveRx).length;
       const loveActive = me && loveRx[me] ? ' active' : '';
       const heartBtn = `<button class="reaction-btn${loveActive}" onclick="toggleReaction('${c._key}','love')" style="border:none;background:none;padding:1px 3px;font-size:0.82rem;cursor:pointer;line-height:1">❤️${loveCnt>0?' '+loveCnt:''}</button>`;
-      return `<div class="comment-item" id="comment-${c._key}">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span class="comment-author" style="display:flex;align-items:center;gap:4px"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.72rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(c.author||'?')[0]}</span>${c.author}</span>
-          <div style="display:flex;align-items:center;gap:4px">
-            ${heartBtn}
-            ${c.author === me ? `<button onclick="editPollComment('${c._key}')" style="font-size:0.68rem;padding:2px 7px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">수정</button>` : ''}
-            <span class="comment-at">${t}</span>
-          </div>
-        </div>
-        <div class="comment-text" id="poll-cmt-text-${c._key}">${c.text.replace(/</g,'&lt;')}</div>
-        ${replies.map(r=>{
-          const rt=r.at?new Date(r.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
-          return `<div class="reply-item">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span class="comment-author" style="font-size:0.68rem;display:flex;align-items:center;gap:3px">↩ <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.6rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(r.author||'?')[0]}</span>${r.author}</span><span class="comment-at">${rt}</span>
+      return `<div class="comment-item" id="comment-${c._key}" style="display:flex;gap:6px;align-items:flex-start">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.72rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:1px">${(c.author||'?')[0]}</span>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="comment-author">${c.author}</span>
+            <div style="display:flex;align-items:center;gap:4px">
+              ${heartBtn}
+              ${c.author === me ? `<button onclick="editPollComment('${c._key}')" style="font-size:0.68rem;padding:2px 7px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">수정</button>` : ''}
+              <span class="comment-at">${t}</span>
             </div>
-            <div class="comment-text" style="font-size:0.8rem">${r.text.replace(/</g,'&lt;')}</div>
-          </div>`;
-        }).join('')}
-        <div style="margin-top:4px">
-          <button class="btn btn-outline btn-sm" style="font-size:0.7rem;padding:3px 8px;box-shadow:none;color:#1e293b;border-color:#94a3b8" onclick="toggleReplyInput('${c._key}')">↩ 답글</button>
-        </div>
-        <div id="reply-input-${c._key}" class="reply-input-row" style="display:none">
-          <input type="text" id="reply-text-${c._key}" placeholder="답글 입력..." style="flex:1;font-size:0.83rem" onkeydown="if(event.key==='Enter')addReply('${c._key}','${c.author}')">
-          <button class="btn btn-primary btn-sm" onclick="addReply('${c._key}','${c.author}')">전송</button>
+          </div>
+          <div class="comment-text" id="poll-cmt-text-${c._key}">${c.text.replace(/</g,'&lt;')}</div>
+          ${replies.map(r=>{
+            const rt=r.at?new Date(r.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+            return `<div class="reply-item" style="display:flex;gap:4px;align-items:flex-start">
+              <span style="color:#94a3b8;font-size:0.7rem;flex-shrink:0;margin-top:2px">↩</span>
+              <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.6rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${(r.author||'?')[0]}</span>
+              <div style="flex:1;min-width:0">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span class="comment-author" style="font-size:0.68rem">${r.author}</span>
+                  <span class="comment-at">${rt}</span>
+                </div>
+                <div class="comment-text" style="font-size:0.8rem">${r.text.replace(/</g,'&lt;')}</div>
+              </div>
+            </div>`;
+          }).join('')}
+          <div style="margin-top:4px">
+            <button class="btn btn-outline btn-sm" style="font-size:0.7rem;padding:3px 8px;box-shadow:none;color:#1e293b;border-color:#94a3b8" onclick="toggleReplyInput('${c._key}')">↩ 답글</button>
+          </div>
+          <div id="reply-input-${c._key}" class="reply-input-row" style="display:none">
+            <input type="text" id="reply-text-${c._key}" placeholder="답글 입력..." style="flex:1;font-size:0.83rem" onkeydown="if(event.key==='Enter')addReply('${c._key}','${c.author}')">
+            <button class="btn btn-primary btn-sm" onclick="addReply('${c._key}','${c.author}')">전송</button>
+          </div>
         </div>
       </div>`;
     }).join(''):'<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:8px 0">첫 댓글을 남겨보세요!</p>'}
@@ -9106,27 +9114,32 @@ function renderBetComments(betId, bet, myName) {
     const replies = c.replies ? Object.values(c.replies).sort((a,b)=>(a.at||'').localeCompare(b.at||'')) : [];
     const replyHtml = replies.map(r => {
       const rt = r.at ? new Date(r.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
-      return `<div style="display:flex;gap:5px;margin-top:4px;padding-left:8px;border-left:2px solid #e2e8f0;align-items:flex-start">
-        <div style="display:flex;align-items:center;gap:3px;flex-shrink:0;padding-top:1px;font-size:0.68rem;color:#64748b;font-weight:700">↩ <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.6rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(r.author||'?')[0]}</span>${r.author}</div>
-        <div style="flex:1;font-size:0.75rem;color:#1e293b;background:#f1f5f9;border-radius:7px;padding:4px 7px;word-break:break-word">${escHtml(r.text)}</div>
-        <span style="font-size:0.65rem;color:#94a3b8;flex-shrink:0;padding-top:2px">${rt}</span>
+      return `<div style="display:flex;gap:4px;margin-top:4px;padding-left:8px;border-left:2px solid #e2e8f0;align-items:flex-start">
+        <span style="color:#94a3b8;font-size:0.7rem;flex-shrink:0;margin-top:2px">↩</span>
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.6rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${(r.author||'?')[0]}</span>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:0.68rem;font-weight:700;color:#64748b">${r.author}</span>
+            <span style="font-size:0.65rem;color:#94a3b8">${rt}</span>
+          </div>
+          <div style="font-size:0.75rem;color:#1e293b;background:#f1f5f9;border-radius:7px;padding:4px 7px;word-break:break-word;margin-top:2px">${escHtml(r.text)}</div>
+        </div>
       </div>`;
     }).join('');
-    return `<div style="margin-bottom:6px">
-      <div style="display:flex;gap:6px;align-items:flex-start">
-        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;padding-top:1px"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.72rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(c.author||'?')[0]}</span><span style="font-size:0.7rem;font-weight:700;color:${isMe?'#2563eb':'#64748b'}">${c.author}</span></div>
-        <div style="flex:1">
-          <div id="bet-cmt-text-${betId}-${cid}" style="font-size:0.78rem;color:#1e293b;background:${isMe?'#eff6ff':'#f8fafc'};border-radius:8px;padding:5px 8px;word-break:break-word">${escHtml(c.text)}</div>
-          <div style="display:flex;gap:6px;margin-top:3px">
-            ${isMe ? `<button onclick="editBetComment('${betId}','${cid}')" style="font-size:0.65rem;padding:1px 6px;border-radius:5px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">수정</button>` : ''}
-            <button onclick="toggleBetReplyInput('${betId}','${cid}')" style="font-size:0.65rem;padding:1px 6px;border-radius:5px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">↩ 답글</button>
-          </div>
-          ${replyHtml}
-          <div id="bet-reply-input-${betId}-${cid}" style="display:none;margin-top:5px;display:none">
-            <div style="display:flex;gap:6px">
-              <input id="bet-reply-text-${betId}-${cid}" type="text" placeholder="답글 입력..." style="flex:1;font-size:0.78rem;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:8px;outline:none;font-family:inherit" onkeydown="if(event.key==='Enter')postBetReply('${betId}','${cid}')">
-              <button onclick="postBetReply('${betId}','${cid}')" style="font-size:0.75rem;padding:5px 10px;border-radius:8px;border:none;background:#2563eb;color:#fff;font-weight:700;cursor:pointer">전송</button>
-            </div>
+    return `<div style="margin-bottom:6px;display:flex;gap:6px;align-items:flex-start">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.72rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:1px">${(c.author||'?')[0]}</span>
+      <div style="flex:1;min-width:0">
+        <span style="font-size:0.7rem;font-weight:700;color:${isMe?'#2563eb':'#64748b'}">${c.author}</span>
+        <div id="bet-cmt-text-${betId}-${cid}" style="font-size:0.78rem;color:#1e293b;background:${isMe?'#eff6ff':'#f8fafc'};border-radius:8px;padding:5px 8px;word-break:break-word;margin-top:2px">${escHtml(c.text)}</div>
+        <div style="display:flex;gap:6px;margin-top:3px">
+          ${isMe ? `<button onclick="editBetComment('${betId}','${cid}')" style="font-size:0.65rem;padding:1px 6px;border-radius:5px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">수정</button>` : ''}
+          <button onclick="toggleBetReplyInput('${betId}','${cid}')" style="font-size:0.65rem;padding:1px 6px;border-radius:5px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">↩ 답글</button>
+        </div>
+        ${replyHtml}
+        <div id="bet-reply-input-${betId}-${cid}" style="display:none;margin-top:5px">
+          <div style="display:flex;gap:6px">
+            <input id="bet-reply-text-${betId}-${cid}" type="text" placeholder="답글 입력..." style="flex:1;font-size:0.78rem;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:8px;outline:none;font-family:inherit" onkeydown="if(event.key==='Enter')postBetReply('${betId}','${cid}')">
+            <button onclick="postBetReply('${betId}','${cid}')" style="font-size:0.75rem;padding:5px 10px;border-radius:8px;border:none;background:#2563eb;color:#fff;font-weight:700;cursor:pointer">전송</button>
           </div>
         </div>
       </div>
@@ -14160,27 +14173,35 @@ function _mpCommentsHtml(poll) {
 
   const items = commArr.map(c => {
     const replies = c.replies ? Object.values(c.replies).sort((a,b)=>(a.at||'').localeCompare(b.at||'')) : [];
-    return `<div class="comment-item" id="mp-comment-${c._key}">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span class="comment-author" style="display:flex;align-items:center;gap:4px"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.72rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(c.author||'?')[0]}</span>${c.author}</span>
-        <div style="display:flex;align-items:center;gap:6px">
-          ${c.author === me ? `<button onclick="editMpComment('${c._key}')" style="font-size:0.68rem;padding:2px 7px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">수정</button>` : ''}
-          <span class="comment-at">${fmt(c.at)}</span>
-        </div>
-      </div>
-      <div class="comment-text" id="mp-cmt-text-${c._key}">${c.text.replace(/</g,'&lt;')}</div>
-      ${replies.map(r=>`<div class="reply-item">
+    return `<div class="comment-item" id="mp-comment-${c._key}" style="display:flex;gap:6px;align-items:flex-start">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.72rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:1px">${(c.author||'?')[0]}</span>
+      <div style="flex:1;min-width:0">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <span class="comment-author" style="font-size:0.68rem;display:flex;align-items:center;gap:3px">↩ <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.6rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(r.author||'?')[0]}</span>${r.author}</span><span class="comment-at">${fmt(r.at)}</span>
+          <span class="comment-author">${c.author}</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            ${c.author === me ? `<button onclick="editMpComment('${c._key}')" style="font-size:0.68rem;padding:2px 7px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">수정</button>` : ''}
+            <span class="comment-at">${fmt(c.at)}</span>
+          </div>
         </div>
-        <div class="comment-text" style="font-size:0.8rem">${r.text.replace(/</g,'&lt;')}</div>
-      </div>`).join('')}
-      <div style="margin-top:4px">
-        <button class="btn btn-outline btn-sm" style="font-size:0.7rem;padding:3px 8px;box-shadow:none;color:#1e293b;border-color:#94a3b8" onclick="mpToggleReplyInput('${c._key}')">↩ 답글</button>
-      </div>
-      <div id="mp-reply-input-${c._key}" class="reply-input-row" style="display:none">
-        <input type="text" id="mp-reply-text-${c._key}" placeholder="답글 입력..." style="flex:1;font-size:0.83rem" onkeydown="if(event.key==='Enter')mpAddReply('${c._key}')">
-        <button class="btn btn-primary btn-sm" onclick="mpAddReply('${c._key}')">전송</button>
+        <div class="comment-text" id="mp-cmt-text-${c._key}">${c.text.replace(/</g,'&lt;')}</div>
+        ${replies.map(r=>`<div class="reply-item" style="display:flex;gap:4px;align-items:flex-start">
+          <span style="color:#94a3b8;font-size:0.7rem;flex-shrink:0;margin-top:2px">↩</span>
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.6rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${(r.author||'?')[0]}</span>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span class="comment-author" style="font-size:0.68rem">${r.author}</span>
+              <span class="comment-at">${fmt(r.at)}</span>
+            </div>
+            <div class="comment-text" style="font-size:0.8rem">${r.text.replace(/</g,'&lt;')}</div>
+          </div>
+        </div>`).join('')}
+        <div style="margin-top:4px">
+          <button class="btn btn-outline btn-sm" style="font-size:0.7rem;padding:3px 8px;box-shadow:none;color:#1e293b;border-color:#94a3b8" onclick="mpToggleReplyInput('${c._key}')">↩ 답글</button>
+        </div>
+        <div id="mp-reply-input-${c._key}" class="reply-input-row" style="display:none">
+          <input type="text" id="mp-reply-text-${c._key}" placeholder="답글 입력..." style="flex:1;font-size:0.83rem" onkeydown="if(event.key==='Enter')mpAddReply('${c._key}')">
+          <button class="btn btn-primary btn-sm" onclick="mpAddReply('${c._key}')">전송</button>
+        </div>
       </div>
     </div>`;
   }).join('') || '<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:8px 0">첫 댓글을 남겨보세요!</p>';
