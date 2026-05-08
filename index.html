@@ -13172,7 +13172,7 @@ function _bzRenderMessages(phase) {
     const realOfAlias = m.realName || aliasToReal[m.alias] || m.alias;
     const showRealNames = phase === 'revealed' || !!(_bzState && _bzState.showRealNames);
     const senderLabel = showRealNames
-      ? `${m.alias} <span style="color:#f59e0b;font-size:0.7rem">(${realOfAlias})</span>`
+      ? `${m.alias} <span style="color:#94a3b8;font-size:0.7rem">(${realOfAlias})</span>`
       : m.alias;
     const _bzNameColor = _bzColorMap.get(m.alias) || '#8b5cf6';
     const isMine = m.realName === myName;
@@ -13315,7 +13315,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const realOfAlias = m.realName || aliasToReal[m.alias] || m.alias;
     const showRealNames = phase === 'revealed' || !!(_bzState && _bzState.showRealNames);
     const senderLabel = showRealNames
-      ? `${m.alias} <span style="color:#f59e0b;font-size:0.7rem">(${realOfAlias})</span>`
+      ? `${m.alias} <span style="color:#94a3b8;font-size:0.7rem">(${realOfAlias})</span>`
       : m.alias;
     const _bzNameColor = _bzColorMap.get(m.alias) || '#8b5cf6';
     const isMine = m.realName === myName;
