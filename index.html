@@ -12476,10 +12476,11 @@ function _bzUpdateLikesOnly(allLikes) {
     const iLiked = likeKeys.includes(myName);
     const keyEsc = key.replace(/'/g, "\\'");
     const isVideo = el.getAttribute('data-bzvideo') === '1';
+    const isUrl   = el.getAttribute('data-bzurl') === '1';
     el.innerHTML = isVideo
       ? `<span style="font-size:0.8rem;color:${iLiked ? '#ef4444' : '#cbd5e1'};cursor:pointer;user-select:none;padding:2px 4px" onclick="bzToggleLike('${keyEsc}')">❤️${count > 0 ? ' '+count : ''}</span>`
-      : count > 0
-      ? `<span style="font-size:0.75rem;color:${iLiked ? '#ef4444' : '#94a3b8'};cursor:pointer;user-select:none" onclick="bzToggleLike('${keyEsc}')">❤️ ${count}</span>`
+      : (isUrl || count > 0)
+      ? `<span style="font-size:0.75rem;color:${iLiked ? '#ef4444' : '#94a3b8'};cursor:pointer;user-select:none" onclick="bzToggleLike('${keyEsc}')">❤️${count > 0 ? ' '+count : ''}</span>`
       : '';
   });
 }
@@ -13256,7 +13257,7 @@ function _bzRenderMessages(phase) {
       : (hasUrl || likeCount > 0)
       ? `<span style="font-size:0.75rem;color:${iLiked?'#ef4444':'#94a3b8'};cursor:pointer;user-select:none" onclick="bzToggleLike('${keyEsc}')">❤️${likeCount > 0 ? ' '+likeCount : ''}</span>`
       : '';
-    const heartRow    = `<div data-bzheart="${keyEsc}" data-bzvideo="${m.videoUrl ? '1' : ''}" style="padding:0 4px">${heartInner}</div>`;
+    const heartRow    = `<div data-bzheart="${keyEsc}" data-bzvideo="${m.videoUrl ? '1' : ''}" data-bzurl="${hasUrl ? '1' : ''}" style="padding:0 4px">${heartInner}</div>`;
     const msgText  = m.text || (m.videoUrl ? '[영상]' : m.imageData || m.imageUrl ? '[사진]' : '');
     const textEsc  = msgText.replace(/'/g, "\\'").replace(/`/g, '\\`');
     const replyBtn = canReply
@@ -13395,7 +13396,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
       : (hasUrl || likeCount > 0)
       ? `<span style="font-size:0.75rem;color:${iLiked?'#ef4444':'#94a3b8'};cursor:pointer;user-select:none" onclick="bzToggleLike('${keyEsc}')">❤️${likeCount > 0 ? ' '+likeCount : ''}</span>`
       : '';
-    const heartRow    = `<div data-bzheart="${keyEsc}" data-bzvideo="${m.videoUrl ? '1' : ''}" style="padding:0 4px">${heartInner}</div>`;
+    const heartRow    = `<div data-bzheart="${keyEsc}" data-bzvideo="${m.videoUrl ? '1' : ''}" data-bzurl="${hasUrl ? '1' : ''}" style="padding:0 4px">${heartInner}</div>`;
     const canReply = phase !== 'revealed';
     const msgText  = m.text || (m.videoUrl ? '[영상]' : m.imageData || m.imageUrl ? '[사진]' : '');
     const textEsc  = msgText.replace(/'/g, "\'").replace(/`/g, '\`');
