@@ -13225,7 +13225,7 @@ function _bzRenderMessages(phase) {
     return `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
       <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
         ${!isMine && isAdmin() ? adminPushBtn : ''}
-        <span style="font-size:0.78rem;color:${_bzNameColor};font-weight:700">${senderLabel}</span>
+        <span style="font-size:0.78rem;color:${isMine ? '#94a3b8' : _bzNameColor};font-weight:700">${senderLabel}</span>
         ${isMine && isAdmin() ? adminPushBtn : ''}
       </div>
       <div style="display:flex;align-items:center;gap:4px;flex-direction:${isMine ? 'row-reverse' : 'row'};width:100%">
@@ -13367,7 +13367,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const html = `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
       <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
         ${!isMine && isAdmin() ? adminPushBtn : ''}
-        <span style="font-size:0.78rem;color:${_bzNameColor};font-weight:700">${senderLabel}</span>
+        <span style="font-size:0.78rem;color:${isMine ? '#94a3b8' : _bzNameColor};font-weight:700">${senderLabel}</span>
         ${isMine && isAdmin() ? adminPushBtn : ''}
       </div>
       <div style="display:flex;align-items:center;gap:4px;flex-direction:${isMine ? 'row-reverse' : 'row'};width:100%">
