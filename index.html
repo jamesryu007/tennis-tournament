@@ -12719,15 +12719,29 @@ function bzSendPhoto(e) {
       alert(`영상은 최대 ${BZ_CONFIG.maxVideos}개까지 유지됩니다.\n오래된 메시지가 삭제되면 추가 전송 가능합니다.`); return;
     }
     if (photoBtn) { photoBtn.disabled = true; photoBtn.textContent = '⏳'; }
-    const storagePath = `banzige/videos/${ts}_${Math.random().toString(36).slice(2, 8)}`;
+    const fileId = `${ts}_${Math.random().toString(36).slice(2, 8)}`;
+    const storagePath = `banzige/videos/${fileId}`;
     const storageRef = firebase.storage().ref(storagePath);
+    // 썸네일 사전 추출 (실패해도 업로드 계속)
+    const thumbPromise = _extractVideoFrame(file).catch(() => null);
     storageRef.put(file, { contentType: file.type })
       .then(async () => {
         const videoUrl = await storageRef.getDownloadURL();
+        // 썸네일 업로드
+        let thumbUrl = null;
+        const thumbBlob = await thumbPromise;
+        if (thumbBlob) {
+          try {
+            const thumbRef = firebase.storage().ref(`banzige/thumbs/${fileId}_thumb.jpg`);
+            await thumbRef.put(thumbBlob, { contentType: 'image/jpeg' });
+            thumbUrl = await thumbRef.getDownloadURL();
+          } catch(e) { /* 썸네일 실패 무시 */ }
+        }
         if (!(_bzState && _bzState.entrants && _bzState.entrants[myName])) {
           db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
         }
         const msgData = { alias: senderAlias, realName: myName, videoUrl, ts };
+        if (thumbUrl) msgData.thumbUrl = thumbUrl;
         if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '', msgKey: _bzReplyTo.msgKey || '' };
         db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
         _bzTrimMessages();
@@ -13527,7 +13541,7 @@ function _bzRenderMessages(phase) {
     const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#e2e8f0'}`;
     const bubble = m.videoUrl
       ? `<div data-bzbubble="1" style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
-          ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" style="max-width:240px;width:100%;border-radius:10px;display:block;background:#000;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false"></video>
+          ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" ${m.thumbUrl ? `poster="${m.thumbUrl}"` : ''} style="max-width:240px;width:100%;border-radius:10px;display:block;background:#000;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false"></video>
         </div>`
       : imgSrc
       ? `<div data-bzbubble="1" style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
@@ -13665,7 +13679,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#e2e8f0'}`;
     const bubble = m.videoUrl
       ? `<div data-bzbubble="1" style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
-          ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" style="max-width:240px;width:100%;border-radius:10px;display:block;background:#000;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false"></video>
+          ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" ${m.thumbUrl ? `poster="${m.thumbUrl}"` : ''} style="max-width:240px;width:100%;border-radius:10px;display:block;background:#000;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false"></video>
         </div>`
       : imgSrc
       ? `<div data-bzbubble="1" style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
