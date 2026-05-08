@@ -1427,12 +1427,13 @@ const firebaseConfig = {
       <div id="bz-info-frame" style="flex-shrink:0;background:#fffbeb;border:1.5px solid #fde68a;border-radius:14px;box-shadow:0 2px 8px rgba(245,158,11,0.1);padding:10px 14px;margin:10px 12px 6px;overflow:hidden;max-height:500px;transition:max-height 0.22s ease,padding 0.22s ease,margin 0.22s ease">
         <!-- 입실 인원 -->
         <div style="font-size:0.78rem;color:#92400e;margin-bottom:7px">
-          👥 입실 인원: <span id="bz-count" style="font-weight:800;color:#78350f">0</span>명<span id="bz-entrant-names" style="color:#b45309;font-size:0.72rem;margin-left:4px"></span><span id="bz-jinsil-badge" style="display:none;margin-left:8px;background:#bbf7d0;color:#16a34a;border-radius:20px;padding:2px 8px;font-size:0.85rem;font-weight:900;border:1.5px solid #22c55e;vertical-align:middle">●</span>
+          👥 입실 인원: <span id="bz-count" style="font-weight:800;color:#78350f">0</span>명<span id="bz-entrant-names" style="color:#b45309;font-size:0.72rem;margin-left:4px"></span>
         </div>
 
         <!-- 가명 선택 -->
         <div id="bz-alias-row" style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
           <span style="font-size:0.75rem;font-weight:700;color:#92400e;white-space:nowrap">나의 가명:</span>
+          <span id="bz-jinsil-badge" style="display:none;color:#22c55e;font-size:1rem;line-height:1">●</span>
           <select id="bz-alias-select" onchange="bzSelectAlias(this.value)" style="width:110px;padding:4px 6px;border-radius:8px;border:1.5px solid #fcd34d;font-size:0.78rem;font-weight:600;background:#fff">
             <option value="">나 자신</option>
           </select>
@@ -13139,19 +13140,20 @@ function _bzRender() {
   if (sel) sel.value = _bzCurrentAlias || '';
   _bzUpdateAliasBadge();
 
-  // 진실톡 — 모든 멤버: 뱃지 표시 + 가명 선택 비활성화
+  // 진실톡 — 일반 멤버만: 뱃지 표시 + 가명 선택 비활성화 (관리자는 ON/OFF 버튼 있으므로 제외)
   const jinsilOn = !!(_bzState && _bzState.jinsilTok);
+  const _jinsilIsAdmin = isAdmin();
   const jinsilBadge = document.getElementById('bz-jinsil-badge');
-  if (jinsilBadge) jinsilBadge.style.display = jinsilOn ? 'inline-block' : 'none';
+  if (jinsilBadge) jinsilBadge.style.display = (jinsilOn && !_jinsilIsAdmin) ? 'inline-block' : 'none';
   const aliasRowEl = document.getElementById('bz-alias-row');
   if (aliasRowEl) {
-    aliasRowEl.style.opacity = jinsilOn ? '0.35' : '1';
-    aliasRowEl.style.pointerEvents = jinsilOn ? 'none' : '';
+    aliasRowEl.style.opacity = (!_jinsilIsAdmin && jinsilOn) ? '0.35' : '1';
+    aliasRowEl.style.pointerEvents = (!_jinsilIsAdmin && jinsilOn) ? 'none' : '';
   }
   const aliasStripEl = document.getElementById('bz-alias-strip');
   if (aliasStripEl) {
-    aliasStripEl.style.opacity = jinsilOn ? '0.35' : '';
-    aliasStripEl.style.pointerEvents = jinsilOn ? 'none' : '';
+    aliasStripEl.style.opacity = (!_jinsilIsAdmin && jinsilOn) ? '0.35' : '';
+    aliasStripEl.style.pointerEvents = (!_jinsilIsAdmin && jinsilOn) ? 'none' : '';
   }
 
   // 채팅중인 멤버 (메시지에 등장한 가명 목록)
