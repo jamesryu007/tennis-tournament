@@ -256,6 +256,78 @@ exports.notifyCommentReply = onValueCreated(
   }
 );
 
+// ══ 7. 모임만들기 댓글 알림 — DB 트리거 (전체) ═══════════════════
+exports.notifyMpNewComment = onValueCreated(
+  { ref: 'jmt/meetingPoll/comments/{commentId}', region: 'asia-southeast1' },
+  async (event) => {
+    const comment = event.data.val();
+    if (!comment) return;
+    const { author, text } = comment;
+    if (!author) return;
+    const snap = await db.ref('jmt/fcmTokens').once('value');
+    const data = snap.val() || {};
+    const otherTokens = Object.values(data)
+      .filter(v => v.name !== author && v.token)
+      .map(v => v.token);
+    await sendPush(otherTokens, `💬 ${author}님이 댓글을 달았습니다`, text, 'setup');
+  }
+);
+
+// ══ 8. 모임만들기 답글 알림 — DB 트리거 ══════════════════════════
+exports.notifyMpCommentReply = onValueCreated(
+  { ref: 'jmt/meetingPoll/comments/{commentId}/replies/{replyId}', region: 'asia-southeast1' },
+  async (event) => {
+    const reply = event.data.val();
+    if (!reply) return;
+    const { author, text } = reply;
+    if (!author) return;
+    // 부모 댓글에서 commentAuthor 조회
+    const parentSnap = await db.ref(`jmt/meetingPoll/comments/${event.params.commentId}`).once('value');
+    const parentComment = parentSnap.val();
+    const commentAuthor = parentComment && parentComment.author;
+    if (!commentAuthor || commentAuthor === author) return;
+    const tokens = await getTokensByNames([commentAuthor]);
+    await sendPush(tokens, `💬 ${author}님이 답글을 달았습니다`, text, 'setup');
+  }
+);
+
+// ══ 9. 베팅 댓글 알림 — DB 트리거 (전체) ════════════════════════
+exports.notifyBetNewComment = onValueCreated(
+  { ref: 'jmt/atpBets/{betId}/comments/{commentId}', region: 'asia-southeast1' },
+  async (event) => {
+    const comment = event.data.val();
+    if (!comment) return;
+    const { author, text } = comment;
+    if (!author) return;
+    const betId = event.params.betId;
+    const snap = await db.ref('jmt/fcmTokens').once('value');
+    const data = snap.val() || {};
+    const otherTokens = Object.values(data)
+      .filter(v => v.name !== author && v.token)
+      .map(v => v.token);
+    await sendPush(otherTokens, `💬 ${author}님이 댓글을 달았습니다`, text, 'atp', '', betId);
+  }
+);
+
+// ══ 10. 베팅 답글 알림 — DB 트리거 ══════════════════════════════
+exports.notifyBetCommentReply = onValueCreated(
+  { ref: 'jmt/atpBets/{betId}/comments/{commentId}/replies/{replyId}', region: 'asia-southeast1' },
+  async (event) => {
+    const reply = event.data.val();
+    if (!reply) return;
+    const { author, text } = reply;
+    if (!author) return;
+    const { betId, commentId } = event.params;
+    // 부모 댓글에서 commentAuthor 조회
+    const parentSnap = await db.ref(`jmt/atpBets/${betId}/comments/${commentId}`).once('value');
+    const parentComment = parentSnap.val();
+    const commentAuthor = parentComment && parentComment.author;
+    if (!commentAuthor || commentAuthor === author) return;
+    const tokens = await getTokensByNames([commentAuthor]);
+    await sendPush(tokens, `💬 ${author}님이 답글을 달았습니다`, text, 'atp', '', betId);
+  }
+);
+
 // ── 토너먼트 티어 판별 ────────────────────────────────────────────
 const ATP1000_CITIES = new Set([
   'indian wells','miami','monte carlo','monaco','madrid','rome','roma',
