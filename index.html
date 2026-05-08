@@ -13527,7 +13527,7 @@ function _bzRenderMessages(phase) {
     const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#e2e8f0'}`;
     const bubble = m.videoUrl
       ? `<div data-bzbubble="1" style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
-          ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" style="max-width:240px;width:100%;border-radius:10px;display:block;background:#000"></video>
+          ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" style="max-width:240px;width:100%;border-radius:10px;display:block;background:#000;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false"></video>
         </div>`
       : imgSrc
       ? `<div data-bzbubble="1" style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
@@ -13665,7 +13665,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#e2e8f0'}`;
     const bubble = m.videoUrl
       ? `<div data-bzbubble="1" style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
-          ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" style="max-width:240px;width:100%;border-radius:10px;display:block;background:#000"></video>
+          ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" style="max-width:240px;width:100%;border-radius:10px;display:block;background:#000;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false"></video>
         </div>`
       : imgSrc
       ? `<div data-bzbubble="1" style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
