@@ -12218,6 +12218,8 @@ let _bzLastRenderKey = null; // 전체 상태 해시
 let _bzLastNonMsgKey = null; // 메시지 제외 상태 해시 — 메시지 증분 업데이트 판별용
 let _bzRenderedMsgKeys = new Set(); // 이미 DOM에 렌더된 메시지 키 집합
 let _bzInfoCollapsed = false; // 상단 정보 프레임 접힘 여부
+let _bzBackBubbleEl = null;  // '돌아가기' 풍선 DOM 요소
+let _bzHighlightEl = null;   // 현재 하이라이트 중인 메시지 DOM 요소
 // ── 터치 제스처 상태 ─────────────────────────────────────────────
 let _bzLongPressTimer = null;
 let _bzTouchStartX = 0;
@@ -12420,6 +12422,8 @@ function bzLeaveRoom() {
   _bzCurrentAlias = null;
   _bzInfoCollapsed = false;
   bzCancelReply();
+  if (_bzBackBubbleEl) { _bzBackBubbleEl.remove(); _bzBackBubbleEl = null; }
+  if (_bzHighlightEl) { _bzHighlightEl.style.background = ''; _bzHighlightEl.style.transition = ''; _bzHighlightEl = null; }
 
   // 모달 해제
   const modal = document.getElementById('bet-screen-banzige');
@@ -12824,19 +12828,37 @@ function bzToggleReact(msgKey, type) {
   }
 }
 
-function bzScrollToMsg(key) {
-  if (!key) return;
+function bzScrollToMsg(targetKey, returnKey) {
+  if (!targetKey) return;
   const area = document.getElementById('bz-chat-area');
-  const el = area && area.querySelector(`[data-bzkey="${key}"]`);
+  const el = area && area.querySelector(`[data-bzkey="${targetKey}"]`);
   if (!el) return;
+  // 이전 하이라이트 초기화
+  if (_bzHighlightEl && _bzHighlightEl !== el) {
+    _bzHighlightEl.style.background = '';
+    _bzHighlightEl.style.transition = '';
+  }
+  // 이전 돌아가기 버튼 제거
+  if (_bzBackBubbleEl) { _bzBackBubbleEl.remove(); _bzBackBubbleEl = null; }
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  // 잠깐 하이라이트
+  _bzHighlightEl = el;
   el.style.transition = 'background 0.3s';
   el.style.background = 'rgba(245,158,11,0.18)';
-  setTimeout(() => {
-    el.style.background = '';
-    setTimeout(() => { el.style.transition = ''; }, 300);
-  }, 900);
+  // 돌아가기 버튼 (returnKey가 있을 때만)
+  if (returnKey) {
+    const vvTop = window.visualViewport ? window.visualViewport.offsetTop : 0;
+    const back = document.createElement('div');
+    _bzBackBubbleEl = back;
+    back.textContent = '↩ 돌아가기';
+    back.style.cssText = `position:fixed;top:${vvTop + 62}px;left:50%;transform:translateX(-50%);background:rgba(30,41,59,0.82);color:#fff;border-radius:20px;padding:7px 18px;font-size:0.82rem;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:8500;-webkit-tap-highlight-color:transparent;white-space:nowrap`;
+    back.addEventListener('click', () => {
+      const retEl = area && area.querySelector(`[data-bzkey="${returnKey}"]`);
+      if (retEl) retEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (_bzHighlightEl) { _bzHighlightEl.style.background = ''; _bzHighlightEl.style.transition = ''; _bzHighlightEl = null; }
+      back.remove(); _bzBackBubbleEl = null;
+    });
+    document.body.appendChild(back);
+  }
 }
 
 function bzDeleteMsg(msgKey) {
@@ -13457,10 +13479,10 @@ function _bzRenderMessages(phase) {
     const heartRow    = `<div data-bzheart="${keyEsc}" data-bzvideo="${m.videoUrl ? '1' : ''}" data-bzurl="${hasUrl ? '1' : ''}" style="padding:0 4px">${heartInner}</div>`;
     const replyBtn = '';
     const deleteBtn = '';
-    // 인용 박스 (replyTo 있을 때) — 탭 시 원본 메시지로 스크롤
+    // 인용 박스 (replyTo 있을 때) — 탭 시 원본으로 스크롤 (키보드 유지)
     const _replyToKeyEsc = m.replyTo ? (m.replyTo.msgKey || '').replace(/'/g, "\\'") : '';
     const replyBox = m.replyTo
-      ? `<div onclick="bzScrollToMsg('${_replyToKeyEsc}')" style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden;cursor:${_replyToKeyEsc?'pointer':'default'}">
+      ? `<div ontouchstart="event.preventDefault();event.stopPropagation()" ontouchend="event.stopPropagation();bzScrollToMsg('${_replyToKeyEsc}','${keyEsc}')" onclick="bzScrollToMsg('${_replyToKeyEsc}','${keyEsc}')" style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden;cursor:${_replyToKeyEsc?'pointer':'default'}">
           <span style="font-weight:700">${phase==='revealed' ? `${m.replyTo.alias}(${aliasToReal[m.replyTo.alias]||m.replyTo.alias})` : m.replyTo.alias}</span>
           <span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.replyTo.text}</span>
         </div>` : '';
@@ -13598,7 +13620,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const deleteBtn = '';
     const _replyToKeyEsc2 = m.replyTo ? (m.replyTo.msgKey || '').replace(/'/g, "\\'") : '';
     const replyBox = m.replyTo
-      ? `<div onclick="bzScrollToMsg('${_replyToKeyEsc2}')" style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden;cursor:${_replyToKeyEsc2?'pointer':'default'}">
+      ? `<div ontouchstart="event.preventDefault();event.stopPropagation()" ontouchend="event.stopPropagation();bzScrollToMsg('${_replyToKeyEsc2}','${keyEsc}')" onclick="bzScrollToMsg('${_replyToKeyEsc2}','${keyEsc}')" style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden;cursor:${_replyToKeyEsc2?'pointer':'default'}">
           <span style="font-weight:700">${phase==='revealed' ? `${m.replyTo.alias}(${aliasToReal[m.replyTo.alias]||m.replyTo.alias})` : m.replyTo.alias}</span>
           <span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.replyTo.text}</span>
         </div>` : '';
