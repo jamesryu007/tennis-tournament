@@ -6670,7 +6670,7 @@ function renderCheckinPage() {
       }).join('');
       return `<div class="comment-item" id="comment-${c._key}">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <span class="comment-author">${c.author}</span>
+          <span class="comment-author" style="display:flex;align-items:center;gap:4px"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.72rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(c.author||'?')[0]}</span>${c.author}</span>
           <div style="display:flex;align-items:center;gap:6px">
             ${c.author === me ? `<button onclick="editPollComment('${c._key}')" style="font-size:0.68rem;padding:2px 7px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">수정</button>` : ''}
             <span class="comment-at">${t}</span>
@@ -6682,7 +6682,7 @@ function renderCheckinPage() {
           const rt=r.at?new Date(r.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
           return `<div class="reply-item">
             <div style="display:flex;justify-content:space-between;align-items:center">
-              <span class="comment-author" style="font-size:0.68rem">↩ ${r.author}</span><span class="comment-at">${rt}</span>
+              <span class="comment-author" style="font-size:0.68rem;display:flex;align-items:center;gap:3px"><span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.6rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(r.author||'?')[0]}</span>↩ ${r.author}</span><span class="comment-at">${rt}</span>
             </div>
             <div class="comment-text" style="font-size:0.8rem">${r.text.replace(/</g,'&lt;')}</div>
           </div>`;
@@ -9106,7 +9106,7 @@ function renderBetComments(betId, bet, myName) {
   const cmtHtml = comments.map(([cid, c]) => {
     const isMe = c.author === myIdentity;
     return `<div style="display:flex;gap:6px;margin-bottom:5px;align-items:flex-start">
-      <div style="font-size:0.7rem;font-weight:700;color:${isMe?'#2563eb':'#64748b'};flex-shrink:0;padding-top:1px">${c.author}</div>
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;padding-top:1px"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.72rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(c.author||'?')[0]}</span><span style="font-size:0.7rem;font-weight:700;color:${isMe?'#2563eb':'#64748b'}">${c.author}</span></div>
       <div style="flex:1">
         <div id="bet-cmt-text-${betId}-${cid}" style="font-size:0.78rem;color:#1e293b;background:${isMe?'#eff6ff':'#f8fafc'};border-radius:8px;padding:5px 8px;word-break:break-word">${escHtml(c.text)}</div>
         ${isMe ? `<button onclick="editBetComment('${betId}','${cid}')" style="font-size:0.65rem;padding:1px 6px;border-radius:5px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer;margin-top:2px">수정</button>` : ''}
@@ -13130,6 +13130,22 @@ function bzToggleJinsil() {
 }
 
 
+// ── 멤버 컬러 맵 (전역 공유) ────────────────────────────────────────
+let _memberColorCache = null;
+function _getMemberColor(name) {
+  if (!_memberColorCache || _memberColorCache.size !== (state.members || []).length) {
+    const warmP = ['#fda4af','#f9a8d4','#fdba74','#e879f9','#fcd34d','#f0abfc','#fca5a5','#fb923c','#f472b6','#fbbf24','#c084fc','#fb7185','#d8b4fe','#fed7aa','#f5d0fe','#fde68a'];
+    const coolP = ['#93c5fd','#67e8f9','#6ee7b7','#a5b4fc','#7dd3fc','#5eead4','#c4b5fd','#86efac','#bae6fd','#99f6e4','#818cf8','#6ee7b7','#a78bfa','#7dd3fc','#34d399','#60a5fa'];
+    _memberColorCache = new Map();
+    let wi = 0, ci = 0;
+    (state.members || []).forEach(m => {
+      const g = getGender(m.name);
+      _memberColorCache.set(m.name, g === 'female' ? warmP[wi++ % warmP.length] : coolP[ci++ % coolP.length]);
+    });
+  }
+  return _memberColorCache.get(name) || '#94a3b8';
+}
+
 function _bzRenderMessages(phase) {
   const area = document.getElementById('bz-chat-area');
   if (!area) return;
@@ -13154,15 +13170,6 @@ function _bzRenderMessages(phase) {
   const myName = (state.identity && state.identity.name) || '';
   const canReply = phase !== 'revealed';
   const allLikes = (_bzState && _bzState.likes) || {};
-  // 멤버별 컬러 맵 — 성별 팔레트에서 인덱스 순 배정 (같은 계열 내 구분)
-  const _bzWarmPalette = ['#fda4af','#f9a8d4','#fdba74','#e879f9','#fcd34d','#f0abfc','#fca5a5','#fb923c','#f472b6','#fbbf24','#c084fc','#fb7185','#d8b4fe','#fed7aa','#f5d0fe','#fde68a'];
-  const _bzCoolPalette = ['#93c5fd','#67e8f9','#6ee7b7','#a5b4fc','#7dd3fc','#5eead4','#c4b5fd','#86efac','#bae6fd','#99f6e4','#818cf8','#6ee7b7','#a78bfa','#7dd3fc','#34d399','#60a5fa'];
-  const _bzColorMap = new Map();
-  let _bzWi = 0, _bzCi = 0;
-  (state.members || []).forEach(mbr => {
-    const g = getGender(mbr.name);
-    _bzColorMap.set(mbr.name, g === 'female' ? _bzWarmPalette[_bzWi++ % _bzWarmPalette.length] : _bzCoolPalette[_bzCi++ % _bzCoolPalette.length]);
-  });
   // 전체화면 뷰어용 사진 맵 (onclick에 base64 직접 삽입 불가 → ts 키로 참조)
   window._bzPhotoMap = {};
   area.innerHTML = msgs.map(m => {
@@ -13175,7 +13182,7 @@ function _bzRenderMessages(phase) {
     const senderLabel = showRealNames
       ? `${m.alias} <span style="color:#94a3b8;font-size:0.7rem">(${realOfAlias})</span>`
       : m.alias;
-    const _bzNameColor = _bzColorMap.get(m.alias) || '#8b5cf6';
+    const _bzNameColor = _getMemberColor(m.alias);
     const isMine = m.realName === myName;
     const keyEsc      = m._key.replace(/'/g, "\\'");
     const aliasEsc    = m.alias.replace(/'/g, "\\'");
@@ -13275,16 +13282,6 @@ function _bzIncrementalUpdateMessages(newMessages) {
   });
   const myName = (state.identity && state.identity.name) || '';
   const allLikes = (_bzState && _bzState.likes) || {};
-  // 멤버별 컬러 맵
-  const _bzWarmPalette2 = ['#fda4af','#f9a8d4','#fdba74','#e879f9','#fcd34d','#f0abfc','#fca5a5','#fb923c','#f472b6','#fbbf24','#c084fc','#fb7185','#d8b4fe','#fed7aa','#f5d0fe','#fde68a'];
-  const _bzCoolPalette2 = ['#93c5fd','#67e8f9','#6ee7b7','#a5b4fc','#7dd3fc','#5eead4','#c4b5fd','#86efac','#bae6fd','#99f6e4','#818cf8','#6ee7b7','#a78bfa','#7dd3fc','#34d399','#60a5fa'];
-  const _bzColorMap = new Map();
-  let _bzWi = 0, _bzCi = 0;
-  (state.members || []).forEach(mbr => {
-    const g = getGender(mbr.name);
-    _bzColorMap.set(mbr.name, g === 'female' ? _bzWarmPalette2[_bzWi++ % _bzWarmPalette2.length] : _bzCoolPalette2[_bzCi++ % _bzCoolPalette2.length]);
-  });
-
   const newMsgs = Object.entries(newMessages)
     .map(([k, m]) => ({ ...m, _key: k }))
     .sort((a, b) => (a.ts || 0) - (b.ts || 0));
@@ -13318,7 +13315,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const senderLabel = showRealNames
       ? `${m.alias} <span style="color:#94a3b8;font-size:0.7rem">(${realOfAlias})</span>`
       : m.alias;
-    const _bzNameColor = _bzColorMap.get(m.alias) || '#8b5cf6';
+    const _bzNameColor = _getMemberColor(m.alias);
     const isMine = m.realName === myName;
     const keyEsc      = m._key.replace(/'/g, "\'");
     const aliasEsc    = m.alias.replace(/'/g, "\'");
@@ -14127,7 +14124,7 @@ function _mpCommentsHtml(poll) {
     const replies = c.replies ? Object.values(c.replies).sort((a,b)=>(a.at||'').localeCompare(b.at||'')) : [];
     return `<div class="comment-item" id="mp-comment-${c._key}">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <span class="comment-author">${c.author}</span>
+        <span class="comment-author" style="display:flex;align-items:center;gap:4px"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.72rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(c.author||'?')[0]}</span>${c.author}</span>
         <div style="display:flex;align-items:center;gap:6px">
           ${c.author === me ? `<button onclick="editMpComment('${c._key}')" style="font-size:0.68rem;padding:2px 7px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">수정</button>` : ''}
           <span class="comment-at">${fmt(c.at)}</span>
@@ -14136,7 +14133,7 @@ function _mpCommentsHtml(poll) {
       <div class="comment-text" id="mp-cmt-text-${c._key}">${c.text.replace(/</g,'&lt;')}</div>
       ${replies.map(r=>`<div class="reply-item">
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <span class="comment-author" style="font-size:0.68rem">↩ ${r.author}</span><span class="comment-at">${fmt(r.at)}</span>
+          <span class="comment-author" style="font-size:0.68rem;display:flex;align-items:center;gap:3px"><span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.6rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(r.author||'?')[0]}</span>↩ ${r.author}</span><span class="comment-at">${fmt(r.at)}</span>
         </div>
         <div class="comment-text" style="font-size:0.8rem">${r.text.replace(/</g,'&lt;')}</div>
       </div>`).join('')}
