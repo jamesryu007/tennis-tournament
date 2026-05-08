@@ -12550,7 +12550,8 @@ function bzSend() {
   if (_bzReplyTo && _bzReplyTo.realName) {
     _bzSendPush(senderAlias, text, 'reply', { replyToRealName: _bzReplyTo.realName, replyToAlias: _bzReplyTo.alias, replierRealName: myName });
   } else {
-    _bzSendPush(senderAlias, `${senderAlias}이(가) 수상한 말을 하고 있어요...`, 'start', { senderRealName: myName });
+    const _bzPushSnippet = text.length > 25 ? text.slice(0, 25) + '…' : text;
+    _bzSendPush(senderAlias, _bzPushSnippet, 'start', { senderRealName: myName });
   }
   input.value = '';
   bzCancelReply();
@@ -13164,6 +13165,8 @@ function _bzRenderMessages(phase) {
     const senderLabel = showRealNames
       ? `${m.alias} <span style="color:#f59e0b;font-size:0.7rem">(${realOfAlias})</span>`
       : m.alias;
+    const _bzGender = getGender(m.alias);
+    const _bzNameColor = _bzGender === 'female' ? '#ec4899' : _bzGender === 'male' ? '#3b82f6' : '#8b5cf6';
     const isMine = m.realName === myName;
     const keyEsc      = m._key.replace(/'/g, "\\'");
     const aliasEsc    = m.alias.replace(/'/g, "\\'");
@@ -13214,7 +13217,7 @@ function _bzRenderMessages(phase) {
     return `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
       <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
         ${!isMine && isAdmin() ? adminPushBtn : ''}
-        <span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span>
+        <span style="font-size:0.78rem;color:${_bzNameColor};font-weight:700">${senderLabel}</span>
         ${isMine && isAdmin() ? adminPushBtn : ''}
       </div>
       <div style="display:flex;align-items:center;gap:4px;flex-direction:${isMine ? 'row-reverse' : 'row'};width:100%">
@@ -13297,6 +13300,8 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const senderLabel = showRealNames
       ? `${m.alias} <span style="color:#f59e0b;font-size:0.7rem">(${realOfAlias})</span>`
       : m.alias;
+    const _bzGender = getGender(m.alias);
+    const _bzNameColor = _bzGender === 'female' ? '#ec4899' : _bzGender === 'male' ? '#3b82f6' : '#8b5cf6';
     const isMine = m.realName === myName;
     const keyEsc      = m._key.replace(/'/g, "\'");
     const aliasEsc    = m.alias.replace(/'/g, "\'");
@@ -13346,7 +13351,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const html = `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
       <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
         ${!isMine && isAdmin() ? adminPushBtn : ''}
-        <span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span>
+        <span style="font-size:0.78rem;color:${_bzNameColor};font-weight:700">${senderLabel}</span>
         ${isMine && isAdmin() ? adminPushBtn : ''}
       </div>
       <div style="display:flex;align-items:center;gap:4px;flex-direction:${isMine ? 'row-reverse' : 'row'};width:100%">
