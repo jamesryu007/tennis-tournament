@@ -13281,19 +13281,32 @@ function _bzRenderMessages(phase) {
       : `<div onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
           ${replyBox}${m.text}
         </div>`;
-    return `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
-      <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
-        ${!isMine && isAdmin() ? adminPushBtn : ''}
-        <span style="font-size:0.78rem;color:#64748b;font-weight:600;display:flex;align-items:center;gap:4px">${isMine ? '' : `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${m.alias[0]}</span>`}${senderLabel}</span>
-        ${isMine && isAdmin() ? adminPushBtn : ''}
-      </div>
-      <div style="display:flex;align-items:center;gap:4px;flex-direction:${isMine ? 'row-reverse' : 'row'};width:100%">
-        ${bubble}
-        ${replyBtn}
-        ${deleteBtn}
-      </div>
-      ${heartRow}
-    </div>`;
+    return isMine
+      ? `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+          <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
+            <span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span>
+            ${isAdmin() ? adminPushBtn : ''}
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;flex-direction:row-reverse;width:100%">
+            ${bubble}${replyBtn}${deleteBtn}
+          </div>
+          ${heartRow}
+        </div>`
+      : `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px">
+          <div style="display:flex;gap:4px;align-items:flex-start;width:100%">
+            <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding-top:2px;gap:2px">
+              ${isAdmin() ? adminPushBtn : ''}
+              <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${m.alias[0]}</span>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>
+              <div style="display:flex;align-items:center;gap:4px">
+                ${bubble}${replyBtn}${deleteBtn}
+              </div>
+              ${heartRow}
+            </div>
+          </div>
+        </div>`;
   }).join('');
   // 렌더된 메시지 키 갱신
   _bzRenderedMsgKeys = new Set(msgs.map(m => m._key));
@@ -13413,19 +13426,32 @@ function _bzIncrementalUpdateMessages(newMessages) {
       : `<div onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
           ${replyBox}${m.text}
         </div>`;
-    const html = `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
-      <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
-        ${!isMine && isAdmin() ? adminPushBtn : ''}
-        <span style="font-size:0.78rem;color:#64748b;font-weight:600;display:flex;align-items:center;gap:4px">${isMine ? '' : `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${m.alias[0]}</span>`}${senderLabel}</span>
-        ${isMine && isAdmin() ? adminPushBtn : ''}
-      </div>
-      <div style="display:flex;align-items:center;gap:4px;flex-direction:${isMine ? 'row-reverse' : 'row'};width:100%">
-        ${bubble}
-        ${replyBtn}
-        ${deleteBtn}
-      </div>
-      ${heartRow}
-    </div>`;
+    const html = isMine
+      ? `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+          <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
+            <span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span>
+            ${isAdmin() ? adminPushBtn : ''}
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;flex-direction:row-reverse;width:100%">
+            ${bubble}${replyBtn}${deleteBtn}
+          </div>
+          ${heartRow}
+        </div>`
+      : `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px">
+          <div style="display:flex;gap:4px;align-items:flex-start;width:100%">
+            <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding-top:2px;gap:2px">
+              ${isAdmin() ? adminPushBtn : ''}
+              <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${m.alias[0]}</span>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>
+              <div style="display:flex;align-items:center;gap:4px">
+                ${bubble}${replyBtn}${deleteBtn}
+              </div>
+              ${heartRow}
+            </div>
+          </div>
+        </div>`;
     const div = document.createElement('div');
     div.innerHTML = html;
     const newEl = div.firstElementChild;
