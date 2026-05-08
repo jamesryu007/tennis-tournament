@@ -1427,7 +1427,7 @@ const firebaseConfig = {
       <div id="bz-info-frame" style="flex-shrink:0;background:#fffbeb;border:1.5px solid #fde68a;border-radius:14px;box-shadow:0 2px 8px rgba(245,158,11,0.1);padding:10px 14px;margin:10px 12px 6px;overflow:hidden;max-height:500px;transition:max-height 0.22s ease,padding 0.22s ease,margin 0.22s ease">
         <!-- 입실 인원 -->
         <div style="font-size:0.78rem;color:#92400e;margin-bottom:7px">
-          👥 입실 인원: <span id="bz-count" style="font-weight:800;color:#78350f">0</span>명<span id="bz-entrant-names" style="color:#b45309;font-size:0.72rem;margin-left:4px"></span><span id="bz-jinsil-badge" style="display:none;margin-left:8px;background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 9px;font-size:0.7rem;font-weight:800;border:1px solid #bbf7d0;vertical-align:middle">● 진실톡</span>
+          👥 입실 인원: <span id="bz-count" style="font-weight:800;color:#78350f">0</span>명<span id="bz-entrant-names" style="color:#b45309;font-size:0.72rem;margin-left:4px"></span><span id="bz-jinsil-badge" style="display:none;margin-left:8px;background:#bbf7d0;color:#16a34a;border-radius:20px;padding:2px 8px;font-size:0.85rem;font-weight:900;border:1.5px solid #22c55e;vertical-align:middle">●</span>
         </div>
 
         <!-- 가명 선택 -->
@@ -12599,6 +12599,10 @@ function _bzUpdateAliasStrip() {
   // 나 자신 + 가명 목록 — 나 자신은 _bzCurrentAlias === ''
   const items = [{ label: myName, value: '' }, ..._bzMyAliases.map(n => ({ label: n, value: n }))];
   strip.style.display = 'flex';
+  // 진실톡 ON이면 스트립 비활성화
+  const _jinsilOn = !!(_bzState && _bzState.jinsilTok);
+  strip.style.opacity = _jinsilOn ? '0.35' : '';
+  strip.style.pointerEvents = _jinsilOn ? 'none' : '';
   chipsEl.innerHTML = items.map(({ label, value }) => {
     const active = value === (_bzCurrentAlias || '');
     return `<button onclick="bzSwitchAlias('${value}')"
@@ -13143,6 +13147,11 @@ function _bzRender() {
   if (aliasRowEl) {
     aliasRowEl.style.opacity = jinsilOn ? '0.35' : '1';
     aliasRowEl.style.pointerEvents = jinsilOn ? 'none' : '';
+  }
+  const aliasStripEl = document.getElementById('bz-alias-strip');
+  if (aliasStripEl) {
+    aliasStripEl.style.opacity = jinsilOn ? '0.35' : '';
+    aliasStripEl.style.pointerEvents = jinsilOn ? 'none' : '';
   }
 
   // 채팅중인 멤버 (메시지에 등장한 가명 목록)
