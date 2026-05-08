@@ -6199,9 +6199,9 @@ function switchPage(id) {
     changeCheckinPhotoRandom();
   }
   if(id === 'matches') {
-    // 금/토/일(0,5,6): 오늘의 경기 우선, 그 외: 자.만.추. 우선
+    // 토(6): 오늘의 경기 우선, 그 외: 자.만.추. 우선
     const _dow = new Date().getDay();
-    switchMatchesTab((_dow === 0 || _dow === 5 || _dow === 6) ? 'game' : 'memory');
+    switchMatchesTab(_dow === 6 ? 'game' : 'memory');
     if(state.currentHistoryId) {
       const t = visibleMatchTab();
       if(state.tournaments[t]) renderTournament(t);
