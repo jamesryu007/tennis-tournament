@@ -13129,18 +13129,6 @@ function bzToggleJinsil() {
   db.ref(BZ_REF + '/jinsilTok').set(cur ? null : true).catch(fbErr);
 }
 
-function _bzGetInitial(name) {
-  if (!name) return '?';
-  const ch = name[0];
-  const code = ch.charCodeAt(0);
-  if (code < 0xAC00 || code > 0xD7A3) return ch.toUpperCase();
-  const onset = Math.floor((code - 0xAC00) / 588);
-  const vowel = Math.floor((code - 0xAC00) / 28) % 21;
-  const onsetMap = ['K','K','N','D','T','L','M','B','P','S','S',null,'J','J','C','K','T','P','H'];
-  if (onsetMap[onset] !== null) return onsetMap[onset];
-  const vowelMap = ['A','A','Y','Y','E','E','Y','Y','O','W','W','O','Y','W','W','W','W','Y','E','E','I'];
-  return vowelMap[vowel] || 'O';
-}
 
 function _bzRenderMessages(phase) {
   const area = document.getElementById('bz-chat-area');
@@ -13238,7 +13226,7 @@ function _bzRenderMessages(phase) {
     return `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
       <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
         ${!isMine && isAdmin() ? adminPushBtn : ''}
-        <span style="font-size:0.78rem;color:#64748b;font-weight:600;display:flex;align-items:center;gap:4px">${isMine ? '' : `<span style="display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.58rem;font-weight:800;flex-shrink:0;line-height:1">${_bzGetInitial(m.alias)}</span>`}${senderLabel}</span>
+        <span style="font-size:0.78rem;color:#64748b;font-weight:600;display:flex;align-items:center;gap:4px">${isMine ? '' : `<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.75rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${m.alias[0]}</span>`}${senderLabel}</span>
         ${isMine && isAdmin() ? adminPushBtn : ''}
       </div>
       <div style="display:flex;align-items:center;gap:4px;flex-direction:${isMine ? 'row-reverse' : 'row'};width:100%">
@@ -13380,7 +13368,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const html = `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
       <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
         ${!isMine && isAdmin() ? adminPushBtn : ''}
-        <span style="font-size:0.78rem;color:#64748b;font-weight:600;display:flex;align-items:center;gap:4px">${isMine ? '' : `<span style="display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.58rem;font-weight:800;flex-shrink:0;line-height:1">${_bzGetInitial(m.alias)}</span>`}${senderLabel}</span>
+        <span style="font-size:0.78rem;color:#64748b;font-weight:600;display:flex;align-items:center;gap:4px">${isMine ? '' : `<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.75rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${m.alias[0]}</span>`}${senderLabel}</span>
         ${isMine && isAdmin() ? adminPushBtn : ''}
       </div>
       <div style="display:flex;align-items:center;gap:4px;flex-direction:${isMine ? 'row-reverse' : 'row'};width:100%">
