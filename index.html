@@ -13226,7 +13226,7 @@ function _bzRenderMessages(phase) {
     return `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
       <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
         ${!isMine && isAdmin() ? adminPushBtn : ''}
-        <span style="font-size:0.78rem;color:#64748b;font-weight:600;display:flex;align-items:center;gap:4px">${isMine ? '' : `<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.75rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${m.alias[0]}</span>`}${senderLabel}</span>
+        <span style="font-size:0.78rem;color:#64748b;font-weight:600;display:flex;align-items:center;gap:4px">${isMine ? '' : `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${m.alias[0]}</span>`}${senderLabel}</span>
         ${isMine && isAdmin() ? adminPushBtn : ''}
       </div>
       <div style="display:flex;align-items:center;gap:4px;flex-direction:${isMine ? 'row-reverse' : 'row'};width:100%">
@@ -13368,7 +13368,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const html = `<div data-bzkey="${m._key}" style="display:flex;flex-direction:column;align-items:${isMine ? 'flex-end' : 'flex-start'};gap:2px">
       <div style="display:flex;align-items:center;gap:4px;padding:0 4px">
         ${!isMine && isAdmin() ? adminPushBtn : ''}
-        <span style="font-size:0.78rem;color:#64748b;font-weight:600;display:flex;align-items:center;gap:4px">${isMine ? '' : `<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.75rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${m.alias[0]}</span>`}${senderLabel}</span>
+        <span style="font-size:0.78rem;color:#64748b;font-weight:600;display:flex;align-items:center;gap:4px">${isMine ? '' : `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${m.alias[0]}</span>`}${senderLabel}</span>
         ${isMine && isAdmin() ? adminPushBtn : ''}
       </div>
       <div style="display:flex;align-items:center;gap:4px;flex-direction:${isMine ? 'row-reverse' : 'row'};width:100%">
