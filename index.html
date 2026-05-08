@@ -12850,12 +12850,15 @@ function bzScrollToMsg(targetKey, returnKey) {
     _bzBackBubbleEl = back;
     back.style.cssText = 'display:flex;justify-content:center;margin:4px 0 2px';
     back.innerHTML = '<span style="background:rgba(30,41,59,0.82);color:#fff;border-radius:20px;padding:6px 16px;font-size:0.82rem;font-weight:700;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.2);-webkit-tap-highlight-color:transparent;white-space:nowrap">↩ 돌아가기</span>';
-    back.addEventListener('click', () => {
+    const _backAction = () => {
       const retEl = area && area.querySelector(`[data-bzkey="${returnKey}"]`);
       if (retEl) retEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       if (_bzHighlightEl) { _bzHighlightEl.style.background = ''; _bzHighlightEl.style.transition = ''; _bzHighlightEl = null; }
       back.remove(); _bzBackBubbleEl = null;
-    });
+    };
+    back.addEventListener('touchstart', e => { e.preventDefault(); }, { passive: false });
+    back.addEventListener('touchend', _backAction);
+    back.addEventListener('click', _backAction);
     el.insertAdjacentElement('afterend', back);
   }
 }
