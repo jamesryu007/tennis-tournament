@@ -13558,7 +13558,7 @@ function _bzRenderMessages(phase) {
     }
     if (upCount > 0) heartInner += `<span style="font-size:0.75rem;color:#22c55e;cursor:pointer;user-select:none;margin-left:6px" onclick="bzToggleReact('${keyEsc}','up')">👍 ${upCount}</span>`;
     if (downCount > 0) heartInner += `<span style="font-size:0.75rem;color:#94a3b8;cursor:pointer;user-select:none;margin-left:6px" onclick="bzToggleReact('${keyEsc}','down')">👎 ${downCount}</span>`;
-    const heartRow    = `<div data-bzheart="${keyEsc}" data-bzvideo="${m.videoUrl ? '1' : ''}" data-bzurl="${hasUrl ? '1' : ''}" style="padding:0 4px">${heartInner}</div>`;
+    const heartRow    = `<div data-bzheart="${keyEsc}" data-bzvideo="${m.videoUrl ? '1' : ''}" data-bzurl="${hasUrl ? '1' : ''}"${heartInner ? ` style="padding:0 4px"` : ` style="display:none"`}>${heartInner}</div>`;
     const replyBtn = '';
     const deleteBtn = '';
     // 인용 박스 (replyTo 있을 때) — 탭 시 원본으로 스크롤 (키보드 유지)
@@ -13717,7 +13717,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     }
     if (upCount2 > 0) heartInner += `<span style="font-size:0.75rem;color:#22c55e;cursor:pointer;user-select:none;margin-left:6px" onclick="bzToggleReact('${keyEsc}','up')">👍 ${upCount2}</span>`;
     if (downCount2 > 0) heartInner += `<span style="font-size:0.75rem;color:#94a3b8;cursor:pointer;user-select:none;margin-left:6px" onclick="bzToggleReact('${keyEsc}','down')">👎 ${downCount2}</span>`;
-    const heartRow    = `<div data-bzheart="${keyEsc}" data-bzvideo="${m.videoUrl ? '1' : ''}" data-bzurl="${hasUrl ? '1' : ''}" style="padding:0 4px">${heartInner}</div>`;
+    const heartRow    = `<div data-bzheart="${keyEsc}" data-bzvideo="${m.videoUrl ? '1' : ''}" data-bzurl="${hasUrl ? '1' : ''}"${heartInner ? ` style="padding:0 4px"` : ` style="display:none"`}>${heartInner}</div>`;
     const replyBtn = '';
     const deleteBtn = '';
     const _replyToKeyEsc2 = m.replyTo ? (m.replyTo.msgKey || '').replace(/'/g, "\\'") : '';
