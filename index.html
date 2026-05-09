@@ -13548,7 +13548,7 @@ function _bzRenderMessages(phase) {
       ? `<div data-bzbubble="1" style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
           ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
-      : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
+      : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-word;white-space:pre-wrap;cursor:pointer;-webkit-tap-highlight-color:transparent">
           ${replyBox}${_bzLinkify(m.text)}
         </div>`;
     window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl };
@@ -13686,7 +13686,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
       ? `<div data-bzbubble="1" style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
           ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
-      : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-all;cursor:pointer;-webkit-tap-highlight-color:transparent">
+      : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-word;white-space:pre-wrap;cursor:pointer;-webkit-tap-highlight-color:transparent">
           ${replyBox}${_bzLinkify(m.text)}
         </div>`;
     window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl };
