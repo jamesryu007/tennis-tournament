@@ -13511,11 +13511,11 @@ function _bzRenderMessages(phase) {
   // 전체화면 뷰어용 사진 맵 (onclick에 base64 직접 삽입 불가 → ts 키로 참조)
   window._bzPhotoMap = {};
   // 타임스탬프 그루핑 & 날짜 구분선 & 이름 생략 전처리
-  const _bzShowTime = msgs.map((m, i) => {
-    const next = msgs[i + 1];
-    if (!next) return true;
-    return next.realName !== m.realName || (next.ts - m.ts) >= 60000;
-  });
+  const _bzShowTime = msgs.map(() => true); // 항상 시간 렌더, 직전 말풍선 시간은 렌더 후 제거
+
+
+
+
   const _bzShowDateSep = msgs.map((m, i) => {
     if (i === 0) return true;
     const prev = msgs[i - 1];
@@ -13610,6 +13610,15 @@ function _bzRenderMessages(phase) {
           </div>
         </div>`);
   }).join('');
+  // 시간 후처리: 같은 사람 1분 이내 연속이면 직전 말풍선 시간 제거
+  msgs.forEach((m, i) => {
+    if (i === 0) return;
+    const prev = msgs[i - 1];
+    if (prev.realName === m.realName && (m.ts - prev.ts) < 60000) {
+      const prevEl = area.querySelector(`[data-bzkey="${prev._key}"]`);
+      if (prevEl) { const t = prevEl.querySelector('[data-bztime]'); if (t) t.remove(); }
+    }
+  });
   // 렌더된 메시지 키 갱신
   _bzRenderedMsgKeys = new Set(msgs.map(m => m._key));
   // 맨 아래 근처에 있던 경우만 자동 스크롤 — rAF로 레이아웃 확정 후 실행 (jump 방지)
@@ -13669,15 +13678,8 @@ function _bzIncrementalUpdateMessages(newMessages) {
   // 새 메시지 추가
   const wasAtBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
   let added = false;
-  // bridge: 기존 마지막 렌더 메시지와 첫 새 메시지 간 그루핑 처리
-  const firstNew = newMsgs.find(m => !_bzRenderedMsgKeys.has(m._key));
-  if (firstNew) {
-    const lastRendered = [...newMsgs].reverse().find(m => _bzRenderedMsgKeys.has(m._key));
-    if (lastRendered && lastRendered.realName === firstNew.realName && (firstNew.ts - lastRendered.ts) < 60000) {
-      const lastEl = area.querySelector(`[data-bzkey="${lastRendered._key}"]`);
-      if (lastEl) { const t = lastEl.querySelector('[data-bztime]'); if (t) t.remove(); }
-    }
-  }
+  // lastRendered: 직전에 렌더된 마지막 메시지 (시간 제거 처리에 사용)
+  const lastRendered = [...newMsgs].reverse().find(m => _bzRenderedMsgKeys.has(m._key)) || null;
   newMsgs.forEach(m => {
     if (_bzRenderedMsgKeys.has(m._key)) return;
     // photoMap 갱신
@@ -13686,10 +13688,9 @@ function _bzIncrementalUpdateMessages(newMessages) {
     else if (m.imageData) window._bzPhotoMap[m.ts] = m.imageData;
     // 다음 메시지가 같은 사람, 1분 이내면 시간 숨김
     const _mIdx = newMsgs.indexOf(m);
-    const _mNext = newMsgs[_mIdx + 1];
-    const _showTime = !_mNext || _mNext.realName !== m.realName || (_mNext.ts - m.ts) >= 60000;
+    const _showTime = true; // 항상 시간 표시, 직전 말풍선 시간은 추가 후 제거로 처리
     // 날짜 구분선: 직전 메시지와 날짜가 다를 때
-    const _mPrev = _mIdx > 0 ? newMsgs[_mIdx - 1] : (firstNew && firstNew._key === m._key ? [...newMsgs].reverse().find(mm => _bzRenderedMsgKeys.has(mm._key)) : null);
+    const _mPrev = _mIdx > 0 ? newMsgs[_mIdx - 1] : lastRendered;
     const _showDateSep = !_mPrev ? !_bzRenderedMsgKeys.size : (() => { const d = new Date(m.ts), pd = new Date(_mPrev.ts); return d.getFullYear() !== pd.getFullYear() || d.getMonth() !== pd.getMonth() || d.getDate() !== pd.getDate(); })();
     const _dateSepHtml = _showDateSep ? `<div style="text-align:center;padding:10px 0 4px"><span style="background:#e2e8f0;color:#64748b;font-size:0.7rem;padding:3px 14px;border-radius:20px;font-weight:600">${_bzFormatDateLabel(m.ts)}</span></div>` : '';
     const _showName = _showDateSep || !_mPrev || _mPrev.alias !== m.alias;
@@ -13746,7 +13747,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
       ? `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-end;gap:${_msgGap};margin-top:${_msgMargin}">
           ${_showName ? `<div style="padding:0 4px"><span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span></div>` : ''}
           <div style="display:flex;align-items:flex-end;gap:4px;flex-direction:row-reverse;width:100%">
-            ${bubble}${_showTime ? `<span data-bztime="1" style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;align-self:flex-end;padding-bottom:2px">${_bzFormatTime(m.ts)}</span>` : ''}${replyBtn}${deleteBtn}
+            ${bubble}<span data-bztime="1" style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;align-self:flex-end;padding-bottom:2px">${_bzFormatTime(m.ts)}</span>${replyBtn}${deleteBtn}
           </div>
           ${heartRow}
         </div>`
@@ -13758,7 +13759,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
             <div style="flex:1;min-width:0">
               ${_showName ? `<div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>` : ''}
               <div style="display:flex;align-items:flex-end;gap:4px">
-                ${bubble}${_showTime ? `<span data-bztime="1" style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;align-self:flex-end;padding-bottom:2px">${_bzFormatTime(m.ts)}</span>` : ''}${replyBtn}${deleteBtn}
+                ${bubble}<span data-bztime="1" style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;align-self:flex-end;padding-bottom:2px">${_bzFormatTime(m.ts)}</span>${replyBtn}${deleteBtn}
               </div>
               ${heartRow}
             </div>
@@ -13779,6 +13780,12 @@ function _bzIncrementalUpdateMessages(newMessages) {
       if (img) img.addEventListener('load', () => { requestAnimationFrame(() => { area.scrollTop = area.scrollHeight; }); });
     }
     area.appendChild(newEl);
+    // 직전 메시지가 같은 사람 1분 이내면 직전 말풍선 시간 제거
+    const _prevForTime = _mIdx > 0 ? newMsgs[_mIdx - 1] : lastRendered;
+    if (_prevForTime && _prevForTime.realName === m.realName && (m.ts - _prevForTime.ts) < 60000) {
+      const _prevEl = area.querySelector(`[data-bzkey="${_prevForTime._key}"]`);
+      if (_prevEl) { const _pt = _prevEl.querySelector('[data-bztime]'); if (_pt) _pt.remove(); }
+    }
     _bzRenderedMsgKeys.add(m._key);
     added = true;
   });
