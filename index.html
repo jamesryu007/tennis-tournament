@@ -13470,6 +13470,20 @@ function _getMemberColor(name) {
   return _memberColorCache.get(name) || '#94a3b8';
 }
 
+function _bzFormatTime(ts) {
+  const d = new Date(ts);
+  const h = d.getHours();
+  const min = d.getMinutes();
+  const ampm = h < 12 ? '오전' : '오후';
+  const h12 = h % 12 || 12;
+  return `${ampm} ${h12}:${String(min).padStart(2, '0')}`;
+}
+function _bzFormatDateLabel(ts) {
+  const d = new Date(ts);
+  const days = ['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
+  return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 ${days[d.getDay()]}`;
+}
+
 function _bzRenderMessages(phase) {
   const area = document.getElementById('bz-chat-area');
   if (!area) return;
@@ -13496,7 +13510,19 @@ function _bzRenderMessages(phase) {
   const allLikes = (_bzState && _bzState.likes) || {};
   // 전체화면 뷰어용 사진 맵 (onclick에 base64 직접 삽입 불가 → ts 키로 참조)
   window._bzPhotoMap = {};
-  area.innerHTML = msgs.map(m => {
+  // 타임스탬프 그루핑 & 날짜 구분선 전처리
+  const _bzShowTime = msgs.map((m, i) => {
+    const next = msgs[i + 1];
+    if (!next) return true;
+    return next.realName !== m.realName || (next.ts - m.ts) >= 60000;
+  });
+  const _bzShowDateSep = msgs.map((m, i) => {
+    if (i === 0) return true;
+    const prev = msgs[i - 1];
+    const d = new Date(m.ts), pd = new Date(prev.ts);
+    return d.getFullYear() !== pd.getFullYear() || d.getMonth() !== pd.getMonth() || d.getDate() !== pd.getDate();
+  });
+  area.innerHTML = msgs.map((m, i) => {
     // imageUrl(Storage) 우선, 구형 imageData(base64) fallback
     if (m.imageUrl) window._bzPhotoMap[m.ts] = m.imageUrl;
     else if (m.imageData) window._bzPhotoMap[m.ts] = m.imageData;
@@ -13550,13 +13576,15 @@ function _bzRenderMessages(phase) {
         </div>`
       : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-word;white-space:pre-wrap;cursor:pointer;-webkit-tap-highlight-color:transparent">${replyBox}${_bzLinkify(m.text)}</div>`;
     window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl };
-    return isMine
+    const dateSepHtml = _bzShowDateSep[i] ? `<div style="text-align:center;padding:10px 0 4px"><span style="background:#e2e8f0;color:#64748b;font-size:0.7rem;padding:3px 14px;border-radius:20px;font-weight:600">${_bzFormatDateLabel(m.ts)}</span></div>` : '';
+    const timeHtml = _bzShowTime[i] ? `<span data-bztime="1" style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;align-self:flex-end;padding-bottom:2px">${_bzFormatTime(m.ts)}</span>` : '';
+    return dateSepHtml + (isMine
       ? `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
           <div style="padding:0 4px">
             <span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span>
           </div>
-          <div style="display:flex;align-items:center;gap:4px;flex-direction:row-reverse;width:100%">
-            ${bubble}${replyBtn}${deleteBtn}
+          <div style="display:flex;align-items:flex-end;gap:4px;flex-direction:row-reverse;width:100%">
+            ${bubble}${timeHtml}${replyBtn}${deleteBtn}
           </div>
           ${heartRow}
         </div>`
@@ -13565,13 +13593,13 @@ function _bzRenderMessages(phase) {
             <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${m.alias[0]}</span>
             <div style="flex:1;min-width:0">
               <div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>
-              <div style="display:flex;align-items:center;gap:4px">
-                ${bubble}${replyBtn}${deleteBtn}
+              <div style="display:flex;align-items:flex-end;gap:4px">
+                ${bubble}${timeHtml}${replyBtn}${deleteBtn}
               </div>
               ${heartRow}
             </div>
           </div>
-        </div>`;
+        </div>`);
   }).join('');
   // 렌더된 메시지 키 갱신
   _bzRenderedMsgKeys = new Set(msgs.map(m => m._key));
@@ -13632,13 +13660,29 @@ function _bzIncrementalUpdateMessages(newMessages) {
   // 새 메시지 추가
   const wasAtBottom = area.scrollHeight - area.scrollTop - area.clientHeight < 100;
   let added = false;
+  // bridge: 기존 마지막 렌더 메시지와 첫 새 메시지 간 그루핑 처리
+  const firstNew = newMsgs.find(m => !_bzRenderedMsgKeys.has(m._key));
+  if (firstNew) {
+    const lastRendered = [...newMsgs].reverse().find(m => _bzRenderedMsgKeys.has(m._key));
+    if (lastRendered && lastRendered.realName === firstNew.realName && (firstNew.ts - lastRendered.ts) < 60000) {
+      const lastEl = area.querySelector(`[data-bzkey="${lastRendered._key}"]`);
+      if (lastEl) { const t = lastEl.querySelector('[data-bztime]'); if (t) t.remove(); }
+    }
+  }
   newMsgs.forEach(m => {
     if (_bzRenderedMsgKeys.has(m._key)) return;
     // photoMap 갱신
     if (!window._bzPhotoMap) window._bzPhotoMap = {};
     if (m.imageUrl) window._bzPhotoMap[m.ts] = m.imageUrl;
     else if (m.imageData) window._bzPhotoMap[m.ts] = m.imageData;
-
+    // 다음 메시지가 같은 사람, 1분 이내면 시간 숨김
+    const _mIdx = newMsgs.indexOf(m);
+    const _mNext = newMsgs[_mIdx + 1];
+    const _showTime = !_mNext || _mNext.realName !== m.realName || (_mNext.ts - m.ts) >= 60000;
+    // 날짜 구분선: 직전 메시지와 날짜가 다를 때
+    const _mPrev = _mIdx > 0 ? newMsgs[_mIdx - 1] : (firstNew && firstNew._key === m._key ? [...newMsgs].reverse().find(mm => _bzRenderedMsgKeys.has(mm._key)) : null);
+    const _showDateSep = !_mPrev ? !_bzRenderedMsgKeys.size : (() => { const d = new Date(m.ts), pd = new Date(_mPrev.ts); return d.getFullYear() !== pd.getFullYear() || d.getMonth() !== pd.getMonth() || d.getDate() !== pd.getDate(); })();
+    const _dateSepHtml = _showDateSep ? `<div style="text-align:center;padding:10px 0 4px"><span style="background:#e2e8f0;color:#64748b;font-size:0.7rem;padding:3px 14px;border-radius:20px;font-weight:600">${_bzFormatDateLabel(m.ts)}</span></div>` : '';
     const realOfAlias = m.realName || aliasToReal[m.alias] || m.alias;
     const showRealNames = phase === 'revealed' || !!(_bzState && _bzState.showRealNames);
     const senderLabel = showRealNames
@@ -13691,8 +13735,8 @@ function _bzIncrementalUpdateMessages(newMessages) {
           <div style="padding:0 4px">
             <span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span>
           </div>
-          <div style="display:flex;align-items:center;gap:4px;flex-direction:row-reverse;width:100%">
-            ${bubble}${replyBtn}${deleteBtn}
+          <div style="display:flex;align-items:flex-end;gap:4px;flex-direction:row-reverse;width:100%">
+            ${bubble}${_showTime ? `<span data-bztime="1" style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;align-self:flex-end;padding-bottom:2px">${_bzFormatTime(m.ts)}</span>` : ''}${replyBtn}${deleteBtn}
           </div>
           ${heartRow}
         </div>`
@@ -13701,16 +13745,22 @@ function _bzIncrementalUpdateMessages(newMessages) {
             <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${m.alias[0]}</span>
             <div style="flex:1;min-width:0">
               <div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>
-              <div style="display:flex;align-items:center;gap:4px">
-                ${bubble}${replyBtn}${deleteBtn}
+              <div style="display:flex;align-items:flex-end;gap:4px">
+                ${bubble}${_showTime ? `<span data-bztime="1" style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;align-self:flex-end;padding-bottom:2px">${_bzFormatTime(m.ts)}</span>` : ''}${replyBtn}${deleteBtn}
               </div>
               ${heartRow}
             </div>
           </div>
         </div>`;
     const div = document.createElement('div');
-    div.innerHTML = html;
-    const newEl = div.firstElementChild;
+    div.innerHTML = (_dateSepHtml || '') + html;
+    // 날짜 구분선이 있으면 먼저 삽입
+    let insertEl = div.firstElementChild;
+    if (_dateSepHtml && div.children.length > 1) {
+      area.appendChild(div.children[0].cloneNode(true));
+      insertEl = div.children[1];
+    }
+    const newEl = insertEl;
     // 이미지 메시지: 로드 완료 후 스크롤 보정 (로드 전 scrollHeight로 스크롤하면 이미지 로드 후 위로 밀림)
     if (wasAtBottom && imgSrc) {
       const img = newEl.querySelector('img');
