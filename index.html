@@ -12539,6 +12539,8 @@ function _bzUpdateLikesOnly(allLikes, allReacts) {
     if (upCount > 0) html += `<span style="font-size:0.75rem;color:#22c55e;cursor:pointer;user-select:none;margin-left:6px" onclick="bzToggleReact('${keyEsc}','up')">👍 ${upCount}</span>`;
     if (downCount > 0) html += `<span style="font-size:0.75rem;color:#94a3b8;cursor:pointer;user-select:none;margin-left:6px" onclick="bzToggleReact('${keyEsc}','down')">👎 ${downCount}</span>`;
     el.innerHTML = html;
+    if (html) { el.style.display = ''; el.style.padding = '0 4px'; }
+    else { el.style.display = 'none'; el.style.padding = ''; }
   });
 }
 
