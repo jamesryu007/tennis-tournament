@@ -13510,7 +13510,7 @@ function _bzRenderMessages(phase) {
   const allLikes = (_bzState && _bzState.likes) || {};
   // 전체화면 뷰어용 사진 맵 (onclick에 base64 직접 삽입 불가 → ts 키로 참조)
   window._bzPhotoMap = {};
-  // 타임스탬프 그루핑 & 날짜 구분선 전처리
+  // 타임스탬프 그루핑 & 날짜 구분선 & 이름 생략 전처리
   const _bzShowTime = msgs.map((m, i) => {
     const next = msgs[i + 1];
     if (!next) return true;
@@ -13521,6 +13521,12 @@ function _bzRenderMessages(phase) {
     const prev = msgs[i - 1];
     const d = new Date(m.ts), pd = new Date(prev.ts);
     return d.getFullYear() !== pd.getFullYear() || d.getMonth() !== pd.getMonth() || d.getDate() !== pd.getDate();
+  });
+  // 같은 가명이 연속이면 이름/아바타 생략 (날짜 구분선이 끼면 다시 표시)
+  const _bzShowName = msgs.map((m, i) => {
+    if (i === 0) return true;
+    if (_bzShowDateSep[i]) return true;
+    return msgs[i - 1].alias !== m.alias;
   });
   area.innerHTML = msgs.map((m, i) => {
     // imageUrl(Storage) 우선, 구형 imageData(base64) fallback
@@ -13578,21 +13584,23 @@ function _bzRenderMessages(phase) {
     window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl };
     const dateSepHtml = _bzShowDateSep[i] ? `<div style="text-align:center;padding:10px 0 4px"><span style="background:#e2e8f0;color:#64748b;font-size:0.7rem;padding:3px 14px;border-radius:20px;font-weight:600">${_bzFormatDateLabel(m.ts)}</span></div>` : '';
     const timeHtml = _bzShowTime[i] ? `<span data-bztime="1" style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;align-self:flex-end;padding-bottom:2px">${_bzFormatTime(m.ts)}</span>` : '';
+    const showName = _bzShowName[i];
+    const msgMargin = showName ? '8px' : '1px';
     return dateSepHtml + (isMine
-      ? `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
-          <div style="padding:0 4px">
-            <span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span>
-          </div>
+      ? `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;margin-top:${msgMargin}">
+          ${showName ? `<div style="padding:0 4px"><span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span></div>` : ''}
           <div style="display:flex;align-items:flex-end;gap:4px;flex-direction:row-reverse;width:100%">
             ${bubble}${timeHtml}${replyBtn}${deleteBtn}
           </div>
           ${heartRow}
         </div>`
-      : `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px">
+      : `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;margin-top:${msgMargin}">
           <div style="display:flex;gap:4px;align-items:flex-start;width:100%">
-            <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${m.alias[0]}</span>
+            ${showName
+              ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${m.alias[0]}</span>`
+              : `<span style="width:22px;flex-shrink:0"></span>`}
             <div style="flex:1;min-width:0">
-              <div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>
+              ${showName ? `<div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>` : ''}
               <div style="display:flex;align-items:flex-end;gap:4px">
                 ${bubble}${timeHtml}${replyBtn}${deleteBtn}
               </div>
@@ -13683,6 +13691,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const _mPrev = _mIdx > 0 ? newMsgs[_mIdx - 1] : (firstNew && firstNew._key === m._key ? [...newMsgs].reverse().find(mm => _bzRenderedMsgKeys.has(mm._key)) : null);
     const _showDateSep = !_mPrev ? !_bzRenderedMsgKeys.size : (() => { const d = new Date(m.ts), pd = new Date(_mPrev.ts); return d.getFullYear() !== pd.getFullYear() || d.getMonth() !== pd.getMonth() || d.getDate() !== pd.getDate(); })();
     const _dateSepHtml = _showDateSep ? `<div style="text-align:center;padding:10px 0 4px"><span style="background:#e2e8f0;color:#64748b;font-size:0.7rem;padding:3px 14px;border-radius:20px;font-weight:600">${_bzFormatDateLabel(m.ts)}</span></div>` : '';
+    const _showName = _showDateSep || !_mPrev || _mPrev.alias !== m.alias;
     const realOfAlias = m.realName || aliasToReal[m.alias] || m.alias;
     const showRealNames = phase === 'revealed' || !!(_bzState && _bzState.showRealNames);
     const senderLabel = showRealNames
@@ -13730,21 +13739,22 @@ function _bzIncrementalUpdateMessages(newMessages) {
         </div>`
       : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-word;white-space:pre-wrap;cursor:pointer;-webkit-tap-highlight-color:transparent">${replyBox}${_bzLinkify(m.text)}</div>`;
     window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl };
+    const _msgMargin = _showName ? '8px' : '1px';
     const html = isMine
-      ? `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
-          <div style="padding:0 4px">
-            <span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span>
-          </div>
+      ? `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;margin-top:${_msgMargin}">
+          ${_showName ? `<div style="padding:0 4px"><span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span></div>` : ''}
           <div style="display:flex;align-items:flex-end;gap:4px;flex-direction:row-reverse;width:100%">
             ${bubble}${_showTime ? `<span data-bztime="1" style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;align-self:flex-end;padding-bottom:2px">${_bzFormatTime(m.ts)}</span>` : ''}${replyBtn}${deleteBtn}
           </div>
           ${heartRow}
         </div>`
-      : `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px">
+      : `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;margin-top:${_msgMargin}">
           <div style="display:flex;gap:4px;align-items:flex-start;width:100%">
-            <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${m.alias[0]}</span>
+            ${_showName
+              ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${m.alias[0]}</span>`
+              : `<span style="width:22px;flex-shrink:0"></span>`}
             <div style="flex:1;min-width:0">
-              <div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>
+              ${_showName ? `<div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>` : ''}
               <div style="display:flex;align-items:flex-end;gap:4px">
                 ${bubble}${_showTime ? `<span data-bztime="1" style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;align-self:flex-end;padding-bottom:2px">${_bzFormatTime(m.ts)}</span>` : ''}${replyBtn}${deleteBtn}
               </div>
