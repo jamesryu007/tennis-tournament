@@ -1541,7 +1541,7 @@ const firebaseConfig = {
         <input type="file" id="bz-photo-input" accept="image/*,video/*" style="display:none" onchange="bzSendPhoto(event)">
         <div style="display:flex;gap:8px;align-items:flex-end">
           <button id="bz-btn-photo" onclick="bzOpenPhotoInput()" style="padding:9px 11px;border-radius:12px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:1rem;cursor:pointer;flex-shrink:0;margin-bottom:1px">📷</button>
-          <textarea id="bz-input" placeholder="메시지 입력..." maxlength="1000" rows="1"
+          <textarea id="bz-input" placeholder="메시지 입력..." maxlength="1000" rows="1" enterkeyhint="enter"
             oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"
             onfocus="_bzOnInputFocus()"
             onblur="_bzOnInputBlur()"
