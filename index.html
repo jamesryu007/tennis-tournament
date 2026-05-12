@@ -13596,29 +13596,34 @@ async function bzMenuShare() {
   const meta = _bzMenuKey && window._bzMsgMeta[_bzMenuKey];
   const key = _bzMenuKey;
   bzCloseMsgMenu();
-  if (!meta) return;
+  if (!meta || !navigator.share) return;
   try {
     // 텍스트
-    if (meta.text) {
-      if (navigator.share) await navigator.share({ text: meta.text });
-      return;
-    }
-    // 이미지/영상 — _bzState 캐시에서 먼저, 없으면 DB 조회
-    const allMsgs = (_bzState && _bzState.messages) || {};
-    let raw = allMsgs[key];
-    if (!raw) {
-      const snap = await db.ref(`${BZ_REF}/messages/${key}`).once('value');
-      raw = snap.val();
-    }
-    if (!raw) return;
+    if (meta.text) { await navigator.share({ text: meta.text }); return; }
+    // 이미지/영상 — _bzState 캐시에서 동기적으로 확보 (user gesture 유지, fetch 없음)
+    const raw = _bzState && _bzState.messages && _bzState.messages[key];
+    const imgSrc = raw && (raw.imageUrl || raw.imageData);
+    const videoUrl = raw && raw.videoUrl;
     // 영상
-    if (raw.videoUrl) {
-      if (navigator.share) await navigator.share({ url: raw.videoUrl });
-      return;
+    if (videoUrl) { await navigator.share({ url: videoUrl }); return; }
+    // 이미지: Storage URL이면 URL 공유 (fetch 없이 — user gesture 보존 + 안정성)
+    if (imgSrc) {
+      if (imgSrc.startsWith('http')) {
+        await navigator.share({ url: imgSrc });
+      } else {
+        // base64 — 파일로 변환 후 공유
+        const arr = imgSrc.split(','), mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]); let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) u8arr[n] = bstr.charCodeAt(n);
+        const file = new File([u8arr], 'banzige-photo.jpg', { type: mime });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file] });
+        } else {
+          await navigator.share({ text: '[이미지]' });
+        }
+      }
     }
-    // 이미지 — _bzDownloadPhoto 재사용 (검증된 iOS 공유 로직)
-    const imgSrc = raw.imageUrl || raw.imageData || (window._bzPhotoMap && window._bzPhotoMap[raw.ts]);
-    if (imgSrc) await _bzDownloadPhoto(imgSrc);
   } catch (e) {
     if (e.name !== 'AbortError') console.warn('공유 실패:', e);
   }
