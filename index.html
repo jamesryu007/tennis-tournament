@@ -13482,8 +13482,8 @@ function _bzRender() {
   document.getElementById('bz-input').disabled = phase === 'revealed';
   document.getElementById('bz-btn-photo').disabled = phase === 'revealed';
 
-  // 채팅 메시지 렌더
-  _bzRenderMessages(phase);
+  // 채팅 메시지 렌더 — forceBottom=true: jinsilTok/showRealNames 등 비메시지 변경 시 항상 맨 아래 유지
+  _bzRenderMessages(phase, true);
 }
 
 function bzToggleJinsil() {
@@ -13693,7 +13693,7 @@ function _bzFormatDateLabel(ts) {
   return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 ${days[d.getDay()]}`;
 }
 
-function _bzRenderMessages(phase) {
+function _bzRenderMessages(phase, forceBottom) {
   const area = document.getElementById('bz-chat-area');
   if (!area) return;
   const msgs = _bzState && _bzState.messages
@@ -13711,9 +13711,9 @@ function _bzRenderMessages(phase) {
     area.innerHTML = `<div id="bz-chat-empty" style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:30px 0">아직 대화가 없습니다.<br>가명을 선택하고 첫 메시지를 남겨보세요!</div>`;
     return;
   }
-  // 렌더 전 스크롤 위치 확인 — 첫 렌더이거나 맨 아래 근처(100px 이내)일 때만 렌더 후 자동 스크롤
-  // _bzPreserveBottom: _bzRender() 시작 시 DOM 변경 전에 미리 저장한 값 (더 정확함)
-  const _bzWasAtBottom = _bzPreserveBottom || _bzFirstRender || (area.scrollHeight - area.scrollTop - area.clientHeight < 100);
+  // 렌더 전 스크롤 위치 확인
+  // forceBottom=true: _bzRender() 호출(jinsilTok/showRealNames 등 비메시지 변경) — 항상 맨 아래 유지
+  const _bzWasAtBottom = forceBottom || _bzPreserveBottom || _bzFirstRender || (area.scrollHeight - area.scrollTop - area.clientHeight < 100);
   _bzPreserveBottom = false;
   _bzFirstRender = false;
   const myName = (state.identity && state.identity.name) || '';
