@@ -790,10 +790,16 @@ exports.notifyBetReminder = onCall(
 exports.sendBanzigePush = onCall(
   { region: 'asia-southeast1' },
   async (request) => {
-    const { alias, text, type, senderRealName, replyToRealName, replyToAlias, replierRealName, mentionedNames } = request.data || {};
+    const { alias, text, type, senderRealName, replyToRealName, replyToAlias, replierRealName, mentionedNames, excludeNames } = request.data || {};
     if (!alias || !text) return { success: false, error: 'missing params' };
 
-    // @멘션 — 언급된 멤버에게만 타겟 푸시
+    // 한글 조사 유틸 (이/가)
+    const _korIga = (name) => {
+      const code = name.charCodeAt(name.length - 1);
+      return (code >= 0xAC00 && code <= 0xD7A3 && (code - 0xAC00) % 28 !== 0) ? '이' : '가';
+    };
+
+    // @멘션 — 언급된 멤버에게만 타겟 푸시 ("유지원이 나를 언급했어요" 형태)
     if (type === 'mention') {
       if (!mentionedNames || !mentionedNames.length) return { success: false, error: 'no mentionedNames' };
       const tokenSnap = await db.ref('jmt/fcmTokens').once('value');
@@ -803,7 +809,9 @@ exports.sendBanzigePush = onCall(
       const targetTokens = allEntries.filter(v => targetNames.has(v.name)).map(v => v.token);
       if (targetTokens.length) {
         const snippet = text.length > 50 ? text.slice(0, 50) + '…' : text;
-        await sendPush(targetTokens, `📢 막무가내 — ${alias}`, snippet, 'matches', '', '', { subScreen: 'banzige' });
+        const senderLabel = senderRealName || alias;
+        const mentionBody = `${senderLabel}${_korIga(senderLabel)} 나를 언급했어요\n${snippet}`;
+        await sendPush(targetTokens, `📢 막무가내 — ${alias}`, mentionBody, 'matches', '', '', { subScreen: 'banzige' });
       }
       return { success: true, sent: targetTokens.length };
     }
@@ -846,7 +854,12 @@ exports.sendBanzigePush = onCall(
       manual:   `🗣️ 막무가내 톡방 — ${alias}`,
     };
     const title = titleMap[type] || `🗣️ 막무가내 톡방 — ${alias}`;
-    const tokens = await getAllTokens();
+    let tokens = await getAllTokens();
+    // 멘션 대상은 전체 푸시에서 제외 (별도 멘션 푸시로 수신)
+    if (excludeNames && excludeNames.length) {
+      const excludeTokens = new Set(await getTokensByNames(excludeNames));
+      tokens = tokens.filter(t => !excludeTokens.has(t));
+    }
     if (tokens.length) {
       await sendPush(tokens, title, text, 'matches', '', '', { subScreen: 'banzige' });
     }
