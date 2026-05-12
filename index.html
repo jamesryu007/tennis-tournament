@@ -12254,6 +12254,7 @@ let _bzCurrentAlias = null;  // null=미초기화, ''=나자신, 'name'=가명
 let _bzListener = null;      // Firebase 리스너
 let _bzState = null;         // 현재 게임 상태
 let _bzFirstRender = false;  // 진입 후 첫 렌더 여부 (초기 스크롤 보장)
+let _bzPreserveBottom = false; // _bzRender() 시작 시 저장한 스크롤 위치 (DOM 변경 전)
 let _bzReplyTo = null;       // 현재 답글 대상 { alias, text }
 let _bzLastRenderKey = null; // 전체 상태 해시
 let _bzLastNonMsgKey = null; // 메시지 제외 상태 해시 — 메시지 증분 업데이트 판별용
@@ -13286,6 +13287,9 @@ function _bzToggleInfoFrame() {
 
 function _bzRender() {
   if (!_bzState) return;
+  // DOM 변경 전 스크롤 위치 미리 저장 (DOM 변경 후 측정하면 clientHeight 등이 달라져 오판)
+  const _bzRenderArea = document.getElementById('bz-chat-area');
+  _bzPreserveBottom = _bzFirstRender || !_bzRenderArea || (_bzRenderArea.scrollHeight - _bzRenderArea.scrollTop - _bzRenderArea.clientHeight < 100);
   // 전체 재렌더 — 증분 키 집합 초기화
   _bzRenderedMsgKeys = new Set();
   // 돌아가기 버튼/하이라이트 초기화 (재렌더 시 DOM 교체되므로)
@@ -13708,7 +13712,9 @@ function _bzRenderMessages(phase) {
     return;
   }
   // 렌더 전 스크롤 위치 확인 — 첫 렌더이거나 맨 아래 근처(100px 이내)일 때만 렌더 후 자동 스크롤
-  const _bzWasAtBottom = _bzFirstRender || (area.scrollHeight - area.scrollTop - area.clientHeight < 100);
+  // _bzPreserveBottom: _bzRender() 시작 시 DOM 변경 전에 미리 저장한 값 (더 정확함)
+  const _bzWasAtBottom = _bzPreserveBottom || _bzFirstRender || (area.scrollHeight - area.scrollTop - area.clientHeight < 100);
+  _bzPreserveBottom = false;
   _bzFirstRender = false;
   const myName = (state.identity && state.identity.name) || '';
   const canReply = phase !== 'revealed';
