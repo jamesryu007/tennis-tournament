@@ -1502,6 +1502,10 @@ const firebaseConfig = {
             <span style="font-size:0.92rem;color:#1e293b;font-weight:600">복사</span>
             <span style="font-size:1.3rem;line-height:1">📋</span>
           </div>
+          <div id="bz-menu-share" onclick="bzMenuShare()" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent">
+            <span style="font-size:0.92rem;color:#1e293b;font-weight:600">공유</span>
+            <span style="font-size:1.1rem">📤</span>
+          </div>
           <div onclick="bzMenuReply()" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent">
             <span style="font-size:0.92rem;color:#1e293b;font-weight:600">답글</span>
             <span style="font-size:1.1rem;color:#64748b">↩</span>
@@ -3811,14 +3815,24 @@ function _pvApplyZoom(scale, tx, ty) {
     }
     const dx = e.changedTouches[0].clientX - _pvSwipeX0;
     const dy = e.changedTouches[0].clientY - _pvSwipeY0;
-    // 아래로 스와이프: 뷰어 닫기 (애니메이션)
+    // 아래로 스와이프: 뷰어 닫기 (슬라이드 페이드 애니메이션)
     if (dy > 80 && Math.abs(dy) > Math.abs(dx) * 1.5) {
       const pvModal = document.getElementById('photo-viewer-modal');
       if (pvModal) {
-        pvModal.style.transition = 'opacity 0.18s ease, transform 0.18s ease';
-        pvModal.style.transform = 'translateY(60px)';
-        pvModal.style.opacity = '0';
-        setTimeout(() => { pvModal.style.transition = ''; pvModal.style.transform = ''; pvModal.style.opacity = ''; closePhotoViewer(); }, 200);
+        const pvContent = document.getElementById('pv-content');
+        if (pvContent) {
+          pvContent.style.transition = 'transform 0.24s cubic-bezier(0.4,0,1,1), opacity 0.24s ease';
+          pvContent.style.transform = 'translateY(120px) scale(0.88)';
+          pvContent.style.opacity = '0';
+        }
+        pvModal.style.transition = 'background 0.24s ease';
+        pvModal.style.background = 'rgba(0,0,0,0)';
+        setTimeout(() => {
+          pvModal.style.transition = '';
+          pvModal.style.background = '';
+          if (pvContent) { pvContent.style.transition = ''; pvContent.style.transform = ''; pvContent.style.opacity = ''; }
+          closePhotoViewer();
+        }, 260);
       } else { closePhotoViewer(); }
       return;
     }
@@ -13008,14 +13022,15 @@ function bzViewPhoto(ts) {
   saveBtn.style.cssText = 'flex-shrink:0;padding:11px 28px;border-radius:12px;border:none;background:#f59e0b;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer';
   saveBtn.onclick = () => _bzDownloadPhoto(dataUrl);
 
-  // 핀치줌 + 스와이프 다운 닫기
+  // 핀치줌 + 패닝 + 스와이프 다운 닫기
   let _st0x = 0, _st0y = 0, _bzPinch = false, _bzScale = 1, _bzTx = 0, _bzTy = 0;
   let _pinchDist0 = 0, _pinchScale0 = 1;
 
   function _bzDist(t) { return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY); }
   function _bzApplyZoom(s, tx, ty) {
     _bzScale = s; _bzTx = tx; _bzTy = ty;
-    img.style.transform = `scale(${s}) translate(${tx}px,${ty}px)`;
+    // translate 먼저, scale 나중 → tx/ty는 화면 픽셀 단위 (흔들림 방지)
+    img.style.transform = `translate(${tx}px,${ty}px) scale(${s})`;
   }
 
   overlay.addEventListener('touchstart', e => {
@@ -13040,14 +13055,20 @@ function bzViewPhoto(ts) {
     if (_bzScale > 1 && !_bzPinch) {
       const dx = e.touches[0].clientX - _st0x;
       const dy = e.touches[0].clientY - _st0y;
-      _bzApplyZoom(_bzScale, _bzTx + dx / _bzScale, _bzTy + dy / _bzScale);
+      _bzApplyZoom(_bzScale, _bzTx + dx, _bzTy + dy);  // scale 나누기 불필요
       _st0x = e.touches[0].clientX;
       _st0y = e.touches[0].clientY;
     }
   }, { passive: true });
 
   overlay.addEventListener('touchend', e => {
-    if (_bzPinch) { _bzPinch = false; if (_bzScale <= 1.05) _bzApplyZoom(1,0,0); return; }
+    if (_bzPinch && e.touches.length < 2) {
+      _bzPinch = false;
+      if (_bzScale <= 1.05) _bzApplyZoom(1, 0, 0);
+      // 핀치 종료 후 남은 손가락 위치로 기준점 갱신 (점프 방지)
+      if (e.touches.length === 1) { _st0x = e.touches[0].clientX; _st0y = e.touches[0].clientY; }
+      return;
+    }
     if (_bzScale > 1) return;
     const dy = e.changedTouches[0].clientY - _st0y;
     if (dy > 80) { _bzClosePhotoViewer(overlay); return; }
@@ -13535,6 +13556,7 @@ function bzShowMsgMenu(key, tapX, tapY) {
   const canDel = meta.isMine || isAdmin();
   document.getElementById('bz-menu-delete').style.display = canDel ? 'flex' : 'none';
   document.getElementById('bz-menu-copy').style.display = meta.text ? 'flex' : 'none';
+  document.getElementById('bz-menu-share').style.display = (navigator.share && navigator.canShare) ? 'flex' : 'none';
   // 미리보기 채우기
   document.getElementById('bz-menu-preview-name').textContent = meta.alias || '';
   document.getElementById('bz-menu-preview-text').textContent = meta.text || (meta.hasUrl ? '[링크]' : '[미디어]');
@@ -13569,6 +13591,52 @@ function bzMenuCopy() {
   bzCloseMsgMenu();
 }
 
+
+async function bzMenuShare() {
+  const meta = _bzMenuKey && window._bzMsgMeta[_bzMenuKey];
+  bzCloseMsgMenu();
+  if (!meta || !navigator.share) return;
+  try {
+    // 텍스트 메시지
+    if (meta.text) {
+      await navigator.share({ text: meta.text });
+      return;
+    }
+    // 이미지/영상
+    const allMsgs = (_bzState && _bzState.messages) || {};
+    const rawMsg = allMsgs[_bzMenuKey];
+    if (rawMsg && rawMsg.videoUrl) {
+      // 영상: URL 공유
+      await navigator.share({ url: rawMsg.videoUrl });
+      return;
+    }
+    const imgSrc = (rawMsg && (rawMsg.imageUrl || rawMsg.imageData)) || (window._bzPhotoMap && Object.values(window._bzPhotoMap)[0]);
+    if (imgSrc) {
+      let file;
+      if (imgSrc.startsWith('http')) {
+        const res = await fetch(imgSrc);
+        const blob = await res.blob();
+        file = new File([blob], 'banzige-photo.jpg', { type: blob.type || 'image/jpeg' });
+      } else {
+        const arr = imgSrc.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) u8arr[n] = bstr.charCodeAt(n);
+        file = new File([u8arr], 'banzige-photo.jpg', { type: mime });
+      }
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] });
+        return;
+      }
+    }
+    // fallback: 메시지 없는 경우
+    await navigator.share({ text: meta.text || '[미디어]' });
+  } catch (e) {
+    if (e.name !== 'AbortError') console.warn('공유 실패:', e);
+  }
+}
 function bzMenuReply() {
   const meta = _bzMenuKey && window._bzMsgMeta[_bzMenuKey];
   if (meta) bzSetReply(meta.alias, meta.text, meta.realName, _bzMenuKey, meta.mediaType);
