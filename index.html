@@ -12690,15 +12690,16 @@ function bzSend() {
   if (!phase || phase === 'waiting') {
     db.ref(`${BZ_REF}/phase`).set('chatting').catch(fbErr);
   }
-  // 푸시 — 답글이면 대상자 타겟, 일반이면 멤버별 2분 쿨다운 전체 푸시
+  // @멘션 파싱 — 전체 푸시 제외 대상 확보
+  const _mentionedNames = _bzParseMentions(text);
+  // 푸시 — 답글이면 대상자 타겟, 일반이면 멤버별 2분 쿨다운 전체 푸시 (멘션 대상 제외)
   if (_bzReplyTo && _bzReplyTo.realName) {
     _bzSendPush(senderAlias, text, 'reply', { replyToRealName: _bzReplyTo.realName, replyToAlias: _bzReplyTo.alias, replierRealName: myName });
   } else {
     const _bzPushSnippet = text.length > 25 ? text.slice(0, 25) + '…' : text;
-    _bzSendPush(senderAlias, _bzPushSnippet, 'start', { senderRealName: myName });
+    _bzSendPush(senderAlias, _bzPushSnippet, 'start', { senderRealName: myName, excludeNames: _mentionedNames.length > 0 ? _mentionedNames : undefined });
   }
-  // @멘션 푸시 — 언급된 멤버에게 개별 타겟 푸시
-  const _mentionedNames = _bzParseMentions(text);
+  // @멘션 푸시 — 언급된 멤버에게만 별도 타겟 푸시 (전체 푸시와 중복 없음)
   if (_mentionedNames.length > 0) {
     const _snippet = text.length > 40 ? text.slice(0, 40) + '…' : text;
     _bzSendPush(senderAlias, _snippet, 'mention', { mentionedNames: _mentionedNames, senderRealName: myName });
