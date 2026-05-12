@@ -13799,7 +13799,7 @@ function _bzRenderMessages(phase) {
     const msgGap = showName ? '2px' : '1px';
     return dateSepHtml + (isMine
       ? `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-end;gap:${msgGap};margin-top:${msgMargin}">
-          ${(showName && m.alias !== myName) ? `<div style="padding:0 4px"><span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span></div>` : ''}
+          ${(showName && !(_bzState && _bzState.jinsilTok)) ? `<div style="padding:0 4px"><span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span></div>` : ''}
           <div style="display:flex;align-items:flex-end;gap:4px;flex-direction:row-reverse;width:100%">
             ${bubble}${timeHtml}${replyBtn}${deleteBtn}
           </div>
@@ -13954,7 +13954,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const _msgGap = _showName ? '2px' : '1px';
     const html = isMine
       ? `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-end;gap:${_msgGap};margin-top:${_msgMargin}">
-          ${(_showName && m.alias !== myName) ? `<div style="padding:0 4px"><span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span></div>` : ''}
+          ${(_showName && !(_bzState && _bzState.jinsilTok)) ? `<div style="padding:0 4px"><span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span></div>` : ''}
           <div style="display:flex;align-items:flex-end;gap:4px;flex-direction:row-reverse;width:100%">
             ${bubble}<span data-bztime="1" style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;align-self:flex-end;padding-bottom:2px">${_bzFormatTime(m.ts)}</span>${replyBtn}${deleteBtn}
           </div>
