@@ -13594,45 +13594,35 @@ function bzMenuCopy() {
 
 async function bzMenuShare() {
   const meta = _bzMenuKey && window._bzMsgMeta[_bzMenuKey];
+  const key = _bzMenuKey;
   bzCloseMsgMenu();
   if (!meta || !navigator.share) return;
   try {
-    // 텍스트 메시지
-    if (meta.text) {
-      await navigator.share({ text: meta.text });
-      return;
+    // 텍스트
+    if (meta.text) { await navigator.share({ text: meta.text }); return; }
+    // 이미지/영상 — DB에서 직접 조회 (캐시 불일치 방지)
+    const snap = await db.ref(`${BZ_REF}/messages/${key}`).once('value');
+    const raw = snap.val();
+    if (!raw) return;
+    // 영상: URL 공유
+    if (raw.videoUrl) { await navigator.share({ url: raw.videoUrl }); return; }
+    // 이미지: Storage URL 또는 _bzPhotoMap(ts 기준)에서 src 확보
+    const imgSrc = raw.imageUrl || raw.imageData || (window._bzPhotoMap && window._bzPhotoMap[raw.ts]);
+    if (!imgSrc) return;
+    if (imgSrc.startsWith('http')) {
+      const res = await fetch(imgSrc);
+      const blob = await res.blob();
+      const file = new File([blob], 'banzige-photo.jpg', { type: blob.type || 'image/jpeg' });
+      if (navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return; }
+      await navigator.share({ url: imgSrc }); // 파일 공유 불가 시 URL fallback
+    } else {
+      const arr = imgSrc.split(','), mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]); let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) u8arr[n] = bstr.charCodeAt(n);
+      const file = new File([u8arr], 'banzige-photo.jpg', { type: mime });
+      if (navigator.canShare({ files: [file] })) await navigator.share({ files: [file] });
     }
-    // 이미지/영상
-    const allMsgs = (_bzState && _bzState.messages) || {};
-    const rawMsg = allMsgs[_bzMenuKey];
-    if (rawMsg && rawMsg.videoUrl) {
-      // 영상: URL 공유
-      await navigator.share({ url: rawMsg.videoUrl });
-      return;
-    }
-    const imgSrc = (rawMsg && (rawMsg.imageUrl || rawMsg.imageData)) || (window._bzPhotoMap && Object.values(window._bzPhotoMap)[0]);
-    if (imgSrc) {
-      let file;
-      if (imgSrc.startsWith('http')) {
-        const res = await fetch(imgSrc);
-        const blob = await res.blob();
-        file = new File([blob], 'banzige-photo.jpg', { type: blob.type || 'image/jpeg' });
-      } else {
-        const arr = imgSrc.split(',');
-        const mime = arr[0].match(/:(.*?);/)[1];
-        const bstr = atob(arr[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while (n--) u8arr[n] = bstr.charCodeAt(n);
-        file = new File([u8arr], 'banzige-photo.jpg', { type: mime });
-      }
-      if (navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file] });
-        return;
-      }
-    }
-    // fallback: 메시지 없는 경우
-    await navigator.share({ text: meta.text || '[미디어]' });
   } catch (e) {
     if (e.name !== 'AbortError') console.warn('공유 실패:', e);
   }
