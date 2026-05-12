@@ -1529,7 +1529,7 @@ const firebaseConfig = {
       </div>
 
       <!-- 입력 영역 -->
-      <div id="bz-input-area" style="flex-shrink:0;background:#ffffff;border-top:1.5px solid #e2e8f0;padding:8px 12px max(env(safe-area-inset-bottom,20px),20px)">
+      <div id="bz-input-area" style="flex-shrink:0;background:#ffffff;border-top:1.5px solid #e2e8f0;padding:8px 12px max(env(safe-area-inset-bottom,20px),20px);position:relative">
         <!-- 답글 미리보기 바 -->
         <div id="bz-reply-bar" style="display:none;background:#fef3c7;border-left:3px solid #f59e0b;border-radius:8px;padding:5px 10px;margin-bottom:5px;align-items:center;justify-content:space-between;gap:8px">
           <div style="flex:1;overflow:hidden">
@@ -1538,11 +1538,13 @@ const firebaseConfig = {
           </div>
           <button onclick="bzCancelReply()" style="border:none;background:none;font-size:1rem;color:#94a3b8;cursor:pointer;flex-shrink:0;padding:0">✕</button>
         </div>
+        <!-- @멘션 드롭다운 -->
+        <div id="bz-mention-dropdown" style="display:none;position:absolute;bottom:100%;left:0;right:0;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 -4px 16px rgba(0,0,0,0.1);max-height:200px;overflow-y:auto;z-index:10"></div>
         <input type="file" id="bz-photo-input" accept="image/*,video/*" style="display:none" onchange="bzSendPhoto(event)">
         <div style="display:flex;gap:8px;align-items:flex-end">
           <button id="bz-btn-photo" onclick="bzOpenPhotoInput()" style="padding:9px 11px;border-radius:12px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:1rem;cursor:pointer;flex-shrink:0;margin-bottom:1px">📷</button>
           <textarea id="bz-input" placeholder="메시지 입력..." maxlength="1000" rows="1" enterkeyhint="enter"
-            oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"
+            oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';_bzHandleMentionInput(this)"
             onfocus="_bzOnInputFocus()"
             onblur="_bzOnInputBlur()"
             style="flex:1;padding:10px 14px;border-radius:12px;border:1.5px solid #e2e8f0;font-size:0.88rem;background:#f8fafc;outline:none;resize:none;overflow-y:auto;max-height:120px;line-height:1.4;font-family:inherit"></textarea>
@@ -3809,6 +3811,8 @@ function _pvApplyZoom(scale, tx, ty) {
     }
     const dx = e.changedTouches[0].clientX - _pvSwipeX0;
     const dy = e.changedTouches[0].clientY - _pvSwipeY0;
+    // 아래로 스와이프: 뷰어 닫기
+    if (dy > 100 && Math.abs(dy) > Math.abs(dx) * 1.5) { closePhotoViewer(); return; }
     if (Math.abs(dx) < 120 || Math.abs(dx) < Math.abs(dy) * 2) return;
     const list = _filteredPhotos();
     if (dx < 0 && _photoViewerIdx < list.length - 1) {
@@ -12652,7 +12656,7 @@ function bzSend() {
     db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
   }
   const msgData = { alias: senderAlias, realName: myName, text, ts: Date.now() };
-  if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '', msgKey: _bzReplyTo.msgKey || '' };
+  if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '', msgKey: _bzReplyTo.msgKey || '', mediaType: _bzReplyTo.mediaType || '' };
   db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
   _bzTrimMessages();
   // phase 변경 (최초 1회)
@@ -12666,6 +12670,13 @@ function bzSend() {
     const _bzPushSnippet = text.length > 25 ? text.slice(0, 25) + '…' : text;
     _bzSendPush(senderAlias, _bzPushSnippet, 'start', { senderRealName: myName });
   }
+  // @멘션 푸시 — 언급된 멤버에게 개별 타겟 푸시
+  const _mentionedNames = _bzParseMentions(text);
+  if (_mentionedNames.length > 0) {
+    const _snippet = text.length > 40 ? text.slice(0, 40) + '…' : text;
+    _bzSendPush(senderAlias, _snippet, 'mention', { mentionedNames: _mentionedNames, senderRealName: myName });
+  }
+  _bzHideMentionDropdown();
   input.value = '';
   input.style.height = 'auto';
   bzCancelReply();
@@ -12674,12 +12685,79 @@ function bzSend() {
   if (_bzArea) requestAnimationFrame(() => { _bzArea.scrollTop = _bzArea.scrollHeight; });
 }
 
-function bzSetReply(alias, text, realName, msgKey) {
-  _bzReplyTo = { alias, text, realName: realName || '', msgKey: msgKey || '' };
+
+// ── @멘션 드롭다운 ────────────────────────────────────────────────
+let _bzMentionAtIdx = -1; // 현재 @ 위치
+
+function _bzHandleMentionInput(input) {
+  const val = input.value;
+  const cursor = input.selectionStart;
+  const before = val.slice(0, cursor);
+  const atIdx = before.lastIndexOf('@');
+  if (atIdx === -1) { _bzHideMentionDropdown(); return; }
+  const query = before.slice(atIdx + 1);
+  // 공백이 있으면 @ 입력 구간 끝
+  if (query.includes(' ')) { _bzHideMentionDropdown(); return; }
+  _bzMentionAtIdx = atIdx;
+  _bzShowMentionDropdown(query);
+}
+
+function _bzShowMentionDropdown(query) {
+  const members = state.members || [];
+  const filtered = query
+    ? members.filter(m => m.name.includes(query))
+    : members;
+  const dd = document.getElementById('bz-mention-dropdown');
+  if (!dd || !filtered.length) { _bzHideMentionDropdown(); return; }
+  dd.innerHTML = filtered.map(m =>
+    `<div ontouchstart="event.preventDefault();bzSelectMention('${m.name.replace(/'/g,"\'")}')"
+          onclick="bzSelectMention('${m.name.replace(/'/g,"\'")}')"
+          style="padding:9px 14px;cursor:pointer;border-bottom:1px solid #f1f5f9;font-size:0.85rem;color:#1e293b;-webkit-tap-highlight-color:transparent">
+       <span style="color:#f59e0b;font-weight:700">@</span>${m.name}
+     </div>`
+  ).join('');
+  dd.style.display = 'block';
+}
+
+function _bzHideMentionDropdown() {
+  const dd = document.getElementById('bz-mention-dropdown');
+  if (dd) { dd.style.display = 'none'; dd.innerHTML = ''; }
+  _bzMentionAtIdx = -1;
+}
+
+function bzSelectMention(name) {
+  const input = document.getElementById('bz-input');
+  if (!input) return;
+  const val = input.value;
+  const cursor = input.selectionStart;
+  const before = val.slice(0, cursor);
+  const after = val.slice(cursor);
+  // @ 부터 커서까지 → "@이름 "으로 교체
+  const atIdx = _bzMentionAtIdx >= 0 ? _bzMentionAtIdx : before.lastIndexOf('@');
+  const newBefore = before.slice(0, atIdx) + '@' + name + ' ';
+  input.value = newBefore + after;
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+  const newCursor = newBefore.length;
+  input.setSelectionRange(newCursor, newCursor);
+  _bzHideMentionDropdown();
+  input.focus();
+}
+
+function _bzParseMentions(text) {
+  const memberNames = new Set((state.members || []).map(m => m.name));
+  return (text.match(/@([^\s@]+)/g) || [])
+    .map(m => m.slice(1))
+    .filter(n => memberNames.has(n));
+}
+
+function bzSetReply(alias, text, realName, msgKey, mediaType) {
+  _bzReplyTo = { alias, text, realName: realName || '', msgKey: msgKey || '', mediaType: mediaType || '' };
   const bar = document.getElementById('bz-reply-bar');
   if (bar) {
-    document.getElementById('bz-reply-label').textContent = `↩ ${alias}에게 답글`;
-    document.getElementById('bz-reply-preview').textContent = text.length > 40 ? text.slice(0, 40) + '…' : text;
+    document.getElementById('bz-reply-label').textContent = `↩ '${alias}'에게 답장`;
+    const _previewText = text || (mediaType === 'image' ? '📷 이미지' : mediaType === 'video' ? '🎬 영상' : '[미디어]');
+    document.getElementById('bz-reply-preview').textContent = _previewText.length > 40 ? _previewText.slice(0, 40) + '…' : _previewText;
     bar.style.display = 'flex';
   }
   document.getElementById('bz-input')?.focus();
@@ -12921,6 +12999,12 @@ function bzViewPhoto(ts) {
   saveBtn.style.cssText = 'flex-shrink:0;padding:11px 28px;border-radius:12px;border:none;background:#f59e0b;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer';
   saveBtn.onclick = () => _bzDownloadPhoto(dataUrl);
 
+  // 아래로 스와이프: 닫기
+  let _bzVpStartY = 0;
+  overlay.addEventListener('touchstart', e => { _bzVpStartY = e.touches[0].clientY; }, { passive: true });
+  overlay.addEventListener('touchend', e => {
+    if (e.changedTouches[0].clientY - _bzVpStartY > 100) overlay.remove();
+  }, { passive: true });
   overlay.appendChild(closeBtn);
   overlay.appendChild(img);
   overlay.appendChild(saveBtn);
@@ -13380,7 +13464,7 @@ function bzBubbleTouchEnd(e, key) {
     setTimeout(() => { if (_bzSwipeEl) { _bzSwipeEl.style.transition = ''; } }, 220);
     if (dx < -55) {
       const meta = window._bzMsgMeta[key];
-      if (meta) bzSetReply(meta.alias, meta.text, meta.realName, key);
+      if (meta) bzSetReply(meta.alias, meta.text, meta.realName, key, meta.mediaType);
     }
   }
   _bzSwipeMoved = false;
@@ -13430,7 +13514,7 @@ function bzMenuCopy() {
 
 function bzMenuReply() {
   const meta = _bzMenuKey && window._bzMsgMeta[_bzMenuKey];
-  if (meta) bzSetReply(meta.alias, meta.text, meta.realName, _bzMenuKey);
+  if (meta) bzSetReply(meta.alias, meta.text, meta.realName, _bzMenuKey, meta.mediaType);
   bzCloseMsgMenu();
 }
 
@@ -13451,9 +13535,12 @@ function bzMenuEmoji(emoji) {
 // ── URL 자동 링크 변환 ────────────────────────────────────────────
 function _bzLinkify(text) {
   const escaped = (text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  return escaped.replace(/https?:\/\/[^\s<>"'&]+/g, url =>
-    `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline;word-break:break-all" onclick="event.stopPropagation()">${url}</a>`
-  );
+  const memberNames = new Set((state.members || []).map(m => m.name));
+  return escaped
+    .replace(/https?:\/\/[^\s<>"'&]+/g, url =>
+      `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline;word-break:break-all" onclick="event.stopPropagation()">${url}</a>`)
+    .replace(/@([^\s@<&]+)/g, (m, name) =>
+      memberNames.has(name) ? `<span style="color:#3b82f6;font-weight:700">@${name}</span>` : m);
 }
 
 // ── 멤버 컬러 맵 (전역 공유) ────────────────────────────────────────
@@ -13565,10 +13652,12 @@ function _bzRenderMessages(phase) {
     const deleteBtn = '';
     // 인용 박스 (replyTo 있을 때) — 탭 시 원본으로 스크롤 (키보드 유지)
     const _replyToKeyEsc = m.replyTo ? (m.replyTo.msgKey || '').replace(/'/g, "\\'") : '';
+    const _replyDisplayName1 = phase==='revealed' ? `${m.replyTo?.alias}(${aliasToReal[m.replyTo?.alias]||m.replyTo?.alias})` : m.replyTo?.alias;
+    const _replyDisplayText1 = m.replyTo?.text || (m.replyTo?.mediaType==='image' ? '📷 이미지' : m.replyTo?.mediaType==='video' ? '🎬 영상' : '[미디어]');
     const replyBox = m.replyTo
-      ? `<div ontouchstart="event.preventDefault();event.stopPropagation()" ontouchend="event.stopPropagation();bzScrollToMsg('${_replyToKeyEsc}','${keyEsc}')" onclick="bzScrollToMsg('${_replyToKeyEsc}','${keyEsc}')" style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden;cursor:${_replyToKeyEsc?'pointer':'default'}">
-          <span style="font-weight:700">${phase==='revealed' ? `${m.replyTo.alias}(${aliasToReal[m.replyTo.alias]||m.replyTo.alias})` : m.replyTo.alias}</span>
-          <span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.replyTo.text}</span>
+      ? `<div ontouchstart="event.preventDefault();event.stopPropagation()" ontouchend="event.stopPropagation();bzScrollToMsg('${_replyToKeyEsc}','${keyEsc}')" onclick="bzScrollToMsg('${_replyToKeyEsc}','${keyEsc}')" style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:6px;padding:3px 8px;margin-bottom:4px;font-size:0.7rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden;cursor:${_replyToKeyEsc?'pointer':'default'}">
+          <span style="font-weight:700;display:block">'${_replyDisplayName1}'에게 답장</span>
+          <span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0.85">${_replyDisplayText1}</span>
         </div>` : '';
     const imgSrc = m.imageUrl || m.imageData || '';
     const bubbleRadius = `${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}`;
@@ -13583,7 +13672,7 @@ function _bzRenderMessages(phase) {
           ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
       : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-word;white-space:pre-wrap;cursor:pointer;-webkit-tap-highlight-color:transparent">${replyBox}${_bzLinkify(m.text)}</div>`;
-    window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl };
+    window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl, mediaType: m.videoUrl ? 'video' : (m.imageUrl || m.imageData) ? 'image' : '' };
     const dateSepHtml = _bzShowDateSep[i] ? `<div style="text-align:center;padding:10px 0 4px"><span style="background:#e2e8f0;color:#64748b;font-size:0.7rem;padding:3px 14px;border-radius:20px;font-weight:600">${_bzFormatDateLabel(m.ts)}</span></div>` : '';
     const timeHtml = _bzShowTime[i] ? `<span data-bztime="1" style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;align-self:flex-end;padding-bottom:2px">${_bzFormatTime(m.ts)}</span>` : '';
     const showName = _bzShowName[i];
@@ -13724,10 +13813,12 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const replyBtn = '';
     const deleteBtn = '';
     const _replyToKeyEsc2 = m.replyTo ? (m.replyTo.msgKey || '').replace(/'/g, "\\'") : '';
+    const _replyDisplayName2 = phase==='revealed' ? `${m.replyTo?.alias}(${aliasToReal[m.replyTo?.alias]||m.replyTo?.alias})` : m.replyTo?.alias;
+    const _replyDisplayText2 = m.replyTo?.text || (m.replyTo?.mediaType==='image' ? '📷 이미지' : m.replyTo?.mediaType==='video' ? '🎬 영상' : '[미디어]');
     const replyBox = m.replyTo
-      ? `<div ontouchstart="event.preventDefault();event.stopPropagation()" ontouchend="event.stopPropagation();bzScrollToMsg('${_replyToKeyEsc2}','${keyEsc}')" onclick="bzScrollToMsg('${_replyToKeyEsc2}','${keyEsc}')" style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:6px;padding:4px 8px;margin-bottom:4px;font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden;cursor:${_replyToKeyEsc2?'pointer':'default'}">
-          <span style="font-weight:700">${phase==='revealed' ? `${m.replyTo.alias}(${aliasToReal[m.replyTo.alias]||m.replyTo.alias})` : m.replyTo.alias}</span>
-          <span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.replyTo.text}</span>
+      ? `<div ontouchstart="event.preventDefault();event.stopPropagation()" ontouchend="event.stopPropagation();bzScrollToMsg('${_replyToKeyEsc2}','${keyEsc}')" onclick="bzScrollToMsg('${_replyToKeyEsc2}','${keyEsc}')" style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:6px;padding:3px 8px;margin-bottom:4px;font-size:0.7rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden;cursor:${_replyToKeyEsc2?'pointer':'default'}">
+          <span style="font-weight:700;display:block">'${_replyDisplayName2}'에게 답장</span>
+          <span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0.85">${_replyDisplayText2}</span>
         </div>` : '';
     const imgSrc = m.imageUrl || m.imageData || '';
     const bubbleRadius = `${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}`;
@@ -13742,7 +13833,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
           ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
       : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.85rem;border:${bubbleBorder};word-break:break-word;white-space:pre-wrap;cursor:pointer;-webkit-tap-highlight-color:transparent">${replyBox}${_bzLinkify(m.text)}</div>`;
-    window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl };
+    window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl, mediaType: m.videoUrl ? 'video' : (m.imageUrl || m.imageData) ? 'image' : '' };
     const _msgMargin = _showName ? '10px' : '0';
     const _msgGap = _showName ? '2px' : '1px';
     const html = isMine

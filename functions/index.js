@@ -790,8 +790,23 @@ exports.notifyBetReminder = onCall(
 exports.sendBanzigePush = onCall(
   { region: 'asia-southeast1' },
   async (request) => {
-    const { alias, text, type, senderRealName, replyToRealName, replyToAlias, replierRealName } = request.data || {};
+    const { alias, text, type, senderRealName, replyToRealName, replyToAlias, replierRealName, mentionedNames } = request.data || {};
     if (!alias || !text) return { success: false, error: 'missing params' };
+
+    // @멘션 — 언급된 멤버에게만 타겟 푸시
+    if (type === 'mention') {
+      if (!mentionedNames || !mentionedNames.length) return { success: false, error: 'no mentionedNames' };
+      const tokenSnap = await db.ref('jmt/fcmTokens').once('value');
+      const allEntries = Object.values(tokenSnap.val() || {}).filter(v => v.token);
+      const targetNames = new Set(mentionedNames);
+      if (senderRealName) targetNames.delete(senderRealName);
+      const targetTokens = allEntries.filter(v => targetNames.has(v.name)).map(v => v.token);
+      if (targetTokens.length) {
+        const snippet = text.length > 50 ? text.slice(0, 50) + '…' : text;
+        await sendPush(targetTokens, `📢 막무가내 — ${alias}`, snippet, 'matches', '', '', { subScreen: 'banzige' });
+      }
+      return { success: true, sent: targetTokens.length };
+    }
 
     // 답글 — 대상자에게만 타겟 푸시
     if (type === 'reply') {
