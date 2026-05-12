@@ -3811,8 +3811,17 @@ function _pvApplyZoom(scale, tx, ty) {
     }
     const dx = e.changedTouches[0].clientX - _pvSwipeX0;
     const dy = e.changedTouches[0].clientY - _pvSwipeY0;
-    // 아래로 스와이프: 뷰어 닫기
-    if (dy > 100 && Math.abs(dy) > Math.abs(dx) * 1.5) { closePhotoViewer(); return; }
+    // 아래로 스와이프: 뷰어 닫기 (애니메이션)
+    if (dy > 80 && Math.abs(dy) > Math.abs(dx) * 1.5) {
+      const pvModal = document.getElementById('photo-viewer-modal');
+      if (pvModal) {
+        pvModal.style.transition = 'opacity 0.18s ease, transform 0.18s ease';
+        pvModal.style.transform = 'translateY(60px)';
+        pvModal.style.opacity = '0';
+        setTimeout(() => { pvModal.style.transition = ''; pvModal.style.transform = ''; pvModal.style.opacity = ''; closePhotoViewer(); }, 200);
+      } else { closePhotoViewer(); }
+      return;
+    }
     if (Math.abs(dx) < 120 || Math.abs(dx) < Math.abs(dy) * 2) return;
     const list = _filteredPhotos();
     if (dx < 0 && _photoViewerIdx < list.length - 1) {
@@ -6243,9 +6252,12 @@ function switchPage(id) {
     changeCheckinPhotoRandom();
   }
   if(id === 'matches') {
-    // 토(6): 오늘의 경기 우선, 그 외: 자.만.추. 우선
-    const _dow = new Date().getDay();
-    switchMatchesTab(_dow === 6 ? 'game' : 'memory');
+    // 토(6) 08:00~14:00: 오늘의 경기, 그 외 시간/요일: 자.만.추.
+    const _now = new Date();
+    const _dow = _now.getDay();
+    const _hour = _now.getHours();
+    const _showGame = _dow === 6 && _hour >= 8 && _hour < 14;
+    switchMatchesTab(_showGame ? 'game' : 'memory');
     if(state.currentHistoryId) {
       const t = visibleMatchTab();
       if(state.tournaments[t]) renderTournament(t);
@@ -12981,34 +12993,80 @@ function bzViewPhoto(ts) {
   if (!dataUrl) return;
   const overlay = document.createElement('div');
   overlay.id = 'bz-photo-viewer';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:48px 8px 16px';
-  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:48px 8px 16px;touch-action:none';
 
   const closeBtn = document.createElement('button');
   closeBtn.textContent = '✕';
   closeBtn.style.cssText = 'position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:#fff;font-size:1.1rem;width:36px;height:36px;border-radius:50%;cursor:pointer;z-index:1';
-  closeBtn.onclick = () => overlay.remove();
+  closeBtn.onclick = () => _bzClosePhotoViewer(overlay);
 
   const img = document.createElement('img');
   img.src = dataUrl;
-  // 세로/가로 모두 뷰포트에 맞게: 버튼 영역(~70px) 제외한 전체 공간 활용
-  img.style.cssText = 'max-width:100vw;max-height:calc(100dvh - 110px);width:auto;height:auto;object-fit:contain;border-radius:8px;flex-shrink:1';
+  img.style.cssText = 'max-width:100vw;max-height:calc(100dvh - 110px);width:auto;height:auto;object-fit:contain;border-radius:8px;flex-shrink:1;transform-origin:center center;will-change:transform';
 
   const saveBtn = document.createElement('button');
   saveBtn.textContent = '저장 / 공유';
   saveBtn.style.cssText = 'flex-shrink:0;padding:11px 28px;border-radius:12px;border:none;background:#f59e0b;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer';
   saveBtn.onclick = () => _bzDownloadPhoto(dataUrl);
 
-  // 아래로 스와이프: 닫기
-  let _bzVpStartY = 0;
-  overlay.addEventListener('touchstart', e => { _bzVpStartY = e.touches[0].clientY; }, { passive: true });
-  overlay.addEventListener('touchend', e => {
-    if (e.changedTouches[0].clientY - _bzVpStartY > 100) overlay.remove();
+  // 핀치줌 + 스와이프 다운 닫기
+  let _st0x = 0, _st0y = 0, _bzPinch = false, _bzScale = 1, _bzTx = 0, _bzTy = 0;
+  let _pinchDist0 = 0, _pinchScale0 = 1;
+
+  function _bzDist(t) { return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY); }
+  function _bzApplyZoom(s, tx, ty) {
+    _bzScale = s; _bzTx = tx; _bzTy = ty;
+    img.style.transform = `scale(${s}) translate(${tx}px,${ty}px)`;
+  }
+
+  overlay.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      _bzPinch = true;
+      _pinchDist0 = _bzDist(e.touches);
+      _pinchScale0 = _bzScale;
+      return;
+    }
+    _bzPinch = false;
+    _st0x = e.touches[0].clientX;
+    _st0y = e.touches[0].clientY;
   }, { passive: true });
+
+  overlay.addEventListener('touchmove', e => {
+    if (e.touches.length === 2) {
+      _bzPinch = true;
+      const newScale = Math.max(1, Math.min(5, _pinchScale0 * _bzDist(e.touches) / _pinchDist0));
+      _bzApplyZoom(newScale, _bzTx, _bzTy);
+      return;
+    }
+    if (_bzScale > 1 && !_bzPinch) {
+      const dx = e.touches[0].clientX - _st0x;
+      const dy = e.touches[0].clientY - _st0y;
+      _bzApplyZoom(_bzScale, _bzTx + dx / _bzScale, _bzTy + dy / _bzScale);
+      _st0x = e.touches[0].clientX;
+      _st0y = e.touches[0].clientY;
+    }
+  }, { passive: true });
+
+  overlay.addEventListener('touchend', e => {
+    if (_bzPinch) { _bzPinch = false; if (_bzScale <= 1.05) _bzApplyZoom(1,0,0); return; }
+    if (_bzScale > 1) return;
+    const dy = e.changedTouches[0].clientY - _st0y;
+    if (dy > 80) { _bzClosePhotoViewer(overlay); return; }
+  }, { passive: true });
+
   overlay.appendChild(closeBtn);
   overlay.appendChild(img);
   overlay.appendChild(saveBtn);
   document.body.appendChild(overlay);
+}
+
+function _bzClosePhotoViewer(overlay) {
+  overlay = overlay || document.getElementById('bz-photo-viewer');
+  if (!overlay) return;
+  overlay.style.transition = 'opacity 0.18s ease, transform 0.18s ease';
+  overlay.style.transform = 'translateY(60px)';
+  overlay.style.opacity = '0';
+  setTimeout(() => overlay.remove(), 200);
 }
 
 async function _bzDownloadPhoto(src) {
@@ -14218,7 +14276,7 @@ function _mpVoteSection(poll, me) {
     });
     if (me) {
       html += `<div style="margin-top:8px;display:flex;gap:6px;align-items:center">
-        <input type="text" id="mp-suggest-content-input" placeholder="내용 제안하기..." style="flex:1;font-size:0.82rem;border:1.5px dashed #86efac;border-radius:8px;padding:6px 10px;background:transparent;color:#065f46;outline:none" onkeydown="if(event.key==='Enter'){mpSubmitMemberContent();event.preventDefault()}">
+        <input type="text" id="mp-suggest-content-input" placeholder="내용 제안하기..." style="flex:1;font-size:0.82rem;border:1.5px dashed #86efac;border-radius:8px;padding:6px 10px;background:transparent;color:#065f46;outline:none" onkeydown="if(event.key==='Enter'){mpSubmitMemberContent();event.preventDefault()}" onfocus="document.querySelector('.bottom-nav').style.display='none'" onblur="document.querySelector('.bottom-nav').style.display=''">
         <button onclick="mpSubmitMemberContent()" style="font-size:0.78rem;font-weight:600;padding:6px 12px;border-radius:8px;border:1.5px dashed #86efac;background:transparent;color:#16a34a;cursor:pointer;white-space:nowrap">+ 제안</button>
       </div>`;
     }
