@@ -15,7 +15,7 @@ const firebaseConfig = {
 };
 
 // ── 캐싱 (sw.js 통합) ──────────────────────────────────────────────
-const CACHE = 'jamite-v454';
+const CACHE = 'jamite-v455';
 const BASE = self.location.pathname.startsWith('/tennis-tournament') ? '/tennis-tournament' : '';
 
 // 아이콘만 캐시 — 팀 사진/영상/HTML은 교체 즉시 반영되도록 제외
@@ -83,8 +83,9 @@ messaging.onBackgroundMessage(payload => {
   const isWinner  = d.isWinner  || '';
   const subScreen = d.subScreen || '';
   // 앱 아이콘 뱃지 업데이트 (자미톡 미읽음 수)
+  // SW 컨텍스트에서 Badging API는 navigator.setAppBadge() 사용 (self.registration.setAppBadge 아님)
   const badgeCount = parseInt(d.badgeCount || '0', 10);
-  if (badgeCount > 0) self.registration.setAppBadge(badgeCount).catch(() => {});
+  if (badgeCount > 0 && 'setAppBadge' in navigator) navigator.setAppBadge(badgeCount).catch(() => {});
   self.registration.showNotification(title, {
     body,
     icon: BASE + '/images/icon-192.png',
