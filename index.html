@@ -2236,7 +2236,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v440';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v441';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12355,14 +12355,18 @@ function _bzAttachUnreadListener() {
     _bzUnreadRef.off('value', _bzUnreadCb);
     _bzUnreadRef = null; _bzUnreadCb = null;
   }
-  const lastRead = parseInt(localStorage.getItem('jmt_bz_last_read') || '0');
-  // limitToFirst(100)으로 최대 100건만 수신 — 메모리/대역폭 상한 설정
-  _bzUnreadRef = db.ref(`${BZ_REF}/messages`).orderByChild('ts').startAt(lastRead + 1).limitToFirst(100);
-  _bzUnreadCb = snap => {
-    _bzUnreadCount = snap.numChildren();
-    _bzUpdateUnreadBadge();
-  };
-  _bzUnreadRef.on('value', _bzUnreadCb);
+  const myName = state.identity && state.identity.name;
+  if (!myName) return; // 로그인 전이면 스킵
+  // Firebase 개인별 lastRead 조회 후 리스너 연결 (기기/세션 무관하게 정확한 카운트)
+  db.ref(`jmt/banzige/lastRead/${myName}`).once('value', snap => {
+    const lastRead = snap.val() || 0;
+    _bzUnreadRef = db.ref(`${BZ_REF}/messages`).orderByChild('ts').startAt(lastRead + 1).limitToFirst(100);
+    _bzUnreadCb = snap2 => {
+      _bzUnreadCount = snap2.numChildren();
+      _bzUpdateUnreadBadge();
+    };
+    _bzUnreadRef.on('value', _bzUnreadCb);
+  });
 }
 
 function _bzInitUnreadListener() {
@@ -12611,8 +12615,9 @@ function bzLeaveRoom() {
       const floatBtn2 = document.getElementById('bz-float-btn');
       if (floatBtn2) floatBtn2.style.display = 'flex';
     }
-    // 읽음 처리 후 미읽음 리스너 재연결
-    localStorage.setItem('jmt_bz_last_read', Date.now().toString());
+    // 읽음 처리 — Firebase 개인별 lastRead 갱신 후 리스너 재연결
+    const _bzLrName = state.identity && state.identity.name;
+    if (_bzLrName) db.ref(`jmt/banzige/lastRead/${_bzLrName}`).set(Date.now()).catch(fbErr);
     _bzAttachUnreadListener();
     switchPage('matches');
     setTimeout(() => switchMatchesTab('memory'), 50);
@@ -12627,8 +12632,9 @@ function bzLeaveRoom() {
     betShowScreen('home');
     // 숨겼던 활성 페이지 복원
     if (_bzFloatActivePage) { _bzFloatActivePage.style.visibility = ''; _bzFloatActivePage = null; }
-    // 읽음 처리 후 미읽음 리스너 재연결
-    localStorage.setItem('jmt_bz_last_read', Date.now().toString());
+    // 읽음 처리 — Firebase 개인별 lastRead 갱신 후 리스너 재연결
+    const _bzLrName = state.identity && state.identity.name;
+    if (_bzLrName) db.ref(`jmt/banzige/lastRead/${_bzLrName}`).set(Date.now()).catch(fbErr);
     _bzAttachUnreadListener();
     // 플로팅 버튼 복원 (로그인 상태일 때만)
     if (state.identity && state.identity.name) {
