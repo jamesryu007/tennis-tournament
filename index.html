@@ -2236,7 +2236,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v441';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v442';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7365,6 +7365,8 @@ function updatePermissionUI() {
     const loggedIn = !!(state.identity && state.identity.name);
     const roomOpen = floatBtn.style.display === 'none' && _bzFromFloat; // 방 열린 중이면 건드리지 않음
     if (!roomOpen) floatBtn.style.display = loggedIn ? 'flex' : 'none';
+    // 멤버 전환 시 해당 멤버 기준으로 미읽음 리스너 재연결
+    if (loggedIn && typeof _bzAttachUnreadListener === 'function') _bzAttachUnreadListener();
   }
 
   // SW 캐시 버전 배지 (admin only — 배포 반영 여부 즉시 확인용)
