@@ -48,6 +48,33 @@ async function sendPush(tokens, title, body, tab = 'checkin', commentId = '', be
   }
 }
 
+// ── 유틸: 자미톡 전용 개별 발송 (사용자별 미읽음 뱃지 포함) ────────
+async function sendBanzigePushWithBadge(entries, title, body, extraData = {}) {
+  if (!entries || entries.length === 0) return;
+  // 사용자별 미읽음 수 계산 — lastRead 이후 메시지 수
+  const [lastReadSnap, msgsSnap] = await Promise.all([
+    db.ref('jmt/banzige/lastRead').once('value'),
+    db.ref('jmt/banzige/messages').orderByChild('ts').limitToLast(200).once('value'),
+  ]);
+  const lastReadMap = lastReadSnap.val() || {};
+  const msgs = [];
+  msgsSnap.forEach(c => { const v = c.val(); if (v && v.ts) msgs.push(v); });
+
+  const messages = entries.map(({ name, token }) => {
+    const lastRead = lastReadMap[name] || 0;
+    const unread = msgs.filter(m => m.ts > lastRead).length;
+    const badgeCount = Math.max(unread, 1); // 최소 1 (방금 수신한 메시지 포함)
+    return {
+      token,
+      data: { title, body, tab: 'matches', ...extraData, badgeCount: String(badgeCount) },
+      webpush: { headers: { Urgency: 'high' } },
+    };
+  });
+  for (let i = 0; i < messages.length; i += 500) {
+    await fcm.sendAll(messages.slice(i, i + 500));
+  }
+}
+
 // ══ 0. 월요일 오전 8:30 — pollState 자동 오픈 ════════════════════
 exports.autoOpenCheckin = onSchedule(
   { schedule: '0 0 * * 1', timeZone: 'Asia/Seoul' },
@@ -799,28 +826,28 @@ exports.sendBanzigePush = onCall(
       return (code >= 0xAC00 && code <= 0xD7A3 && (code - 0xAC00) % 28 !== 0) ? '이' : '가';
     };
 
+    // fcmTokens 전체 로드 (세 케이스 공통 활용)
+    const tokenSnap = await db.ref('jmt/fcmTokens').once('value');
+    const allEntries = Object.values(tokenSnap.val() || {}).filter(v => v.token && v.name);
+
     // @멘션 — 언급된 멤버에게만 타겟 푸시 ("유지원이 나를 언급했어요" 형태)
     if (type === 'mention') {
       if (!mentionedNames || !mentionedNames.length) return { success: false, error: 'no mentionedNames' };
-      const tokenSnap = await db.ref('jmt/fcmTokens').once('value');
-      const allEntries = Object.values(tokenSnap.val() || {}).filter(v => v.token);
       const targetNames = new Set(mentionedNames);
       if (senderRealName) targetNames.delete(senderRealName);
-      const targetTokens = allEntries.filter(v => targetNames.has(v.name)).map(v => v.token);
-      if (targetTokens.length) {
+      const targetEntries = allEntries.filter(v => targetNames.has(v.name));
+      if (targetEntries.length) {
         const snippet = text.length > 50 ? text.slice(0, 50) + '…' : text;
         const senderLabel = senderRealName || alias;
         const mentionBody = `${senderLabel}${_korIga(senderLabel)} 나를 언급했어요\n${snippet}`;
-        await sendPush(targetTokens, `📢 막무가내 — ${alias}`, mentionBody, 'matches', '', '', { subScreen: 'banzige' });
+        await sendBanzigePushWithBadge(targetEntries, `📢 자미톡 — ${alias}`, mentionBody, { subScreen: 'banzige' });
       }
-      return { success: true, sent: targetTokens.length };
+      return { success: true, sent: targetEntries.length };
     }
 
     // 답글 — 대상자에게만 타겟 푸시
     if (type === 'reply') {
       if (!replyToRealName) return { success: false, error: 'missing replyToRealName' };
-      const tokenSnap = await db.ref('jmt/fcmTokens').once('value');
-      const allEntries = Object.values(tokenSnap.val() || {}).filter(v => v.token);
       const targetNames = new Set([replyToRealName]);
       // 가명이 실제 멤버 이름이라면 그 멤버도 포함
       if (replyToAlias && replyToAlias !== replyToRealName && allEntries.some(v => v.name === replyToAlias)) {
@@ -828,11 +855,11 @@ exports.sendBanzigePush = onCall(
       }
       // 답글 보낸 사람 본인은 제외
       if (replierRealName) targetNames.delete(replierRealName);
-      const targetTokens = allEntries.filter(v => targetNames.has(v.name)).map(v => v.token);
-      if (targetTokens.length) {
-        await sendPush(targetTokens, `↩ 막무가내 톡방 — ${alias}`, text, 'matches', '', '', { subScreen: 'banzige' });
+      const targetEntries = allEntries.filter(v => targetNames.has(v.name));
+      if (targetEntries.length) {
+        await sendBanzigePushWithBadge(targetEntries, `↩ 자미톡 — ${alias}`, text, { subScreen: 'banzige' });
       }
-      return { success: true, sent: targetTokens.length };
+      return { success: true, sent: targetEntries.length };
     }
 
     // 채팅 메시지(start 타입) — 멤버별 2분 쿨다운
@@ -848,22 +875,22 @@ exports.sendBanzigePush = onCall(
     }
 
     const titleMap = {
-      start:    `🗣️ 막무가내 톡방 — ${alias}`,
-      guessing: `🎯 막무가내 톡방 — ${alias}`,
-      reveal:   `🔓 막무가내 톡방 — ${alias}`,
-      manual:   `🗣️ 막무가내 톡방 — ${alias}`,
+      start:    `🗣️ 자미톡 — ${alias}`,
+      guessing: `🎯 자미톡 — ${alias}`,
+      reveal:   `🔓 자미톡 — ${alias}`,
+      manual:   `🗣️ 자미톡 — ${alias}`,
     };
-    const title = titleMap[type] || `🗣️ 막무가내 톡방 — ${alias}`;
-    let tokens = await getAllTokens();
+    const title = titleMap[type] || `🗣️ 자미톡 — ${alias}`;
     // 멘션 대상은 전체 푸시에서 제외 (별도 멘션 푸시로 수신)
+    let targetEntries = allEntries;
     if (excludeNames && excludeNames.length) {
-      const excludeTokens = new Set(await getTokensByNames(excludeNames));
-      tokens = tokens.filter(t => !excludeTokens.has(t));
+      const excludeSet = new Set(excludeNames);
+      targetEntries = targetEntries.filter(e => !excludeSet.has(e.name));
     }
-    if (tokens.length) {
-      await sendPush(tokens, title, text, 'matches', '', '', { subScreen: 'banzige' });
+    if (targetEntries.length) {
+      await sendBanzigePushWithBadge(targetEntries, title, text, { subScreen: 'banzige' });
     }
-    return { success: true, sent: tokens.length };
+    return { success: true, sent: targetEntries.length };
   }
 );
 
