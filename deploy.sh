@@ -65,8 +65,12 @@ else  # prod
   SW_APP_ID="1:1023676041344:web:d9a9fcf47f3b280bcbfe65"
 fi
 
-# vapidKey는 dev/prod 공통
-VAPID_KEY="BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg"
+# vapidKey — dev/prod 별도 (같은 키 공유 시 iOS token-subscribe-failed 오류)
+if [ "$ENV" = "dev" ]; then
+  VAPID_KEY="BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc"
+else
+  VAPID_KEY="BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg"
+fi
 
 CURRENT_BRANCH=$(git branch --show-current)
 

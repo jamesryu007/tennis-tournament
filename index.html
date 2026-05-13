@@ -2233,7 +2233,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v453';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v457';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12386,9 +12386,11 @@ function _bzUpdateUnreadBadge() {
   if (!badge) return;
   if (_bzFromFloat || _bzFromMemory || _bzUnreadCount === 0) {
     badge.style.display = 'none';
+    if ('setAppBadge' in navigator) navigator.setAppBadge(0).catch(() => {});
   } else {
     badge.textContent = _bzUnreadCount > 99 ? '99+' : String(_bzUnreadCount);
     badge.style.display = 'flex';
+    if ('setAppBadge' in navigator) navigator.setAppBadge(_bzUnreadCount).catch(() => {});
   }
 }
 
@@ -12417,12 +12419,22 @@ function _bzAttachUnreadListener() {
   });
 }
 
+let _bzWasHidden = false; // 백그라운드 전환 여부 추적 (포그라운드 복귀 시 자동 진입 판단)
+
 function _bzInitUnreadListener() {
   _bzAttachUnreadListener();
   // 포그라운드 복귀 시 즉시 리스너 재연결 — Firebase WebSocket 재연결 대기 없이 배지 즉시 갱신
+  // 뱃지 있는 상태로 복귀하면 자미톡 자동 진입
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && !_bzFromFloat && !_bzFromMemory) {
+    if (document.hidden) {
+      _bzWasHidden = true;
+    } else {
       _bzAttachUnreadListener();
+      // 백그라운드에 있다가 복귀 + 미읽음 있으면 자미톡 자동 진입
+      if (_bzWasHidden && _bzUnreadCount > 0 && !_bzFromFloat && !_bzFromMemory) {
+        setTimeout(() => bzShowRoomFromFloat(), 300);
+      }
+      _bzWasHidden = false;
     }
   });
 }

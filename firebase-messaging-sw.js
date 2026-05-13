@@ -15,7 +15,7 @@ const firebaseConfig = {
 };
 
 // ── 캐싱 (sw.js 통합) ──────────────────────────────────────────────
-const CACHE = 'jamite-v453';
+const CACHE = 'jamite-v457';
 const BASE = self.location.pathname.startsWith('/tennis-tournament') ? '/tennis-tournament' : '';
 
 // 아이콘만 캐시 — 팀 사진/영상/HTML은 교체 즉시 반영되도록 제외
@@ -69,6 +69,24 @@ self.addEventListener('fetch', e => {
 
 // ── Firebase Messaging ────────────────────────────────────────────
 firebase.initializeApp(firebaseConfig);
+
+// ── raw push 이벤트에서 뱃지 직접 설정 ─────────────────────────────
+// Firebase onBackgroundMessage보다 먼저 실행, iOS PWA 호환성 확보
+// FCM 페이로드 구조: { data: { badgeCount: "N", ... } }
+self.addEventListener('push', event => {
+  try {
+    const raw = event.data ? event.data.json() : {};
+    const d = raw.data || {};
+    const badgeCount = parseInt(d.badgeCount || '0', 10);
+    if (badgeCount > 0) {
+      if ('setAppBadge' in self) {
+        event.waitUntil(self.setAppBadge(badgeCount).catch(() => {}));
+      } else if ('setAppBadge' in navigator) {
+        event.waitUntil(navigator.setAppBadge(badgeCount).catch(() => {}));
+      }
+    }
+  } catch (_) {}
+});
 
 const messaging = firebase.messaging();
 
