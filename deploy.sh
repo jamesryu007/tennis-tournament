@@ -113,67 +113,110 @@ CFEOF
 APPLIED=$(grep databaseURL firebase-config.js | tr -d ' "')
 echo "  ✔ $APPLIED"
 
-# ── STEP 2: firebase-messaging-sw.js 인라인 config 교체 ──────────
-echo "▶ [2/3] firebase-messaging-sw.js config 교체..."
+# ── STEP 2: index.html + firebase-messaging-sw.js 인라인 config 교체 ────
+echo "▶ [2/3] index.html + firebase-messaging-sw.js config 교체..."
 
-export ENV_LABEL SW_API_KEY SW_AUTH_DOMAIN SW_DATABASE_URL SW_PROJECT_ID \
+export ENV_LABEL \
+       APP_API_KEY APP_AUTH_DOMAIN APP_DATABASE_URL APP_PROJECT_ID \
+       APP_STORAGE_BUCKET APP_MESSAGING_SENDER_ID APP_APP_ID \
+       SW_API_KEY SW_AUTH_DOMAIN SW_DATABASE_URL SW_PROJECT_ID \
        SW_STORAGE_BUCKET SW_MESSAGING_SENDER_ID SW_APP_ID VAPID_KEY
 
 python3 << 'PYEOF'
 import os, re, sys
 
-env_label = os.environ['ENV_LABEL']
-api_key   = os.environ['SW_API_KEY']
-auth      = os.environ['SW_AUTH_DOMAIN']
-db_url    = os.environ['SW_DATABASE_URL']
-proj_id   = os.environ['SW_PROJECT_ID']
-bucket    = os.environ['SW_STORAGE_BUCKET']
-sender    = os.environ['SW_MESSAGING_SENDER_ID']
-app_id    = os.environ['SW_APP_ID']
-vapid     = os.environ['VAPID_KEY']
+env_label    = os.environ['ENV_LABEL']
+# 앱(index.html) 값
+app_api_key  = os.environ['APP_API_KEY']
+app_auth     = os.environ['APP_AUTH_DOMAIN']
+app_db_url   = os.environ['APP_DATABASE_URL']
+app_proj_id  = os.environ['APP_PROJECT_ID']
+app_bucket   = os.environ['APP_STORAGE_BUCKET']
+app_sender   = os.environ['APP_MESSAGING_SENDER_ID']
+app_app_id   = os.environ['APP_APP_ID']
+# SW 값
+sw_api_key   = os.environ['SW_API_KEY']
+sw_auth      = os.environ['SW_AUTH_DOMAIN']
+sw_db_url    = os.environ['SW_DATABASE_URL']
+sw_proj_id   = os.environ['SW_PROJECT_ID']
+sw_bucket    = os.environ['SW_STORAGE_BUCKET']
+sw_sender    = os.environ['SW_MESSAGING_SENDER_ID']
+sw_app_id    = os.environ['SW_APP_ID']
+vapid        = os.environ['VAPID_KEY']
 
-new_block = (
-    f"// ── Firebase 설정 인라인 ({env_label}환경: {proj_id}) ───────────────────────\n"
+# ── index.html 인라인 config 교체 ──
+app_block = (
+    f"// ── Firebase 설정 인라인 ({env_label}환경: {app_proj_id}) — 외부파일 캐시 오염 방지 ──\n"
+    f"const firebaseConfig = {{\n"
+    f"  apiKey:            '{app_api_key}',\n"
+    f"  authDomain:        '{app_auth}',\n"
+    f"  databaseURL:       '{app_db_url}',\n"
+    f"  projectId:         '{app_proj_id}',\n"
+    f"  storageBucket:     '{app_bucket}',\n"
+    f"  messagingSenderId: '{app_sender}',\n"
+    f"  appId:             '{app_app_id}',\n"
+    f"  vapidKey:          '{vapid}',\n"
+    f"}};"
+)
+
+with open('index.html', 'r') as f:
+    html = f.read()
+
+pattern_html = r'// ── Firebase 설정 인라인.*?— 외부파일 캐시 오염 방지 ──\nconst firebaseConfig = \{.*?^};'
+html_result, html_count = re.subn(pattern_html, app_block, html, flags=re.DOTALL | re.MULTILINE)
+
+if html_count != 1:
+    print(f"❌ 오류: index.html config 블록 매치 수 = {html_count} (정확히 1이어야 함)")
+    sys.exit(1)
+
+with open('index.html', 'w') as f:
+    f.write(html_result)
+
+print(f"  ✔ index.html databaseURL: '{app_db_url}'")
+
+# ── firebase-messaging-sw.js 인라인 config 교체 ──
+sw_block = (
+    f"// ── Firebase 설정 인라인 ({env_label}환경: {sw_proj_id}) ───────────────────────\n"
     f"// importScripts('./firebase-config.js') 제거 — HTTP 캐시 오염 방지\n"
     f"const firebaseConfig = {{\n"
-    f"  apiKey:            '{api_key}',\n"
-    f"  authDomain:        '{auth}',\n"
-    f"  databaseURL:       '{db_url}',\n"
-    f"  projectId:         '{proj_id}',\n"
-    f"  storageBucket:     '{bucket}',\n"
-    f"  messagingSenderId: '{sender}',\n"
-    f"  appId:             '{app_id}',\n"
+    f"  apiKey:            '{sw_api_key}',\n"
+    f"  authDomain:        '{sw_auth}',\n"
+    f"  databaseURL:       '{sw_db_url}',\n"
+    f"  projectId:         '{sw_proj_id}',\n"
+    f"  storageBucket:     '{sw_bucket}',\n"
+    f"  messagingSenderId: '{sw_sender}',\n"
+    f"  appId:             '{sw_app_id}',\n"
     f"  vapidKey:          '{vapid}',\n"
     f"}};"
 )
 
 with open('firebase-messaging-sw.js', 'r') as f:
-    content = f.read()
+    sw = f.read()
 
-pattern = r'// ── Firebase 설정 인라인.*?^};'
-result, count = re.subn(pattern, new_block, content, flags=re.DOTALL | re.MULTILINE)
+pattern_sw = r'// ── Firebase 설정 인라인.*?^};'
+sw_result, sw_count = re.subn(pattern_sw, sw_block, sw, flags=re.DOTALL | re.MULTILINE)
 
-if count != 1:
-    print(f"❌ 오류: SW config 블록 매치 수 = {count} (정확히 1이어야 함)")
+if sw_count != 1:
+    print(f"❌ 오류: SW config 블록 매치 수 = {sw_count} (정확히 1이어야 함)")
     sys.exit(1)
 
 with open('firebase-messaging-sw.js', 'w') as f:
-    f.write(result)
+    f.write(sw_result)
 
-print(f"  ✔ databaseURL: '{db_url}'")
+print(f"  ✔ firebase-messaging-sw.js databaseURL: '{sw_db_url}'")
 PYEOF
 
 # ── STEP 3: 최종 검증 ─────────────────────────────────────────────
 echo "▶ [3/3] 최종 검증..."
 
-CONFIG_DB=$(grep databaseURL firebase-config.js | tr -d ' "')
+HTML_DB=$(grep -m1 "databaseURL" index.html | tr -d " '")
 SW_DB=$(grep databaseURL firebase-messaging-sw.js | tr -d " '")
 
-echo "  firebase-config.js       → $CONFIG_DB"
+echo "  index.html               → $HTML_DB"
 echo "  firebase-messaging-sw.js → $SW_DB"
 
-if [[ "$CONFIG_DB" != *"$FIREBASE_PROJECT"* ]]; then
-  echo "❌ 오류: firebase-config.js가 잘못된 프로젝트를 바라봅니다!"
+if [[ "$HTML_DB" != *"$FIREBASE_PROJECT"* ]]; then
+  echo "❌ 오류: index.html이 잘못된 프로젝트를 바라봅니다!"
   exit 1
 fi
 if [[ "$SW_DB" != *"$FIREBASE_PROJECT"* ]]; then
