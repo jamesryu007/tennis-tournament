@@ -1,5 +1,4 @@
 // ── Firebase 설정 (개발환경: jamite-dev) ──────────────────────────
-// 배포 시 이 파일을 firebase-config.js로 복사: cp firebase-config.dev.js firebase-config.js
 
 const firebaseConfig = {
   apiKey:            "AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI",
