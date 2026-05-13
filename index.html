@@ -12369,13 +12369,16 @@ function _bzScrollToFirstUnread() {
   area.insertBefore(div, firstUnreadEl);
   requestAnimationFrame(() => {
     firstUnreadEl.scrollIntoView({ block: 'center' });
-    // 사용자가 스크롤하는 순간 사라짐 + scroll-to-bottom 억제 해제
-    const _bzOnScroll = () => {
-      _bzSuppressScrollDown = false;
-      div.style.opacity = '0';
-      setTimeout(() => { if (div.parentNode) div.remove(); }, 300);
-    };
-    area.addEventListener('scroll', _bzOnScroll, { passive: true, once: true });
+    // scrollIntoView 자체도 scroll 이벤트를 발생시킴 — 즉시 리스너 등록 시 suppress가 바로 해제됨
+    // 200ms 후 등록하여 programmatic scroll 이벤트가 settle된 뒤 사용자 스크롤만 감지
+    setTimeout(() => {
+      const _bzOnScroll = () => {
+        _bzSuppressScrollDown = false;
+        div.style.opacity = '0';
+        setTimeout(() => { if (div.parentNode) div.remove(); }, 300);
+      };
+      area.addEventListener('scroll', _bzOnScroll, { passive: true, once: true });
+    }, 200);
   });
 }
 
