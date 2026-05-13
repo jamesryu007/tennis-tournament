@@ -2236,7 +2236,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v443';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v444';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12284,6 +12284,7 @@ let _bzListener = null;      // Firebase 리스너
 let _bzState = null;         // 현재 게임 상태
 let _bzFirstRender = false;  // 진입 후 첫 렌더 여부 (초기 스크롤 보장)
 let _bzLastReadTs = 0;       // 미읽음 기준 타임스탬프 (여기까지 읽음 안내선용)
+let _bzNeedsUnreadScroll = false; // 톡방 진입 시 미읽음 스크롤 필요 여부
 let _bzPreserveBottom = false; // _bzRender() 시작 시 저장한 스크롤 위치 (DOM 변경 전)
 let _bzReplyTo = null;       // 현재 답글 대상 { alias, text }
 let _bzLastRenderKey = null; // 전체 상태 해시
@@ -12339,6 +12340,36 @@ let _bzUnreadRef = null;           // 미읽음 리스너 쿼리 참조
 let _bzUnreadCb = null;            // 미읽음 리스너 콜백 참조
 let _bzModalOrigParent = null;    // body 이동 전 원래 부모 보관
 
+// 미읽음 구분선 스크롤 — _bzLastReadTs 기준 첫 미읽음 메시지로 이동
+function _bzScrollToFirstUnread() {
+  if (!_bzNeedsUnreadScroll || _bzLastReadTs <= 0) return;
+  const area = document.getElementById('bz-chat-area');
+  if (!area) return;
+  const allMsgEls = [...area.querySelectorAll('[data-bzts]')];
+  if (!allMsgEls.length) return; // DOM 미준비 — 렌더 후 재시도
+  _bzNeedsUnreadScroll = false; // 즉시 해제 — 중복 실행 방지
+  const firstUnreadEl = allMsgEls.find(el => parseInt(el.dataset.bzts) > _bzLastReadTs);
+  if (!firstUnreadEl) {
+    // 모두 읽은 상태 — 맨 아래로 스크롤
+    area.scrollTop = area.scrollHeight;
+    return;
+  }
+  const ex = document.getElementById('bz-unread-divider');
+  if (ex) ex.remove();
+  const div = document.createElement('div');
+  div.id = 'bz-unread-divider';
+  div.style.cssText = 'text-align:center;padding:8px 0;margin:4px 0;opacity:1;transition:opacity 0.4s';
+  div.innerHTML = '<span style="background:#f59e0b;color:#fff;font-size:0.72rem;font-weight:700;padding:4px 14px;border-radius:20px;display:inline-block">여기까지 읽으셨습니다</span>';
+  area.insertBefore(div, firstUnreadEl);
+  requestAnimationFrame(() => {
+    firstUnreadEl.scrollIntoView({ block: 'center' });
+    setTimeout(() => {
+      div.style.opacity = '0';
+      setTimeout(() => div.remove(), 400);
+    }, 1200);
+  });
+}
+
 // 미읽음 배지 업데이트
 function _bzUpdateUnreadBadge() {
   const badge = document.getElementById('bz-float-badge');
@@ -12363,11 +12394,14 @@ function _bzAttachUnreadListener() {
   // Firebase 개인별 lastRead 조회 후 리스너 연결 (기기/세션 무관하게 정확한 카운트)
   db.ref(`jmt/banzige/lastRead/${myName}`).once('value', snap => {
     const lastRead = snap.val() || 0;
-    _bzLastReadTs = lastRead; // 여기까지 읽음 안내선용
+    _bzLastReadTs = lastRead;
+    if (lastRead === 0) _bzNeedsUnreadScroll = false; // 처음 입장 — 미읽음 없음
     _bzUnreadRef = db.ref(`${BZ_REF}/messages`).orderByChild('ts').startAt(lastRead + 1).limitToFirst(100);
     _bzUnreadCb = snap2 => {
       _bzUnreadCount = snap2.numChildren();
       _bzUpdateUnreadBadge();
+      // Firebase read 완료 후 DOM 준비 여부 무관하게 시도 — _bzNeedsUnreadScroll 플래그로 중복 방지
+      if (_bzNeedsUnreadScroll) _bzScrollToFirstUnread();
     };
     _bzUnreadRef.on('value', _bzUnreadCb);
   });
@@ -12396,11 +12430,7 @@ function bzShowRoomFromFloat() {
   const floatBtn = document.getElementById('bz-float-btn');
   if (floatBtn) floatBtn.style.display = 'none';
   bzShowRoom();
-  // 레이아웃 확정 후 채팅 맨 아래로 스크롤
-  requestAnimationFrame(() => {
-    const area = document.getElementById('bz-chat-area');
-    if (area) area.scrollTop = area.scrollHeight;
-  });
+  // 스크롤은 _bzRenderMessages / _bzScrollToFirstUnread 에서 처리 — 여기서 별도 스크롤 금지
 }
 
 function bzShowRoomFromMemory() {
@@ -12442,6 +12472,7 @@ function bzShowRoom() {
   // 플로팅 버튼 숨김 + 배지 즉시 초기화
   const floatBtn = document.getElementById('bz-float-btn');
   if (floatBtn) floatBtn.style.display = 'none';
+  _bzNeedsUnreadScroll = true; // 미읽음 스크롤 필요 — Firebase read 완료 시 실행
   _bzUnreadCount = 0;
   _bzUpdateUnreadBadge();
   const vv = window.visualViewport;
@@ -12577,6 +12608,7 @@ function bzShowRoom() {
 }
 
 function bzLeaveRoom() {
+  _bzNeedsUnreadScroll = false;
   if (_bzListener) { db.ref(BZ_REF).off('value', _bzListener); _bzListener = null; }
   _bzState = null;
   _bzCurrentAlias = null;
@@ -12646,6 +12678,10 @@ function bzLeaveRoom() {
       if (floatBtn) floatBtn.style.display = 'flex';
     }
   } else {
+    // 일반 탭 퇴장 — 읽음 처리 + 리스너 재연결
+    const _bzLrName = state.identity && state.identity.name;
+    if (_bzLrName) db.ref(`jmt/banzige/lastRead/${_bzLrName}`).set(Date.now()).catch(fbErr);
+    _bzAttachUnreadListener();
     betShowHome();
   }
 }
@@ -14231,7 +14267,6 @@ function _bzRenderMessages(phase, forceBottom) {
   }
   // 렌더 전 스크롤 위치 확인
   // forceBottom=true: _bzRender() 호출(jinsilTok/showRealNames 등 비메시지 변경) — 항상 맨 아래 유지
-  const wasFirstRender = _bzFirstRender; // 첫 진입 여부 — 읽음 구분선 판단에 사용
   const _bzWasAtBottom = forceBottom || _bzPreserveBottom || _bzFirstRender || (area.scrollHeight - area.scrollTop - area.clientHeight < 100);
   _bzPreserveBottom = false;
   _bzFirstRender = false;
@@ -14355,25 +14390,10 @@ function _bzRenderMessages(phase, forceBottom) {
   });
   // 렌더된 메시지 키 갱신
   _bzRenderedMsgKeys = new Set(msgs.map(m => m._key));
-  // 첫 진입 시 읽지않은 메시지 구분선 표시 — 첫 렌더 + 미읽음 있을 때만
-  if (wasFirstRender && _bzLastReadTs > 0 && _bzUnreadCount > 0) {
-    const allMsgEls = [...area.querySelectorAll('[data-bzts]')];
-    const firstUnreadEl = allMsgEls.find(el => parseInt(el.dataset.bzts) > _bzLastReadTs);
-    if (firstUnreadEl) {
-      const divider = document.createElement('div');
-      divider.id = 'bz-unread-divider';
-      divider.style.cssText = 'text-align:center;padding:8px 0;margin:4px 0;opacity:1;transition:opacity 0.4s';
-      divider.innerHTML = '<span style="background:#f59e0b;color:#fff;font-size:0.72rem;font-weight:700;padding:4px 14px;border-radius:20px;display:inline-block">여기까지 읽으셨습니다</span>';
-      area.insertBefore(divider, firstUnreadEl);
-      requestAnimationFrame(() => {
-        firstUnreadEl.scrollIntoView({ block: 'center' });
-        setTimeout(() => {
-          divider.style.opacity = '0';
-          setTimeout(() => divider.remove(), 400);
-        }, 1200);
-      });
-      return; // 맨 아래 자동 스크롤 생략 — 읽음 구분선 위치로 이동
-    }
+  // 미읽음 구분선 스크롤 — Firebase read가 렌더보다 먼저 완료된 경우 여기서 처리
+  if (_bzNeedsUnreadScroll && _bzLastReadTs > 0) {
+    _bzScrollToFirstUnread();
+    if (!_bzNeedsUnreadScroll) return; // 스크롤 완료 — 맨 아래 스크롤 생략
   }
   // 맨 아래 근처에 있던 경우만 자동 스크롤 — rAF로 레이아웃 확정 후 실행 (jump 방지)
   if (_bzWasAtBottom) {
