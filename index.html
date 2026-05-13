@@ -2224,7 +2224,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v444';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v445';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12273,6 +12273,7 @@ let _bzState = null;         // 현재 게임 상태
 let _bzFirstRender = false;  // 진입 후 첫 렌더 여부 (초기 스크롤 보장)
 let _bzLastReadTs = 0;       // 미읽음 기준 타임스탬프 (여기까지 읽음 안내선용)
 let _bzNeedsUnreadScroll = false; // 톡방 진입 시 미읽음 스크롤 필요 여부
+let _bzScrollDownTimers = [];     // scroll-to-bottom 타이머 IDs — unread 스크롤 시 취소용
 let _bzPreserveBottom = false; // _bzRender() 시작 시 저장한 스크롤 위치 (DOM 변경 전)
 let _bzReplyTo = null;       // 현재 답글 대상 { alias, text }
 let _bzLastRenderKey = null; // 전체 상태 해시
@@ -12342,19 +12343,24 @@ function _bzScrollToFirstUnread() {
     area.scrollTop = area.scrollHeight;
     return;
   }
+  // 진행 중인 scroll-to-bottom 타이머 취소 — unread 스크롤이 덮이는 것 방지
+  _bzScrollDownTimers.forEach(id => clearTimeout(id));
+  _bzScrollDownTimers = [];
   const ex = document.getElementById('bz-unread-divider');
   if (ex) ex.remove();
   const div = document.createElement('div');
   div.id = 'bz-unread-divider';
-  div.style.cssText = 'text-align:center;padding:8px 0;margin:4px 0;opacity:1;transition:opacity 0.4s';
+  div.style.cssText = 'text-align:center;padding:8px 0;margin:4px 0;opacity:1;transition:opacity 0.3s';
   div.innerHTML = '<span style="background:#f59e0b;color:#fff;font-size:0.72rem;font-weight:700;padding:4px 14px;border-radius:20px;display:inline-block">여기까지 읽으셨습니다</span>';
   area.insertBefore(div, firstUnreadEl);
   requestAnimationFrame(() => {
     firstUnreadEl.scrollIntoView({ block: 'center' });
-    setTimeout(() => {
+    // 사용자가 스크롤하는 순간 사라짐
+    const _bzOnScroll = () => {
       div.style.opacity = '0';
-      setTimeout(() => div.remove(), 400);
-    }, 1200);
+      setTimeout(() => { if (div.parentNode) div.remove(); }, 300);
+    };
+    area.addEventListener('scroll', _bzOnScroll, { passive: true, once: true });
   });
 }
 
@@ -14397,10 +14403,12 @@ function _bzRenderMessages(phase, forceBottom) {
       });
     }
     // rAF + 단계적 재시도 — iOS PWA flex 레이아웃 확정 타이밍 + 느린 이미지 로드 대비
+    _bzScrollDownTimers.forEach(id => clearTimeout(id));
+    _bzScrollDownTimers = [];
     requestAnimationFrame(() => {
       _scrollDown();
-      setTimeout(_scrollDown, 80);
-      setTimeout(_scrollDown, 1000);
+      _bzScrollDownTimers.push(setTimeout(_scrollDown, 80));
+      _bzScrollDownTimers.push(setTimeout(_scrollDown, 1000));
     });
   }
 }
