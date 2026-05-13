@@ -2236,7 +2236,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v435';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v436';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7544,7 +7544,8 @@ changeCheckinPhotoRandom();
       db = firebase.database();
       setupFirebaseListeners(); // 리스너가 초기 데이터 로드 + 렌더링 처리
       changeTeamPhotoRandom(); // db 초기화 후 랜드스케이프 사진 재로드
-      _bzInitUnreadListener(); // 막무가내 톡방 미읽음 배지 리스너
+      // BZ_REF 등 하위 const가 초기화된 후 실행 (TDZ 방지)
+      setTimeout(() => _bzInitUnreadListener(), 0);
     } else {
       // ── localStorage 폴백 모드 (Firebase 미설정) ───────────────
       setConnStatus(false);
@@ -12329,6 +12330,7 @@ function _bzPickRandomAlias() {
 
 let _bzFromMemory = false;         // 자만추에서 진입한 경우 플래그
 let _bzFromFloat = false;          // 플로팅 버튼에서 진입한 경우 플래그
+let _bzFloatActivePage = null;     // float 진입 시 숨긴 활성 페이지 (배경 투과 방지)
 let _bzModalOrigParent = null;    // body 이동 전 원래 부모 보관
 
 // 미읽음 배지 리스너 — 톡방 마지막 메시지가 last_read보다 새로우면 빨간 점 표시
@@ -12353,9 +12355,17 @@ function bzShowRoomFromFloat() {
     _bzModalOrigParent = modal.parentElement;
     document.body.appendChild(modal);
   }
+  // 현재 활성 페이지 숨김 — 키보드 올라올 때 배경 투과 방지
+  _bzFloatActivePage = document.querySelector('.page.active');
+  if (_bzFloatActivePage) _bzFloatActivePage.style.visibility = 'hidden';
   const floatBtn = document.getElementById('bz-float-btn');
   if (floatBtn) floatBtn.style.display = 'none';
   bzShowRoom();
+  // 레이아웃 확정 후 채팅 맨 아래로 스크롤
+  requestAnimationFrame(() => {
+    const area = document.getElementById('bz-chat-area');
+    if (area) area.scrollTop = area.scrollHeight;
+  });
 }
 
 function bzShowRoomFromMemory() {
@@ -12559,6 +12569,11 @@ function bzLeaveRoom() {
     // 배경 복원 후 자만추로 복귀
     const pageMatches = document.getElementById('page-matches');
     if (pageMatches) pageMatches.style.visibility = '';
+    // 플로팅 버튼 복원 (로그인 상태일 때만)
+    if (state.identity && state.identity.name) {
+      const floatBtn2 = document.getElementById('bz-float-btn');
+      if (floatBtn2) floatBtn2.style.display = 'flex';
+    }
     switchPage('matches');
     setTimeout(() => switchMatchesTab('memory'), 50);
   } else if (_bzFromFloat) {
@@ -12570,6 +12585,8 @@ function bzLeaveRoom() {
       _bzModalOrigParent = null;
     }
     betShowScreen('home');
+    // 숨겼던 활성 페이지 복원
+    if (_bzFloatActivePage) { _bzFloatActivePage.style.visibility = ''; _bzFloatActivePage = null; }
     // 플로팅 버튼 복원 (로그인 상태일 때만)
     if (state.identity && state.identity.name) {
       const floatBtn = document.getElementById('bz-float-btn');
