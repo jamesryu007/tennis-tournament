@@ -38,7 +38,7 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
 .nav-item.active::after { content: ''; position: absolute; top: 0; left: 12%; right: 12%; height: 3px; background: linear-gradient(90deg,#2563eb,#7c3aed); border-radius: 0 0 4px 4px; box-shadow: 0 1px 6px rgba(37,99,235,0.45); }
 #bz-float-btn { position:fixed; right:16px; bottom:calc(76px + env(safe-area-inset-bottom,0px) + 12px); width:54px; height:54px; border-radius:50%; background:linear-gradient(135deg,#f59e0b,#d97706); border:none; color:#fff; font-size:1.5rem; cursor:pointer; box-shadow:0 4px 18px rgba(245,158,11,0.5); z-index:200; display:none; align-items:center; justify-content:center; transition:transform 0.15s,box-shadow 0.15s; -webkit-tap-highlight-color:transparent; user-select:none; }
 #bz-float-btn:active { transform:scale(0.88); box-shadow:0 2px 10px rgba(245,158,11,0.4); }
-#bz-float-badge { position:absolute; top:2px; right:2px; width:13px; height:13px; background:#dc2626; border-radius:50%; border:2px solid #fff; display:none; }
+#bz-float-badge { position:absolute; top:-5px; right:-5px; min-width:19px; height:19px; background:#dc2626; border-radius:10px; border:2.5px solid #fff; display:none; align-items:center; justify-content:center; font-size:0.6rem; font-weight:900; color:#fff; padding:0 4px; line-height:1; box-shadow:0 2px 6px rgba(220,38,38,0.5); }
 
 /* ── PAGES ── */
 .page { display: none; padding: 12px 12px 20px; max-width: 520px; margin: 0 auto; }
@@ -2236,7 +2236,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v437';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v438';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12331,21 +12331,41 @@ function _bzPickRandomAlias() {
 let _bzFromMemory = false;         // 자만추에서 진입한 경우 플래그
 let _bzFromFloat = false;          // 플로팅 버튼에서 진입한 경우 플래그
 let _bzFloatActivePage = null;     // float 진입 시 숨긴 활성 페이지 (배경 투과 방지)
+let _bzUnreadCount = 0;            // 미읽음 메시지 수
+let _bzUnreadRef = null;           // 미읽음 리스너 쿼리 참조
+let _bzUnreadCb = null;            // 미읽음 리스너 콜백 참조
 let _bzModalOrigParent = null;    // body 이동 전 원래 부모 보관
 
-// 미읽음 배지 리스너 — 톡방 마지막 메시지가 last_read보다 새로우면 빨간 점 표시
+// 미읽음 배지 업데이트
+function _bzUpdateUnreadBadge() {
+  const badge = document.getElementById('bz-float-badge');
+  if (!badge) return;
+  if (_bzFromFloat || _bzFromMemory || _bzUnreadCount === 0) {
+    badge.style.display = 'none';
+  } else {
+    badge.textContent = _bzUnreadCount > 99 ? '99+' : String(_bzUnreadCount);
+    badge.style.display = 'flex';
+  }
+}
+
+// 미읽음 리스너 연결 — 앱 시작 시 및 톡방 퇴장 시 호출
+function _bzAttachUnreadListener() {
+  // 기존 리스너 해제
+  if (_bzUnreadRef && _bzUnreadCb) {
+    _bzUnreadRef.off('value', _bzUnreadCb);
+    _bzUnreadRef = null; _bzUnreadCb = null;
+  }
+  const lastRead = parseInt(localStorage.getItem('jmt_bz_last_read') || '0');
+  _bzUnreadRef = db.ref(`${BZ_REF}/messages`).orderByChild('ts').startAt(lastRead + 1);
+  _bzUnreadCb = snap => {
+    _bzUnreadCount = snap.numChildren();
+    _bzUpdateUnreadBadge();
+  };
+  _bzUnreadRef.on('value', _bzUnreadCb);
+}
+
 function _bzInitUnreadListener() {
-  db.ref(`${BZ_REF}/messages`).limitToLast(1).on('value', snap => {
-    const badge = document.getElementById('bz-float-badge');
-    if (!badge) return;
-    if (!snap.exists()) { badge.style.display = 'none'; return; }
-    const lastRead = parseInt(localStorage.getItem('jmt_bz_last_read') || '0');
-    let isUnread = false;
-    snap.forEach(child => { if ((child.val().ts || 0) > lastRead) isUnread = true; });
-    // 톡방이 열려 있을 때는 배지 숨김
-    const roomOpen = _bzFromFloat || _bzFromMemory;
-    badge.style.display = (!roomOpen && isUnread) ? 'block' : 'none';
-  });
+  _bzAttachUnreadListener();
 }
 
 function bzShowRoomFromFloat() {
@@ -12404,12 +12424,11 @@ function bzShowRoom() {
   const modal = document.getElementById('bet-screen-banzige');
   const nav = document.querySelector('.bottom-nav');
   if (nav) nav.style.display = 'none';
-  // 플로팅 버튼 숨김 + 읽음 처리
+  // 플로팅 버튼 숨김 + 배지 즉시 초기화
   const floatBtn = document.getElementById('bz-float-btn');
   if (floatBtn) floatBtn.style.display = 'none';
-  const floatBadge = document.getElementById('bz-float-badge');
-  if (floatBadge) floatBadge.style.display = 'none';
-  localStorage.setItem('jmt_bz_last_read', Date.now().toString());
+  _bzUnreadCount = 0;
+  _bzUpdateUnreadBadge();
   const vv = window.visualViewport;
   const initH = vv ? vv.height : window.innerHeight;
   modal.style.cssText = `position:fixed;top:0;left:0;right:0;height:${initH}px;z-index:500;display:flex;flex-direction:column;background:#f0f4fb;overflow:hidden`;
@@ -12585,6 +12604,9 @@ function bzLeaveRoom() {
       const floatBtn2 = document.getElementById('bz-float-btn');
       if (floatBtn2) floatBtn2.style.display = 'flex';
     }
+    // 읽음 처리 후 미읽음 리스너 재연결
+    localStorage.setItem('jmt_bz_last_read', Date.now().toString());
+    _bzAttachUnreadListener();
     switchPage('matches');
     setTimeout(() => switchMatchesTab('memory'), 50);
   } else if (_bzFromFloat) {
@@ -12598,6 +12620,9 @@ function bzLeaveRoom() {
     betShowScreen('home');
     // 숨겼던 활성 페이지 복원
     if (_bzFloatActivePage) { _bzFloatActivePage.style.visibility = ''; _bzFloatActivePage = null; }
+    // 읽음 처리 후 미읽음 리스너 재연결
+    localStorage.setItem('jmt_bz_last_read', Date.now().toString());
+    _bzAttachUnreadListener();
     // 플로팅 버튼 복원 (로그인 상태일 때만)
     if (state.identity && state.identity.name) {
       const floatBtn = document.getElementById('bz-float-btn');
