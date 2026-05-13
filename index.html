@@ -2236,7 +2236,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v442';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v443';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12283,6 +12283,7 @@ let _bzCurrentAlias = null;  // null=미초기화, ''=나자신, 'name'=가명
 let _bzListener = null;      // Firebase 리스너
 let _bzState = null;         // 현재 게임 상태
 let _bzFirstRender = false;  // 진입 후 첫 렌더 여부 (초기 스크롤 보장)
+let _bzLastReadTs = 0;       // 미읽음 기준 타임스탬프 (여기까지 읽음 안내선용)
 let _bzPreserveBottom = false; // _bzRender() 시작 시 저장한 스크롤 위치 (DOM 변경 전)
 let _bzReplyTo = null;       // 현재 답글 대상 { alias, text }
 let _bzLastRenderKey = null; // 전체 상태 해시
@@ -12362,6 +12363,7 @@ function _bzAttachUnreadListener() {
   // Firebase 개인별 lastRead 조회 후 리스너 연결 (기기/세션 무관하게 정확한 카운트)
   db.ref(`jmt/banzige/lastRead/${myName}`).once('value', snap => {
     const lastRead = snap.val() || 0;
+    _bzLastReadTs = lastRead; // 여기까지 읽음 안내선용
     _bzUnreadRef = db.ref(`${BZ_REF}/messages`).orderByChild('ts').startAt(lastRead + 1).limitToFirst(100);
     _bzUnreadCb = snap2 => {
       _bzUnreadCount = snap2.numChildren();
@@ -14229,6 +14231,7 @@ function _bzRenderMessages(phase, forceBottom) {
   }
   // 렌더 전 스크롤 위치 확인
   // forceBottom=true: _bzRender() 호출(jinsilTok/showRealNames 등 비메시지 변경) — 항상 맨 아래 유지
+  const wasFirstRender = _bzFirstRender; // 첫 진입 여부 — 읽음 구분선 판단에 사용
   const _bzWasAtBottom = forceBottom || _bzPreserveBottom || _bzFirstRender || (area.scrollHeight - area.scrollTop - area.clientHeight < 100);
   _bzPreserveBottom = false;
   _bzFirstRender = false;
@@ -14319,14 +14322,14 @@ function _bzRenderMessages(phase, forceBottom) {
     const msgMargin = showName ? '10px' : '0';
     const msgGap = showName ? '2px' : '1px';
     return dateSepHtml + (isMine
-      ? `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-end;gap:${msgGap};margin-top:${msgMargin}">
+      ? `<div data-bzkey="${m._key}" data-bzts="${m.ts}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-end;gap:${msgGap};margin-top:${msgMargin}">
           ${(showName && !(_bzState && _bzState.jinsilTok)) ? `<div style="padding:0 4px"><span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span></div>` : ''}
           <div style="display:flex;align-items:flex-end;gap:4px;flex-direction:row-reverse;width:100%">
             ${bubble}${timeHtml}${replyBtn}${deleteBtn}
           </div>
           ${heartRow}
         </div>`
-      : `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:${msgGap};margin-top:${msgMargin}">
+      : `<div data-bzkey="${m._key}" data-bzts="${m.ts}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:${msgGap};margin-top:${msgMargin}">
           <div style="display:flex;gap:4px;align-items:flex-start;width:100%">
             ${showName
               ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${m.alias[0]}</span>`
@@ -14352,6 +14355,26 @@ function _bzRenderMessages(phase, forceBottom) {
   });
   // 렌더된 메시지 키 갱신
   _bzRenderedMsgKeys = new Set(msgs.map(m => m._key));
+  // 첫 진입 시 읽지않은 메시지 구분선 표시 — 첫 렌더 + 미읽음 있을 때만
+  if (wasFirstRender && _bzLastReadTs > 0 && _bzUnreadCount > 0) {
+    const allMsgEls = [...area.querySelectorAll('[data-bzts]')];
+    const firstUnreadEl = allMsgEls.find(el => parseInt(el.dataset.bzts) > _bzLastReadTs);
+    if (firstUnreadEl) {
+      const divider = document.createElement('div');
+      divider.id = 'bz-unread-divider';
+      divider.style.cssText = 'text-align:center;padding:8px 0;margin:4px 0;opacity:1;transition:opacity 0.4s';
+      divider.innerHTML = '<span style="background:#f59e0b;color:#fff;font-size:0.72rem;font-weight:700;padding:4px 14px;border-radius:20px;display:inline-block">여기까지 읽으셨습니다</span>';
+      area.insertBefore(divider, firstUnreadEl);
+      requestAnimationFrame(() => {
+        firstUnreadEl.scrollIntoView({ block: 'center' });
+        setTimeout(() => {
+          divider.style.opacity = '0';
+          setTimeout(() => divider.remove(), 400);
+        }, 1200);
+      });
+      return; // 맨 아래 자동 스크롤 생략 — 읽음 구분선 위치로 이동
+    }
+  }
   // 맨 아래 근처에 있던 경우만 자동 스크롤 — rAF로 레이아웃 확정 후 실행 (jump 방지)
   if (_bzWasAtBottom) {
     const _scrollDown = () => { area.scrollTop = 999999; }; // 브라우저가 최댓값으로 클램핑 — scrollHeight 타이밍 오류 방지
