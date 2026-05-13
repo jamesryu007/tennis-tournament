@@ -71,7 +71,7 @@ async function sendBanzigePushWithBadge(entries, title, body, extraData = {}) {
     };
   });
   for (let i = 0; i < messages.length; i += 500) {
-    await fcm.sendAll(messages.slice(i, i + 500));
+    await fcm.sendEach(messages.slice(i, i + 500));
   }
 }
 
