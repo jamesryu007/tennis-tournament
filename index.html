@@ -36,6 +36,9 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
 .nav-item.active .ni { transform: translateY(-2px) scale(1.12); filter: drop-shadow(0 3px 5px rgba(37,99,235,0.4)); }
 .nav-item.active::before { content: ''; position: absolute; top: 5px; left: 50%; transform: translateX(-50%); width: 48px; height: 34px; background: rgba(37,99,235,0.09); border-radius: 12px; }
 .nav-item.active::after { content: ''; position: absolute; top: 0; left: 12%; right: 12%; height: 3px; background: linear-gradient(90deg,#2563eb,#7c3aed); border-radius: 0 0 4px 4px; box-shadow: 0 1px 6px rgba(37,99,235,0.45); }
+#bz-float-btn { position:fixed; right:16px; bottom:calc(76px + env(safe-area-inset-bottom,0px) + 12px); width:54px; height:54px; border-radius:50%; background:linear-gradient(135deg,#f59e0b,#d97706); border:none; color:#fff; font-size:1.5rem; cursor:pointer; box-shadow:0 4px 18px rgba(245,158,11,0.5); z-index:200; display:none; align-items:center; justify-content:center; transition:transform 0.15s,box-shadow 0.15s; -webkit-tap-highlight-color:transparent; user-select:none; }
+#bz-float-btn:active { transform:scale(0.88); box-shadow:0 2px 10px rgba(245,158,11,0.4); }
+#bz-float-badge { position:absolute; top:-5px; right:-5px; min-width:19px; height:19px; background:#dc2626; border-radius:10px; border:2.5px solid #fff; display:none; align-items:center; justify-content:center; font-size:0.6rem; font-weight:900; color:#fff; padding:0 4px; line-height:1; box-shadow:0 2px 6px rgba(220,38,38,0.5); }
 
 /* ── PAGES ── */
 .page { display: none; padding: 12px 12px 20px; max-width: 520px; margin: 0 auto; }
@@ -2201,6 +2204,11 @@ const firebaseConfig = {
   </div>
 </nav>
 
+<!-- ══ 막무가내 톡방 플로팅 버튼 ══ -->
+<button id="bz-float-btn" onclick="bzShowRoomFromFloat()" aria-label="막무가내 톡방">
+  💬<span id="bz-float-badge"></span>
+</button>
+
 <script>
 // ══ STATE ══
 const state = {
@@ -2228,7 +2236,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v434';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v443';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7351,6 +7359,16 @@ function updatePermissionUI() {
   const btnAdminMembers = document.getElementById('admin-members-btn');
   if (btnAdminMembers) btnAdminMembers.style.display = admin ? '' : 'none';
 
+  // 막무가내 톡방 플로팅 버튼 — 로그인 시 표시 (톡방이 열린 상태면 숨김 유지)
+  const floatBtn = document.getElementById('bz-float-btn');
+  if (floatBtn) {
+    const loggedIn = !!(state.identity && state.identity.name);
+    const roomOpen = floatBtn.style.display === 'none' && _bzFromFloat; // 방 열린 중이면 건드리지 않음
+    if (!roomOpen) floatBtn.style.display = loggedIn ? 'flex' : 'none';
+    // 멤버 전환 시 해당 멤버 기준으로 미읽음 리스너 재연결
+    if (loggedIn && typeof _bzAttachUnreadListener === 'function') _bzAttachUnreadListener();
+  }
+
   // SW 캐시 버전 배지 (admin only — 배포 반영 여부 즉시 확인용)
   const swBadge = document.getElementById('sw-version-badge');
   if (swBadge) {
@@ -7528,6 +7546,8 @@ changeCheckinPhotoRandom();
       db = firebase.database();
       setupFirebaseListeners(); // 리스너가 초기 데이터 로드 + 렌더링 처리
       changeTeamPhotoRandom(); // db 초기화 후 랜드스케이프 사진 재로드
+      // BZ_REF 등 하위 const가 초기화된 후 실행 (TDZ 방지)
+      setTimeout(() => _bzInitUnreadListener(), 0);
     } else {
       // ── localStorage 폴백 모드 (Firebase 미설정) ───────────────
       setConnStatus(false);
@@ -12263,6 +12283,7 @@ let _bzCurrentAlias = null;  // null=미초기화, ''=나자신, 'name'=가명
 let _bzListener = null;      // Firebase 리스너
 let _bzState = null;         // 현재 게임 상태
 let _bzFirstRender = false;  // 진입 후 첫 렌더 여부 (초기 스크롤 보장)
+let _bzLastReadTs = 0;       // 미읽음 기준 타임스탬프 (여기까지 읽음 안내선용)
 let _bzPreserveBottom = false; // _bzRender() 시작 시 저장한 스크롤 위치 (DOM 변경 전)
 let _bzReplyTo = null;       // 현재 답글 대상 { alias, text }
 let _bzLastRenderKey = null; // 전체 상태 해시
@@ -12311,7 +12332,76 @@ function _bzPickRandomAlias() {
 }
 
 let _bzFromMemory = false;         // 자만추에서 진입한 경우 플래그
+let _bzFromFloat = false;          // 플로팅 버튼에서 진입한 경우 플래그
+let _bzFloatActivePage = null;     // float 진입 시 숨긴 활성 페이지 (배경 투과 방지)
+let _bzUnreadCount = 0;            // 미읽음 메시지 수
+let _bzUnreadRef = null;           // 미읽음 리스너 쿼리 참조
+let _bzUnreadCb = null;            // 미읽음 리스너 콜백 참조
 let _bzModalOrigParent = null;    // body 이동 전 원래 부모 보관
+
+// 미읽음 배지 업데이트
+function _bzUpdateUnreadBadge() {
+  const badge = document.getElementById('bz-float-badge');
+  if (!badge) return;
+  if (_bzFromFloat || _bzFromMemory || _bzUnreadCount === 0) {
+    badge.style.display = 'none';
+  } else {
+    badge.textContent = _bzUnreadCount > 99 ? '99+' : String(_bzUnreadCount);
+    badge.style.display = 'flex';
+  }
+}
+
+// 미읽음 리스너 연결 — 앱 시작 시 및 톡방 퇴장 시 호출
+function _bzAttachUnreadListener() {
+  // 기존 리스너 해제
+  if (_bzUnreadRef && _bzUnreadCb) {
+    _bzUnreadRef.off('value', _bzUnreadCb);
+    _bzUnreadRef = null; _bzUnreadCb = null;
+  }
+  const myName = state.identity && state.identity.name;
+  if (!myName) return; // 로그인 전이면 스킵
+  // Firebase 개인별 lastRead 조회 후 리스너 연결 (기기/세션 무관하게 정확한 카운트)
+  db.ref(`jmt/banzige/lastRead/${myName}`).once('value', snap => {
+    const lastRead = snap.val() || 0;
+    _bzLastReadTs = lastRead; // 여기까지 읽음 안내선용
+    _bzUnreadRef = db.ref(`${BZ_REF}/messages`).orderByChild('ts').startAt(lastRead + 1).limitToFirst(100);
+    _bzUnreadCb = snap2 => {
+      _bzUnreadCount = snap2.numChildren();
+      _bzUpdateUnreadBadge();
+    };
+    _bzUnreadRef.on('value', _bzUnreadCb);
+  });
+}
+
+function _bzInitUnreadListener() {
+  _bzAttachUnreadListener();
+  // 포그라운드 복귀 시 즉시 리스너 재연결 — Firebase WebSocket 재연결 대기 없이 배지 즉시 갱신
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !_bzFromFloat && !_bzFromMemory) {
+      _bzAttachUnreadListener();
+    }
+  });
+}
+
+function bzShowRoomFromFloat() {
+  _bzFromFloat = true;
+  const modal = document.getElementById('bet-screen-banzige');
+  if (modal && modal.parentElement !== document.body) {
+    _bzModalOrigParent = modal.parentElement;
+    document.body.appendChild(modal);
+  }
+  // 현재 활성 페이지 숨김 — 키보드 올라올 때 배경 투과 방지
+  _bzFloatActivePage = document.querySelector('.page.active');
+  if (_bzFloatActivePage) _bzFloatActivePage.style.visibility = 'hidden';
+  const floatBtn = document.getElementById('bz-float-btn');
+  if (floatBtn) floatBtn.style.display = 'none';
+  bzShowRoom();
+  // 레이아웃 확정 후 채팅 맨 아래로 스크롤
+  requestAnimationFrame(() => {
+    const area = document.getElementById('bz-chat-area');
+    if (area) area.scrollTop = area.scrollHeight;
+  });
+}
 
 function bzShowRoomFromMemory() {
   _bzFromMemory = true;
@@ -12349,6 +12439,11 @@ function bzShowRoom() {
   const modal = document.getElementById('bet-screen-banzige');
   const nav = document.querySelector('.bottom-nav');
   if (nav) nav.style.display = 'none';
+  // 플로팅 버튼 숨김 + 배지 즉시 초기화
+  const floatBtn = document.getElementById('bz-float-btn');
+  if (floatBtn) floatBtn.style.display = 'none';
+  _bzUnreadCount = 0;
+  _bzUpdateUnreadBadge();
   const vv = window.visualViewport;
   const initH = vv ? vv.height : window.innerHeight;
   modal.style.cssText = `position:fixed;top:0;left:0;right:0;height:${initH}px;z-index:500;display:flex;flex-direction:column;background:#f0f4fb;overflow:hidden`;
@@ -12438,13 +12533,24 @@ function bzShowRoom() {
   if (_bzChatArea && !_bzChatArea._bzEdgeToastAdded) {
     _bzChatArea._bzEdgeToastAdded = true;
     let _bzEdgeTimer = null;
-    const _bzShowEdgeToast = (msg) => {
+    const _bzShowEdgeToast = (msg, pos) => {
       let toast = document.getElementById('bz-edge-toast');
       if (!toast) {
         toast = document.createElement('div');
         toast.id = 'bz-edge-toast';
-        toast.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:50%;background:rgba(0,0,0,0.55);color:#fff;font-size:0.75rem;padding:6px 18px;border-radius:20px;pointer-events:none;transition:opacity 0.3s;z-index:9999;white-space:nowrap;opacity:0';
+        toast.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.55);color:#fff;font-size:0.75rem;padding:6px 18px;border-radius:20px;pointer-events:none;transition:opacity 0.3s;z-index:9999;white-space:nowrap;opacity:0';
         document.body.appendChild(toast);
+      }
+      // 상단 — 채팅 영역 상단(상태 프레임 바로 밑) / 하단 — 입력기 바로 위
+      if (pos === 'top') {
+        const areaRect = _bzChatArea.getBoundingClientRect();
+        toast.style.top = (areaRect.top + 8) + 'px';
+        toast.style.bottom = '';
+      } else {
+        const inputEl = document.getElementById('bz-input-area');
+        const inputRect = inputEl ? inputEl.getBoundingClientRect() : null;
+        toast.style.bottom = inputRect ? (window.innerHeight - inputRect.top + 8) + 'px' : '80px';
+        toast.style.top = '';
       }
       toast.textContent = msg;
       toast.style.opacity = '1';
@@ -12454,9 +12560,9 @@ function bzShowRoom() {
     _bzChatArea.addEventListener('scroll', () => {
       const area = _bzChatArea;
       if (area.scrollTop === 0) {
-        _bzShowEdgeToast('채팅방 맨 위입니다');
+        _bzShowEdgeToast('채팅방 맨 위입니다', 'top');
       } else if (area.scrollHeight - area.scrollTop - area.clientHeight < 2) {
-        _bzShowEdgeToast('최신 메시지입니다');
+        _bzShowEdgeToast('최신 메시지입니다', 'bottom');
       }
     }, { passive: true });
   }
@@ -12508,8 +12614,37 @@ function bzLeaveRoom() {
     // 배경 복원 후 자만추로 복귀
     const pageMatches = document.getElementById('page-matches');
     if (pageMatches) pageMatches.style.visibility = '';
+    // 플로팅 버튼 복원 (로그인 상태일 때만)
+    if (state.identity && state.identity.name) {
+      const floatBtn2 = document.getElementById('bz-float-btn');
+      if (floatBtn2) floatBtn2.style.display = 'flex';
+    }
+    // 읽음 처리 — Firebase 개인별 lastRead 갱신 후 리스너 재연결
+    const _bzLrName = state.identity && state.identity.name;
+    if (_bzLrName) db.ref(`jmt/banzige/lastRead/${_bzLrName}`).set(Date.now()).catch(fbErr);
+    _bzAttachUnreadListener();
     switchPage('matches');
     setTimeout(() => switchMatchesTab('memory'), 50);
+  } else if (_bzFromFloat) {
+    _bzFromFloat = false;
+    // body로 이동했던 modal 원위치
+    const modal2 = document.getElementById('bet-screen-banzige');
+    if (modal2 && _bzModalOrigParent && modal2.parentElement === document.body) {
+      _bzModalOrigParent.appendChild(modal2);
+      _bzModalOrigParent = null;
+    }
+    betShowScreen('home');
+    // 숨겼던 활성 페이지 복원
+    if (_bzFloatActivePage) { _bzFloatActivePage.style.visibility = ''; _bzFloatActivePage = null; }
+    // 읽음 처리 — Firebase 개인별 lastRead 갱신 후 리스너 재연결
+    const _bzLrName = state.identity && state.identity.name;
+    if (_bzLrName) db.ref(`jmt/banzige/lastRead/${_bzLrName}`).set(Date.now()).catch(fbErr);
+    _bzAttachUnreadListener();
+    // 플로팅 버튼 복원 (로그인 상태일 때만)
+    if (state.identity && state.identity.name) {
+      const floatBtn = document.getElementById('bz-float-btn');
+      if (floatBtn) floatBtn.style.display = 'flex';
+    }
   } else {
     betShowHome();
   }
@@ -14096,6 +14231,7 @@ function _bzRenderMessages(phase, forceBottom) {
   }
   // 렌더 전 스크롤 위치 확인
   // forceBottom=true: _bzRender() 호출(jinsilTok/showRealNames 등 비메시지 변경) — 항상 맨 아래 유지
+  const wasFirstRender = _bzFirstRender; // 첫 진입 여부 — 읽음 구분선 판단에 사용
   const _bzWasAtBottom = forceBottom || _bzPreserveBottom || _bzFirstRender || (area.scrollHeight - area.scrollTop - area.clientHeight < 100);
   _bzPreserveBottom = false;
   _bzFirstRender = false;
@@ -14186,14 +14322,14 @@ function _bzRenderMessages(phase, forceBottom) {
     const msgMargin = showName ? '10px' : '0';
     const msgGap = showName ? '2px' : '1px';
     return dateSepHtml + (isMine
-      ? `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-end;gap:${msgGap};margin-top:${msgMargin}">
+      ? `<div data-bzkey="${m._key}" data-bzts="${m.ts}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-end;gap:${msgGap};margin-top:${msgMargin}">
           ${(showName && !(_bzState && _bzState.jinsilTok)) ? `<div style="padding:0 4px"><span style="font-size:0.78rem;color:#64748b;font-weight:600">${senderLabel}</span></div>` : ''}
           <div style="display:flex;align-items:flex-end;gap:4px;flex-direction:row-reverse;width:100%">
             ${bubble}${timeHtml}${replyBtn}${deleteBtn}
           </div>
           ${heartRow}
         </div>`
-      : `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:${msgGap};margin-top:${msgMargin}">
+      : `<div data-bzkey="${m._key}" data-bzts="${m.ts}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:${msgGap};margin-top:${msgMargin}">
           <div style="display:flex;gap:4px;align-items:flex-start;width:100%">
             ${showName
               ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${m.alias[0]}</span>`
@@ -14219,6 +14355,26 @@ function _bzRenderMessages(phase, forceBottom) {
   });
   // 렌더된 메시지 키 갱신
   _bzRenderedMsgKeys = new Set(msgs.map(m => m._key));
+  // 첫 진입 시 읽지않은 메시지 구분선 표시 — 첫 렌더 + 미읽음 있을 때만
+  if (wasFirstRender && _bzLastReadTs > 0 && _bzUnreadCount > 0) {
+    const allMsgEls = [...area.querySelectorAll('[data-bzts]')];
+    const firstUnreadEl = allMsgEls.find(el => parseInt(el.dataset.bzts) > _bzLastReadTs);
+    if (firstUnreadEl) {
+      const divider = document.createElement('div');
+      divider.id = 'bz-unread-divider';
+      divider.style.cssText = 'text-align:center;padding:8px 0;margin:4px 0;opacity:1;transition:opacity 0.4s';
+      divider.innerHTML = '<span style="background:#f59e0b;color:#fff;font-size:0.72rem;font-weight:700;padding:4px 14px;border-radius:20px;display:inline-block">여기까지 읽으셨습니다</span>';
+      area.insertBefore(divider, firstUnreadEl);
+      requestAnimationFrame(() => {
+        firstUnreadEl.scrollIntoView({ block: 'center' });
+        setTimeout(() => {
+          divider.style.opacity = '0';
+          setTimeout(() => divider.remove(), 400);
+        }, 1200);
+      });
+      return; // 맨 아래 자동 스크롤 생략 — 읽음 구분선 위치로 이동
+    }
+  }
   // 맨 아래 근처에 있던 경우만 자동 스크롤 — rAF로 레이아웃 확정 후 실행 (jump 방지)
   if (_bzWasAtBottom) {
     const _scrollDown = () => { area.scrollTop = 999999; }; // 브라우저가 최댓값으로 클램핑 — scrollHeight 타이밍 오류 방지
