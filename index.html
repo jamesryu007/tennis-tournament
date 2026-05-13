@@ -36,6 +36,9 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
 .nav-item.active .ni { transform: translateY(-2px) scale(1.12); filter: drop-shadow(0 3px 5px rgba(37,99,235,0.4)); }
 .nav-item.active::before { content: ''; position: absolute; top: 5px; left: 50%; transform: translateX(-50%); width: 48px; height: 34px; background: rgba(37,99,235,0.09); border-radius: 12px; }
 .nav-item.active::after { content: ''; position: absolute; top: 0; left: 12%; right: 12%; height: 3px; background: linear-gradient(90deg,#2563eb,#7c3aed); border-radius: 0 0 4px 4px; box-shadow: 0 1px 6px rgba(37,99,235,0.45); }
+#bz-float-btn { position:fixed; right:16px; bottom:calc(76px + env(safe-area-inset-bottom,0px) + 12px); width:54px; height:54px; border-radius:50%; background:linear-gradient(135deg,#f59e0b,#d97706); border:none; color:#fff; font-size:1.5rem; cursor:pointer; box-shadow:0 4px 18px rgba(245,158,11,0.5); z-index:200; display:none; align-items:center; justify-content:center; transition:transform 0.15s,box-shadow 0.15s; -webkit-tap-highlight-color:transparent; user-select:none; }
+#bz-float-btn:active { transform:scale(0.88); box-shadow:0 2px 10px rgba(245,158,11,0.4); }
+#bz-float-badge { position:absolute; top:2px; right:2px; width:13px; height:13px; background:#dc2626; border-radius:50%; border:2px solid #fff; display:none; }
 
 /* ── PAGES ── */
 .page { display: none; padding: 12px 12px 20px; max-width: 520px; margin: 0 auto; }
@@ -2201,6 +2204,11 @@ const firebaseConfig = {
   </div>
 </nav>
 
+<!-- ══ 막무가내 톡방 플로팅 버튼 ══ -->
+<button id="bz-float-btn" onclick="bzShowRoomFromFloat()" aria-label="막무가내 톡방">
+  💬<span id="bz-float-badge"></span>
+</button>
+
 <script>
 // ══ STATE ══
 const state = {
@@ -2228,7 +2236,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v434';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v435';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7351,6 +7359,14 @@ function updatePermissionUI() {
   const btnAdminMembers = document.getElementById('admin-members-btn');
   if (btnAdminMembers) btnAdminMembers.style.display = admin ? '' : 'none';
 
+  // 막무가내 톡방 플로팅 버튼 — 로그인 시 표시 (톡방이 열린 상태면 숨김 유지)
+  const floatBtn = document.getElementById('bz-float-btn');
+  if (floatBtn) {
+    const loggedIn = !!(state.identity && state.identity.name);
+    const roomOpen = floatBtn.style.display === 'none' && _bzFromFloat; // 방 열린 중이면 건드리지 않음
+    if (!roomOpen) floatBtn.style.display = loggedIn ? 'flex' : 'none';
+  }
+
   // SW 캐시 버전 배지 (admin only — 배포 반영 여부 즉시 확인용)
   const swBadge = document.getElementById('sw-version-badge');
   if (swBadge) {
@@ -7528,6 +7544,7 @@ changeCheckinPhotoRandom();
       db = firebase.database();
       setupFirebaseListeners(); // 리스너가 초기 데이터 로드 + 렌더링 처리
       changeTeamPhotoRandom(); // db 초기화 후 랜드스케이프 사진 재로드
+      _bzInitUnreadListener(); // 막무가내 톡방 미읽음 배지 리스너
     } else {
       // ── localStorage 폴백 모드 (Firebase 미설정) ───────────────
       setConnStatus(false);
@@ -12311,7 +12328,35 @@ function _bzPickRandomAlias() {
 }
 
 let _bzFromMemory = false;         // 자만추에서 진입한 경우 플래그
+let _bzFromFloat = false;          // 플로팅 버튼에서 진입한 경우 플래그
 let _bzModalOrigParent = null;    // body 이동 전 원래 부모 보관
+
+// 미읽음 배지 리스너 — 톡방 마지막 메시지가 last_read보다 새로우면 빨간 점 표시
+function _bzInitUnreadListener() {
+  db.ref(`${BZ_REF}/messages`).limitToLast(1).on('value', snap => {
+    const badge = document.getElementById('bz-float-badge');
+    if (!badge) return;
+    if (!snap.exists()) { badge.style.display = 'none'; return; }
+    const lastRead = parseInt(localStorage.getItem('jmt_bz_last_read') || '0');
+    let isUnread = false;
+    snap.forEach(child => { if ((child.val().ts || 0) > lastRead) isUnread = true; });
+    // 톡방이 열려 있을 때는 배지 숨김
+    const roomOpen = _bzFromFloat || _bzFromMemory;
+    badge.style.display = (!roomOpen && isUnread) ? 'block' : 'none';
+  });
+}
+
+function bzShowRoomFromFloat() {
+  _bzFromFloat = true;
+  const modal = document.getElementById('bet-screen-banzige');
+  if (modal && modal.parentElement !== document.body) {
+    _bzModalOrigParent = modal.parentElement;
+    document.body.appendChild(modal);
+  }
+  const floatBtn = document.getElementById('bz-float-btn');
+  if (floatBtn) floatBtn.style.display = 'none';
+  bzShowRoom();
+}
 
 function bzShowRoomFromMemory() {
   _bzFromMemory = true;
@@ -12349,6 +12394,12 @@ function bzShowRoom() {
   const modal = document.getElementById('bet-screen-banzige');
   const nav = document.querySelector('.bottom-nav');
   if (nav) nav.style.display = 'none';
+  // 플로팅 버튼 숨김 + 읽음 처리
+  const floatBtn = document.getElementById('bz-float-btn');
+  if (floatBtn) floatBtn.style.display = 'none';
+  const floatBadge = document.getElementById('bz-float-badge');
+  if (floatBadge) floatBadge.style.display = 'none';
+  localStorage.setItem('jmt_bz_last_read', Date.now().toString());
   const vv = window.visualViewport;
   const initH = vv ? vv.height : window.innerHeight;
   modal.style.cssText = `position:fixed;top:0;left:0;right:0;height:${initH}px;z-index:500;display:flex;flex-direction:column;background:#f0f4fb;overflow:hidden`;
@@ -12510,6 +12561,20 @@ function bzLeaveRoom() {
     if (pageMatches) pageMatches.style.visibility = '';
     switchPage('matches');
     setTimeout(() => switchMatchesTab('memory'), 50);
+  } else if (_bzFromFloat) {
+    _bzFromFloat = false;
+    // body로 이동했던 modal 원위치
+    const modal2 = document.getElementById('bet-screen-banzige');
+    if (modal2 && _bzModalOrigParent && modal2.parentElement === document.body) {
+      _bzModalOrigParent.appendChild(modal2);
+      _bzModalOrigParent = null;
+    }
+    betShowScreen('home');
+    // 플로팅 버튼 복원 (로그인 상태일 때만)
+    if (state.identity && state.identity.name) {
+      const floatBtn = document.getElementById('bz-float-btn');
+      if (floatBtn) floatBtn.style.display = 'flex';
+    }
   } else {
     betShowHome();
   }
