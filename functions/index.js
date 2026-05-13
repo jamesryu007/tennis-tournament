@@ -54,7 +54,7 @@ async function sendBanzigePushWithBadge(entries, title, body, extraData = {}) {
   // 사용자별 미읽음 수 계산 — lastRead 이후 메시지 수
   const [lastReadSnap, msgsSnap] = await Promise.all([
     db.ref('jmt/banzige/lastRead').once('value'),
-    db.ref('jmt/banzige/messages').orderByChild('ts').limitToLast(200).once('value'),
+    db.ref('jmt/banzige/current/messages').orderByChild('ts').limitToLast(200).once('value'),
   ]);
   const lastReadMap = lastReadSnap.val() || {};
   const msgs = [];
