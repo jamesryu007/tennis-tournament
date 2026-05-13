@@ -7508,11 +7508,12 @@ async function changeTeamPhotoRandom() {
         _landscapePhotoCache = { list: [], ts: Date.now() };
       }
     } else {
-      // db 미초기화 상태 — 캐시 저장 안 함, 추후 재시도
+      // db 미초기화 상태 — 빈 캐시로 초기화 (ts=0으로 Firebase 연결 후 즉시 재시도)
+      _landscapePhotoCache = { list: [], ts: 0 };
     }
   }
 
-  const candidates = _landscapePhotoCache.list;
+  const candidates = _landscapePhotoCache ? _landscapePhotoCache.list : [];
   if (candidates.length > 0) {
     let idx;
     do { idx = Math.floor(Math.random() * candidates.length); } while(idx === _lastPhotoIdx && candidates.length > 1);
