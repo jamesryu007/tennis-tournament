@@ -2237,7 +2237,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v459';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v460';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13428,6 +13428,17 @@ function _bzRenderPhotoGrid() {
   });
   html += '</div>';
   grid.innerHTML = html;
+
+  // 오른쪽 스와이프 → 채팅탭으로 복귀
+  let _pgSx = 0, _pgSy = 0;
+  grid.addEventListener('touchstart', e => {
+    _pgSx = e.touches[0].clientX; _pgSy = e.touches[0].clientY;
+  }, { passive: true });
+  grid.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - _pgSx;
+    const dy = e.changedTouches[0].clientY - _pgSy;
+    if (dx > 60 && Math.abs(dy) < Math.abs(dx)) bzSwitchBzTab('chat');
+  }, { passive: true });
 }
 
 function _bzPhotoGridTap(idx) {
