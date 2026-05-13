@@ -36,7 +36,7 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
 .nav-item.active .ni { transform: translateY(-2px) scale(1.12); filter: drop-shadow(0 3px 5px rgba(37,99,235,0.4)); }
 .nav-item.active::before { content: ''; position: absolute; top: 5px; left: 50%; transform: translateX(-50%); width: 48px; height: 34px; background: rgba(37,99,235,0.09); border-radius: 12px; }
 .nav-item.active::after { content: ''; position: absolute; top: 0; left: 12%; right: 12%; height: 3px; background: linear-gradient(90deg,#2563eb,#7c3aed); border-radius: 0 0 4px 4px; box-shadow: 0 1px 6px rgba(37,99,235,0.45); }
-#bz-float-btn { position:fixed; left:16px; bottom:calc(76px + env(safe-area-inset-bottom,0px) + 28px); width:64px; height:64px; border-radius:50%; background:linear-gradient(145deg,#fcd34d 0%,#f59e0b 45%,#c77c06 100%); border:none; color:#fff; font-size:1.8rem; cursor:pointer; box-shadow:0 8px 24px rgba(180,90,0,0.45),0 3px 8px rgba(0,0,0,0.22),inset 0 1px 0 rgba(255,255,255,0.55),inset 0 -3px 6px rgba(0,0,0,0.18); z-index:200; display:none; align-items:center; justify-content:center; transition:transform 0.15s,box-shadow 0.15s; -webkit-tap-highlight-color:transparent; user-select:none; }
+#bz-float-btn { position:fixed; left:calc(76px + env(safe-area-inset-bottom,0px) + 28px); bottom:calc(76px + env(safe-area-inset-bottom,0px) + 28px); width:64px; height:64px; border-radius:50%; background:linear-gradient(145deg,#fcd34d 0%,#f59e0b 45%,#c77c06 100%); border:none; color:#fff; font-size:1.8rem; cursor:pointer; box-shadow:0 8px 24px rgba(180,90,0,0.45),0 3px 8px rgba(0,0,0,0.22),inset 0 1px 0 rgba(255,255,255,0.55),inset 0 -3px 6px rgba(0,0,0,0.18); z-index:200; display:none; align-items:center; justify-content:center; transition:transform 0.15s,box-shadow 0.15s; -webkit-tap-highlight-color:transparent; user-select:none; }
 #bz-float-btn:active { transform:scale(0.88); box-shadow:0 3px 10px rgba(180,90,0,0.35),0 1px 4px rgba(0,0,0,0.18),inset 0 2px 8px rgba(0,0,0,0.22); }
 #bz-float-badge { position:absolute; top:-5px; right:-5px; min-width:19px; height:19px; background:#dc2626; border-radius:10px; border:2.5px solid #fff; display:none; align-items:center; justify-content:center; font-size:0.6rem; font-weight:900; color:#fff; padding:0 4px; line-height:1; box-shadow:0 2px 6px rgba(220,38,38,0.5); }
 
@@ -1422,7 +1422,7 @@ const firebaseConfig = {
       <!-- 헤더 — 순백 -->
       <div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#ffffff;border-bottom:1px solid #e2e8f0">
         <button onclick="bzLeaveRoom()" style="border:none;background:none;font-size:1.4rem;cursor:pointer;padding:0;color:#64748b">←</button>
-        <div style="font-size:0.95rem;font-weight:800;color:#1e293b">🗣️ 막무가내 톡방</div>
+        <div style="font-size:0.95rem;font-weight:800;color:#1e293b">💬 자미톡</div>
         <button id="bz-info-toggle" onclick="_bzToggleInfoFrame()" title="정보 접기/펼치기"
           style="border:none;background:none;font-size:1rem;color:#d97706;cursor:pointer;padding:2px;width:28px;height:28px;flex-shrink:0">▽</button>
       </div>
@@ -1450,7 +1450,7 @@ const firebaseConfig = {
 
         <!-- 관리자 컨트롤 -->
         <div id="bz-admin-controls" style="display:none;gap:8px;flex-wrap:wrap">
-          <button id="bz-btn-start" onclick="bzStartGuessing()" style="padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer">🕵️ 막무가내 톡방 시작</button>
+          <button id="bz-btn-start" onclick="bzStartGuessing()" style="padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer">🕵️ 자미톡 시작</button>
           <button id="bz-btn-reveal" onclick="bzReveal()" style="display:none;padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer">🔓 최종 오픈</button>
           <button id="bz-btn-realnames" onclick="bzToggleRealNames()" style="padding:7px 14px;border-radius:10px;border:1.5px solid #fcd34d;background:#fff;color:#92400e;font-size:0.8rem;font-weight:700;cursor:pointer">👁 실명 공개</button>
           <button id="bz-btn-gamerestart" onclick="bzGameRestart()" style="display:none;padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer">🔁 게임 재시작</button>
@@ -1614,9 +1614,6 @@ const firebaseConfig = {
         <span id="photo-filter-label">필터</span> <span style="color:#94a3b8;font-size:0.7rem">▼</span>
       </button>
       <div style="display:flex;gap:7px">
-        <button onclick="bzShowRoomFromMemory()" style="display:flex;align-items:center;gap:5px;padding:7px 13px;border:none;border-radius:20px;background:linear-gradient(135deg,#f59e0b,#d97706);font-size:0.78rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
-          🗣️ 톡방
-        </button>
         <button onclick="openPhotoUpload()" style="display:flex;align-items:center;gap:5px;padding:7px 15px;border:none;border-radius:20px;background:#2563eb;font-size:0.78rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
           📷 사진 올리기
         </button>
@@ -2204,8 +2201,8 @@ const firebaseConfig = {
   </div>
 </nav>
 
-<!-- ══ 막무가내 톡방 플로팅 버튼 ══ -->
-<button id="bz-float-btn" onclick="bzShowRoomFromFloat()" aria-label="막무가내 톡방">
+<!-- ══ 자미톡 플로팅 버튼 ══ -->
+<button id="bz-float-btn" onclick="bzShowRoomFromFloat()" aria-label="자미톡">
   💬<span id="bz-float-badge"></span>
 </button>
 
@@ -10616,7 +10613,7 @@ function _loadBetHistory() {
     let bzHtml = '';
     if (bzData) {
       const bzItems = Object.entries(bzData).reverse();
-      bzHtml = `<div style="font-size:0.72rem;font-weight:800;color:#b45309;letter-spacing:0.08em;margin:14px 0 7px;padding-left:2px">🕵️ 막무가내 톡방 이력</div>` +
+      bzHtml = `<div style="font-size:0.72rem;font-weight:800;color:#b45309;letter-spacing:0.08em;margin:14px 0 7px;padding-left:2px">🕵️ 자미톡 이력</div>` +
         bzItems.map(([, g]) => {
           const dt = g.archivedAt ? new Date(g.archivedAt).toLocaleDateString('ko-KR', {month:'numeric',day:'numeric'}) : '';
           const results = g.results || {};
@@ -10647,7 +10644,7 @@ function _loadBetHistory() {
 
           return `<div class="bet-history-item" style="border-color:#fde68a;background:linear-gradient(135deg,#fffbeb,#fff)">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <span style="font-size:0.65rem;background:#fef3c7;color:#b45309;border-radius:6px;padding:2px 7px;font-weight:700">🕵️ 막무가내 톡방</span>
+              <span style="font-size:0.65rem;background:#fef3c7;color:#b45309;border-radius:6px;padding:2px 7px;font-weight:700">🕵️ 자미톡</span>
               <span style="font-size:0.75rem;font-weight:800;color:#1e293b">${total > 0 ? `${correct}/${total}명 성공 ${correct===total&&total>0?'🎉':'😅'}` : '맞추기 없이 종료'}</span>
               <span style="font-size:0.65rem;color:#94a3b8">${dt}</span>
             </div>
