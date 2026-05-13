@@ -113,6 +113,11 @@ CFEOF
 APPLIED=$(grep databaseURL firebase-config.js | tr -d ' "')
 echo "  ✔ $APPLIED"
 
+# ── SW_VERSION 상수 동기화 — index.html의 SW_VERSION을 SW 캐시 버전과 일치시킴 ──
+SW_CACHE_VER=$(grep "const CACHE" firebase-messaging-sw.js | grep -o "'jamite-v[0-9]*'" | tr -d "'")
+sed -i '' "s/const SW_VERSION = 'jamite-v[0-9]*'/const SW_VERSION = '${SW_CACHE_VER}'/" index.html
+echo "  ✔ SW_VERSION 동기화: ${SW_CACHE_VER}"
+
 # ── STEP 2: index.html + firebase-messaging-sw.js 인라인 config 교체 ────
 echo "▶ [2/3] index.html + firebase-messaging-sw.js config 교체..."
 

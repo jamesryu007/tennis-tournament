@@ -2233,7 +2233,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v445';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v452';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7314,7 +7314,7 @@ function updateIdentityUI() {
   if (name === ADMIN_NAME) {
     nameEl.textContent = name;
     nameEl.style.cssText = 'font-size:0.72rem;font-weight:900;color:#7c3aed;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:0.3px';
-    if (roleEl) { roleEl.textContent = '⚡ SUPERVISOR'; roleEl.style.cssText = 'font-size:0.55rem;color:#7c3aed;margin-top:1px;letter-spacing:0.3px;font-weight:800'; }
+    if (roleEl) { roleEl.textContent = '⚡ ' + SW_VERSION.replace('jamite-', ''); roleEl.style.cssText = 'font-size:0.55rem;color:#7c3aed;margin-top:1px;letter-spacing:0.3px;font-weight:800'; }
     if (btn)    btn.style.cssText = BASE_BTN + 'background:#f5f3ff;border:1.5px solid #c4b5fd;';
   } else if (name) {
     nameEl.textContent = name;
