@@ -692,6 +692,7 @@ const firebaseConfig = {
     <img src="images/logo1.png" alt="자미터 테니스" style="height:44px;object-fit:contain;display:block;cursor:pointer" onclick="document.getElementById('logo-popup').style.display='flex'">
     <span style="font-size:1rem;font-weight:800;color:#2563eb;letter-spacing:0.3px">자미터 테니스</span>
     <span id="conn-status" class="conn-dot" title="Firebase 연결 상태"></span>
+    <span id="sw-version-badge" style="display:none;font-size:0.6rem;font-weight:700;color:#64748b;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:1px 6px;letter-spacing:0.2px;line-height:1.6;user-select:none"></span>
   </div>
   <button id="admin-members-btn" onclick="switchPage('members')" title="회원관리" style="display:none;flex-shrink:0;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:10px;padding:6px 9px;cursor:pointer;font-size:1.1rem;line-height:1;transition:background 0.2s">⚙️</button>
   <button id="identity-btn" onclick="openIdentityModal()" style="flex-shrink:0;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:6px 10px;cursor:pointer;text-align:center;min-width:58px;transition:background 0.2s,border-color 0.2s">
@@ -2227,6 +2228,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
+const SW_VERSION = 'jamite-v434';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7348,6 +7350,13 @@ function updatePermissionUI() {
   // ⚙️ 회원관리 버튼 (admin only)
   const btnAdminMembers = document.getElementById('admin-members-btn');
   if (btnAdminMembers) btnAdminMembers.style.display = admin ? '' : 'none';
+
+  // SW 캐시 버전 배지 (admin only — 배포 반영 여부 즉시 확인용)
+  const swBadge = document.getElementById('sw-version-badge');
+  if (swBadge) {
+    swBadge.textContent = SW_VERSION;
+    swBadge.style.display = admin ? '' : 'none';
+  }
 
   // 신규회원 등록 (관리자만)
   const btnMember = document.getElementById('btn-add-member');
