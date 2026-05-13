@@ -12269,6 +12269,7 @@ let _bzTouchStartY = 0;
 let _bzSwipeEl = null;
 let _bzSwipeMoved = false;
 let _bzMenuKey = null;
+let _bzShareBlobCache = null; // 공유 메뉴 열릴 때 미리 fetch해둔 이미지 blob
 window._bzMsgMeta = {}; // 메시지 메타 (터치 핸들러용)
 
 const BZ_REF = 'jmt/banzige/current';
@@ -13565,6 +13566,13 @@ function bzShowMsgMenu(key, tapX, tapY) {
   // 미리보기 채우기
   document.getElementById('bz-menu-preview-name').textContent = meta.alias || '';
   document.getElementById('bz-menu-preview-text').textContent = meta.text || (meta.hasUrl ? '[링크]' : '[미디어]');
+  // 이미지 메시지면 공유용 blob 미리 fetch (bzMenuShare 시 user gesture 유지)
+  _bzShareBlobCache = null;
+  const _preRaw = _bzState && _bzState.messages && _bzState.messages[key];
+  const _preImgSrc = _preRaw && (_preRaw.imageUrl || _preRaw.imageData);
+  if (_preImgSrc && _preImgSrc.startsWith('http')) {
+    fetch(_preImgSrc).then(r => r.blob()).then(b => { _bzShareBlobCache = b; }).catch(() => {});
+  }
   const overlay = document.getElementById('bz-msg-menu');
   const box = document.getElementById('bz-msg-menu-box');
   overlay.style.display = 'block';
@@ -13611,9 +13619,21 @@ async function bzMenuShare() {
     const videoUrl = raw && raw.videoUrl;
     // 영상
     if (videoUrl) { await navigator.share({ url: videoUrl }); return; }
-    // 이미지: Storage URL이면 URL 공유 (fetch 없이 — user gesture 보존 + 안정성)
+    // 이미지
     if (imgSrc) {
       if (imgSrc.startsWith('http')) {
+        // 미리 fetch된 blob으로 실제 파일 공유 (카카오톡에 이미지로 전달)
+        const blob = _bzShareBlobCache;
+        _bzShareBlobCache = null;
+        if (blob) {
+          const ext = blob.type.includes('png') ? 'png' : blob.type.includes('gif') ? 'gif' : 'jpg';
+          const file = new File([blob], `banzige-photo.${ext}`, { type: blob.type });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file] });
+            return;
+          }
+        }
+        // fallback: blob 미준비 또는 files 미지원 → URL 공유
         await navigator.share({ url: imgSrc });
       } else {
         // base64 — 파일로 변환 후 공유
