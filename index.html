@@ -2236,7 +2236,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v436';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v437';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12499,13 +12499,24 @@ function bzShowRoom() {
   if (_bzChatArea && !_bzChatArea._bzEdgeToastAdded) {
     _bzChatArea._bzEdgeToastAdded = true;
     let _bzEdgeTimer = null;
-    const _bzShowEdgeToast = (msg) => {
+    const _bzShowEdgeToast = (msg, pos) => {
       let toast = document.getElementById('bz-edge-toast');
       if (!toast) {
         toast = document.createElement('div');
         toast.id = 'bz-edge-toast';
-        toast.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:50%;background:rgba(0,0,0,0.55);color:#fff;font-size:0.75rem;padding:6px 18px;border-radius:20px;pointer-events:none;transition:opacity 0.3s;z-index:9999;white-space:nowrap;opacity:0';
+        toast.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.55);color:#fff;font-size:0.75rem;padding:6px 18px;border-radius:20px;pointer-events:none;transition:opacity 0.3s;z-index:9999;white-space:nowrap;opacity:0';
         document.body.appendChild(toast);
+      }
+      // 상단 — 채팅 영역 상단(상태 프레임 바로 밑) / 하단 — 입력기 바로 위
+      if (pos === 'top') {
+        const areaRect = _bzChatArea.getBoundingClientRect();
+        toast.style.top = (areaRect.top + 8) + 'px';
+        toast.style.bottom = '';
+      } else {
+        const inputEl = document.getElementById('bz-input-area');
+        const inputRect = inputEl ? inputEl.getBoundingClientRect() : null;
+        toast.style.bottom = inputRect ? (window.innerHeight - inputRect.top + 8) + 'px' : '80px';
+        toast.style.top = '';
       }
       toast.textContent = msg;
       toast.style.opacity = '1';
@@ -12515,9 +12526,9 @@ function bzShowRoom() {
     _bzChatArea.addEventListener('scroll', () => {
       const area = _bzChatArea;
       if (area.scrollTop === 0) {
-        _bzShowEdgeToast('채팅방 맨 위입니다');
+        _bzShowEdgeToast('채팅방 맨 위입니다', 'top');
       } else if (area.scrollHeight - area.scrollTop - area.clientHeight < 2) {
-        _bzShowEdgeToast('최신 메시지입니다');
+        _bzShowEdgeToast('최신 메시지입니다', 'bottom');
       }
     }, { passive: true });
   }
