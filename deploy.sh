@@ -235,6 +235,12 @@ echo ""
 echo "✅ ${ENV_LABEL} 배포 완료! (project: ${FIREBASE_PROJECT})"
 
 if [ "$ENV" = "prod" ]; then
+  # ── GitHub Pages 동기화 — origin/main push ────────────────────────
+  echo "▶ GitHub Pages 동기화 (git push origin main)..."
+  git add firebase-config.js firebase-messaging-sw.js index.html
+  git commit -m "운영 config 교체 — GitHub Pages jamite-tennis 연결" || true
+  git push origin main
+  echo "  ✔ GitHub Pages 업데이트 완료"
   echo ""
   echo "💡 개발 환경으로 복귀하려면: ./deploy.sh dev"
 fi
