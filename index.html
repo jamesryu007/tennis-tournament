@@ -12734,7 +12734,7 @@ function _bzInitUnreadListener() {
       if (btn.style.display === 'none' || btn.style.display === '') return; // 채팅방 열린 중이면 스킵
       btn.style.opacity = '0';
       btn.style.pointerEvents = 'none';
-      _bzFloatEntrance(btn, finalX, finalY);
+      _bzFloatEntrance(btn, (() => { try { const s = JSON.parse(localStorage.getItem(LS_KEY)); if (s && typeof s.rx === 'number') return s.rx * window.innerWidth; if (s && typeof s.x === 'number') return s.x; } catch(_){} return finalX; })(), (() => { try { const s = JSON.parse(localStorage.getItem(LS_KEY)); if (s && typeof s.ry === 'number') return _clampY(s.ry * window.innerHeight); if (s && typeof s.y === 'number') return _clampY(s.y); } catch(_){} return finalY; })());
     });
     btn.addEventListener('touchstart', e => {
       if (e.touches.length !== 1) return;
