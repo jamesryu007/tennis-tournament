@@ -12467,14 +12467,60 @@ function _bzInitUnreadListener() {
 
   // 위치친구 팝업
   function _showLocationBuddy(names) {
-    const msg = names.length === 1
-      ? `${names[0]}님과 같은 자리네요! 😄`
-      : `${names.join(', ')}님과 같은 자리네요! 😄`;
-    const el = document.createElement('div');
-    el.textContent = msg;
-    el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:100px;background:rgba(0,0,0,0.72);color:#fff;font-size:0.82rem;font-weight:700;padding:8px 18px;border-radius:20px;z-index:9999;white-space:nowrap;transition:opacity 0.4s ease;pointer-events:none';
-    document.body.appendChild(el);
-    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 400); }, 1500);
+    const nameStr = names.join(', ');
+    const MSGS = [
+      { emoji: '🔮', line1: '텔레파시 발동!', line2: `${nameStr}님과`, line3: '완전 같은 자리!' },
+      { emoji: '🎾', line1: '듀스!', line2: `${nameStr}님과`, line3: '똑같은 자리 선택!' },
+      { emoji: '👯', line1: '영혼의 단짝!', line2: `${nameStr}님과`, line3: '마음이 통했어요' },
+      { emoji: '⚡️', line1: '번개 매칭!', line2: `${nameStr}님과`, line3: '같은 곳을 눌렀네요!' },
+      { emoji: '🎯', line1: '정조준!', line2: `${nameStr}님과`, line3: '핀포인트 일치!' },
+      { emoji: '🌟', line1: '스타 매치!', line2: `${nameStr}님이랑`, line3: '찰떡 같은 위치!' },
+      { emoji: '🤝', line1: '운명적 만남!', line2: `${nameStr}님과`, line3: '같은 자리 선택!' },
+    ];
+    const m = MSGS[Math.floor(Math.random() * MSGS.length)];
+
+    // 오버레이
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9998;display:flex;align-items:center;justify-content:center;pointer-events:none';
+
+    // 카드
+    const card = document.createElement('div');
+    card.style.cssText = 'background:linear-gradient(145deg,#1e3a5f,#2563eb);border-radius:28px;padding:32px 40px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.12);transform:scale(0.3);opacity:0;transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1),opacity 0.25s ease;will-change:transform,opacity';
+
+    const emojiEl = document.createElement('div');
+    emojiEl.textContent = m.emoji;
+    emojiEl.style.cssText = 'font-size:3.2rem;line-height:1;margin-bottom:14px';
+
+    const l1 = document.createElement('div');
+    l1.textContent = m.line1;
+    l1.style.cssText = 'color:rgba(255,255,255,0.75);font-size:0.88rem;font-weight:700;letter-spacing:0.05em;margin-bottom:6px';
+
+    const l2 = document.createElement('div');
+    l2.textContent = m.line2;
+    l2.style.cssText = 'color:#fcd34d;font-size:1.35rem;font-weight:900;margin-bottom:2px';
+
+    const l3 = document.createElement('div');
+    l3.textContent = m.line3;
+    l3.style.cssText = 'color:#fff;font-size:1rem;font-weight:800';
+
+    card.appendChild(emojiEl); card.appendChild(l1); card.appendChild(l2); card.appendChild(l3);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    // 팡 등장
+    requestAnimationFrame(() => {
+      card.style.transform = 'scale(1)';
+      card.style.opacity = '1';
+    });
+    // 2초 후 페이드 아웃
+    setTimeout(() => {
+      card.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
+      card.style.transform = 'scale(0.85) translateY(-12px)';
+      card.style.opacity = '0';
+      overlay.style.transition = 'opacity 0.4s ease';
+      overlay.style.opacity = '0';
+      setTimeout(() => overlay.remove(), 420);
+    }, 2000);
   }
 
   // 테스트용: 콘솔에서 _bzSeedFloatPos('이름', x, y) 로 타 멤버 위치 심기
