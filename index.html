@@ -12661,32 +12661,36 @@ function _bzInitUnreadListener() {
     const W = window.innerWidth, H = window.innerHeight;
     const cx = (W - SIZE) / 2;
     const cy = (H - SIZE) / 2;
-    const rx = Math.min(W * 0.42, cx - 10);           // 가로 반경 (화면 가장자리 근처까지)
-    const ry = Math.min(H * 0.36, cy - 70);            // 세로 반경 (헤더/탭바 제외)
-    const dur = 1500, laps = 1.25;                     // 1500ms, 1.25바퀴
+    const rx = Math.min(W * 0.42, cx - 10);
+    const ry = Math.min(H * 0.36, cy - 70);
+    const dur = 1500, laps = 1.25;
+    const origShadow = btn.style.boxShadow; // 원래 섀도 저장
     let t0 = null;
     btn.style.transition = 'none';
     btn.style.opacity = '1';
     btn.style.bottom = ''; btn.style.right = '';
-    // 시작: 화면 상단 중앙
     btn.style.left = cx + 'px';
     btn.style.top  = _clampY(cy - ry) + 'px';
     const tick = ts => {
       if (!t0) t0 = ts;
       const raw = Math.min((ts - t0) / dur, 1);
-      const e = 1 - Math.pow(1 - raw, 2.2);            // ease-out
+      const e = 1 - Math.pow(1 - raw, 2.2);
       const angle = -Math.PI / 2 + e * laps * 2 * Math.PI;
-      btn.style.left      = (cx + rx * Math.cos(angle)) + 'px';
-      btn.style.top       = _clampY(cy + ry * Math.sin(angle)) + 'px';
-      btn.style.transform = `rotate(${e * laps * 720}deg)`; // 자체 회전 2배속
+      btn.style.left = (cx + rx * Math.cos(angle)) + 'px';
+      btn.style.top  = _clampY(cy + ry * Math.sin(angle)) + 'px';
+      // 혜성 꼬리 — 이동 방향 반대쪽에 골드 글로우 (원형 버튼이라 rotate 안 보임)
+      const trailAngle = angle - Math.PI / 2; // 접선 반대방향 (꼬리)
+      const tx = Math.cos(trailAngle) * 18;
+      const ty = Math.sin(trailAngle) * 18;
+      btn.style.boxShadow = `${tx*.35}px ${ty*.35}px 6px rgba(252,211,77,1),${tx*.65}px ${ty*.65}px 14px rgba(251,146,60,.8),${tx}px ${ty}px 24px rgba(239,68,68,.5),0 0 32px rgba(252,211,77,.6)`;
       if (raw < 1) {
         requestAnimationFrame(tick);
       } else {
         // 착지 — spring bounce
-        btn.style.transition = 'left 0.42s cubic-bezier(0.34,1.56,0.64,1), top 0.42s cubic-bezier(0.34,1.56,0.64,1), transform 0.35s ease-out';
+        btn.style.transition = 'left 0.42s cubic-bezier(0.34,1.56,0.64,1), top 0.42s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.4s ease-out';
         btn.style.left = finalX + 'px';
         btn.style.top  = finalY + 'px';
-        btn.style.transform = '';
+        btn.style.boxShadow = origShadow;
         setTimeout(() => {
           btn.style.transition = 'transform 0.15s, box-shadow 0.15s';
           btn.style.pointerEvents = '';
