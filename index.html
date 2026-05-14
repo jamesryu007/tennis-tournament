@@ -12466,10 +12466,10 @@ function _bzInitUnreadListener() {
     return Math.max(60, Math.min(window.innerHeight - SIZE - 80, y));
   }
 
-  // 위치친구 팝업 — 성별 분기 랜덤 문구
-  function _showLocationBuddy(names, isMaleOnly) {
+  // 위치친구 팝업 — 성별 분기 랜덤 문구 (type: 'good'|'bad'|'mixed')
+  function _showLocationBuddy(names, type) {
     const nameStr = names.join(', ');
-    const GOOD = [ // 이성/여성끼리 — 텔레파시 긍정적
+    const GOOD = [ // 여성끼리 / 이성 1:1 — 텔레파시/설렘
       { emoji: '🔮', line1: '텔레파시 발동!',    line2: `${nameStr}님과`, line3: '완전 같은 자리!' },
       { emoji: '💫', line1: '신기방기!',          line2: `${nameStr}님이랑`, line3: '텔레파시 통했어요!' },
       { emoji: '🎾', line1: '듀스!',              line2: `${nameStr}님과`, line3: '똑같은 자리 선택!' },
@@ -12482,6 +12482,9 @@ function _bzInitUnreadListener() {
       { emoji: '🌈', line1: '운명적 만남!',       line2: `${nameStr}님과`, line3: '같은 자리 선택!' },
       { emoji: '🦋', line1: '나비효과!',          line2: `${nameStr}님이랑`, line3: '같은 자리를 택했네요' },
       { emoji: '🎶', line1: '하모니 완성!',       line2: `${nameStr}님과`, line3: '박자가 딱 맞아요!' },
+      { emoji: '💕', line1: '운명의 장난!',       line2: `${nameStr}님과`, line3: '같은 자리를 택하셨군요' },
+      { emoji: '🌹', line1: '어머나!',            line2: `${nameStr}님과`, line3: '완전 같은 위치잖아요?' },
+      { emoji: '💘', line1: '큐피드 화살!',       line2: `${nameStr}님과`, line3: '찰떡 같은 위치 선택!' },
     ];
     const BAD = [ // 남자끼리 — 짜증/유머
       { emoji: '😤', line1: '아 진짜...',         line2: `${nameStr}이랑`, line3: '위치 겹쳤어. 바꿔야겠다' },
@@ -12497,11 +12500,25 @@ function _bzInitUnreadListener() {
       { emoji: '👊', line1: '야!',                line2: `${nameStr}아,`, line3: '네가 비켜. 내가 먼저야' },
       { emoji: '🏃', line1: '도망가자',           line2: `${nameStr}이랑`, line3: '겹치기 전에 얼른 옮겨!' },
     ];
-    const pool = isMaleOnly ? BAD : GOOD;
+    const MIXED = [ // 혼성 (남+여 섞임) — 여자 덕분에 봐줄게 유머
+      { emoji: '💜', line1: '봐줄게',             line2: `${nameStr}님이 있어서`, line3: '오늘은 참는다 ㅋㅋ' },
+      { emoji: '😏', line1: '운 좋은 줄 알아',   line2: `${nameStr}님 덕분에`, line3: '위치 양보해줄게' },
+      { emoji: '🤭', line1: '어쩔 수 없지',       line2: `${nameStr}님이 있으니`, line3: '이번만 봐줌ㅋ' },
+      { emoji: '😌', line1: '그래 봐줄게',        line2: `${nameStr}님 계시니까`, line3: '오늘은 관대해지자' },
+      { emoji: '🫡', line1: '존중함',             line2: `${nameStr}님 있는 자리니`, line3: '내가 비켜드리죠' },
+      { emoji: '🙏', line1: '감사히 봐줌',        line2: `${nameStr}님 덕에`, line3: '위치 쿨하게 양보' },
+      { emoji: '😇', line1: '천사같은 나',        line2: `${nameStr}님 보고`, line3: '화 참는 중... ㅋ' },
+      { emoji: '💪', line1: '너그러운 남자',      line2: `${nameStr}님 있으니까`, line3: '내가 한 수 접어줄게' },
+      { emoji: '🫰', line1: '특별히',             line2: `${nameStr}님이라서`, line3: '이번 한 번만 봐줌' },
+      { emoji: '😤', line1: '흥...',              line2: `${nameStr}님 아니었으면`, line3: '진짜 가만 안 뒀어 ㅋㅋ' },
+    ];
+    const pool = type === 'bad' ? BAD : type === 'mixed' ? MIXED : GOOD;
     const m = pool[Math.floor(Math.random() * pool.length)];
-    const cardBg = isMaleOnly
+    const cardBg = type === 'bad'
       ? 'linear-gradient(145deg,#7f1d1d,#dc2626)'
-      : 'linear-gradient(145deg,#1e3a5f,#2563eb)';
+      : type === 'mixed'
+        ? 'linear-gradient(145deg,#4c1d95,#7c3aed)'
+        : 'linear-gradient(145deg,#1e3a5f,#2563eb)';
 
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9998;display:flex;align-items:center;justify-content:center;pointer-events:none';
@@ -12555,11 +12572,15 @@ function _bzInitUnreadListener() {
           Math.hypot(finalX - p.rx * W, finalY - p.ry * H) < SIZE)
         .map(([name]) => name);
       if (!buddies.length) return;
-      // 성별 판단: 본인 + 매칭 멤버 전원 male 이면 남자끼리
-      const myGender = typeof getGender === 'function' ? getGender(myName) : 'unknown';
-      const allMale = myGender === 'male' &&
-        buddies.every(n => (typeof getGender === 'function' ? getGender(n) : 'unknown') === 'male');
-      _showLocationBuddy(buddies, allMale);
+      // 성별 판단 — 3가지 케이스
+      const gFn = n => (typeof getGender === 'function' ? getGender(n) : 'unknown');
+      const myGender = gFn(myName);
+      const buddyGenders = buddies.map(gFn);
+      const allMale = myGender === 'male' && buddyGenders.every(g => g === 'male');
+      const hasMale = myGender === 'male' || buddyGenders.includes('male');
+      const hasFemale = myGender === 'female' || buddyGenders.includes('female');
+      const type = allMale ? 'bad' : (hasMale && hasFemale) ? 'mixed' : 'good';
+      _showLocationBuddy(buddies, type);
     }).catch(() => {});
   }
 
