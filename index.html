@@ -12484,11 +12484,8 @@ function _bzInitUnreadListener() {
 
   // 위치친구 팝업 — 성별 분기 랜덤 문구 (type: 'good'|'bad'|'mixed')
   function _showLocationBuddy(displayNames, type) {
-    const HONOR_TITLES = ['누나', '언니', '오빠', '형'];
-    const rawStr = displayNames.join(', ');
-    const hasTitle = displayNames.some(n => HONOR_TITLES.some(t => n.endsWith(t)));
-    // 호칭 있으면 그대로, 없으면 '님' 붙임
-    const nameStr = hasTitle ? rawStr : rawStr + '님';
+    // 연상=호칭(누나/언니/오빠/형), 연하·동갑·미등록=이름만 — 님 없음
+    const nameStr = displayNames.join(', ');
     // 조사 헬퍼 — 마지막 글자 받침 유무로 선택
     const _p = (v, c) => {
       const code = nameStr.charCodeAt(nameStr.length - 1);
