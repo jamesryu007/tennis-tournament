@@ -12683,14 +12683,14 @@ function _bzInitUnreadListener() {
       const tx = Math.cos(trailAngle), ty = Math.sin(trailAngle);
       // 속도 비례 꼬리 길이 (느릴수록 짧게, 빠를수록 길게)
       const speed = Math.max(0.4, 1 - raw * 0.5);
-      const len = 60 * speed;
+      const len = 38 * speed;
       btn.style.boxShadow = [
-        `${tx*len*.15}px ${ty*len*.15}px 10px 6px  rgba(255,255,200,1)`,   // 핵 — 밝은 흰노랑
-        `${tx*len*.35}px ${ty*len*.35}px 16px 4px  rgba(252,211,77,1)`,    // 내부 — 골드
-        `${tx*len*.55}px ${ty*len*.55}px 22px 2px  rgba(251,146,60,.9)`,   // 중간 — 오렌지
-        `${tx*len*.75}px ${ty*len*.75}px 28px 0px  rgba(239,68,68,.7)`,    // 외부 — 빨강
-        `${tx*len}px     ${ty*len}px     38px -2px rgba(127,29,29,.4)`,    // 끝 — 다크레드 페이드
-        `0 0 40px 8px rgba(252,211,77,.5)`,                                 // 버튼 전체 후광
+        `${tx*len*.15}px ${ty*len*.15}px 7px 4px  rgba(255,255,200,.95)`,  // 핵 — 밝은 흰노랑
+        `${tx*len*.35}px ${ty*len*.35}px 12px 2px rgba(252,211,77,.9)`,    // 내부 — 골드
+        `${tx*len*.55}px ${ty*len*.55}px 16px 1px rgba(251,146,60,.75)`,   // 중간 — 오렌지
+        `${tx*len*.75}px ${ty*len*.75}px 20px 0px rgba(239,68,68,.55)`,    // 외부 — 빨강
+        `${tx*len}px     ${ty*len}px     28px -2px rgba(127,29,29,.3)`,    // 끝 — 다크레드 페이드
+        `0 0 26px 5px rgba(252,211,77,.4)`,                                 // 버튼 전체 후광
       ].join(',');
       if (raw < 1) {
         requestAnimationFrame(tick);
