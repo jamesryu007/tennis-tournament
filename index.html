@@ -12663,8 +12663,8 @@ function _bzInitUnreadListener() {
     const cy = (H - SIZE) / 2;
     const rx = Math.min(W * 0.42, cx - 10);
     const ry = Math.min(H * 0.36, cy - 70);
-    const dur = 1500, laps = 1.25;
-    const origShadow = btn.style.boxShadow; // 원래 섀도 저장
+    const dur = 3000, laps = 1.25;                     // 3초로 늘려 천천히
+    const origShadow = btn.style.boxShadow;
     let t0 = null;
     btn.style.transition = 'none';
     btn.style.opacity = '1';
@@ -12678,11 +12678,20 @@ function _bzInitUnreadListener() {
       const angle = -Math.PI / 2 + e * laps * 2 * Math.PI;
       btn.style.left = (cx + rx * Math.cos(angle)) + 'px';
       btn.style.top  = _clampY(cy + ry * Math.sin(angle)) + 'px';
-      // 혜성 꼬리 — 이동 방향 반대쪽에 골드 글로우 (원형 버튼이라 rotate 안 보임)
-      const trailAngle = angle - Math.PI / 2; // 접선 반대방향 (꼬리)
-      const tx = Math.cos(trailAngle) * 18;
-      const ty = Math.sin(trailAngle) * 18;
-      btn.style.boxShadow = `${tx*.35}px ${ty*.35}px 6px rgba(252,211,77,1),${tx*.65}px ${ty*.65}px 14px rgba(251,146,60,.8),${tx}px ${ty}px 24px rgba(239,68,68,.5),0 0 32px rgba(252,211,77,.6)`;
+      // 혜성 꼬리 — 이동 방향 반대쪽, 다층 글로우로 선명하게
+      const trailAngle = angle - Math.PI / 2; // 접선 반대방향
+      const tx = Math.cos(trailAngle), ty = Math.sin(trailAngle);
+      // 속도 비례 꼬리 길이 (느릴수록 짧게, 빠를수록 길게)
+      const speed = Math.max(0.4, 1 - raw * 0.5);
+      const len = 60 * speed;
+      btn.style.boxShadow = [
+        `${tx*len*.15}px ${ty*len*.15}px 10px 6px  rgba(255,255,200,1)`,   // 핵 — 밝은 흰노랑
+        `${tx*len*.35}px ${ty*len*.35}px 16px 4px  rgba(252,211,77,1)`,    // 내부 — 골드
+        `${tx*len*.55}px ${ty*len*.55}px 22px 2px  rgba(251,146,60,.9)`,   // 중간 — 오렌지
+        `${tx*len*.75}px ${ty*len*.75}px 28px 0px  rgba(239,68,68,.7)`,    // 외부 — 빨강
+        `${tx*len}px     ${ty*len}px     38px -2px rgba(127,29,29,.4)`,    // 끝 — 다크레드 페이드
+        `0 0 40px 8px rgba(252,211,77,.5)`,                                 // 버튼 전체 후광
+      ].join(',');
       if (raw < 1) {
         requestAnimationFrame(tick);
       } else {
