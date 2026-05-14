@@ -12466,6 +12466,9 @@ function _bzInitUnreadListener() {
     return Math.max(60, Math.min(window.innerHeight - SIZE - 80, y));
   }
 
+  // 성 제거 — 3글자 이상 이름은 첫 글자(성) 제거 (유지원→지원, 천지은→지은)
+  function _sn(name) { return (name && name.length >= 3) ? name.slice(1) : (name || ''); }
+
   // 호칭 생성 — 출생연도(birthday: 'YYYY-MM-DD') + 성별 기반
   function _getTitle(myName, theirName) {
     const myM = state.members.find(m => m.name === myName);
@@ -12482,37 +12485,42 @@ function _bzInitUnreadListener() {
     return '';
   }
 
-  // 위치친구 팝업 — 성별 분기 랜덤 문구 (type: 'good'|'bad'|'mixed')
-  function _showLocationBuddy(displayNames, type) {
-    // 연상=호칭(누나/언니/오빠/형), 연하·동갑·미등록=이름만 — 님 없음
+  // 위치친구 팝업 — 성별 분기 랜덤 문구
+  // type: 'good'(핑크), 'bad'(빨강), 'mixed'(보라)
+  // ctx: { femaleBuddies, maleBuddies } — mixed용 이름 분리
+  function _showLocationBuddy(displayNames, type, ctx) {
     const nameStr = displayNames.join(', ');
-    // 조사 헬퍼 — 마지막 글자 받침 유무로 선택
+    // 조사 헬퍼 — nameStr 마지막 글자 받침 유무
     const _p = (v, c) => {
       const code = nameStr.charCodeAt(nameStr.length - 1);
       return (code >= 0xAC00 && (code - 0xAC00) % 28 !== 0) ? c : v;
     };
-    const rang = _p('랑', '이랑');     // 랑 / 이랑
-    const wa   = _p('와', '과');       // 와 / 과
-    const ga   = _p('가', '이');       // 가 / 이
-    const ra   = _p('라서', '이라서'); // 라서 / 이라서
-    const GOOD = [ // 여성끼리 / 이성 1:1 — 텔레파시/설렘
-      { emoji: '🔮', line1: '텔레파시 발동!',    line2: `${nameStr}${wa}`, line3: '완전 같은 자리!' },
-      { emoji: '💫', line1: '신기방기!',          line2: `${nameStr}${rang}`, line3: '텔레파시 통했어요!' },
-      { emoji: '🎾', line1: '듀스!',              line2: `${nameStr}${wa}`, line3: '똑같은 자리 선택!' },
-      { emoji: '👯', line1: '영혼의 단짝!',       line2: `${nameStr}${wa}`, line3: '마음이 통했어요' },
-      { emoji: '⚡️', line1: '번개 매칭!',         line2: `${nameStr}${wa}`, line3: '같은 곳을 눌렀네요!' },
-      { emoji: '🎯', line1: '핀포인트 일치!',     line2: `${nameStr}${wa}`, line3: '정조준 같은 자리!' },
-      { emoji: '🌟', line1: '스타 매치!',         line2: `${nameStr}${rang}`, line3: '찰떡 같은 위치!' },
-      { emoji: '🫶', line1: '찰떡 케미!',         line2: `${nameStr}${rang}`, line3: '같은 자리네요~' },
-      { emoji: '🎪', line1: '어머!',              line2: `${nameStr}${rang}`, line3: '완전 같은 위치잖아요!' },
-      { emoji: '🌈', line1: '운명적 만남!',       line2: `${nameStr}${wa}`, line3: '같은 자리 선택!' },
-      { emoji: '🦋', line1: '나비효과!',          line2: `${nameStr}${rang}`, line3: '같은 자리를 택했네요' },
-      { emoji: '🎶', line1: '하모니 완성!',       line2: `${nameStr}${wa}`, line3: '박자가 딱 맞아요!' },
+    const rang = _p('랑', '이랑');
+    const wa   = _p('와', '과');
+    // mixed용 — 여성 단명("이" 친근 접미), 남성 단명
+    const _fi = n => { const s = _sn(n); const c = s.charCodeAt(s.length-1); return (c >= 0xAC00 && (c-0xAC00)%28 !== 0) ? s+'이' : s; };
+    const fb = (ctx && ctx.femaleBuddies) || [];
+    const mb = (ctx && ctx.maleBuddies)   || [];
+    const femStr = fb.map(_fi).join(', ')   || nameStr;
+    const malStr = mb.map(n => _sn(n)).join(', ') || nameStr;
+    const GOOD = [ // 여성끼리 / 남녀 1:1 — 핑크, 호감/설렘
+      { emoji: '🌸', line1: '텔레파시!',         line2: `${nameStr}${wa}`, line3: '완전 같은 자리 ☺️' },
+      { emoji: '💝', line1: '설레는 매칭!',       line2: `${nameStr}${rang}`, line3: '같은 곳 선택했잖아요~' },
+      { emoji: '🌷', line1: '찰떡 궁합!',         line2: `${nameStr}${wa}`, line3: '딱 같은 자리잖아요 ㅎ' },
+      { emoji: '🎀', line1: '어머 신기해!',       line2: `${nameStr}${rang}`, line3: '같은 위치라니~ 인연인가봐' },
+      { emoji: '🌺', line1: '완전 동기화!',       line2: `${nameStr}${wa}`, line3: '이심전심이에요 ♡' },
       { emoji: '💕', line1: '운명의 장난!',       line2: `${nameStr}${wa}`, line3: '같은 자리를 택하셨군요' },
       { emoji: '🌹', line1: '어머나!',            line2: `${nameStr}${wa}`, line3: '완전 같은 위치잖아요?' },
       { emoji: '💘', line1: '큐피드 화살!',       line2: `${nameStr}${wa}`, line3: '찰떡 같은 위치 선택!' },
+      { emoji: '🦋', line1: '나비효과!',          line2: `${nameStr}${rang}`, line3: '같은 자리를 택했네요' },
+      { emoji: '🎶', line1: '하모니 완성!',       line2: `${nameStr}${wa}`, line3: '박자가 딱 맞아요!' },
+      { emoji: '👯', line1: '영혼의 단짝!',       line2: `${nameStr}${wa}`, line3: '마음이 통했어요' },
+      { emoji: '🫶', line1: '찰떡 케미!',         line2: `${nameStr}${rang}`, line3: '같은 자리네요~' },
+      { emoji: '🌈', line1: '운명적 만남!',       line2: `${nameStr}${wa}`, line3: '같은 자리 선택!' },
+      { emoji: '⚡️', line1: '번개 매칭!',         line2: `${nameStr}${wa}`, line3: '같은 곳을 눌렀네요!' },
+      { emoji: '🎯', line1: '핀포인트 일치!',     line2: `${nameStr}${wa}`, line3: '정조준 같은 자리!' },
     ];
-    const BAD = [ // 남자끼리 — 짜증/유머
+    const BAD = [ // 남자끼리 — 장난스런 짜증/퉁명
       { emoji: '😤', line1: '아 진짜...',         line2: `${nameStr}${rang}`, line3: '위치 겹쳤어. 바꿔야겠다' },
       { emoji: '🙄', line1: '어이없어',           line2: `${nameStr}${rang}`, line3: '같은 자리? 센스 좀 키워' },
       { emoji: '😒', line1: '하필이면',           line2: `${nameStr}${rang}`, line3: '같은 자리... 몰래 옮겨야지' },
@@ -12526,17 +12534,17 @@ function _bzInitUnreadListener() {
       { emoji: '👊', line1: '야!',                line2: `${nameStr}아,`, line3: '네가 비켜. 내가 먼저야' },
       { emoji: '🏃', line1: '도망가자',           line2: `${nameStr}${rang}`, line3: '겹치기 전에 얼른 옮겨!' },
     ];
-    const MIXED = [ // 혼성 (남+여 섞임) — 여자 덕분에 봐줄게 유머
-      { emoji: '💜', line1: '봐줄게',             line2: `${nameStr}${ga} 있어서`, line3: '오늘은 참는다 ㅋㅋ' },
-      { emoji: '😏', line1: '운 좋은 줄 알아',   line2: `${nameStr} 덕분에`, line3: '위치 양보해줄게' },
-      { emoji: '🤭', line1: '어쩔 수 없지',       line2: `${nameStr}${ga} 있으니`, line3: '이번만 봐줌ㅋ' },
-      { emoji: '😌', line1: '그래 봐줄게',        line2: `${nameStr} 계시니까`, line3: '오늘은 관대해지자' },
-      { emoji: '🫡', line1: '존중함',             line2: `${nameStr} 있는 자리니`, line3: '내가 비켜드리죠' },
-      { emoji: '🙏', line1: '감사히 봐줌',        line2: `${nameStr} 덕에`, line3: '위치 쿨하게 양보' },
-      { emoji: '😇', line1: '천사같은 나',        line2: `${nameStr} 보고`, line3: '화 참는 중... ㅋ' },
-      { emoji: '💪', line1: '너그러운 남자',      line2: `${nameStr}${ga} 있으니까`, line3: '내가 한 수 접어줄게' },
-      { emoji: '🫰', line1: '특별히',             line2: `${nameStr}${ra}`, line3: '이번 한 번만 봐줌' },
-      { emoji: '😤', line1: '흥...',              line2: `${nameStr} 아니었으면`, line3: '진짜 가만 안 뒀어 ㅋㅋ' },
+    const MIXED = [ // 남자-여자-남자 혼성 — 보라, 여성 우대 멘트
+      { emoji: '💜', line1: `${femStr} 때문에`,  line2: `내가 ${malStr}한테`, line3: '오늘은 양보한다 ㅋㅋ' },
+      { emoji: '😏', line1: '운 좋은 줄 알아',   line2: `${femStr} 있으니까`, line3: `${malStr} 이번만 봐줌` },
+      { emoji: '🤭', line1: `${femStr} 덕에`,     line2: `${malStr}한테 자리 양보`, line3: '아니었으면 없었을 일 ㅋ' },
+      { emoji: '😌', line1: '관대한 척',          line2: `${femStr} 보고`,     line3: `${malStr}한테 자리 내줌` },
+      { emoji: '🙏', line1: `${femStr} 아니었으면`, line2: `${malStr} 진짜`,  line3: '가만 안 뒀어 ㅋㅋ' },
+      { emoji: '😇', line1: '천사같은 나',        line2: `${femStr} 보고 참는 중`, line3: `${malStr} 넌 운 좋다 ㅋ` },
+      { emoji: '💪', line1: '양보의 미학',        line2: `${femStr} 땜에`,    line3: `${malStr}한테 오늘은 져줄게` },
+      { emoji: '🫰', line1: '특별히',             line2: `${femStr} 있으니까`, line3: `${malStr}도 봐주는 거거든` },
+      { emoji: '😤', line1: '흥...',              line2: `${femStr} 있잖아`,  line3: `${malStr} 오늘은 참는다` },
+      { emoji: '🫡', line1: '어쩔 수 없지',       line2: `${femStr} 있는 자리니`, line3: `${malStr}이랑 공유한다` },
     ];
     const pool = type === 'bad' ? BAD : type === 'mixed' ? MIXED : GOOD;
     const m = pool[Math.floor(Math.random() * pool.length)];
@@ -12544,7 +12552,7 @@ function _bzInitUnreadListener() {
       ? 'linear-gradient(145deg,#7f1d1d,#dc2626)'
       : type === 'mixed'
         ? 'linear-gradient(145deg,#4c1d95,#7c3aed)'
-        : 'linear-gradient(145deg,#1e3a5f,#2563eb)';
+        : 'linear-gradient(145deg,#be185d,#ec4899)'; // 핑크 — 여성끼리/남녀1:1
 
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9998;display:flex;align-items:center;justify-content:center;pointer-events:none';
@@ -12599,17 +12607,24 @@ function _bzInitUnreadListener() {
           Math.hypot(cx - (p.rx * W + SIZE / 2), cy - (p.ry * H + SIZE / 2)) < MATCH_R)
         .map(([name]) => name);
       if (!buddies.length) return;
-      // 성별 판단 — 3가지 케이스
+      // 성별 판단
       const gFn = n => (typeof getGender === 'function' ? getGender(n) : 'unknown');
       const myGender = gFn(myName);
       const buddyGenders = buddies.map(gFn);
       const allMale = myGender === 'male' && buddyGenders.every(g => g === 'male');
       const hasMale = myGender === 'male' || buddyGenders.includes('male');
       const hasFemale = myGender === 'female' || buddyGenders.includes('female');
-      const type = allMale ? 'bad' : (hasMale && hasFemale) ? 'mixed' : 'good';
-      // 호칭 포함 표시명 생성
-      const displayNames = buddies.map(n => { const t = _getTitle(myName, n); return t ? `${n} ${t}` : n; });
-      _showLocationBuddy(displayNames, type);
+      // 1:1 이성 → good(핑크), 다수 혼성 → mixed(보라), 전원 남성 → bad(빨강)
+      const is1on1Hetero = (1 + buddies.length) === 2 && hasMale && hasFemale;
+      const type = allMale ? 'bad' : (hasMale && hasFemale && !is1on1Hetero) ? 'mixed' : 'good';
+      // 성 제거 + 호칭 직결(공백 없음): 유지원오빠, 천지은누나, 이은숙 → 은숙
+      const displayNames = buddies.map(n => { const t = _getTitle(myName, n); return t ? `${_sn(n)}${t}` : _sn(n); });
+      // mixed용 여성/남성 버디 분리
+      const ctx = {
+        femaleBuddies: buddies.filter((n, i) => buddyGenders[i] === 'female'),
+        maleBuddies:   buddies.filter((n, i) => buddyGenders[i] === 'male'),
+      };
+      _showLocationBuddy(displayNames, type, ctx);
     }).catch(() => {});
   }
 
