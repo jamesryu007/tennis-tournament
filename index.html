@@ -13405,6 +13405,9 @@ function bzSwitchBzTab(tab) {
   if (chatBtn)  { chatBtn.style.background  = isPhoto ? 'none' : '#f59e0b'; chatBtn.style.color  = isPhoto ? '#94a3b8' : '#fff'; }
   if (photoBtn) { photoBtn.style.background = isPhoto ? '#f59e0b' : 'none'; photoBtn.style.color = isPhoto ? '#fff' : '#94a3b8'; }
   if (isPhoto) {
+    if (window._bzPhotoGridCleanup) { window._bzPhotoGridCleanup(); window._bzPhotoGridCleanup = null; }
+    photoGrid.style.transform = '';
+    photoGrid.style.opacity = '';
     _bzRenderPhotoGrid();
   } else {
     if (window._bzPhotoGridCleanup) { window._bzPhotoGridCleanup(); window._bzPhotoGridCleanup = null; }
@@ -13458,9 +13461,11 @@ function _bzRenderPhotoGrid() {
       if (!_pgAtBottom) { _showPgMsg('마지막 사진입니다', false); _pgAtBottom = true; }
     } else { _pgAtBottom = false; }
   }, { passive: true });
-  window._bzPhotoGridCleanup = () => { _pgMsg.remove(); clearTimeout(_pgMsgTimer); };
+  window._bzPhotoGridCleanup = () => { _pgMsg.remove(); clearTimeout(_pgMsgTimer); grid._bzTouchAdded = false; };
 
   // 오른쪽 스와이프 → 채팅탭 복귀 (채팅방 스와이프와 동일한 UX)
+  if (!grid._bzTouchAdded) {
+  grid._bzTouchAdded = true;
   let _pgSx = 0, _pgSy = 0, _pgHoriz = null;
   grid.addEventListener('touchstart', e => {
     if (e.touches.length !== 1) return;
@@ -13496,6 +13501,7 @@ function _bzRenderPhotoGrid() {
     }
     _pgHoriz = null;
   }, { passive: true });
+  } // end _bzTouchAdded guard
 }
 
 function _bzPhotoGridTap(idx) {
@@ -13640,8 +13646,8 @@ function bzOpenPhotoViewer(photos, startIdx) {
     const dy = e.changedTouches[0].clientY - _sy;
     if (_dragging) {
       overlay.style.transform = ''; overlay.style.opacity = '';
-      if (dx < -50 && cur < photos.length - 1) goTo(cur + 1, true);
-      else if (dx > 50 && cur > 0) goTo(cur - 1, true);
+      if (dx < -50 && cur > 0) goTo(cur - 1, true);
+      else if (dx > 50 && cur < photos.length - 1) goTo(cur + 1, true);
       else goTo(cur, true);
     } else if (dy > 80 && Math.abs(dx) < 50) {
       overlay.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
@@ -13871,8 +13877,8 @@ function bzViewBundle(msgKey, startIdx) {
     const dx = e.changedTouches[0].clientX - _sx;
     const dy = e.changedTouches[0].clientY - _sy;
     if (_dragging) {
-      if (dx < -50 && cur < photos.length - 1) goTo(cur + 1, true);
-      else if (dx > 50 && cur > 0) goTo(cur - 1, true);
+      if (dx < -50 && cur > 0) goTo(cur - 1, true);
+      else if (dx > 50 && cur < photos.length - 1) goTo(cur + 1, true);
       else goTo(cur, true); // 제자리 복귀
     } else if (dy > 80 && Math.abs(dx) < 50) {
       _bzClosePhotoViewer(overlay);
