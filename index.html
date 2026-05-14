@@ -2237,7 +2237,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v463';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v464';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12453,7 +12453,8 @@ function _bzInitUnreadListener() {
 // ── 플로팅 버튼 드래그 이동 ────────────────────────────────────────
 (function _bzSetupFloatDrag() {
   const LS_KEY = 'jmt_float_pos';
-  const SIZE = 64, GAP = 16;
+  const DB_PATH = 'jmt/floatBtnPos';
+  const SIZE = 64, GAP = 16, SNAP_ZONE = 0.2; // 화면 20% 이내만 엣지 스냅
   let _moved = false, _sx = 0, _sy = 0, _bx = 0, _by = 0;
 
   function _apply(btn, x, y) {
@@ -12463,14 +12464,49 @@ function _bzInitUnreadListener() {
   function _clampY(y) {
     return Math.max(60, Math.min(window.innerHeight - SIZE - 80, y));
   }
+
+  // 위치친구 팝업
+  function _showLocationBuddy(names) {
+    const msg = names.length === 1
+      ? `${names[0]}님과 같은 자리네요! 😄`
+      : `${names.join(', ')}님과 같은 자리네요! 😄`;
+    const el = document.createElement('div');
+    el.textContent = msg;
+    el.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:100px;background:rgba(0,0,0,0.72);color:#fff;font-size:0.82rem;font-weight:700;padding:8px 18px;border-radius:20px;z-index:9999;white-space:nowrap;transition:opacity 0.4s ease;pointer-events:none';
+    document.body.appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 400); }, 1500);
+  }
+
+  // 고정 후 DB 저장 + 위치친구 비교
+  function _saveAndCompare(finalX, finalY) {
+    const myName = state.identity && state.identity.name;
+    if (!myName || !window.db) return;
+    db.ref(`${DB_PATH}/${myName}`).set({ x: finalX, y: finalY, ts: Date.now() }).catch(() => {});
+    db.ref(DB_PATH).once('value', snap => {
+      const all = snap.val() || {};
+      const threshold = SIZE * 1.5; // 96px 반경
+      const buddies = Object.entries(all)
+        .filter(([name, p]) => name !== myName && typeof p.x === 'number' &&
+          Math.hypot(finalX - p.x, finalY - p.y) < threshold)
+        .map(([name]) => name);
+      if (buddies.length) _showLocationBuddy(buddies);
+    }).catch(() => {});
+  }
+
   function _snap(btn, x, y) {
     y = _clampY(y);
-    const snapX = (x + SIZE / 2 < window.innerWidth / 2) ? GAP : window.innerWidth - SIZE - GAP;
+    const W = window.innerWidth;
+    // 옵션B: 좌우 20% 이내면 엣지 스냅, 나머지는 자유
+    let finalX = x;
+    if (x < W * SNAP_ZONE) finalX = GAP;
+    else if (x > W - SIZE - W * SNAP_ZONE) finalX = W - SIZE - GAP;
     btn.style.transition = 'left 0.3s cubic-bezier(0.25,0.46,0.45,0.94), top 0.3s cubic-bezier(0.25,0.46,0.45,0.94)';
-    _apply(btn, snapX, y);
+    _apply(btn, finalX, y);
     setTimeout(() => { btn.style.transition = 'transform 0.15s, box-shadow 0.15s'; }, 320);
-    try { localStorage.setItem(LS_KEY, JSON.stringify({ x: snapX, y })); } catch(_) {}
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ x: finalX, y })); } catch(_) {}
+    _saveAndCompare(finalX, y);
   }
+
   function _initPos(btn) {
     try {
       const s = JSON.parse(localStorage.getItem(LS_KEY));
@@ -12497,9 +12533,10 @@ function _bzInitUnreadListener() {
       const dx = e.touches[0].clientX - _sx, dy = e.touches[0].clientY - _sy;
       if (!_moved && Math.hypot(dx, dy) < 8) return;
       _moved = true;
+      e.preventDefault(); // 배경 스크롤 방지
       _apply(btn, _bx + dx, _by + dy);
       e.stopPropagation();
-    }, { passive: true });
+    }, { passive: false });
     btn.addEventListener('touchend', e => {
       e.stopPropagation();
       if (!_moved) { btn.style.transition = 'transform 0.15s, box-shadow 0.15s'; return; }
