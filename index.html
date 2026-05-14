@@ -13472,6 +13472,7 @@ function _bzRenderPhotoGrid() {
     _pgSx = e.touches[0].clientX; _pgSy = e.touches[0].clientY;
     _pgHoriz = null;
     grid.style.transition = 'none';
+    e.stopPropagation(); // 모달·document 탭스와이프 핸들러 전파 차단
   }, { passive: true });
   grid.addEventListener('touchmove', e => {
     if (e.touches.length !== 1) return;
