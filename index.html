@@ -2237,7 +2237,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v462';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v463';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7365,7 +7365,14 @@ function updatePermissionUI() {
   if (floatBtn) {
     const loggedIn = !!(state.identity && state.identity.name);
     const roomOpen = floatBtn.style.display === 'none' && _bzFromFloat; // 방 열린 중이면 건드리지 않음
-    if (!roomOpen) floatBtn.style.display = loggedIn ? 'flex' : 'none';
+    if (!roomOpen) {
+      if (loggedIn) {
+        if (window._bzInitFloatDrag) window._bzInitFloatDrag(); // 드래그 초기화 (위치 먼저 세팅)
+        floatBtn.style.display = 'flex';
+      } else {
+        floatBtn.style.display = 'none';
+      }
+    }
     // 멤버 전환 시 해당 멤버 기준으로 미읽음 리스너 재연결
     if (loggedIn && typeof _bzAttachUnreadListener === 'function') _bzAttachUnreadListener();
   }
@@ -12443,7 +12450,68 @@ function _bzInitUnreadListener() {
   });
 }
 
+// ── 플로팅 버튼 드래그 이동 ────────────────────────────────────────
+(function _bzSetupFloatDrag() {
+  const LS_KEY = 'jmt_float_pos';
+  const SIZE = 64, GAP = 16;
+  let _moved = false, _sx = 0, _sy = 0, _bx = 0, _by = 0;
+
+  function _apply(btn, x, y) {
+    btn.style.left = x + 'px'; btn.style.top = y + 'px';
+    btn.style.bottom = ''; btn.style.right = '';
+  }
+  function _clampY(y) {
+    return Math.max(60, Math.min(window.innerHeight - SIZE - 80, y));
+  }
+  function _snap(btn, x, y) {
+    y = _clampY(y);
+    const snapX = (x + SIZE / 2 < window.innerWidth / 2) ? GAP : window.innerWidth - SIZE - GAP;
+    btn.style.transition = 'left 0.3s cubic-bezier(0.25,0.46,0.45,0.94), top 0.3s cubic-bezier(0.25,0.46,0.45,0.94)';
+    _apply(btn, snapX, y);
+    setTimeout(() => { btn.style.transition = 'transform 0.15s, box-shadow 0.15s'; }, 320);
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ x: snapX, y })); } catch(_) {}
+  }
+  function _initPos(btn) {
+    try {
+      const s = JSON.parse(localStorage.getItem(LS_KEY));
+      if (s && typeof s.x === 'number') { _apply(btn, s.x, _clampY(s.y)); return; }
+    } catch(_) {}
+    _apply(btn, window.innerWidth - SIZE - GAP, window.innerHeight - SIZE - 104);
+  }
+
+  window._bzInitFloatDrag = function() {
+    const btn = document.getElementById('bz-float-btn');
+    if (!btn || btn._bzDragSetup) return;
+    btn._bzDragSetup = true;
+    _initPos(btn);
+    btn.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) return;
+      _moved = false;
+      _sx = e.touches[0].clientX; _sy = e.touches[0].clientY;
+      _bx = parseInt(btn.style.left) || 0; _by = parseInt(btn.style.top) || 0;
+      btn.style.transition = 'none';
+      e.stopPropagation();
+    }, { passive: true });
+    btn.addEventListener('touchmove', e => {
+      if (e.touches.length !== 1) return;
+      const dx = e.touches[0].clientX - _sx, dy = e.touches[0].clientY - _sy;
+      if (!_moved && Math.hypot(dx, dy) < 8) return;
+      _moved = true;
+      _apply(btn, _bx + dx, _by + dy);
+      e.stopPropagation();
+    }, { passive: true });
+    btn.addEventListener('touchend', e => {
+      e.stopPropagation();
+      if (!_moved) { btn.style.transition = 'transform 0.15s, box-shadow 0.15s'; return; }
+      window._bzFloatDragged = true;
+      _snap(btn, parseInt(btn.style.left) || 0, parseInt(btn.style.top) || 0);
+      setTimeout(() => { window._bzFloatDragged = false; }, 350);
+    }, { passive: true });
+  };
+})();
+
 function bzShowRoomFromFloat() {
+  if (window._bzFloatDragged) return; // 드래그 후 클릭 방지
   _bzFromFloat = true;
   const modal = document.getElementById('bet-screen-banzige');
   if (modal && modal.parentElement !== document.body) {
