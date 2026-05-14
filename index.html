@@ -2236,8 +2236,8 @@ let _pollDataRef = null;
 
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
+const SW_VERSION = 'jamite-v465';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v463';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7365,7 +7365,14 @@ function updatePermissionUI() {
   if (floatBtn) {
     const loggedIn = !!(state.identity && state.identity.name);
     const roomOpen = floatBtn.style.display === 'none' && _bzFromFloat; // 방 열린 중이면 건드리지 않음
-    if (!roomOpen) floatBtn.style.display = loggedIn ? 'flex' : 'none';
+    if (!roomOpen) {
+      if (loggedIn) {
+        if (window._bzInitFloatDrag) window._bzInitFloatDrag(); // 드래그 초기화 (위치 먼저 세팅)
+        floatBtn.style.display = 'flex';
+      } else {
+        floatBtn.style.display = 'none';
+      }
+    }
     // 멤버 전환 시 해당 멤버 기준으로 미읽음 리스너 재연결
     if (loggedIn && typeof _bzAttachUnreadListener === 'function') _bzAttachUnreadListener();
   }
@@ -9839,6 +9846,7 @@ async function triggerAtpRefresh() {
     const el = document.getElementById('logo-popup');
     if (!el) return;
     el.style.display = 'flex';
+    window._bzSplashEndTime = Date.now() + 2000;
     setTimeout(() => { el.style.display = 'none'; }, 2000);
   })();
 </script>
@@ -12443,7 +12451,328 @@ function _bzInitUnreadListener() {
   });
 }
 
+// ── 플로팅 버튼 드래그 이동 ────────────────────────────────────────
+(function _bzSetupFloatDrag() {
+  const LS_KEY = 'jmt_float_pos';
+  const DB_PATH = 'jmt/floatBtnPos';
+  const SIZE = 64, GAP = 16, SNAP_ZONE = 0.2;
+  const MATCH_R = 40; // 매칭 반경 — 버튼 중심 기준 픽셀 (버튼 크기의 62%)
+  let _moved = false, _sx = 0, _sy = 0, _bx = 0, _by = 0;
+
+  function _apply(btn, x, y) {
+    btn.style.left = x + 'px'; btn.style.top = y + 'px';
+    btn.style.bottom = ''; btn.style.right = '';
+  }
+  function _clampY(y) {
+    return Math.max(60, Math.min(window.innerHeight - SIZE - 80, y));
+  }
+
+  // 성 제거 — 3글자 이상 이름은 첫 글자(성) 제거 (유지원→지원, 천지은→지은)
+  function _sn(name) { return (name && name.length >= 3) ? name.slice(1) : (name || ''); }
+
+  // 호칭 생성 — 출생연도(birthday: 'YYYY-MM-DD') + 성별 기반
+  function _getTitle(myName, theirName) {
+    const myM = state.members.find(m => m.name === myName);
+    const theirM = state.members.find(m => m.name === theirName);
+    if (!myM || !theirM) return '';
+    const myYear = myM.birthday ? parseInt(myM.birthday.split('-')[0], 10) : 0;
+    const theirYear = theirM.birthday ? parseInt(theirM.birthday.split('-')[0], 10) : 0;
+    if (!myYear || !theirYear || theirYear >= myYear) return ''; // 연하·동갑 → 이름만
+    const myG = myM.gender || 'male', theirG = theirM.gender || 'male';
+    if (myG === 'male'   && theirG === 'female') return '누나';
+    if (myG === 'female' && theirG === 'female') return '언니';
+    if (myG === 'female' && theirG === 'male')   return '오빠';
+    if (myG === 'male'   && theirG === 'male')   return '형';
+    return '';
+  }
+
+  // 위치친구 팝업 — 성별 분기 랜덤 문구
+  // type: 'good'(핑크), 'bad'(빨강), 'mixed'(보라)
+  // ctx: { femaleBuddies, maleBuddies } — mixed용 이름 분리
+  function _showLocationBuddy(displayNames, type, ctx) {
+    const nameStr = displayNames.join(', ');
+    // 조사 헬퍼 — nameStr 마지막 글자 받침 유무
+    const _p = (v, c) => {
+      const code = nameStr.charCodeAt(nameStr.length - 1);
+      return (code >= 0xAC00 && (code - 0xAC00) % 28 !== 0) ? c : v;
+    };
+    const rang = _p('랑', '이랑');
+    const wa   = _p('와', '과');
+    // mixed용 — 여성 단명("이" 친근 접미), 남성 단명+호칭
+    const _fi = n => { const s = _sn(n); const c = s.charCodeAt(s.length-1); return (c >= 0xAC00 && (c-0xAC00)%28 !== 0) ? s+'이' : s; };
+    const fb = (ctx && ctx.femaleBuddies) || [];
+    const mb = (ctx && ctx.maleBuddies)   || [];
+    const mn = ctx && ctx.myName;
+    const femStr = fb.map(_fi).join(', ') || nameStr;
+    // 남성 버디도 출생연도 기반 호칭 적용 (지원→지원형, 승수→승수 등)
+    const malStr = mb.map(n => { const t = mn ? _getTitle(mn, n) : ''; return t ? `${_sn(n)}${t}` : _sn(n); }).join(', ') || nameStr;
+    const GOOD = [ // 여성끼리 / 남녀 1:1 — 핑크, 호감/설렘
+      { emoji: '🌸', line1: '텔레파시!',         line2: `${nameStr}${wa}`, line3: '완전 같은 자리 ☺️' },
+      { emoji: '💝', line1: '설레는 매칭!',       line2: `${nameStr}${rang}`, line3: '같은 곳 선택했잖아요~' },
+      { emoji: '🌷', line1: '찰떡 궁합!',         line2: `${nameStr}${wa}`, line3: '딱 같은 자리잖아요 ㅎ' },
+      { emoji: '🎀', line1: '어머 신기해!',       line2: `${nameStr}${rang}`, line3: '같은 위치라니~ 인연인가봐' },
+      { emoji: '🌺', line1: '완전 동기화!',       line2: `${nameStr}${wa}`, line3: '이심전심이에요 ♡' },
+      { emoji: '💕', line1: '운명의 장난!',       line2: `${nameStr}${wa}`, line3: '같은 자리를 택하셨군요' },
+      { emoji: '🌹', line1: '어머나!',            line2: `${nameStr}${wa}`, line3: '완전 같은 위치잖아요?' },
+      { emoji: '💘', line1: '큐피드 화살!',       line2: `${nameStr}${wa}`, line3: '찰떡 같은 위치 선택!' },
+      { emoji: '🦋', line1: '나비효과!',          line2: `${nameStr}${rang}`, line3: '같은 자리를 택했네요' },
+      { emoji: '🎶', line1: '하모니 완성!',       line2: `${nameStr}${wa}`, line3: '박자가 딱 맞아요!' },
+      { emoji: '👯', line1: '영혼의 단짝!',       line2: `${nameStr}${wa}`, line3: '마음이 통했어요' },
+      { emoji: '🫶', line1: '찰떡 케미!',         line2: `${nameStr}${rang}`, line3: '같은 자리네요~' },
+      { emoji: '🌈', line1: '운명적 만남!',       line2: `${nameStr}${wa}`, line3: '같은 자리 선택!' },
+      { emoji: '⚡️', line1: '번개 매칭!',         line2: `${nameStr}${wa}`, line3: '같은 곳을 눌렀네요!' },
+      { emoji: '🎯', line1: '핀포인트 일치!',     line2: `${nameStr}${wa}`, line3: '정조준 같은 자리!' },
+    ];
+    const BAD = [ // 남자끼리 — 장난스런 짜증/퉁명
+      { emoji: '😤', line1: '아 진짜...',         line2: `${nameStr}${rang}`, line3: '위치 겹쳤어. 바꿔야겠다' },
+      { emoji: '🙄', line1: '어이없어',           line2: `${nameStr}${rang}`, line3: '같은 자리? 센스 좀 키워' },
+      { emoji: '😒', line1: '하필이면',           line2: `${nameStr}${rang}`, line3: '같은 자리... 몰래 옮겨야지' },
+      { emoji: '💢', line1: '짜증',               line2: `${nameStr}${rang}`, line3: '딱 겹쳤네. 아 몰라' },
+      { emoji: '🫠', line1: '둘 다 아싸?',        line2: `${nameStr}${rang}`, line3: '위치 똑같음ㅋㅋ' },
+      { emoji: '😑', line1: '취향도 같냐',        line2: `${nameStr}${rang}`, line3: '같은 곳... 너무 비슷한 거 아니야?' },
+      { emoji: '🤦', line1: '위치 센스 제로',     line2: `${nameStr}${rang}`, line3: '겹쳤다고? 진짜 이게 뭐야' },
+      { emoji: '🥲', line1: '슬프다',             line2: `${nameStr}${rang}`, line3: '같은 자리라니... 인생이 이래' },
+      { emoji: '😬', line1: '어색해',             line2: `${nameStr}${rang}`, line3: '같은 자리잖아. 쪽팔려' },
+      { emoji: '🤯', line1: '멘붕',               line2: `${nameStr}${rang}`, line3: '완전 같은 자리라고?!' },
+      { emoji: '👊', line1: '야!',                line2: `${nameStr}아,`, line3: '네가 비켜. 내가 먼저야' },
+      { emoji: '🏃', line1: '도망가자',           line2: `${nameStr}${rang}`, line3: '겹치기 전에 얼른 옮겨!' },
+    ];
+    const MIXED = [ // 남자-여자-남자 혼성 — 보라, 여성 우대 멘트
+      { emoji: '💜', line1: `${femStr} 때문에`,  line2: `내가 ${malStr}한테`, line3: '오늘은 양보한다 ㅋㅋ' },
+      { emoji: '😏', line1: '운 좋은 줄 알아',   line2: `${femStr} 있으니까`, line3: `${malStr} 이번만 봐줌` },
+      { emoji: '🤭', line1: `${femStr} 덕에`,     line2: `${malStr}한테 자리 양보`, line3: '아니었으면 없었을 일 ㅋ' },
+      { emoji: '😌', line1: '관대한 척',          line2: `${femStr} 보고`,     line3: `${malStr}한테 자리 내줌` },
+      { emoji: '🙏', line1: `${femStr} 아니었으면`, line2: `${malStr} 진짜`,  line3: '가만 안 뒀어 ㅋㅋ' },
+      { emoji: '😇', line1: '천사같은 나',        line2: `${femStr} 보고 참는 중`, line3: `${malStr} 넌 운 좋다 ㅋ` },
+      { emoji: '💪', line1: '양보의 미학',        line2: `${femStr} 땜에`,    line3: `${malStr}한테 오늘은 져줄게` },
+      { emoji: '🫰', line1: '특별히',             line2: `${femStr} 있으니까`, line3: `${malStr}도 봐주는 거거든` },
+      { emoji: '😤', line1: '흥...',              line2: `${femStr} 있잖아`,  line3: `${malStr} 오늘은 참는다` },
+      { emoji: '🫡', line1: '어쩔 수 없지',       line2: `${femStr} 있는 자리니`, line3: `${malStr}이랑 공유한다` },
+    ];
+    const pool = type === 'bad' ? BAD : type === 'mixed' ? MIXED : GOOD;
+    const m = pool[Math.floor(Math.random() * pool.length)];
+    const cardBg = type === 'bad'
+      ? 'linear-gradient(145deg,#7f1d1d,#dc2626)'
+      : type === 'mixed'
+        ? 'linear-gradient(145deg,#4c1d95,#7c3aed)'
+        : 'linear-gradient(145deg,#be185d,#ec4899)'; // 핑크 — 여성끼리/남녀1:1
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9998;display:flex;align-items:center;justify-content:center;pointer-events:none';
+    const card = document.createElement('div');
+    card.style.cssText = `background:${cardBg};border-radius:28px;padding:32px 40px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.12);transform:scale(0.3);opacity:0;transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1),opacity 0.25s ease;will-change:transform,opacity;max-width:80vw`;
+    const emojiEl = document.createElement('div');
+    emojiEl.textContent = m.emoji;
+    emojiEl.style.cssText = 'font-size:3.2rem;line-height:1;margin-bottom:14px';
+    const l1 = document.createElement('div');
+    l1.textContent = m.line1;
+    l1.style.cssText = 'color:rgba(255,255,255,0.75);font-size:0.88rem;font-weight:700;letter-spacing:0.05em;margin-bottom:6px';
+    const l2 = document.createElement('div');
+    l2.textContent = m.line2;
+    l2.style.cssText = 'color:#fcd34d;font-size:1.35rem;font-weight:900;margin-bottom:2px';
+    const l3 = document.createElement('div');
+    l3.textContent = m.line3;
+    l3.style.cssText = 'color:#fff;font-size:1rem;font-weight:800';
+    card.appendChild(emojiEl); card.appendChild(l1); card.appendChild(l2); card.appendChild(l3);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => { card.style.transform = 'scale(1)'; card.style.opacity = '1'; });
+    setTimeout(() => {
+      card.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
+      card.style.transform = 'scale(0.85) translateY(-12px)';
+      card.style.opacity = '0';
+      overlay.style.transition = 'opacity 0.4s ease';
+      overlay.style.opacity = '0';
+      setTimeout(() => overlay.remove(), 420);
+    }, 2500);
+  }
+
+  // 테스트용: 콘솔에서 _bzSeedFloatPos('이름', rx, ry) 로 타 멤버 위치 심기 (비율값 0~1)
+  window._bzSeedFloatPos = (name, rx, ry) => {
+    if (!db) return;
+    db.ref(`${DB_PATH}/${name}`).set({ rx, ry, ts: Date.now() });
+    console.log(`${name} 위치 저장: rx=${rx}, ry=${ry}`);
+  };
+
+  // 고정 후 DB 저장(비율) + 위치친구 비교
+  function _saveAndCompare(finalX, finalY) {
+    const myName = state.identity && state.identity.name;
+    if (!myName || !db) return;
+    const W = window.innerWidth, H = window.innerHeight;
+    const myRx = finalX / W, myRy = finalY / H;
+    db.ref(`${DB_PATH}/${myName}`).set({ rx: myRx, ry: myRy, ts: Date.now() }).catch(() => {});
+    db.ref(DB_PATH).once('value', snap => {
+      const all = snap.val() || {};
+      // 버튼 중심 기준 픽셀 거리 비교 (MATCH_R=40px)
+      const cx = finalX + SIZE / 2, cy = finalY + SIZE / 2;
+      const buddies = Object.entries(all)
+        .filter(([name, p]) => name !== myName && typeof p.rx === 'number' &&
+          Math.hypot(cx - (p.rx * W + SIZE / 2), cy - (p.ry * H + SIZE / 2)) < MATCH_R)
+        .map(([name]) => name);
+      if (!buddies.length) return;
+      // 성별 판단
+      const gFn = n => (typeof getGender === 'function' ? getGender(n) : 'unknown');
+      const myGender = gFn(myName);
+      const buddyGenders = buddies.map(gFn);
+      const allMale = myGender === 'male' && buddyGenders.every(g => g === 'male');
+      const hasMale = myGender === 'male' || buddyGenders.includes('male');
+      const hasFemale = myGender === 'female' || buddyGenders.includes('female');
+      // 1:1 이성 → good(핑크), 다수 혼성 → mixed(보라), 전원 남성 → bad(빨강)
+      const is1on1Hetero = (1 + buddies.length) === 2 && hasMale && hasFemale;
+      const type = allMale ? 'bad' : (hasMale && hasFemale && !is1on1Hetero) ? 'mixed' : 'good';
+      // 성 제거 + 호칭 직결(공백 없음): 유지원오빠, 천지은누나, 이은숙 → 은숙
+      const displayNames = buddies.map(n => { const t = _getTitle(myName, n); return t ? `${_sn(n)}${t}` : _sn(n); });
+      // mixed용 여성/남성 버디 분리 + 호칭 적용
+      const ctx = {
+        myName,
+        femaleBuddies: buddies.filter((n, i) => buddyGenders[i] === 'female'),
+        maleBuddies:   buddies.filter((n, i) => buddyGenders[i] === 'male'),
+      };
+      _showLocationBuddy(displayNames, type, ctx);
+    }).catch(() => {});
+  }
+
+  function _snap(btn, x, y) {
+    y = _clampY(y);
+    const W = window.innerWidth;
+    let finalX = x;
+    if (x < W * SNAP_ZONE) finalX = GAP;
+    else if (x > W - SIZE - W * SNAP_ZONE) finalX = W - SIZE - GAP;
+    btn.style.transition = 'left 0.3s cubic-bezier(0.25,0.46,0.45,0.94), top 0.3s cubic-bezier(0.25,0.46,0.45,0.94)';
+    _apply(btn, finalX, y);
+    setTimeout(() => { btn.style.transition = 'transform 0.15s, box-shadow 0.15s'; }, 320);
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ rx: finalX / W, ry: y / window.innerHeight })); } catch(_) {}
+    _saveAndCompare(finalX, y);
+  }
+
+  function _initPos(btn) {
+    const W = window.innerWidth, H = window.innerHeight;
+    try {
+      const s = JSON.parse(localStorage.getItem(LS_KEY));
+      if (s && typeof s.rx === 'number') { _apply(btn, s.rx * W, _clampY(s.ry * H)); return; }
+      // 구버전 절대값 호환
+      if (s && typeof s.x === 'number') { _apply(btn, s.x, _clampY(s.y)); return; }
+    } catch(_) {}
+    _apply(btn, W - SIZE - GAP, H - SIZE - 104);
+  }
+
+  // 화면 한 바퀴 돌아 착지하는 입장 애니메이션
+  function _bzFloatEntrance(btn, finalX, finalY) {
+    const W = window.innerWidth, H = window.innerHeight;
+    const cx = (W - SIZE) / 2;
+    const cy = (H - SIZE) / 2;
+    const rx = Math.min(W * 0.42, cx - 10);
+    const ry = Math.min(H * 0.36, cy - 70);
+    const dur = 3000, laps = 1.25;                     // 3초로 늘려 천천히
+    const origShadow = btn.style.boxShadow;
+    let t0 = null;
+    btn.style.transition = 'none';
+    btn.style.opacity = '1';
+    btn.style.bottom = ''; btn.style.right = '';
+    btn.style.left = cx + 'px';
+    btn.style.top  = _clampY(cy - ry) + 'px';
+    const tick = ts => {
+      if (!t0) t0 = ts;
+      const raw = Math.min((ts - t0) / dur, 1);
+      const e = 1 - Math.pow(1 - raw, 2.2);
+      const angle = -Math.PI / 2 + e * laps * 2 * Math.PI;
+      btn.style.left = (cx + rx * Math.cos(angle)) + 'px';
+      btn.style.top  = _clampY(cy + ry * Math.sin(angle)) + 'px';
+      // 혜성 꼬리 — 이동 방향 반대쪽, 다층 글로우로 선명하게
+      const trailAngle = angle - Math.PI / 2; // 접선 반대방향
+      const tx = Math.cos(trailAngle), ty = Math.sin(trailAngle);
+      // 속도 비례 꼬리 길이 (느릴수록 짧게, 빠를수록 길게)
+      const speed = Math.max(0.4, 1 - raw * 0.5);
+      const len = 38 * speed;
+      btn.style.boxShadow = [
+        `${tx*len*.15}px ${ty*len*.15}px 7px 4px  rgba(255,255,200,.95)`,  // 핵 — 밝은 흰노랑
+        `${tx*len*.35}px ${ty*len*.35}px 12px 2px rgba(252,211,77,.9)`,    // 내부 — 골드
+        `${tx*len*.55}px ${ty*len*.55}px 16px 1px rgba(251,146,60,.75)`,   // 중간 — 오렌지
+        `${tx*len*.75}px ${ty*len*.75}px 20px 0px rgba(239,68,68,.55)`,    // 외부 — 빨강
+        `${tx*len}px     ${ty*len}px     28px -2px rgba(127,29,29,.3)`,    // 끝 — 다크레드 페이드
+        `0 0 26px 5px rgba(252,211,77,.4)`,                                 // 버튼 전체 후광
+      ].join(',');
+      if (raw < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        // 착지 — spring bounce
+        btn.style.transition = 'left 0.42s cubic-bezier(0.34,1.56,0.64,1), top 0.42s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.4s ease-out';
+        btn.style.left = finalX + 'px';
+        btn.style.top  = finalY + 'px';
+        btn.style.boxShadow = origShadow;
+        setTimeout(() => {
+          btn.style.transition = 'transform 0.15s, box-shadow 0.15s';
+          btn.style.pointerEvents = '';
+        }, 450);
+      }
+    };
+    requestAnimationFrame(tick);
+  }
+
+  window._bzInitFloatDrag = function() {
+    const btn = document.getElementById('bz-float-btn');
+    if (!btn || btn._bzDragSetup) return;
+    btn._bzDragSetup = true;
+    // 목표 위치 계산 (localStorage)
+    const W = window.innerWidth, H = window.innerHeight;
+    let finalX = W - SIZE - GAP, finalY = H - SIZE - 104;
+    try {
+      const s = JSON.parse(localStorage.getItem(LS_KEY));
+      if (s && typeof s.rx === 'number') { finalX = s.rx * W; finalY = _clampY(s.ry * H); }
+      else if (s && typeof s.x === 'number') { finalX = s.x; finalY = _clampY(s.y); }
+    } catch(_) {}
+    _apply(btn, finalX, finalY);
+    // 스플래시 끝난 후 입장 애니메이션 (스플래시 이미 지났으면 즉시)
+    btn.style.opacity = '0';
+    btn.style.pointerEvents = 'none';
+    const delay = Math.max(0, (window._bzSplashEndTime || 0) - Date.now());
+    setTimeout(() => _bzFloatEntrance(btn, finalX, finalY), delay);
+    // 백그라운드 → 포그라운드 복귀 시 재생
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      if (btn.style.display === 'none' || btn.style.display === '') return; // 채팅방 열린 중이면 스킵
+      btn.style.opacity = '0';
+      btn.style.pointerEvents = 'none';
+      _bzFloatEntrance(btn, finalX, finalY);
+    });
+    btn.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) return;
+      _moved = false;
+      _sx = e.touches[0].clientX; _sy = e.touches[0].clientY;
+      _bx = parseInt(btn.style.left) || 0; _by = parseInt(btn.style.top) || 0;
+      btn.style.transition = 'none';
+      e.stopPropagation();
+    }, { passive: true });
+    btn.addEventListener('touchmove', e => {
+      if (e.touches.length !== 1) return;
+      const dx = e.touches[0].clientX - _sx, dy = e.touches[0].clientY - _sy;
+      if (!_moved && Math.hypot(dx, dy) < 8) return;
+      _moved = true;
+      e.preventDefault(); // 배경 스크롤 방지
+      _apply(btn, _bx + dx, _by + dy);
+      e.stopPropagation();
+    }, { passive: false });
+    btn.addEventListener('touchend', e => {
+      e.stopPropagation();
+      if (!_moved) { btn.style.transition = 'transform 0.15s, box-shadow 0.15s'; return; }
+      window._bzFloatDragged = true;
+      _snap(btn, parseInt(btn.style.left) || 0, parseInt(btn.style.top) || 0);
+      setTimeout(() => { window._bzFloatDragged = false; }, 350);
+    }, { passive: true });
+  };
+
+  // ── 타이밍 fallback ────────────────────────────────────────────────
+  // updateSummary가 이 IIFE보다 먼저 실행된 경우(localStorage 자동복원)
+  // window._bzInitFloatDrag가 undefined이어서 초기화가 스킵됐을 수 있음.
+  // IIFE 완료 직후 버튼이 표시 중이면 즉시 초기화.
+  setTimeout(() => {
+    const btn = document.getElementById('bz-float-btn');
+    if (btn && btn.style.display === 'flex') window._bzInitFloatDrag();
+  }, 0);
+})();
+
 function bzShowRoomFromFloat() {
+  if (window._bzFloatDragged) return; // 드래그 후 클릭 방지
   _bzFromFloat = true;
   const modal = document.getElementById('bet-screen-banzige');
   if (modal && modal.parentElement !== document.body) {
