@@ -12497,12 +12497,14 @@ function _bzInitUnreadListener() {
     };
     const rang = _p('랑', '이랑');
     const wa   = _p('와', '과');
-    // mixed용 — 여성 단명("이" 친근 접미), 남성 단명
+    // mixed용 — 여성 단명("이" 친근 접미), 남성 단명+호칭
     const _fi = n => { const s = _sn(n); const c = s.charCodeAt(s.length-1); return (c >= 0xAC00 && (c-0xAC00)%28 !== 0) ? s+'이' : s; };
     const fb = (ctx && ctx.femaleBuddies) || [];
     const mb = (ctx && ctx.maleBuddies)   || [];
-    const femStr = fb.map(_fi).join(', ')   || nameStr;
-    const malStr = mb.map(n => _sn(n)).join(', ') || nameStr;
+    const mn = ctx && ctx.myName;
+    const femStr = fb.map(_fi).join(', ') || nameStr;
+    // 남성 버디도 출생연도 기반 호칭 적용 (지원→지원형, 승수→승수 등)
+    const malStr = mb.map(n => { const t = mn ? _getTitle(mn, n) : ''; return t ? `${_sn(n)}${t}` : _sn(n); }).join(', ') || nameStr;
     const GOOD = [ // 여성끼리 / 남녀 1:1 — 핑크, 호감/설렘
       { emoji: '🌸', line1: '텔레파시!',         line2: `${nameStr}${wa}`, line3: '완전 같은 자리 ☺️' },
       { emoji: '💝', line1: '설레는 매칭!',       line2: `${nameStr}${rang}`, line3: '같은 곳 선택했잖아요~' },
@@ -12619,8 +12621,9 @@ function _bzInitUnreadListener() {
       const type = allMale ? 'bad' : (hasMale && hasFemale && !is1on1Hetero) ? 'mixed' : 'good';
       // 성 제거 + 호칭 직결(공백 없음): 유지원오빠, 천지은누나, 이은숙 → 은숙
       const displayNames = buddies.map(n => { const t = _getTitle(myName, n); return t ? `${_sn(n)}${t}` : _sn(n); });
-      // mixed용 여성/남성 버디 분리
+      // mixed용 여성/남성 버디 분리 + 호칭 적용
       const ctx = {
+        myName,
         femaleBuddies: buddies.filter((n, i) => buddyGenders[i] === 'female'),
         maleBuddies:   buddies.filter((n, i) => buddyGenders[i] === 'male'),
       };
