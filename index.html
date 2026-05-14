@@ -12714,6 +12714,14 @@ function _bzInitUnreadListener() {
     btn.style.pointerEvents = 'none';
     const delay = Math.max(0, (window._bzSplashEndTime || 0) - Date.now());
     setTimeout(() => _bzFloatEntrance(btn, finalX, finalY), delay);
+    // 백그라운드 → 포그라운드 복귀 시 재생
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      if (btn.style.display === 'none' || btn.style.display === '') return; // 채팅방 열린 중이면 스킵
+      btn.style.opacity = '0';
+      btn.style.pointerEvents = 'none';
+      _bzFloatEntrance(btn, finalX, finalY);
+    });
     btn.addEventListener('touchstart', e => {
       if (e.touches.length !== 1) return;
       _moved = false;
