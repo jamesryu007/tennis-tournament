@@ -12477,10 +12477,17 @@ function _bzInitUnreadListener() {
     setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 400); }, 1500);
   }
 
+  // 테스트용: 콘솔에서 _bzSeedFloatPos('이름', x, y) 로 타 멤버 위치 심기
+  window._bzSeedFloatPos = (name, x, y) => {
+    if (!db) return;
+    db.ref(`${DB_PATH}/${name}`).set({ x, y, ts: Date.now() });
+    console.log(`${name} 위치 저장: (${x}, ${y})`);
+  };
+
   // 고정 후 DB 저장 + 위치친구 비교
   function _saveAndCompare(finalX, finalY) {
     const myName = state.identity && state.identity.name;
-    if (!myName || !window.db) return;
+    if (!myName || !db) return;
     db.ref(`${DB_PATH}/${myName}`).set({ x: finalX, y: finalY, ts: Date.now() }).catch(() => {});
     db.ref(DB_PATH).once('value', snap => {
       const all = snap.val() || {};
