@@ -12454,7 +12454,8 @@ function _bzInitUnreadListener() {
 (function _bzSetupFloatDrag() {
   const LS_KEY = 'jmt_float_pos';
   const DB_PATH = 'jmt/floatBtnPos';
-  const SIZE = 64, GAP = 16, SNAP_ZONE = 0.2; // 화면 20% 이내만 엣지 스냅
+  const SIZE = 64, GAP = 16, SNAP_ZONE = 0.2;
+  const RATIO_THRESHOLD = 0.12; // 비율 기준 거리 임계값 (~버튼 1개 크기)
   let _moved = false, _sx = 0, _sy = 0, _bx = 0, _by = 0;
 
   function _apply(btn, x, y) {
@@ -12465,54 +12466,63 @@ function _bzInitUnreadListener() {
     return Math.max(60, Math.min(window.innerHeight - SIZE - 80, y));
   }
 
-  // 위치친구 팝업
-  function _showLocationBuddy(names) {
+  // 위치친구 팝업 — 성별 분기 랜덤 문구
+  function _showLocationBuddy(names, isMaleOnly) {
     const nameStr = names.join(', ');
-    const MSGS = [
-      { emoji: '🔮', line1: '텔레파시 발동!', line2: `${nameStr}님과`, line3: '완전 같은 자리!' },
-      { emoji: '🎾', line1: '듀스!', line2: `${nameStr}님과`, line3: '똑같은 자리 선택!' },
-      { emoji: '👯', line1: '영혼의 단짝!', line2: `${nameStr}님과`, line3: '마음이 통했어요' },
-      { emoji: '⚡️', line1: '번개 매칭!', line2: `${nameStr}님과`, line3: '같은 곳을 눌렀네요!' },
-      { emoji: '🎯', line1: '정조준!', line2: `${nameStr}님과`, line3: '핀포인트 일치!' },
-      { emoji: '🌟', line1: '스타 매치!', line2: `${nameStr}님이랑`, line3: '찰떡 같은 위치!' },
-      { emoji: '🤝', line1: '운명적 만남!', line2: `${nameStr}님과`, line3: '같은 자리 선택!' },
+    const GOOD = [ // 이성/여성끼리 — 텔레파시 긍정적
+      { emoji: '🔮', line1: '텔레파시 발동!',    line2: `${nameStr}님과`, line3: '완전 같은 자리!' },
+      { emoji: '💫', line1: '신기방기!',          line2: `${nameStr}님이랑`, line3: '텔레파시 통했어요!' },
+      { emoji: '🎾', line1: '듀스!',              line2: `${nameStr}님과`, line3: '똑같은 자리 선택!' },
+      { emoji: '👯', line1: '영혼의 단짝!',       line2: `${nameStr}님과`, line3: '마음이 통했어요' },
+      { emoji: '⚡️', line1: '번개 매칭!',         line2: `${nameStr}님과`, line3: '같은 곳을 눌렀네요!' },
+      { emoji: '🎯', line1: '핀포인트 일치!',     line2: `${nameStr}님과`, line3: '정조준 같은 자리!' },
+      { emoji: '🌟', line1: '스타 매치!',         line2: `${nameStr}님이랑`, line3: '찰떡 같은 위치!' },
+      { emoji: '🫶', line1: '찰떡 케미!',         line2: `${nameStr}님이랑`, line3: '같은 자리네요~' },
+      { emoji: '🎪', line1: '어머!',              line2: `${nameStr}님이랑`, line3: '완전 같은 위치잖아요!' },
+      { emoji: '🌈', line1: '운명적 만남!',       line2: `${nameStr}님과`, line3: '같은 자리 선택!' },
+      { emoji: '🦋', line1: '나비효과!',          line2: `${nameStr}님이랑`, line3: '같은 자리를 택했네요' },
+      { emoji: '🎶', line1: '하모니 완성!',       line2: `${nameStr}님과`, line3: '박자가 딱 맞아요!' },
     ];
-    const m = MSGS[Math.floor(Math.random() * MSGS.length)];
+    const BAD = [ // 남자끼리 — 짜증/유머
+      { emoji: '😤', line1: '아 진짜...',         line2: `${nameStr}이랑`, line3: '위치 겹쳤어. 바꿔야겠다' },
+      { emoji: '🙄', line1: '어이없어',           line2: `${nameStr}이랑`, line3: '같은 자리? 센스 좀 키워' },
+      { emoji: '😒', line1: '하필이면',           line2: `${nameStr}이랑`, line3: '같은 자리... 몰래 옮겨야지' },
+      { emoji: '💢', line1: '짜증',               line2: `${nameStr}이랑`, line3: '딱 겹쳤네. 아 몰라' },
+      { emoji: '🫠', line1: '둘 다 아싸?',        line2: `${nameStr}이랑`, line3: '위치 똑같음ㅋㅋ' },
+      { emoji: '😑', line1: '취향도 같냐',        line2: `${nameStr}이랑`, line3: '같은 곳... 너무 비슷한 거 아니야?' },
+      { emoji: '🤦', line1: '위치 센스 제로',     line2: `${nameStr}이랑`, line3: '겹쳤다고? 진짜 이게 뭐야' },
+      { emoji: '🥲', line1: '슬프다',             line2: `${nameStr}이랑`, line3: '같은 자리라니... 인생이 이래' },
+      { emoji: '😬', line1: '어색해',             line2: `${nameStr}이랑`, line3: '같은 자리잖아. 쪽팔려' },
+      { emoji: '🤯', line1: '멘붕',               line2: `${nameStr}이랑`, line3: '완전 같은 자리라고?!' },
+      { emoji: '👊', line1: '야!',                line2: `${nameStr}아,`, line3: '네가 비켜. 내가 먼저야' },
+      { emoji: '🏃', line1: '도망가자',           line2: `${nameStr}이랑`, line3: '겹치기 전에 얼른 옮겨!' },
+    ];
+    const pool = isMaleOnly ? BAD : GOOD;
+    const m = pool[Math.floor(Math.random() * pool.length)];
+    const cardBg = isMaleOnly
+      ? 'linear-gradient(145deg,#7f1d1d,#dc2626)'
+      : 'linear-gradient(145deg,#1e3a5f,#2563eb)';
 
-    // 오버레이
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9998;display:flex;align-items:center;justify-content:center;pointer-events:none';
-
-    // 카드
     const card = document.createElement('div');
-    card.style.cssText = 'background:linear-gradient(145deg,#1e3a5f,#2563eb);border-radius:28px;padding:32px 40px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.12);transform:scale(0.3);opacity:0;transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1),opacity 0.25s ease;will-change:transform,opacity';
-
+    card.style.cssText = `background:${cardBg};border-radius:28px;padding:32px 40px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.12);transform:scale(0.3);opacity:0;transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1),opacity 0.25s ease;will-change:transform,opacity;max-width:80vw`;
     const emojiEl = document.createElement('div');
     emojiEl.textContent = m.emoji;
     emojiEl.style.cssText = 'font-size:3.2rem;line-height:1;margin-bottom:14px';
-
     const l1 = document.createElement('div');
     l1.textContent = m.line1;
     l1.style.cssText = 'color:rgba(255,255,255,0.75);font-size:0.88rem;font-weight:700;letter-spacing:0.05em;margin-bottom:6px';
-
     const l2 = document.createElement('div');
     l2.textContent = m.line2;
     l2.style.cssText = 'color:#fcd34d;font-size:1.35rem;font-weight:900;margin-bottom:2px';
-
     const l3 = document.createElement('div');
     l3.textContent = m.line3;
     l3.style.cssText = 'color:#fff;font-size:1rem;font-weight:800';
-
     card.appendChild(emojiEl); card.appendChild(l1); card.appendChild(l2); card.appendChild(l3);
     overlay.appendChild(card);
     document.body.appendChild(overlay);
-
-    // 팡 등장
-    requestAnimationFrame(() => {
-      card.style.transform = 'scale(1)';
-      card.style.opacity = '1';
-    });
-    // 2초 후 페이드 아웃
+    requestAnimationFrame(() => { card.style.transform = 'scale(1)'; card.style.opacity = '1'; });
     setTimeout(() => {
       card.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
       card.style.transform = 'scale(0.85) translateY(-12px)';
@@ -12520,52 +12530,60 @@ function _bzInitUnreadListener() {
       overlay.style.transition = 'opacity 0.4s ease';
       overlay.style.opacity = '0';
       setTimeout(() => overlay.remove(), 420);
-    }, 2000);
+    }, 2500);
   }
 
-  // 테스트용: 콘솔에서 _bzSeedFloatPos('이름', x, y) 로 타 멤버 위치 심기
-  window._bzSeedFloatPos = (name, x, y) => {
+  // 테스트용: 콘솔에서 _bzSeedFloatPos('이름', rx, ry) 로 타 멤버 위치 심기 (비율값 0~1)
+  window._bzSeedFloatPos = (name, rx, ry) => {
     if (!db) return;
-    db.ref(`${DB_PATH}/${name}`).set({ x, y, ts: Date.now() });
-    console.log(`${name} 위치 저장: (${x}, ${y})`);
+    db.ref(`${DB_PATH}/${name}`).set({ rx, ry, ts: Date.now() });
+    console.log(`${name} 위치 저장: rx=${rx}, ry=${ry}`);
   };
 
-  // 고정 후 DB 저장 + 위치친구 비교
+  // 고정 후 DB 저장(비율) + 위치친구 비교
   function _saveAndCompare(finalX, finalY) {
     const myName = state.identity && state.identity.name;
     if (!myName || !db) return;
-    db.ref(`${DB_PATH}/${myName}`).set({ x: finalX, y: finalY, ts: Date.now() }).catch(() => {});
+    const W = window.innerWidth, H = window.innerHeight;
+    const myRx = finalX / W, myRy = finalY / H;
+    db.ref(`${DB_PATH}/${myName}`).set({ rx: myRx, ry: myRy, ts: Date.now() }).catch(() => {});
     db.ref(DB_PATH).once('value', snap => {
       const all = snap.val() || {};
-      const threshold = SIZE * 1.5; // 96px 반경
       const buddies = Object.entries(all)
-        .filter(([name, p]) => name !== myName && typeof p.x === 'number' &&
-          Math.hypot(finalX - p.x, finalY - p.y) < threshold)
+        .filter(([name, p]) => name !== myName && typeof p.rx === 'number' &&
+          Math.hypot(myRx - p.rx, myRy - p.ry) < RATIO_THRESHOLD)
         .map(([name]) => name);
-      if (buddies.length) _showLocationBuddy(buddies);
+      if (!buddies.length) return;
+      // 성별 판단: 본인 + 매칭 멤버 전원 male 이면 남자끼리
+      const myGender = typeof getGender === 'function' ? getGender(myName) : 'unknown';
+      const allMale = myGender === 'male' &&
+        buddies.every(n => (typeof getGender === 'function' ? getGender(n) : 'unknown') === 'male');
+      _showLocationBuddy(buddies, allMale);
     }).catch(() => {});
   }
 
   function _snap(btn, x, y) {
     y = _clampY(y);
     const W = window.innerWidth;
-    // 옵션B: 좌우 20% 이내면 엣지 스냅, 나머지는 자유
     let finalX = x;
     if (x < W * SNAP_ZONE) finalX = GAP;
     else if (x > W - SIZE - W * SNAP_ZONE) finalX = W - SIZE - GAP;
     btn.style.transition = 'left 0.3s cubic-bezier(0.25,0.46,0.45,0.94), top 0.3s cubic-bezier(0.25,0.46,0.45,0.94)';
     _apply(btn, finalX, y);
     setTimeout(() => { btn.style.transition = 'transform 0.15s, box-shadow 0.15s'; }, 320);
-    try { localStorage.setItem(LS_KEY, JSON.stringify({ x: finalX, y })); } catch(_) {}
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ rx: finalX / W, ry: y / window.innerHeight })); } catch(_) {}
     _saveAndCompare(finalX, y);
   }
 
   function _initPos(btn) {
+    const W = window.innerWidth, H = window.innerHeight;
     try {
       const s = JSON.parse(localStorage.getItem(LS_KEY));
+      if (s && typeof s.rx === 'number') { _apply(btn, s.rx * W, _clampY(s.ry * H)); return; }
+      // 구버전 절대값 호환
       if (s && typeof s.x === 'number') { _apply(btn, s.x, _clampY(s.y)); return; }
     } catch(_) {}
-    _apply(btn, window.innerWidth - SIZE - GAP, window.innerHeight - SIZE - 104);
+    _apply(btn, W - SIZE - GAP, H - SIZE - 104);
   }
 
   window._bzInitFloatDrag = function() {
