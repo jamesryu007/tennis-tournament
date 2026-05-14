@@ -2237,7 +2237,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v461';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v462';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13527,9 +13527,12 @@ function _bzOpenFromSingle(msgKey) {
   bzOpenPhotoViewer(all.map(p => p.url), idx < 0 ? 0 : idx);
 }
 
-function bzOpenPhotoViewer(photos, startIdx) {
-  if (!photos || !photos.length) return;
-  let cur = Math.max(0, Math.min(startIdx || 0, photos.length - 1));
+function bzOpenPhotoViewer(photosOrig, startIdx) {
+  if (!photosOrig || !photosOrig.length) return;
+  // 슬라이더는 과거→최신 순(왼쪽=과거, 오른쪽=최신): 배열 역순으로 렌더
+  // → 왼쪽 스와이프 = 최신, 오른쪽 스와이프 = 과거 (자연스러운 애니메이션 방향 유지)
+  const photos = [...photosOrig].reverse();
+  let cur = Math.max(0, Math.min(photosOrig.length - 1 - (startIdx || 0), photos.length - 1));
 
   const overlay = document.createElement('div');
   overlay.id = 'bz-photo-viewer';
@@ -13646,8 +13649,8 @@ function bzOpenPhotoViewer(photos, startIdx) {
     const dy = e.changedTouches[0].clientY - _sy;
     if (_dragging) {
       overlay.style.transform = ''; overlay.style.opacity = '';
-      if (dx < -50 && cur > 0) goTo(cur - 1, true);
-      else if (dx > 50 && cur < photos.length - 1) goTo(cur + 1, true);
+      if (dx < -50 && cur < photos.length - 1) goTo(cur + 1, true);
+      else if (dx > 50 && cur > 0) goTo(cur - 1, true);
       else goTo(cur, true);
     } else if (dy > 80 && Math.abs(dx) < 50) {
       overlay.style.transition = 'transform 0.25s ease, opacity 0.25s ease';
@@ -13877,8 +13880,8 @@ function bzViewBundle(msgKey, startIdx) {
     const dx = e.changedTouches[0].clientX - _sx;
     const dy = e.changedTouches[0].clientY - _sy;
     if (_dragging) {
-      if (dx < -50 && cur > 0) goTo(cur - 1, true);
-      else if (dx > 50 && cur < photos.length - 1) goTo(cur + 1, true);
+      if (dx < -50 && cur < photos.length - 1) goTo(cur + 1, true);
+      else if (dx > 50 && cur > 0) goTo(cur - 1, true);
       else goTo(cur, true); // 제자리 복귀
     } else if (dy > 80 && Math.abs(dx) < 50) {
       _bzClosePhotoViewer(overlay);
