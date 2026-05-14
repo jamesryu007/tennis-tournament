@@ -12549,9 +12549,10 @@ function _bzInitUnreadListener() {
     db.ref(`${DB_PATH}/${myName}`).set({ rx: myRx, ry: myRy, ts: Date.now() }).catch(() => {});
     db.ref(DB_PATH).once('value', snap => {
       const all = snap.val() || {};
+      // 비교는 픽셀 공간에서 — 버튼 1개 크기(64px) 반경
       const buddies = Object.entries(all)
         .filter(([name, p]) => name !== myName && typeof p.rx === 'number' &&
-          Math.hypot(myRx - p.rx, myRy - p.ry) < RATIO_THRESHOLD)
+          Math.hypot(finalX - p.rx * W, finalY - p.ry * H) < SIZE)
         .map(([name]) => name);
       if (!buddies.length) return;
       // 성별 판단: 본인 + 매칭 멤버 전원 male 이면 남자끼리
