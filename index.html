@@ -12751,6 +12751,15 @@ function _bzInitUnreadListener() {
       setTimeout(() => { window._bzFloatDragged = false; }, 350);
     }, { passive: true });
   };
+
+  // ── 타이밍 fallback ────────────────────────────────────────────────
+  // updateSummary가 이 IIFE보다 먼저 실행된 경우(localStorage 자동복원)
+  // window._bzInitFloatDrag가 undefined이어서 초기화가 스킵됐을 수 있음.
+  // IIFE 완료 직후 버튼이 표시 중이면 즉시 초기화.
+  setTimeout(() => {
+    const btn = document.getElementById('bz-float-btn');
+    if (btn && btn.style.display === 'flex') window._bzInitFloatDrag();
+  }, 0);
 })();
 
 function bzShowRoomFromFloat() {
