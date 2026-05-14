@@ -13506,7 +13506,7 @@ function _bzRenderPhotoGrid() {
 
 function _bzPhotoGridTap(idx) {
   const all = window._bzGridPhotos || _bzGetAllPhotos();
-  bzOpenPhotoViewer(all.map(p => p.url), idx);
+  bzOpenPhotoViewer(all.map(p => p.url), idx, false); // 사진첩: 왼쪽=과거
 }
 
 function _bzOpenFromBundle(msgKey, bundleIdx) {
@@ -13527,12 +13527,15 @@ function _bzOpenFromSingle(msgKey) {
   bzOpenPhotoViewer(all.map(p => p.url), idx < 0 ? 0 : idx);
 }
 
-function bzOpenPhotoViewer(photosOrig, startIdx) {
+function bzOpenPhotoViewer(photosOrig, startIdx, reverseForTimeline) {
   if (!photosOrig || !photosOrig.length) return;
-  // 슬라이더는 과거→최신 순(왼쪽=과거, 오른쪽=최신): 배열 역순으로 렌더
-  // → 왼쪽 스와이프 = 최신, 오른쪽 스와이프 = 과거 (자연스러운 애니메이션 방향 유지)
-  const photos = [...photosOrig].reverse();
-  let cur = Math.max(0, Math.min(photosOrig.length - 1 - (startIdx || 0), photos.length - 1));
+  // reverseForTimeline=true(기본, 채팅방): 슬라이더 과거→최신, 왼쪽스와이프=최신
+  // reverseForTimeline=false(사진첩): 최신→과거 배열 그대로, 왼쪽스와이프=과거(그리드 방향 일치)
+  reverseForTimeline = (reverseForTimeline !== false);
+  const photos = reverseForTimeline ? [...photosOrig].reverse() : photosOrig.slice();
+  let cur = reverseForTimeline
+    ? Math.max(0, Math.min(photosOrig.length - 1 - (startIdx || 0), photos.length - 1))
+    : Math.max(0, Math.min(startIdx || 0, photos.length - 1));
 
   const overlay = document.createElement('div');
   overlay.id = 'bz-photo-viewer';
