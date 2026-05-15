@@ -13842,10 +13842,13 @@ function _bzPhotoGridTap(idx) {
 
 function _bzOpenFromBundle(msgKey, bundleIdx) {
   const all = _bzGetAllPhotos();
+  // all은 번들 내 역순(B,A). bundleIdx는 말풍선 원본 순서(A=0,B=1) 기준이므로 역산
+  const bundleCount = all.filter(p => p.msgKey === msgKey).length;
+  const reversedIdx = bundleCount - 1 - bundleIdx;
   let found = 0, count = 0;
   for (let i = 0; i < all.length; i++) {
     if (all[i].msgKey === msgKey) {
-      if (count === bundleIdx) { found = i; break; }
+      if (count === reversedIdx) { found = i; break; }
       count++;
     }
   }
@@ -15038,7 +15041,7 @@ function _bzRenderMessages(phase, forceBottom) {
     const replyBox = m.replyTo
       ? `<div ontouchstart="event.preventDefault();event.stopPropagation()" ontouchend="event.stopPropagation();bzScrollToMsg('${_replyToKeyEsc}','${keyEsc}')" onclick="bzScrollToMsg('${_replyToKeyEsc}','${keyEsc}')" style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:4px;padding:2px 6px;margin-bottom:3px;font-size:0.68rem;line-height:1.3;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden;cursor:${_replyToKeyEsc?'pointer':'default'}"><span style="font-weight:700">'${_replyDisplayName1}'에게 답장</span><span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0.85">${_replyDisplayText1}</span></div>` : '';
     const imgSrc = m.imageUrl || m.imageData || '';
-    const _photos = m.photos && m.photos.length ? [...m.photos].reverse() : null;
+    const _photos = m.photos && m.photos.length ? m.photos : null;
     const bubbleRadius = `${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}`;
     const bubbleBg = `${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'}`;
     const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#e2e8f0'}`;
@@ -15207,7 +15210,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const replyBox = m.replyTo
       ? `<div ontouchstart="event.preventDefault();event.stopPropagation()" ontouchend="event.stopPropagation();bzScrollToMsg('${_replyToKeyEsc2}','${keyEsc}')" onclick="bzScrollToMsg('${_replyToKeyEsc2}','${keyEsc}')" style="background:${isMine?'rgba(255,255,255,0.2)':'#f1f5f9'};border-left:3px solid ${isMine?'rgba(255,255,255,0.6)':'#f59e0b'};border-radius:4px;padding:2px 6px;margin-bottom:3px;font-size:0.68rem;line-height:1.3;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'};overflow:hidden;cursor:${_replyToKeyEsc2?'pointer':'default'}"><span style="font-weight:700">'${_replyDisplayName2}'에게 답장</span><span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0.85">${_replyDisplayText2}</span></div>` : '';
     const imgSrc = m.imageUrl || m.imageData || '';
-    const _photos = m.photos && m.photos.length ? [...m.photos].reverse() : null;
+    const _photos = m.photos && m.photos.length ? m.photos : null;
     const bubbleRadius = `${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}`;
     const bubbleBg = `${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'}`;
     const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#e2e8f0'}`;
