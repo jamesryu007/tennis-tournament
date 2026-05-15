@@ -2237,7 +2237,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v471';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v472';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12363,8 +12363,8 @@ function _bzScrollToFirstUnread() {
   _bzNeedsUnreadScroll = false; // 즉시 해제 — 중복 실행 방지
   const firstUnreadEl = allMsgEls.find(el => parseInt(el.dataset.bzts) > _bzLastReadTs);
   if (!firstUnreadEl) {
-    // 모두 읽은 상태 — 맨 아래로 스크롤
-    area.scrollTop = area.scrollHeight;
+    // 모두 읽은 상태 — 맨 아래로 스크롤 (999999: 브라우저 클램핑으로 안정적)
+    area.scrollTop = 999999;
     return;
   }
   // 진행 중인 scroll-to-bottom 타이머 취소 + 추가 억제 플래그 — unread 스크롤이 덮이는 것 방지
@@ -15175,33 +15175,56 @@ function _bzRenderMessages(phase, forceBottom) {
   if (_bzNeedsUnreadScroll && _bzLastReadTs > 0) {
     _bzScrollToFirstUnread();
     if (!_bzNeedsUnreadScroll) {
-      if (_bzIsFirstRender && area.style.opacity === '0') { requestAnimationFrame(() => { area.style.transition = 'opacity 0.12s'; area.style.opacity = '1'; setTimeout(() => { area.style.transition = ''; }, 150); }); }
+      if (_bzIsFirstRender && area.style.opacity === '0') {
+        // 첫 진입: 하단 이미지 로드 후 scrollIntoView + 표시 (이미지 높이 미확정 shift 방지)
+        const _lastEl = area.lastElementChild;
+        const _show = () => { if (_lastEl) _lastEl.scrollIntoView({ block: 'end', behavior: 'instant' }); else area.scrollTop = 999999; area.style.opacity = '1'; };
+        const _btmImgs = [...area.children].slice(-5).flatMap(el => [...el.querySelectorAll('img')]).filter(img => !img.complete);
+        if (_btmImgs.length > 0) {
+          let _rem = _btmImgs.length, _ok = false;
+          const _fin = () => { if (!_ok) { _ok = true; requestAnimationFrame(_show); } };
+          _btmImgs.forEach(img => { img.addEventListener('load', () => { if (--_rem === 0) _fin(); }, { once: true }); img.addEventListener('error', () => { if (--_rem === 0) _fin(); }, { once: true }); });
+          setTimeout(_fin, 500);
+        } else { requestAnimationFrame(_show); }
+      }
       return; // 스크롤 완료 — 맨 아래 스크롤 생략
     }
   }
-  // 맨 아래 근처에 있던 경우만 자동 스크롤 — rAF로 레이아웃 확정 후 실행 (jump 방지)
+  // 맨 아래 근처에 있던 경우만 자동 스크롤
   if (_bzWasAtBottom) {
-    const _scrollDown = () => { if (_bzSuppressScrollDown) return; area.scrollTop = 999999; if (_bzIsFirstRender && area.style.opacity === '0') { area.style.transition = 'opacity 0.12s'; area.style.opacity = '1'; setTimeout(() => { area.style.transition = ''; }, 150); } }; // 브라우저가 최댓값으로 클램핑 — scrollHeight 타이밍 오류 방지
-    // 미로드 이미지 전체 로드 완료 후 최종 스크롤 — PWA 첫 진입 시 네트워크에서 이미지 전부 새로 로드하는 경우 대비
-    const _unloadedImgs = [...area.querySelectorAll('img')].filter(img => !img.complete);
-    if (_unloadedImgs.length > 0) {
-      let _remaining = _unloadedImgs.length;
-      _unloadedImgs.forEach(img => {
-        const _done = () => { if (--_remaining === 0) requestAnimationFrame(_scrollDown); };
-        img.addEventListener('load',  _done, { once: true });
-        img.addEventListener('error', _done, { once: true });
+    // 첫 진입 초기 렌더 완료 — async 미읽음 재스크롤 차단
+    if (_bzIsFirstRender) _bzNeedsUnreadScroll = false;
+    if (_bzIsFirstRender && area.style.opacity === '0') {
+      // 첫 진입: 하단 이미지 로드 후 scrollIntoView + 표시 (이미지 높이 미확정 shift 방지)
+      const _lastEl = area.lastElementChild;
+      const _show = () => { if (_lastEl) _lastEl.scrollIntoView({ block: 'end', behavior: 'instant' }); else area.scrollTop = 999999; area.style.opacity = '1'; };
+      const _btmImgs = [...area.children].slice(-5).flatMap(el => [...el.querySelectorAll('img')]).filter(img => !img.complete);
+      if (_btmImgs.length > 0) {
+        let _rem = _btmImgs.length, _ok = false;
+        const _fin = () => { if (!_ok) { _ok = true; requestAnimationFrame(_show); } };
+        _btmImgs.forEach(img => { img.addEventListener('load', () => { if (--_rem === 0) _fin(); }, { once: true }); img.addEventListener('error', () => { if (--_rem === 0) _fin(); }, { once: true }); });
+        setTimeout(_fin, 500);
+      } else { requestAnimationFrame(_show); }
+    } else {
+      // 일반 scroll-to-bottom — rAF + 단계적 재시도
+      const _scrollDown = () => { if (_bzSuppressScrollDown) return; area.scrollTop = 999999; };
+      const _unloadedImgs = [...area.querySelectorAll('img')].filter(img => !img.complete);
+      if (_unloadedImgs.length > 0) {
+        let _remaining = _unloadedImgs.length;
+        _unloadedImgs.forEach(img => {
+          const _done = () => { if (--_remaining === 0) requestAnimationFrame(_scrollDown); };
+          img.addEventListener('load',  _done, { once: true });
+          img.addEventListener('error', _done, { once: true });
+        });
+      }
+      _bzScrollDownTimers.forEach(id => clearTimeout(id));
+      _bzScrollDownTimers = [];
+      requestAnimationFrame(() => {
+        _scrollDown();
+        _bzScrollDownTimers.push(setTimeout(_scrollDown, 80));
+        _bzScrollDownTimers.push(setTimeout(_scrollDown, 1000));
       });
     }
-    // 첫 진입 초기 렌더 완료 — async 미읽음 재스크롤 차단 (이미 bottom으로 스크롤됨)
-    if (_bzIsFirstRender) _bzNeedsUnreadScroll = false;
-    // rAF + 단계적 재시도 — iOS PWA flex 레이아웃 확정 타이밍 + 느린 이미지 로드 대비
-    _bzScrollDownTimers.forEach(id => clearTimeout(id));
-    _bzScrollDownTimers = [];
-    requestAnimationFrame(() => {
-      _scrollDown();
-      _bzScrollDownTimers.push(setTimeout(_scrollDown, 80));
-      _bzScrollDownTimers.push(setTimeout(_scrollDown, 1000));
-    });
   }
 }
 
