@@ -675,16 +675,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -695,7 +695,7 @@ const firebaseConfig = {
     <img src="images/logo1.png" alt="자미터 테니스" style="height:44px;object-fit:contain;display:block;cursor:pointer" onclick="document.getElementById('logo-popup').style.display='flex'">
     <span style="font-size:1rem;font-weight:800;color:#2563eb;letter-spacing:0.3px">자미터 테니스</span>
     <span id="conn-status" class="conn-dot" title="Firebase 연결 상태"></span>
-    <span id="sw-version-badge" style="display:none;font-size:0.6rem;font-weight:700;color:#64748b;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:1px 6px;letter-spacing:0.2px;line-height:1.6;user-select:none"></span>
+    <span id="sw-version-badge" style="display:none;font-size:0.85rem;font-weight:800;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:1px 7px;letter-spacing:0.5px;line-height:1.6;user-select:none"></span>
   </div>
   <button id="admin-members-btn" onclick="switchPage('members')" title="회원관리" style="display:none;flex-shrink:0;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:10px;padding:6px 9px;cursor:pointer;font-size:1.1rem;line-height:1;transition:background 0.2s">⚙️</button>
   <button id="identity-btn" onclick="openIdentityModal()" style="flex-shrink:0;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:6px 10px;cursor:pointer;text-align:center;min-width:58px;transition:background 0.2s,border-color 0.2s">
@@ -2237,7 +2237,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v469';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v470';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7380,7 +7380,7 @@ function updatePermissionUI() {
   // SW 캐시 버전 배지 (admin only — 배포 반영 여부 즉시 확인용)
   const swBadge = document.getElementById('sw-version-badge');
   if (swBadge) {
-    swBadge.textContent = SW_VERSION;
+    swBadge.textContent = SW_VERSION.replace('jamite-v', '');
     swBadge.style.display = admin ? '' : 'none';
   }
 
@@ -12982,6 +12982,9 @@ function bzShowRoom() {
   }
 
   _bzFirstRender = true;
+  // 진입 즉시 chat area 클리어 + 숨김 — 이전 세션 메시지가 보이거나 스크롤 되는 현상 방지
+  const _bzEnterArea = document.getElementById('bz-chat-area');
+  if (_bzEnterArea) { _bzEnterArea.innerHTML = ''; _bzEnterArea.style.opacity = '0'; }
   _bzSetupAliasList();
   _bzSetupListener();
 
