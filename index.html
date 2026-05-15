@@ -2237,7 +2237,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v470';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v478';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12363,8 +12363,8 @@ function _bzScrollToFirstUnread() {
   _bzNeedsUnreadScroll = false; // 즉시 해제 — 중복 실행 방지
   const firstUnreadEl = allMsgEls.find(el => parseInt(el.dataset.bzts) > _bzLastReadTs);
   if (!firstUnreadEl) {
-    // 모두 읽은 상태 — 맨 아래로 스크롤
-    area.scrollTop = area.scrollHeight;
+    // 모두 읽은 상태 — 맨 아래로 스크롤 (999999: 브라우저 클램핑으로 안정적)
+    area.scrollTop = 999999;
     return;
   }
   // 진행 중인 scroll-to-bottom 타이머 취소 + 추가 억제 플래그 — unread 스크롤이 덮이는 것 방지
@@ -15171,35 +15171,56 @@ function _bzRenderMessages(phase, forceBottom) {
   });
   // 렌더된 메시지 키 갱신
   _bzRenderedMsgKeys = new Set(msgs.map(m => m._key));
-  // 미읽음 구분선 스크롤 — Firebase read가 렌더보다 먼저 완료된 경우 여기서 처리
-  if (_bzNeedsUnreadScroll && _bzLastReadTs > 0) {
+  // 미읽음 구분선 스크롤 — 첫 진입은 건너뜀 (항상 최신 메시지 표시, scrollIntoView rAF 충돌 방지)
+  if (!_bzIsFirstRender && _bzNeedsUnreadScroll && _bzLastReadTs > 0) {
     _bzScrollToFirstUnread();
-    if (!_bzNeedsUnreadScroll) {
-      if (_bzIsFirstRender && area.style.opacity === '0') { requestAnimationFrame(() => { area.style.transition = 'opacity 0.12s'; area.style.opacity = '1'; setTimeout(() => { area.style.transition = ''; }, 150); }); }
-      return; // 스크롤 완료 — 맨 아래 스크롤 생략
-    }
+    if (!_bzNeedsUnreadScroll) return; // 스크롤 완료 — 맨 아래 스크롤 생략
   }
-  // 맨 아래 근처에 있던 경우만 자동 스크롤 — rAF로 레이아웃 확정 후 실행 (jump 방지)
+  // 맨 아래 근처에 있던 경우만 자동 스크롤
   if (_bzWasAtBottom) {
-    const _scrollDown = () => { if (_bzSuppressScrollDown) return; area.scrollTop = 999999; if (_bzIsFirstRender && area.style.opacity === '0') { area.style.transition = 'opacity 0.12s'; area.style.opacity = '1'; setTimeout(() => { area.style.transition = ''; }, 150); } }; // 브라우저가 최댓값으로 클램핑 — scrollHeight 타이밍 오류 방지
-    // 미로드 이미지 전체 로드 완료 후 최종 스크롤 — PWA 첫 진입 시 네트워크에서 이미지 전부 새로 로드하는 경우 대비
-    const _unloadedImgs = [...area.querySelectorAll('img')].filter(img => !img.complete);
-    if (_unloadedImgs.length > 0) {
-      let _remaining = _unloadedImgs.length;
-      _unloadedImgs.forEach(img => {
-        const _done = () => { if (--_remaining === 0) requestAnimationFrame(_scrollDown); };
-        img.addEventListener('load',  _done, { once: true });
-        img.addEventListener('error', _done, { once: true });
+    // 첫 진입 초기 렌더 완료 — async 미읽음 재스크롤 차단
+    if (_bzIsFirstRender) _bzNeedsUnreadScroll = false;
+    if (_bzIsFirstRender && area.style.opacity === '0') {
+      // 첫 진입: 이미지 모두 로드 후 scrollTop=999999 + fadeIn — 로드 중 opacity:0이므로 wobble 없음
+      const _show = () => {
+        area.scrollTop = 999999;
+        area.style.transition = 'opacity 0.15s';
+        area.style.opacity = '1';
+        setTimeout(() => { area.style.transition = ''; }, 200);
+      };
+      const _unloaded = [...area.querySelectorAll('img')].filter(img => !img.complete);
+      if (_unloaded.length > 0) {
+        let _rem = _unloaded.length;
+        const _imgDone = () => { if (--_rem === 0) requestAnimationFrame(_show); };
+        _unloaded.forEach(img => {
+          img.addEventListener('load',  _imgDone, { once: true });
+          img.addEventListener('error', _imgDone, { once: true });
+        });
+        // 안전 타임아웃 — 이미지가 느려도 1초 후 강제 표시
+        setTimeout(() => { if (area.style.opacity === '0') requestAnimationFrame(_show); }, 1000);
+      } else {
+        requestAnimationFrame(_show);
+      }
+    } else {
+      // 일반 scroll-to-bottom — rAF + 단계적 재시도
+      const _scrollDown = () => { if (_bzSuppressScrollDown) return; area.scrollTop = 999999; };
+      const _unloadedImgs = [...area.querySelectorAll('img')].filter(img => !img.complete);
+      if (_unloadedImgs.length > 0) {
+        let _remaining = _unloadedImgs.length;
+        _unloadedImgs.forEach(img => {
+          const _done = () => { if (--_remaining === 0) requestAnimationFrame(_scrollDown); };
+          img.addEventListener('load',  _done, { once: true });
+          img.addEventListener('error', _done, { once: true });
+        });
+      }
+      _bzScrollDownTimers.forEach(id => clearTimeout(id));
+      _bzScrollDownTimers = [];
+      requestAnimationFrame(() => {
+        _scrollDown();
+        _bzScrollDownTimers.push(setTimeout(_scrollDown, 80));
+        _bzScrollDownTimers.push(setTimeout(_scrollDown, 1000));
       });
     }
-    // rAF + 단계적 재시도 — iOS PWA flex 레이아웃 확정 타이밍 + 느린 이미지 로드 대비
-    _bzScrollDownTimers.forEach(id => clearTimeout(id));
-    _bzScrollDownTimers = [];
-    requestAnimationFrame(() => {
-      _scrollDown();
-      _bzScrollDownTimers.push(setTimeout(_scrollDown, 80));
-      _bzScrollDownTimers.push(setTimeout(_scrollDown, 1000));
-    });
   }
 }
 
