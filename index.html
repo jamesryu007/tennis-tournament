@@ -13715,7 +13715,7 @@ function _bzGetAllPhotos() {
     .map(([k, m]) => ({ ...m, _key: k }))
     .sort((a, b) => (b.ts || 0) - (a.ts || 0))
     .flatMap(m => {
-      if (m.photos && m.photos.length) return m.photos.map(url => ({ url, msgKey: m._key, ts: m.ts || 0 }));
+      if (m.photos && m.photos.length) return [...m.photos].reverse().map(url => ({ url, msgKey: m._key, ts: m.ts || 0 }));
       if (m.imageUrl || m.imageData) return [{ url: m.imageUrl || m.imageData, msgKey: m._key, ts: m.ts || 0 }];
       return [];
     });
@@ -13842,10 +13842,13 @@ function _bzPhotoGridTap(idx) {
 
 function _bzOpenFromBundle(msgKey, bundleIdx) {
   const all = _bzGetAllPhotos();
+  // all은 번들 내 역순(B,A). bundleIdx는 말풍선 원본 순서(A=0,B=1) 기준이므로 역산
+  const bundleCount = all.filter(p => p.msgKey === msgKey).length;
+  const reversedIdx = bundleCount - 1 - bundleIdx;
   let found = 0, count = 0;
   for (let i = 0; i < all.length; i++) {
     if (all[i].msgKey === msgKey) {
-      if (count === bundleIdx) { found = i; break; }
+      if (count === reversedIdx) { found = i; break; }
       count++;
     }
   }
