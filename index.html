@@ -2237,7 +2237,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v468';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v469';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -15043,6 +15043,7 @@ function _bzRenderMessages(phase, forceBottom) {
   }
   // 렌더 전 스크롤 위치 확인
   // forceBottom=true: _bzRender() 호출(jinsilTok/showRealNames 등 비메시지 변경) — 항상 맨 아래 유지
+  const _bzIsFirstRender = _bzFirstRender; // 첫 진입 여부 캡처 (스크롤 전 opacity 숨김용)
   const _bzWasAtBottom = forceBottom || _bzPreserveBottom || _bzFirstRender || (area.scrollHeight - area.scrollTop - area.clientHeight < 100);
   _bzPreserveBottom = false;
   _bzFirstRender = false;
@@ -15069,6 +15070,7 @@ function _bzRenderMessages(phase, forceBottom) {
     if (_bzShowDateSep[i]) return true;
     return msgs[i - 1].alias !== m.alias;
   });
+  if (_bzIsFirstRender) area.style.opacity = '0'; // 첫 진입 — 스크롤 완료 후 fadeIn
   area.innerHTML = msgs.map((m, i) => {
     // imageUrl(Storage) 우선, 구형 imageData(base64) fallback
     if (m.imageUrl) window._bzPhotoMap[m.ts] = m.imageUrl;
@@ -15169,11 +15171,14 @@ function _bzRenderMessages(phase, forceBottom) {
   // 미읽음 구분선 스크롤 — Firebase read가 렌더보다 먼저 완료된 경우 여기서 처리
   if (_bzNeedsUnreadScroll && _bzLastReadTs > 0) {
     _bzScrollToFirstUnread();
-    if (!_bzNeedsUnreadScroll) return; // 스크롤 완료 — 맨 아래 스크롤 생략
+    if (!_bzNeedsUnreadScroll) {
+      if (_bzIsFirstRender && area.style.opacity === '0') { requestAnimationFrame(() => { area.style.transition = 'opacity 0.12s'; area.style.opacity = '1'; setTimeout(() => { area.style.transition = ''; }, 150); }); }
+      return; // 스크롤 완료 — 맨 아래 스크롤 생략
+    }
   }
   // 맨 아래 근처에 있던 경우만 자동 스크롤 — rAF로 레이아웃 확정 후 실행 (jump 방지)
   if (_bzWasAtBottom) {
-    const _scrollDown = () => { if (_bzSuppressScrollDown) return; area.scrollTop = 999999; }; // 브라우저가 최댓값으로 클램핑 — scrollHeight 타이밍 오류 방지
+    const _scrollDown = () => { if (_bzSuppressScrollDown) return; area.scrollTop = 999999; if (_bzIsFirstRender && area.style.opacity === '0') { area.style.transition = 'opacity 0.12s'; area.style.opacity = '1'; setTimeout(() => { area.style.transition = ''; }, 150); } }; // 브라우저가 최댓값으로 클램핑 — scrollHeight 타이밍 오류 방지
     // 미로드 이미지 전체 로드 완료 후 최종 스크롤 — PWA 첫 진입 시 네트워크에서 이미지 전부 새로 로드하는 경우 대비
     const _unloadedImgs = [...area.querySelectorAll('img')].filter(img => !img.complete);
     if (_unloadedImgs.length > 0) {
