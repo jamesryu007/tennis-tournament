@@ -2237,7 +2237,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v476';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v477';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -15159,7 +15159,7 @@ function _bzRenderMessages(phase, forceBottom) {
             </div>
           </div>
         </div>`);
-  }).join('');
+  }).join('') + '<div style="overflow-anchor:auto;height:0;padding:0;margin:0"></div>';
   // 시간 후처리: 같은 사람 1분 이내 연속이면 직전 말풍선 시간 제거
   msgs.forEach((m, i) => {
     if (i === 0) return;
@@ -15181,16 +15181,12 @@ function _bzRenderMessages(phase, forceBottom) {
     // 첫 진입 초기 렌더 완료 — async 미읽음 재스크롤 차단
     if (_bzIsFirstRender) _bzNeedsUnreadScroll = false;
     if (_bzIsFirstRender && area.style.opacity === '0') {
-      // 첫 진입: 즉시 표시 후 이미지 로드마다 scrollTop=999999 재고정 (이미지 height 추가로 인한 위로 밀림 방지)
+      // 첫 진입: scrollTop=999999 후 fadeIn — sentinel div(overflow-anchor:auto)가 이미지 로드 시 스크롤 자동 유지
       const _show = () => {
         area.scrollTop = 999999;
         area.style.transition = 'opacity 0.15s';
         area.style.opacity = '1';
         setTimeout(() => { area.style.transition = ''; }, 200);
-        // 아직 로드 안 된 이미지마다 재고정 — 이미지 height 반영 후 맨 아래 유지
-        [...area.querySelectorAll('img')].filter(img => !img.complete).forEach(img => {
-          img.addEventListener('load', () => { area.scrollTop = 999999; }, { once: true });
-        });
       };
       requestAnimationFrame(_show);
     } else {
