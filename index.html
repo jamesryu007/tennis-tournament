@@ -2236,8 +2236,8 @@ let _pollDataRef = null;
 
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
-const SW_VERSION = 'jamite-v465';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 // ══ 권한 ══
+const SW_VERSION = 'jamite-v466';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12630,6 +12630,10 @@ function _bzInitUnreadListener() {
         maleBuddies:   buddies.filter((n, i) => buddyGenders[i] === 'male'),
       };
       _showLocationBuddy(displayNames, type, ctx);
+      // 버디들에게 역방향 핑 기록 — 상대가 앱 열 때 알림 팝업 표시
+      buddies.forEach(buddyName => {
+        db.ref(`jmt/floatBtnPing/${buddyName}`).set({ from: myName, ts: Date.now() }).catch(() => {});
+      });
     }).catch(() => {});
   }
 
@@ -12659,6 +12663,7 @@ function _bzInitUnreadListener() {
 
   // 화면 한 바퀴 돌아 착지하는 입장 애니메이션
   function _bzFloatEntrance(btn, finalX, finalY) {
+    window._bzEntranceEndTime = Date.now() + 3300; // 궤도 3000ms + 300ms 여유
     const W = window.innerWidth, H = window.innerHeight;
     const cx = (W - SIZE) / 2;
     const cy = (H - SIZE) / 2;
@@ -12760,6 +12765,23 @@ function _bzInitUnreadListener() {
       _snap(btn, parseInt(btn.style.left) || 0, parseInt(btn.style.top) || 0);
       setTimeout(() => { window._bzFloatDragged = false; }, 350);
     }, { passive: true });
+
+    // ── 위치친구 역방향 핑 수신 리스너 ───────────────────────────────
+    const _myPingName = state.identity && state.identity.name;
+    if (_myPingName && db) {
+      const _pingRef = db.ref(`jmt/floatBtnPing/${_myPingName}`);
+      _pingRef.on('value', snap => {
+        const ping = snap.val();
+        if (!ping || !ping.from || !ping.ts) return;
+        // TTL 5분 초과 핑 무시
+        if (Date.now() - ping.ts > 5 * 60 * 1000) { _pingRef.remove().catch(() => {}); return; }
+        _pingRef.remove().catch(() => {});
+        // 입장 애니메이션(스플래시+궤도) 끝난 후 표시
+        const animEnd = window._bzEntranceEndTime || (Date.now() + 3300);
+        const delay = Math.max(300, animEnd - Date.now());
+        setTimeout(() => _bzShowPingBuddy(ping.from), delay);
+      });
+    }
   };
 
   // ── 타이밍 fallback ────────────────────────────────────────────────
@@ -12770,6 +12792,54 @@ function _bzInitUnreadListener() {
     const btn = document.getElementById('bz-float-btn');
     if (btn && btn.style.display === 'flex') window._bzInitFloatDrag();
   }, 0);
+
+  // ── 역방향 위치친구 팝업 (B/C가 받는 쪽) ─────────────────────────
+  function _bzShowPingBuddy(fromName) {
+    const sn = _sn(fromName);
+    const lastCode = sn.charCodeAt(sn.length - 1);
+    const hasJong = lastCode >= 0xAC00 && (lastCode - 0xAC00) % 28 !== 0;
+    const i_ga  = hasJong ? '이가' : '가';
+    const i_rang = hasJong ? '이랑' : '랑';
+    const i_do  = hasJong ? '이도' : '도';
+    const MSGS = [
+      { emoji: '🎯', line1: `${sn}${i_ga} 같은 자리에`,  line2: '버튼을 고정했어요!',    line3: '텔레파시 아닌가요? ☺️' },
+      { emoji: '👀', line1: '우연의 일치!',               line2: `${sn}${i_rang} 버튼 위치가`, line3: '겹쳤대요 ㅎ' },
+      { emoji: '🫶', line1: `${sn}${i_do} 이 자리`,       line2: '선택했대요!',            line3: '이심전심이네요 💕' },
+      { emoji: '⚡️', line1: '앗!',                        line2: `${sn}${i_ga} 같은 위치를`, line3: '고정해뒀대요 ㅎ' },
+      { emoji: '🌟', line1: '같은 자리!',                  line2: `${sn}${i_rang} 딱 겹쳤네요`, line3: '인연인가봐요 ✨' },
+      { emoji: '🤭', line1: `${sn} 취향 저격!`,           line2: '같은 자리를',            line3: '골랐다는 거잖아요~' },
+    ];
+    const m = MSGS[Math.floor(Math.random() * MSGS.length)];
+    const cardBg = 'linear-gradient(145deg,#0c4a6e,#0284c7)'; // 하늘색 — 역방향 핑 전용
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9998;display:flex;align-items:center;justify-content:center;pointer-events:none';
+    const card = document.createElement('div');
+    card.style.cssText = `background:${cardBg};border-radius:28px;padding:32px 40px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.12);transform:scale(0.3);opacity:0;transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1),opacity 0.25s ease;will-change:transform,opacity;max-width:80vw`;
+    const emojiEl = document.createElement('div');
+    emojiEl.textContent = m.emoji;
+    emojiEl.style.cssText = 'font-size:3.2rem;line-height:1;margin-bottom:14px';
+    const l1 = document.createElement('div');
+    l1.textContent = m.line1;
+    l1.style.cssText = 'color:rgba(255,255,255,0.75);font-size:0.88rem;font-weight:700;letter-spacing:0.05em;margin-bottom:6px';
+    const l2 = document.createElement('div');
+    l2.textContent = m.line2;
+    l2.style.cssText = 'color:#fcd34d;font-size:1.35rem;font-weight:900;margin-bottom:2px';
+    const l3 = document.createElement('div');
+    l3.textContent = m.line3;
+    l3.style.cssText = 'color:#fff;font-size:1rem;font-weight:800';
+    card.appendChild(emojiEl); card.appendChild(l1); card.appendChild(l2); card.appendChild(l3);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    requestAnimationFrame(() => { card.style.transform = 'scale(1)'; card.style.opacity = '1'; });
+    setTimeout(() => {
+      card.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
+      card.style.transform = 'scale(0.85) translateY(-12px)';
+      card.style.opacity = '0';
+      overlay.style.transition = 'opacity 0.4s ease';
+      overlay.style.opacity = '0';
+      setTimeout(() => overlay.remove(), 420);
+    }, 2800);
+  }
 })();
 
 function bzShowRoomFromFloat() {
