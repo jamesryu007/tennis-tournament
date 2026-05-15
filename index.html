@@ -666,6 +666,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .bet-loser-count-btn{width:40px;height:40px;border-radius:50%;border:2px solid #e2e8f0;background:#f8fafc;font-size:1.2rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#1d4ed8;transition:transform 0.08s, box-shadow 0.08s, background 0.1s;box-shadow:0 4px 0 #bfdbfe;}
 .bet-loser-count-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #bfdbfe;background:#dbeafe;}
 .bet-history-item{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;margin-bottom:10px}
+/* 가로 모드 세로 고정 */
+@media screen and (orientation:landscape){
+  html{transform:rotate(-90deg);transform-origin:left top;width:100vh;height:100vw;overflow-x:hidden;position:fixed;top:100%;left:0}
+}
 </style>
 <!-- Firebase SDK (compat) -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
