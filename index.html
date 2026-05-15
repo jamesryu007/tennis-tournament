@@ -2237,7 +2237,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v473';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v474';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -15171,24 +15171,10 @@ function _bzRenderMessages(phase, forceBottom) {
   });
   // 렌더된 메시지 키 갱신
   _bzRenderedMsgKeys = new Set(msgs.map(m => m._key));
-  // 미읽음 구분선 스크롤 — Firebase read가 렌더보다 먼저 완료된 경우 여기서 처리
-  if (_bzNeedsUnreadScroll && _bzLastReadTs > 0) {
+  // 미읽음 구분선 스크롤 — 첫 진입은 건너뜀 (항상 최신 메시지 표시, scrollIntoView rAF 충돌 방지)
+  if (!_bzIsFirstRender && _bzNeedsUnreadScroll && _bzLastReadTs > 0) {
     _bzScrollToFirstUnread();
-    if (!_bzNeedsUnreadScroll) {
-      if (_bzIsFirstRender && area.style.opacity === '0') {
-        // 첫 진입: 하단 이미지 로드 후 scrollIntoView + 표시 (이미지 높이 미확정 shift 방지)
-        const _lastEl = area.lastElementChild;
-        const _show = () => { area.scrollTop = 999999; area.style.opacity = '1'; };
-        const _btmImgs = [...area.children].slice(-5).flatMap(el => [...el.querySelectorAll('img')]).filter(img => !img.complete);
-        if (_btmImgs.length > 0) {
-          let _rem = _btmImgs.length, _ok = false;
-          const _fin = () => { if (!_ok) { _ok = true; requestAnimationFrame(_show); } };
-          _btmImgs.forEach(img => { img.addEventListener('load', () => { if (--_rem === 0) _fin(); }, { once: true }); img.addEventListener('error', () => { if (--_rem === 0) _fin(); }, { once: true }); });
-          setTimeout(_fin, 500);
-        } else { requestAnimationFrame(_show); }
-      }
-      return; // 스크롤 완료 — 맨 아래 스크롤 생략
-    }
+    if (!_bzNeedsUnreadScroll) return; // 스크롤 완료 — 맨 아래 스크롤 생략
   }
   // 맨 아래 근처에 있던 경우만 자동 스크롤
   if (_bzWasAtBottom) {
