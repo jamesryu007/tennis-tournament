@@ -458,7 +458,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .daily-btn-row { display:flex; gap:8px; margin:6px 0 8px; }
 .daily-add-btn { flex:0 0 76px; border:3px dashed #7c3aed; background:linear-gradient(135deg,rgba(124,58,237,0.10),rgba(99,102,241,0.16)); border-radius:18px; color:#7c3aed; font-size:2.4rem; font-weight:300; padding:14px 10px; cursor:pointer; line-height:1; box-shadow:0 3px 16px rgba(124,58,237,0.18); transition:transform 0.15s,box-shadow 0.15s; }
 .daily-add-btn:active { transform:scale(0.97); box-shadow:0 1px 6px rgba(124,58,237,0.12); }
-.daily-auto-btn { flex:1; border:3px dashed #7c3aed; background:linear-gradient(135deg,rgba(124,58,237,0.07),rgba(99,102,241,0.13)); border-radius:18px; color:#7c3aed; font-size:0.92rem; font-weight:800; padding:14px 10px; cursor:pointer; letter-spacing:0.3px; transition:background 0.15s,transform 0.1s; display:none; line-height:1.45; }
+.daily-auto-btn { flex:1; border:3px dashed #7c3aed; background:linear-gradient(135deg,rgba(124,58,237,0.07),rgba(99,102,241,0.13)); border-radius:18px; color:#7c3aed; font-size:0.92rem; font-weight:800; padding:14px 10px; cursor:pointer; letter-spacing:0.3px; transition:background 0.15s,transform 0.1s; display:none; line-height:1.45; align-items:center; justify-content:center; text-align:center; }
 .daily-auto-btn:active { background:rgba(124,58,237,0.18); transform:scale(0.97); }
 /* ── 자동대진 모달 ── */
 #auto-draw-modal .type-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid #f1f5f9; }
@@ -2296,7 +2296,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v494';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v495';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4529,7 +4529,7 @@ async function generateAutoDrawCards(){
     const scheduled=_scheduleCourtOrder(allMatches,courtCount,playerMeta);
     // 코트 레이블 할당: schedIdx 0 = 1번코트 ①
     scheduled.forEach((match,si)=>{
-      match.courtLabel=`${(si%courtCount)+1}번코트 제${_circleNum(Math.floor(si/courtCount)+1)}경기`;
+      match.courtLabel=`${(si%courtCount)+1}번코트 제${Math.floor(si/courtCount)+1}경기`;
     });
     // 카드 번호 기준: 현재 로컬 카드 수
     let numBase=Object.keys(_dailyCards).length;
@@ -4538,7 +4538,7 @@ async function generateAutoDrawCards(){
     for(let si=scheduled.length-1;si>=0;si--){
       const match=scheduled[si];
       const tname=typeName[match.type];
-      const label=`${typeIcon[match.type]} <span style="color:#fff;font-weight:900;font-size:0.9rem;text-shadow:0 1px 4px rgba(0,0,0,0.7)">${tname} ${match.typeIdx}</span> · ${_mm}/${_dd}`;
+      const label=`(${typeIcon[match.type]} ${tname} ${match.typeIdx}) · ${_mm}/${_dd}`;
       const bgImage='images/'+bgImages[Math.floor(Math.random()*bgImages.length)];
       const createdAt=baseTs+(scheduled.length-1-si); // si=0(1코트①)이 가장 높아 정렬 시 맨 위
       numBase++;
@@ -4640,9 +4640,10 @@ function _renderDailyCard(id){
     return `<div class="dc-card">
       <div class="dc-card-bg" style="background-image:url('${bgImg}');background-size:cover;background-position:center;background-repeat:no-repeat"></div>
       <div class="dc-card-header">
-        <div style="display:flex;flex-direction:column;gap:1px;flex:1;min-width:0">
-          ${d.courtLabel?`<span class="dc-court-lbl">${d.courtLabel}</span>`:''}
-          <span class="dc-num">${numLabel}</span>
+        <div style="flex:1;min-width:0;overflow:hidden">
+          ${d.courtLabel
+            ?`<span class="dc-court-lbl" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block">${d.courtLabel}&nbsp;<span class="dc-num" style="font-size:0.72rem;opacity:0.85">${numLabel}</span></span>`
+            :`<span class="dc-num">${numLabel}</span>`}
         </div>
         ${isManager()?`<button class="dc-del-btn" onclick="adminRemoveDailyCard('${id}')" title="카드 삭제">✕</button>`:''}
       </div>
