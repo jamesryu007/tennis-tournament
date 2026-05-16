@@ -2298,7 +2298,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v496';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v497';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4201,7 +4201,8 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta){
   const meta=playerMeta||{};
   const remaining=matches.slice();
   const scheduled=[];
-  let prevPlayers=new Set();
+  let prevPlayers=new Set();     // 직전 라운드 출전자
+  let prevPrevPlayers=new Set(); // 2라운드 전 출전자
   let roundNum=0;
   while(remaining.length>0){
     roundNum++;
@@ -4214,16 +4215,31 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta){
         const m=remaining[i];
         const ps=[...m.team0,...m.team1];
         if(ps.some(p=>roundPlayers.has(p))) continue; // 같은 라운드 중복 불가
+        // 2연속 출전 하드 제한: 직전 2라운드 모두 출전한 선수가 있으면 배제
+        if(ps.some(p=>prevPrevPlayers.has(p)&&prevPlayers.has(p))) continue;
         // 연속 출전 페널티: 남자(0.4) < 여자(1.6) → 남자가 연속 출전 선호 대상
-        // 승률 높을수록 페널티 소폭 감소 (승률 100%=0, 0%=1)
         const score=ps.reduce((acc,p)=>{
           if(!prevPlayers.has(p)) return acc;
           const pm=meta[p]||{};
           const gPenalty=pm.gender==='male'?0.4:1.6;
-          const wrFactor=1-(pm.wr||0)/200; // 승률 50%→0.75, 100%→0.5
+          const wrFactor=1-(pm.wr||0)/200;
           return acc+gPenalty*wrFactor;
         },0);
         if(score<bestScore){bestScore=score;bestIdx=i;}
+      }
+      // 2연속 제한으로 배정 불가 시 제한 완화 (차선책: 연속 제한만 무시)
+      if(bestIdx===-1){
+        for(let i=0;i<remaining.length;i++){
+          const m=remaining[i];
+          const ps=[...m.team0,...m.team1];
+          if(ps.some(p=>roundPlayers.has(p))) continue;
+          const score=ps.reduce((acc,p)=>{
+            if(!prevPlayers.has(p)) return acc;
+            const pm=meta[p]||{};
+            return acc+(pm.gender==='male'?0.4:1.6)*(1-(pm.wr||0)/200);
+          },0);
+          if(score<bestScore){bestScore=score;bestIdx=i;}
+        }
       }
       if(bestIdx===-1) break;
       const card=remaining.splice(bestIdx,1)[0];
@@ -4234,6 +4250,7 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta){
     }
     if(round.length===0) break;
     scheduled.push(...round);
+    prevPrevPlayers=prevPlayers;
     prevPlayers=roundPlayers;
   }
   return scheduled;
@@ -4475,10 +4492,8 @@ async function generateAutoDrawCards(){
     w.textContent='경기 수를 1개 이상 선택해주세요.'; w.style.display='';
     return;
   }
-  // 기존 자동 생성 카드 삭제 (matchType이 있는 카드 = 자동생성)
-  const autoIds=Object.keys(_dailyCards).filter(id=>_dailyCards[id].matchType);
-  for(const aid of autoIds){
-    // Firebase key('-' 시작)였던 이전 버전 카드만 DB에서도 삭제
+  // 기존 모든 카드 삭제 (자동생성 + 수동 + 로 만든 카드 전체)
+  for(const aid of Object.keys(_dailyCards)){
     if(String(aid).startsWith('-')) db.ref(`jmt/dailyCards/${aid}`).remove().catch(fbErr);
     delete _dailyCards[aid];
     const ael=document.getElementById(`daily-card-${aid}`);
@@ -4518,11 +4533,17 @@ async function generateAutoDrawCards(){
     const _mm=String(now.getMonth()+1).padStart(2,'0');
     const _dd=String(now.getDate()).padStart(2,'0');
     const baseTs=Date.now();
-    const allMatches=[
-      ...mixedMatches.map((m,i)=>({...m,type:'mixed',typeIdx:i+1})),
-      ...womensMatches.map((m,i)=>({...m,type:'womens',typeIdx:i+1})),
-      ...mensMatches.map((m,i)=>({...m,type:'mens',typeIdx:i+1}))
-    ];
+    // 혼복/남복/여복을 인터리브 — 스케줄러가 각 라운드에 이종 경기를 2코트에 배정 가능
+    const aM=mixedMatches.map((m,i)=>({...m,type:'mixed',typeIdx:i+1}));
+    const aN=mensMatches.map((m,i)=>({...m,type:'mens',typeIdx:i+1}));
+    const aW=womensMatches.map((m,i)=>({...m,type:'womens',typeIdx:i+1}));
+    const maxLen=Math.max(aM.length,aN.length,aW.length);
+    const allMatches=[];
+    for(let i=0;i<maxLen;i++){
+      if(i<aM.length) allMatches.push(aM[i]);
+      if(i<aN.length) allMatches.push(aN[i]);
+      if(i<aW.length) allMatches.push(aW[i]);
+    }
     const typeColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777'};
     const typeName={mixed:'혼복경기',mens:'남복경기',womens:'여복경기'};
     const typeIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
