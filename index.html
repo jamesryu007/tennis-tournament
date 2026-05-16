@@ -182,10 +182,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .dc-card-bg { position:absolute; top:0; right:0; bottom:0; left:0; opacity:0.68; pointer-events:none; }
 .dc-card-header { position:relative; display:flex; align-items:center; justify-content:space-between; padding:8px 12px 6px; background:rgba(0,0,0,0.58); }
 .dc-num { font-size:0.65rem; font-weight:700; color:rgba(255,255,255,0.75); letter-spacing:0.05em; }
-.dc-court-lbl { font-size:1.05rem; font-weight:900; color:#fcd34d; letter-spacing:0.04em; text-shadow:0 1px 6px rgba(0,0,0,0.9); line-height:1.2; }
+.dc-court-lbl { font-size:0.88rem; font-weight:900; color:#fcd34d; letter-spacing:0.04em; text-shadow:0 1px 6px rgba(0,0,0,0.9); line-height:1.2; }
 .dc-del-btn { background:none; border:none; color:rgba(255,255,255,0.5); font-size:1.0rem; cursor:pointer; padding:2px 4px; line-height:1; }
-.dc-round-group { margin-bottom:14px; border:2px solid #bfdbfe; border-radius:12px; overflow:hidden; }
-.dc-round-header { font-size:0.88rem; font-weight:800; color:#1d4ed8; background:#eff6ff; padding:7px 14px; border-bottom:1px solid #dbeafe; letter-spacing:0.3px; }
+.dc-round-group { margin-bottom:16px; border:3px solid #2563eb; border-radius:14px; overflow:hidden; box-shadow:0 2px 14px rgba(37,99,235,0.16); }
+.dc-round-header { font-size:1.05rem; font-weight:900; color:#1e40af; background:#dbeafe; padding:9px 16px; border-bottom:2px solid #93c5fd; letter-spacing:0.4px; }
 .dc-body { position:relative; display:flex; align-items:stretch; min-height:130px; }
 /* 캐러셀과 동일한 컬럼 배경 */
 .dc-team-left  { flex:1; background:linear-gradient(135deg,rgba(5,150,105,0.28),rgba(16,185,129,0.15)); padding:16px 8px 16px 14px; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:7px; }
@@ -457,7 +457,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 @keyframes confettiFall { 0%{transform:translateY(-20px) rotate(0deg);opacity:1} 100%{transform:translateY(120px) rotate(720deg);opacity:0} }
 @keyframes bounce-celebrate { 0%,100%{transform:translateY(0) rotate(0deg)} 30%{transform:translateY(-8px) rotate(-6deg)} 60%{transform:translateY(-4px) rotate(4deg)} }
 @keyframes shake-sad { 0%,100%{transform:rotate(0deg) translateY(0)} 20%{transform:rotate(-5deg) translateY(2px)} 40%{transform:rotate(5deg) translateY(0)} 70%{transform:rotate(-2deg) translateY(1px)} }
-.daily-btn-row { display:flex; gap:8px; margin:6px 0 8px; }
+.daily-btn-row { display:flex; gap:8px; margin:6px 0 18px; }
 .daily-add-btn { flex:0 0 76px; border:3px dashed #7c3aed; background:linear-gradient(135deg,rgba(124,58,237,0.10),rgba(99,102,241,0.16)); border-radius:18px; color:#7c3aed; font-size:2.4rem; font-weight:300; padding:14px 10px; cursor:pointer; line-height:1; box-shadow:0 3px 16px rgba(124,58,237,0.18); transition:transform 0.15s,box-shadow 0.15s; }
 .daily-add-btn:active { transform:scale(0.97); box-shadow:0 1px 6px rgba(124,58,237,0.12); }
 .daily-auto-btn { flex:1; border:3px dashed #7c3aed; background:linear-gradient(135deg,rgba(124,58,237,0.07),rgba(99,102,241,0.13)); border-radius:18px; color:#7c3aed; font-size:0.92rem; font-weight:800; padding:14px 10px; cursor:pointer; letter-spacing:0.3px; transition:background 0.15s,transform 0.1s; display:none; line-height:1.45; align-items:center; justify-content:center; text-align:center; }
@@ -1677,7 +1677,7 @@ const firebaseConfig = {
             <option value="2">2시간</option><option value="3">3시간</option><option value="4" selected>4시간</option><option value="5">5시간</option><option value="6">6시간</option><option value="7">7시간</option><option value="8">8시간</option>
           </select>
         </div>
-        <div id="auto-recommend-info" style="font-size:0.78rem;color:#0f766e;font-weight:700;background:#f0fdf4;border-radius:8px;padding:7px 12px;margin:10px 0 4px;text-align:center"></div>
+        <div id="auto-recommend-info" style="display:none"></div>
         <div class="type-row">
           <span class="type-label" style="color:#7c3aed">🟣 혼복</span>
           <select id="auto-mixed-cnt"></select>
@@ -2298,7 +2298,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v499';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v500';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4203,18 +4203,21 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta){
   const scheduled=[];
   let prevPlayers=new Set();     // 직전 라운드 출전자
   let prevPrevPlayers=new Set(); // 2라운드 전 출전자
-  let prevHadMens=false;         // 직전 라운드에 남복 있었는지
+  let prevMensPlayers=new Set(); // 직전 라운드 남복 참여자 → 다음 라운드 남복 배정 제외
   let roundNum=0;
 
-  // 후보 탐색 헬퍼: skipMens=true면 남복 제외, skipConsec=true면 2연속 제한 적용
-  const _findBest=(skipMens,skipConsec)=>{
+  // 후보 탐색 헬퍼
+  // skipMensRepeat: 직전 남복 참여자가 또 남복이면 제외 (멤버 기준)
+  // skipConsec: 2연속 출전 배제
+  const _findBest=(skipMensRepeat,skipConsec)=>{
     let bestIdx=-1,bestScore=Infinity;
     for(let i=0;i<remaining.length;i++){
       const m=remaining[i];
       const ps=[...m.team0,...m.team1];
       if(ps.some(p=>roundPlayers.has(p))) continue; // 같은 라운드 중복 불가
-      if(skipMens&&m.type==='mens') continue;       // 남복 연속 라운드 배제
-      if(skipConsec&&ps.some(p=>prevPrevPlayers.has(p)&&prevPlayers.has(p))) continue; // 2연속 출전 배제
+      // 남복: 직전 라운드 남복 참여자가 또 남복에 배정되면 제외
+      if(skipMensRepeat&&m.type==='mens'&&ps.some(p=>prevMensPlayers.has(p))) continue;
+      if(skipConsec&&ps.some(p=>prevPrevPlayers.has(p)&&prevPlayers.has(p))) continue;
       const score=ps.reduce((acc,p)=>{
         if(!prevPlayers.has(p)) return acc;
         const pm=meta[p]||{};
@@ -4231,9 +4234,9 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta){
     const round=[];
     let courtIdx=0;
     for(let c=0;c<courtCount&&remaining.length>0;c++){
-      // 우선순위: 남복제한+2연속제한 → 남복제한만 → 2연속제한만 → 제한없음
-      let bestIdx=_findBest(prevHadMens,true);
-      if(bestIdx===-1) bestIdx=_findBest(prevHadMens,false);
+      // 우선순위: 남복멤버제한+2연속제한 → 남복멤버제한만 → 2연속제한만 → 제한없음
+      let bestIdx=_findBest(true,true);
+      if(bestIdx===-1) bestIdx=_findBest(true,false);
       if(bestIdx===-1) bestIdx=_findBest(false,true);
       if(bestIdx===-1) bestIdx=_findBest(false,false);
       if(bestIdx===-1) break;
@@ -4245,7 +4248,11 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta){
     }
     if(round.length===0) break;
     scheduled.push(...round);
-    prevHadMens=round.some(m=>m.type==='mens');
+    // 이번 라운드 남복 참여자 기록 (다음 라운드 남복 배정 시 제외 대상)
+    prevMensPlayers=new Set();
+    round.filter(m=>m.type==='mens').forEach(m=>{
+      [...m.team0,...m.team1].forEach(p=>prevMensPlayers.add(p));
+    });
     prevPrevPlayers=prevPlayers;
     prevPlayers=roundPlayers;
   }
@@ -4355,7 +4362,8 @@ function openAutoDrawModal(){
   if(el){
     el.innerHTML=attendees.length
       ? `<b>오늘 참석자 ${attendees.length}명</b> — 남 ${males.length}명 / 여 ${females.length}명<br>` +
-        `<span style="color:#475569">${attendees.map(p=>p.name).join(', ')}</span>`
+        `<span style="color:#1d4ed8;font-weight:700">♂ ${males.map(p=>p.name).join(', ')}</span><br>` +
+        `<span style="color:#db2777;font-weight:700">♀ ${females.map(p=>p.name).join(', ')}</span>`
       : '<span style="color:#dc2626">출첵 참석자 정보가 없습니다. 출첵 탭에서 참석자를 확인해주세요.</span>';
   }
   document.getElementById('auto-draw-warn').style.display='none';
