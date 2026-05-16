@@ -2299,7 +2299,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v504';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v505';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4209,10 +4209,6 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta){
   let prevRested=new Set();      // 직전 라운드 미배정자 → 이번 라운드 반드시 배정
   let roundNum=0;
 
-  // mustPlay 선수 포함 여부 확인
-  const _coversMustPlay=(idx,mustPlaySet)=>
-    idx!==-1&&[...remaining[idx].team0,...remaining[idx].team1].some(p=>mustPlaySet.has(p));
-
   // 후보 탐색 헬퍼
   // mustPlaySet: 포함 시 -1000점 보너스로 최우선 배정
   // skipMensRepeat: 직전 남복 참여자가 또 남복이면 제외
@@ -4249,19 +4245,8 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta){
     const mustPlay=new Set([...prevRested].filter(p=>availInRemaining.has(p)));
 
     for(let c=0;c<courtCount&&remaining.length>0;c++){
-      // 1차: 모든 soft constraints 적용
-      let bestIdx=_findBest(roundPlayers,mustPlay,true,true);
-      // mustPlay 미커버 시 soft constraints 순차 완화 (mustPlay는 hard constraint)
-      if(mustPlay.size>0&&!_coversMustPlay(bestIdx,mustPlay)){
-        // 2차: 남복 연속 제한 완화
-        const idx2=_findBest(roundPlayers,mustPlay,false,true);
-        if(_coversMustPlay(idx2,mustPlay)) bestIdx=idx2;
-        else{
-          // 3차: 3연속 제한도 완화
-          const idx3=_findBest(roundPlayers,mustPlay,false,false);
-          if(idx3!==-1) bestIdx=idx3;
-        }
-      }
+      // 남복연속·3연속 제한은 절대 완화 금지 — mustPlay는 점수 보너스(-1000/명)로만 우선 반영
+      const bestIdx=_findBest(roundPlayers,mustPlay,true,true);
       if(bestIdx===-1) break; // 보수적: 조건 만족 불가 시 해당 코트 건너뜀
       const card=remaining.splice(bestIdx,1)[0];
       card._round=roundNum;
