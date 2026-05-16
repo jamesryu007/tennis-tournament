@@ -22,7 +22,7 @@ button:not([disabled]):active { transform: translateY(1px); opacity: 0.88; }
 body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; color: #1e293b; min-height: 100vh; padding-bottom: 70px; font-size: 15px; overflow-x: hidden; }
 
 /* ── HEADER ── */
-.app-header { background: #ffffff; padding: 14px 16px 11px; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 40; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+.app-header { background: #ffffff; padding: 14px 16px 11px; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 200; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
 .app-header h1 { font-size: 1.08rem; color: #2563eb; letter-spacing: 0.3px; font-weight: 800; }
 .app-header p { font-size: 0.72rem; color: #94a3b8; margin-top: 1px; }
 
@@ -2237,7 +2237,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v479';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v480';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
