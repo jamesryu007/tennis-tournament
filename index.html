@@ -2320,7 +2320,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v510';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v511';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4915,13 +4915,13 @@ async function generateAutoDrawCards(){
 function _reGroupDailyCards(){
   const container=document.getElementById('daily-match-cards');
   if(!container) return;
-  // 자동생성 카드(_round 보유) — createdAt 오름차순 (라운드·코트 순)
+  // 라운드 배정 카드(_round 보유) — 자동생성 + 플러스로 빈슬롯 채운 카드 모두 포함
   const autoEntries=Object.entries(_dailyCards)
-    .filter(([,d])=>d.matchType&&d._round)
-    .sort((a,b)=>(a[1].createdAt||0)-(b[1].createdAt||0));
-  // 수동 카드 — createdAt 내림차순 (최신 우선)
+    .filter(([,d])=>d._round)
+    .sort((a,b)=>(a[1]._round-b[1]._round)||((a[1]._court||0)-(b[1]._court||0))||(a[1].createdAt||0)-(b[1].createdAt||0));
+  // 수동 카드 (_round 없음) — createdAt 내림차순 (최신 우선)
   const manualEntries=Object.entries(_dailyCards)
-    .filter(([,d])=>!d.matchType||!d._round)
+    .filter(([,d])=>!d._round)
     .sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
   container.innerHTML='';
   // 라운드 그룹핑 (라운드 번호 오름차순)
