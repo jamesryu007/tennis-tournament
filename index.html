@@ -184,8 +184,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .dc-num { font-size:0.65rem; font-weight:700; color:rgba(255,255,255,0.75); letter-spacing:0.05em; }
 .dc-court-lbl { font-size:0.88rem; font-weight:900; color:#fcd34d; letter-spacing:0.04em; text-shadow:0 1px 6px rgba(0,0,0,0.9); line-height:1.2; }
 .dc-del-btn { background:none; border:none; color:rgba(255,255,255,0.5); font-size:1.0rem; cursor:pointer; padding:2px 4px; line-height:1; }
-.dc-round-group { margin-bottom:16px; border:3px solid #2563eb; border-radius:14px; overflow:hidden; box-shadow:0 2px 14px rgba(37,99,235,0.16); }
-.dc-round-header { font-size:1.05rem; font-weight:900; color:#1e40af; background:#dbeafe; padding:9px 16px; border-bottom:2px solid #93c5fd; letter-spacing:0.4px; }
+.dc-round-group { margin-bottom:18px; border:3px solid #3b82f6; border-radius:16px; overflow:hidden; box-shadow:0 4px 18px rgba(59,130,246,0.18); background:linear-gradient(160deg,#eef5ff,#f0f7ff); }
+.dc-round-header { font-size:1.05rem; font-weight:900; color:#1e40af; background:linear-gradient(90deg,#dbeafe,#e0eaff); padding:10px 16px; border-bottom:2px solid #bfdbfe; letter-spacing:0.4px; }
+.dc-round-cards { display:flex; flex-direction:column; gap:8px; padding:8px 8px 8px; }
 .dc-body { position:relative; display:flex; align-items:stretch; min-height:130px; }
 /* 캐러셀과 동일한 컬럼 배경 */
 .dc-team-left  { flex:1; background:linear-gradient(135deg,rgba(5,150,105,0.28),rgba(16,185,129,0.15)); padding:16px 8px 16px 14px; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; gap:7px; }
@@ -463,12 +464,12 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .daily-auto-btn { flex:1; border:3px dashed #7c3aed; background:linear-gradient(135deg,rgba(124,58,237,0.07),rgba(99,102,241,0.13)); border-radius:18px; color:#7c3aed; font-size:0.92rem; font-weight:800; padding:14px 10px; cursor:pointer; letter-spacing:0.3px; transition:background 0.15s,transform 0.1s; display:none; line-height:1.45; align-items:center; justify-content:center; text-align:center; }
 .daily-auto-btn:active { background:rgba(124,58,237,0.18); transform:scale(0.97); }
 /* ── 자동대진 모달 ── */
-#auto-draw-modal .type-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid #f1f5f9; }
 #auto-draw-modal .type-label { font-size:1.05rem; font-weight:800; flex:1; }
 #auto-draw-modal select { font-size:1rem; font-weight:700; padding:9px 10px; border:2px solid #e2e8f0; border-radius:12px; background:#f8fafc; color:#1e293b; font-family:inherit; cursor:pointer; width:115px; flex-shrink:0; }
-#auto-draw-modal .court-row { background:linear-gradient(135deg,rgba(13,148,136,0.07),rgba(16,185,129,0.05)); border-radius:14px; padding:14px 16px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; }
+#auto-draw-modal .court-row { background:linear-gradient(135deg,rgba(13,148,136,0.07),rgba(16,185,129,0.05)); border-radius:14px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
 #auto-draw-modal .court-row .type-label { font-size:1.1rem; }
 #auto-draw-modal .court-row select { width:130px; font-size:1.05rem; padding:10px 12px; border-color:#0d9488; }
+#auto-draw-modal .type-row { background:linear-gradient(135deg,rgba(13,148,136,0.07),rgba(16,185,129,0.05)); border-radius:14px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
 
 
 /* ── PARTICIPANT CHECKBOXES ── */
@@ -1686,7 +1687,7 @@ const firebaseConfig = {
           <span class="type-label" style="color:#2563eb">🔵 남복</span>
           <select id="auto-mens-cnt"></select>
         </div>
-        <div class="type-row" style="border-bottom:none">
+        <div class="type-row">
           <span class="type-label" style="color:#db2777">🩷 여복</span>
           <select id="auto-womens-cnt"></select>
         </div>
@@ -2298,7 +2299,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v501';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v502';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4234,11 +4235,8 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta){
     const round=[];
     let courtIdx=0;
     for(let c=0;c<courtCount&&remaining.length>0;c++){
-      // 우선순위: 남복멤버제한+2연속제한 → 남복멤버제한만 → 2연속제한만 → 제한없음
-      let bestIdx=_findBest(roundPlayers,true,true);
-      if(bestIdx===-1) bestIdx=_findBest(roundPlayers,true,false);
-      if(bestIdx===-1) bestIdx=_findBest(roundPlayers,false,true);
-      if(bestIdx===-1) bestIdx=_findBest(roundPlayers,false,false);
+      // 모든 제한을 지키는 최선 후보만 배정 — fallback 없음 (조건 불만족 시 해당 코트 건너뜀)
+      const bestIdx=_findBest(roundPlayers,true,true);
       if(bestIdx===-1) break;
       const card=remaining.splice(bestIdx,1)[0];
       card._round=roundNum;
@@ -4629,13 +4627,14 @@ function _reGroupDailyCards(){
     const groupEl=document.createElement('div');
     groupEl.className='dc-round-group';
     groupEl.id=`dc-round-group-${roundNum}`;
-    groupEl.innerHTML=`<div class="dc-round-header">제${roundNum}경기</div>`;
+    groupEl.innerHTML=`<div class="dc-round-header">제${roundNum}경기</div><div class="dc-round-cards"></div>`;
     container.appendChild(groupEl);
+    const cardsEl=groupEl.querySelector('.dc-round-cards');
     roundGroups[roundNum].forEach(id=>{
       const el=document.createElement('div');
       el.id=`daily-card-${id}`;
       el.dataset.createdAt=_dailyCards[id].createdAt||0;
-      groupEl.appendChild(el);
+      cardsEl.appendChild(el);
       _renderDailyCard(id);
     });
   });
