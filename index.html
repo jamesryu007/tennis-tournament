@@ -2282,7 +2282,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v487';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v488';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4096,6 +4096,41 @@ function numpadInput(val){
 let _dailyCardsListenerSet=false;
 let _pendingScrollKey=null;
 
+// ── 로컬 자동생성 카드 localStorage 보관 (pull-to-refresh/앱재시작 복원용) ──
+const _LS_LOCAL_DAILY='jmt_local_daily_cards';
+function _saveLocalDailyCards(){
+  const today=new Date().toISOString().slice(0,10);
+  // 숫자 id = 아직 Firebase에 없는 로컬 카드
+  const local={};
+  Object.entries(_dailyCards).forEach(([id,d])=>{ if(!String(id).startsWith('-')) local[id]=d; });
+  if(Object.keys(local).length>0){
+    try{ localStorage.setItem(_LS_LOCAL_DAILY,JSON.stringify({date:today,cards:local,counter:_dailyCardCounter})); }catch(e){}
+  } else {
+    localStorage.removeItem(_LS_LOCAL_DAILY);
+  }
+}
+function _restoreLocalDailyCards(){
+  try{
+    const raw=localStorage.getItem(_LS_LOCAL_DAILY);
+    if(!raw) return;
+    const {date,cards,counter}=JSON.parse(raw);
+    const today=new Date().toISOString().slice(0,10);
+    if(date!==today){ localStorage.removeItem(_LS_LOCAL_DAILY); return; } // 날짜 다르면 폐기
+    if(counter&&counter>_dailyCardCounter) _dailyCardCounter=counter;
+    const container=document.getElementById('daily-match-cards');
+    Object.entries(cards).sort((a,b)=>(a[1].createdAt||0)-(b[1].createdAt||0)).forEach(([id,d])=>{
+      if(_dailyCards[id]) return; // 이미 로드됨
+      _dailyCards[id]=d;
+      if(container&&!document.getElementById(`daily-card-${id}`)){
+        const el=document.createElement('div');
+        el.id=`daily-card-${id}`; el.dataset.createdAt=d.createdAt||0;
+        container.insertBefore(el,container.firstChild);
+        _renderDailyCard(id);
+      }
+    });
+  }catch(e){}
+}
+
 function _saveCardToFirebase(id){
   if(!db||!_dailyCards[id]) return;
   db.ref(`jmt/dailyCards/${id}`).set(_dailyCards[id]).catch(()=>{});
@@ -4115,7 +4150,11 @@ function _setupDailyCardsListener(){
   db.ref('jmt/dailyCards').once('value').then(snap=>{
     const all=snap.val()||{};
     const container=document.getElementById('daily-match-cards');
-    if(Object.keys(all).length===0){ addDailyMatchCard(); return; }
+    if(Object.keys(all).length===0){
+      _restoreLocalDailyCards(); // 로컬 카드 먼저 복원
+      if(Object.keys(_dailyCards).length===0) addDailyMatchCard(); // 아무 카드도 없을 때만
+      return;
+    }
     Object.entries(all)
       .sort((a,b)=>((b[1].createdAt||b[1].num||0)-(a[1].createdAt||a[1].num||0)))
       .forEach(([id,raw])=>{
@@ -4129,6 +4168,7 @@ function _setupDailyCardsListener(){
         }
         _renderDailyCard(id);
       });
+    _restoreLocalDailyCards(); // Firebase 카드 로드 후 로컬 카드 추가 복원
   });
 }
 
@@ -4292,6 +4332,7 @@ async function generateAutoDrawCards(){
     const ael=document.getElementById(`daily-card-${aid}`);
     if(ael) ael.remove();
   }
+  _saveLocalDailyCards(); // 삭제 반영
   const btn=document.getElementById('auto-draw-submit-btn');
   btn.disabled=true; btn.textContent='생성 중...';
   try{
@@ -4358,6 +4399,7 @@ async function generateAutoDrawCards(){
       container.insertBefore(el,container.firstChild);
       _renderDailyCard(newId);
     }
+    _saveLocalDailyCards(); // 로컬 카드 localStorage에 보관
     closeAutoDrawModal();
     // 부족분 경고
     if(totalMade<mixedCnt+mensCnt+womensCnt){
@@ -4652,6 +4694,7 @@ function startDailyMatch(id){
       const newKey=ref.key;
       // 로컬 임시 카드 제거
       delete _dailyCards[id];
+      _saveLocalDailyCards(); // localStorage에서도 해당 카드 제거
       const oldEl=document.getElementById(`daily-card-${id}`);
       if(oldEl) oldEl.remove();
       // 새 Firebase key로 즉시 카드 생성 (맨 위에)
