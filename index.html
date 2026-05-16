@@ -2299,7 +2299,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v506';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v507';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4234,9 +4234,10 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta, maxRounds){
     return bestIdx;
   };
 
-  while(remaining.length>0){
-    roundNum++;
-    if(maxRounds&&roundNum>maxRounds) break; // 라운드 수 = 코트×시간으로 정해진 최대값
+  // maxRounds 라운드를 순서대로 시도 — 빈 라운드도 skip 후 다음 라운드 계속 진행
+  const totalRounds=maxRounds||Math.ceil(remaining.length/courtCount)+2;
+  for(roundNum=1;roundNum<=totalRounds;roundNum++){
+    if(remaining.length===0) break;
     const roundPlayers=new Set();
     const round=[];
     let courtIdx=0;
@@ -4255,19 +4256,17 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta, maxRounds){
       round.push(card);
       [...card.team0,...card.team1].forEach(p=>{
         roundPlayers.add(p);
-        mustPlay.delete(p); // 커버된 mustPlay 제거
+        mustPlay.delete(p);
       });
     }
-    if(round.length===0) break;
     scheduled.push(...round);
-    // 이번 라운드 남복 참여자 기록 (다음 라운드 남복 배정 시 제외 대상)
+    // 빈 라운드여도 prev 업데이트 — prevPlayers가 비워지면 다음 라운드 제약 자동 리셋
     prevMensPlayers=new Set();
     round.filter(m=>m.type==='mens').forEach(m=>{
       [...m.team0,...m.team1].forEach(p=>prevMensPlayers.add(p));
     });
     prevPrevPlayers=prevPlayers;
-    prevPlayers=roundPlayers;
-    // 다음 라운드 mustPlay: 이번 라운드 쉰 선수 중 remaining에 경기 남은 선수
+    prevPlayers=roundPlayers; // 빈 라운드면 빈 Set → 다음 라운드 3연속 제한 해제
     const nextAvail=new Set(remaining.flatMap(m=>[...m.team0,...m.team1]));
     prevRested=new Set([...nextAvail].filter(p=>!roundPlayers.has(p)));
   }
