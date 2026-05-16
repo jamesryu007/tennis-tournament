@@ -2299,7 +2299,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v505';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v506';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4199,7 +4199,7 @@ function renderDailyTab(){
 // 라운드별 코트 스케줄링 — 같은 라운드 내 선수 중복 없이, 이전 라운드 연속 출전 최소화
 // playerMeta: {[name]:{gender,wr}} — 연속 출전 시 남자·고승률 우선 배정
 // mustPlay 규칙: 직전 라운드 미배정 선수는 이번 라운드 반드시 배정 (연속 쉼 방지)
-function _scheduleCourtOrder(matches, courtCount, playerMeta){
+function _scheduleCourtOrder(matches, courtCount, playerMeta, maxRounds){
   const meta=playerMeta||{};
   const remaining=matches.slice();
   const scheduled=[];
@@ -4236,6 +4236,7 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta){
 
   while(remaining.length>0){
     roundNum++;
+    if(maxRounds&&roundNum>maxRounds) break; // 라운드 수 = 코트×시간으로 정해진 최대값
     const roundPlayers=new Set();
     const round=[];
     let courtIdx=0;
@@ -4574,15 +4575,17 @@ async function generateAutoDrawCards(){
     const typeName={mixed:'혼복경기',mens:'남복경기',womens:'여복경기'};
     const typeIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
     const bgImages=_DC_BG_IMAGES;
-    // 코트 수 읽기 → 코트별 라운드 스케줄링
+    // 코트 수·시간 읽기 → 최대 라운드 수 = floor(hrs × 1.5)
     const courtCount=parseInt(document.getElementById('auto-court-cnt').value)||2;
+    const hrsVal=parseInt(document.getElementById('auto-time-hrs')&&document.getElementById('auto-time-hrs').value)||4;
+    const maxRounds=Math.floor(hrsVal*1.5); // 4시간→6라운드, 3시간→4라운드
     // 연속 출전 시 남자우선 적용을 위한 선수 메타 맵 생성
     const playerMeta={};
     attendees.forEach(a=>{
       const st=playerStats[a.name]||{};
       playerMeta[a.name]={gender:a.gender,wr:effWr(st.wins||0,st.draws||0,st.losses||0)};
     });
-    const scheduled=_scheduleCourtOrder(allMatches,courtCount,playerMeta);
+    const scheduled=_scheduleCourtOrder(allMatches,courtCount,playerMeta,maxRounds);
     // 카드 번호 기준: 현재 로컬 카드 수
     let numBase=Object.keys(_dailyCards).length;
     // createdAt: 같은 라운드 내에서 코트 순으로 정렬되도록 si 역순 부여
