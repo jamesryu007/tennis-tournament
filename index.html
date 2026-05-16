@@ -461,9 +461,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .daily-btn-row { display:flex; gap:8px; margin:6px 0 18px; }
 .daily-add-btn { flex:0 0 54px; border:none; background:linear-gradient(135deg,#7c3aed,#6d28d9); border-radius:16px; color:#fff; font-size:1.9rem; font-weight:400; padding:14px 8px; cursor:pointer; line-height:1; box-shadow:0 4px 14px rgba(124,58,237,0.38); transition:transform 0.15s,box-shadow 0.15s; }
 .daily-add-btn:active { transform:scale(0.96); box-shadow:0 1px 6px rgba(124,58,237,0.2); }
-.daily-auto-btn { flex:1; border:none; background:linear-gradient(135deg,#7c3aed,#2563eb); border-radius:16px; color:#fff; font-size:0.88rem; font-weight:800; padding:14px 10px; cursor:pointer; letter-spacing:0.3px; transition:transform 0.1s,box-shadow 0.15s; display:none; line-height:1.45; align-items:center; justify-content:center; text-align:center; box-shadow:0 4px 14px rgba(37,99,235,0.32); }
+.daily-auto-btn { flex:1; border:none; background:linear-gradient(135deg,#7c3aed,#2563eb); border-radius:16px; color:#fff; font-size:0.82rem; font-weight:800; padding:14px 10px; cursor:pointer; letter-spacing:0.2px; transition:transform 0.1s,box-shadow 0.15s; display:none; line-height:1; align-items:center; justify-content:center; text-align:center; box-shadow:0 4px 14px rgba(37,99,235,0.32); white-space:nowrap; }
 .daily-auto-btn:active { transform:scale(0.97); }
-.daily-analysis-btn { flex:0 0 66px; border:none; background:linear-gradient(135deg,#0f766e,#0d9488); border-radius:16px; color:#fff; font-size:0.76rem; font-weight:800; padding:14px 8px; cursor:pointer; letter-spacing:0.2px; transition:transform 0.1s,box-shadow 0.15s,opacity 0.2s; display:none; line-height:1.5; align-items:center; justify-content:center; text-align:center; box-shadow:0 4px 14px rgba(13,148,136,0.3); opacity:0.35; pointer-events:none; }
+.daily-analysis-btn { flex:0 0 74px; border:none; background:linear-gradient(135deg,#0f766e,#0d9488); border-radius:16px; color:#fff; font-size:0.75rem; font-weight:800; padding:14px 8px; cursor:pointer; letter-spacing:0.15px; transition:transform 0.1s,box-shadow 0.15s,opacity 0.2s; display:none; line-height:1; align-items:center; justify-content:center; text-align:center; box-shadow:0 4px 14px rgba(13,148,136,0.3); opacity:0.35; pointer-events:none; white-space:nowrap; }
 .daily-analysis-btn.ready { opacity:1; pointer-events:auto; }
 .daily-analysis-btn:active { transform:scale(0.97); }
 /* ── 자동대진 모달 ── */
@@ -1626,8 +1626,8 @@ const firebaseConfig = {
       <div id="daily-guide-row" style="text-align:center;padding:10px 0 8px;color:#94a3b8;font-size:0.82rem;font-weight:600;letter-spacing:0.02em">🎾 오늘의 멋진 경기를 만드세요</div>
       <div class="daily-btn-row">
         <button class="daily-add-btn" id="daily-add-btn" onclick="addDailyMatchCard()">+</button>
-        <button class="daily-auto-btn" id="daily-auto-btn" onclick="openAutoDrawModal()">🎾 대진표<br>자동 생성</button>
-        <button class="daily-analysis-btn" id="daily-analysis-btn" onclick="openDrawAnalysisModal()">📊 대진<br>분석</button>
+        <button class="daily-auto-btn" id="daily-auto-btn" onclick="openAutoDrawModal()">🎾 대진표 자동 생성</button>
+        <button class="daily-analysis-btn" id="daily-analysis-btn" onclick="openDrawAnalysisModal()">📊 대진분석</button>
       </div>
       <div id="daily-match-cards"></div>
     </div>
@@ -2320,7 +2320,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v509';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v510';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4988,18 +4988,34 @@ function addDailyMatchCard(){
     const _mm=String(_today.getMonth()+1).padStart(2,'0');
     const _dd=String(_today.getDate()).padStart(2,'0');
     const label=`경기${num} · ${_mm}/${_dd}`;
-    const cardData={phase:'setup',team0:[],team1:[],sets:[],winner:-1,bgImage,num,createdAt,label};
-    // 자동생성 카드가 있으면 다음 빈 슬롯에 추가
+    const createdBy=(state.identity&&state.identity.name)||'';
+    const cardData={phase:'setup',team0:[],team1:[],sets:[],winner:-1,bgImage,num,createdAt,label,createdBy};
+    // 자동생성 카드가 있으면 빈 슬롯(경기 내 미배정 코트)에 먼저 채우고, 없으면 신규 라운드
     const autoCards=Object.values(_dailyCards).filter(d=>d._round);
     if(autoCards.length>0){
-      const maxRound=Math.max(...autoCards.map(d=>d._round));
-      const maxCourt=Math.max(...autoCards.filter(d=>d._round===maxRound).map(d=>d._court||1));
       const courtCount=parseInt(document.getElementById('auto-court-cnt')?.value)||2;
-      const newRound=maxCourt<courtCount?maxRound:maxRound+1;
-      const newCourt=maxCourt<courtCount?maxCourt+1:1;
-      cardData._round=newRound;
-      cardData._court=newCourt;
-      cardData.courtLabel=`${newCourt}번코트`;
+      // 라운드별 사용 코트 집계
+      const roundCourts={};
+      autoCards.forEach(d=>{
+        if(!roundCourts[d._round]) roundCourts[d._round]=new Set();
+        roundCourts[d._round].add(d._court);
+      });
+      // 첫 번째 빈 슬롯 탐색 (라운드↑, 코트↑ 순)
+      let targetRound=null,targetCourt=null;
+      const sortedRounds=Object.keys(roundCourts).map(Number).sort((a,b)=>a-b);
+      outer:for(const r of sortedRounds){
+        for(let c=1;c<=courtCount;c++){
+          if(!roundCourts[r].has(c)){targetRound=r;targetCourt=c;break outer;}
+        }
+      }
+      // 빈 슬롯 없으면 마지막 라운드 다음 신규 라운드
+      if(targetRound===null){
+        targetRound=Math.max(...sortedRounds)+1;
+        targetCourt=1;
+      }
+      cardData._round=targetRound;
+      cardData._court=targetCourt;
+      cardData.courtLabel=`${targetCourt}번코트`;
       _dailyCards[id]=cardData;
       _reGroupDailyCards();
       setTimeout(()=>{
@@ -5049,6 +5065,9 @@ function _renderDailyCard(id){
   const d=_dailyCards[id];
   const el=document.getElementById(`daily-card-${id}`);
   if(!d||!el) return;
+  // 권한: 관리자이거나 본인이 생성한 카드 → 삭제·팀선택·시작 가능
+  const _curName=(state.identity&&state.identity.name)||'';
+  const canManage=isManager()||(!!d.createdBy&&d.createdBy===_curName);
 
   function mkCard(numLabel, leftCol, midCol, rightCol, bgOverride){
     const bgImg = bgOverride || d.bgImage || 'images/ca1.png';
@@ -5060,7 +5079,7 @@ function _renderDailyCard(id){
             ?`<span class="dc-court-lbl" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block">${d.courtLabel}&nbsp;<span class="dc-num" style="font-size:0.72rem;opacity:0.85">${numLabel}</span></span>`
             :`<span class="dc-num">${numLabel}</span>`}
         </div>
-        ${isManager()?`<button class="dc-del-btn" onclick="adminRemoveDailyCard('${id}')" title="카드 삭제">✕</button>`:''}
+        ${canManage?`<button class="dc-del-btn" onclick="adminRemoveDailyCard('${id}')" title="카드 삭제">✕</button>`:''}
       </div>
       <div class="dc-body">
         ${leftCol}
@@ -5073,9 +5092,7 @@ function _renderDailyCard(id){
   if(d.phase==='setup'){
     const t0=_getTeamDisplay(d.team0),t1=_getTeamDisplay(d.team1);
     const t0f=d.team0.length===2,t1f=d.team1.length===2;
-    const canManage=isManager();
-    const curName=(state.identity&&state.identity.name)||'';
-    const isParticipant=[...(d.team0||[]),...(d.team1||[])].includes(curName);
+    const isParticipant=[...(d.team0||[]),...(d.team1||[])].includes(_curName);
     const canStart=canManage||isParticipant;
     const left=`<div class="dc-team-left">
       <button class="dc-team-btn${t0f?' filled':''}${canManage?'':' readonly'}"${canManage?`onclick="openDailyPick('${id}',0)"`:' disabled'}>
@@ -5291,6 +5308,8 @@ function canEditDailyScore(d){
   if(!myName) return false;
   // 관리자(유지원/김승수/천지은)는 시간 제한 없이 항상 가능
   if(MANAGERS.includes(myName)) return true;
+  // 본인이 생성한 카드도 시간 제한 없이 가능
+  if(d.createdBy&&d.createdBy===myName) return true;
   const participants=[...(d.team0||[]),...(d.team1||[])];
   if(!participants.includes(myName)) return false;
   if(d.scoredAt&&(Date.now()-d.scoredAt)>2*60*60*1000) return false;
