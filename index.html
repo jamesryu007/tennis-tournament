@@ -2298,7 +2298,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v500';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v501';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4206,15 +4206,15 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta){
   let prevMensPlayers=new Set(); // 직전 라운드 남복 참여자 → 다음 라운드 남복 배정 제외
   let roundNum=0;
 
-  // 후보 탐색 헬퍼
+  // 후보 탐색 헬퍼 — roundPlayers를 파라미터로 받아 클로저 참조 오류 방지
   // skipMensRepeat: 직전 남복 참여자가 또 남복이면 제외 (멤버 기준)
   // skipConsec: 2연속 출전 배제
-  const _findBest=(skipMensRepeat,skipConsec)=>{
+  const _findBest=(rp,skipMensRepeat,skipConsec)=>{
     let bestIdx=-1,bestScore=Infinity;
     for(let i=0;i<remaining.length;i++){
       const m=remaining[i];
       const ps=[...m.team0,...m.team1];
-      if(ps.some(p=>roundPlayers.has(p))) continue; // 같은 라운드 중복 불가
+      if(ps.some(p=>rp.has(p))) continue; // 같은 라운드 중복 불가
       // 남복: 직전 라운드 남복 참여자가 또 남복에 배정되면 제외
       if(skipMensRepeat&&m.type==='mens'&&ps.some(p=>prevMensPlayers.has(p))) continue;
       if(skipConsec&&ps.some(p=>prevPrevPlayers.has(p)&&prevPlayers.has(p))) continue;
@@ -4235,10 +4235,10 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta){
     let courtIdx=0;
     for(let c=0;c<courtCount&&remaining.length>0;c++){
       // 우선순위: 남복멤버제한+2연속제한 → 남복멤버제한만 → 2연속제한만 → 제한없음
-      let bestIdx=_findBest(true,true);
-      if(bestIdx===-1) bestIdx=_findBest(true,false);
-      if(bestIdx===-1) bestIdx=_findBest(false,true);
-      if(bestIdx===-1) bestIdx=_findBest(false,false);
+      let bestIdx=_findBest(roundPlayers,true,true);
+      if(bestIdx===-1) bestIdx=_findBest(roundPlayers,true,false);
+      if(bestIdx===-1) bestIdx=_findBest(roundPlayers,false,true);
+      if(bestIdx===-1) bestIdx=_findBest(roundPlayers,false,false);
       if(bestIdx===-1) break;
       const card=remaining.splice(bestIdx,1)[0];
       card._round=roundNum;
