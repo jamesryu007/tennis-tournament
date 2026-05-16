@@ -2299,7 +2299,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v503';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v504';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4198,6 +4198,7 @@ function renderDailyTab(){
 
 // 라운드별 코트 스케줄링 — 같은 라운드 내 선수 중복 없이, 이전 라운드 연속 출전 최소화
 // playerMeta: {[name]:{gender,wr}} — 연속 출전 시 남자·고승률 우선 배정
+// mustPlay 규칙: 직전 라운드 미배정 선수는 이번 라운드 반드시 배정 (연속 쉼 방지)
 function _scheduleCourtOrder(matches, courtCount, playerMeta){
   const meta=playerMeta||{};
   const remaining=matches.slice();
@@ -4205,25 +4206,33 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta){
   let prevPlayers=new Set();     // 직전 라운드 출전자
   let prevPrevPlayers=new Set(); // 2라운드 전 출전자
   let prevMensPlayers=new Set(); // 직전 라운드 남복 참여자 → 다음 라운드 남복 배정 제외
+  let prevRested=new Set();      // 직전 라운드 미배정자 → 이번 라운드 반드시 배정
   let roundNum=0;
 
-  // 후보 탐색 헬퍼 — roundPlayers를 파라미터로 받아 클로저 참조 오류 방지
-  // skipMensRepeat: 직전 남복 참여자가 또 남복이면 제외 (멤버 기준)
+  // mustPlay 선수 포함 여부 확인
+  const _coversMustPlay=(idx,mustPlaySet)=>
+    idx!==-1&&[...remaining[idx].team0,...remaining[idx].team1].some(p=>mustPlaySet.has(p));
+
+  // 후보 탐색 헬퍼
+  // mustPlaySet: 포함 시 -1000점 보너스로 최우선 배정
+  // skipMensRepeat: 직전 남복 참여자가 또 남복이면 제외
   // skipConsec: 2연속 출전 배제
-  const _findBest=(rp,skipMensRepeat,skipConsec)=>{
+  const _findBest=(rp,mustPlaySet,skipMensRepeat,skipConsec)=>{
     let bestIdx=-1,bestScore=Infinity;
     for(let i=0;i<remaining.length;i++){
       const m=remaining[i];
       const ps=[...m.team0,...m.team1];
-      if(ps.some(p=>rp.has(p))) continue; // 같은 라운드 중복 불가
-      // 남복: 직전 라운드 남복 참여자가 또 남복에 배정되면 제외
+      if(ps.some(p=>rp.has(p))) continue; // 같은 라운드 중복 불가 (hard)
       if(skipMensRepeat&&m.type==='mens'&&ps.some(p=>prevMensPlayers.has(p))) continue;
       if(skipConsec&&ps.some(p=>prevPrevPlayers.has(p)&&prevPlayers.has(p))) continue;
-      const score=ps.reduce((acc,p)=>{
+      // mustPlay 선수 포함할수록 우선 (-1000점/명), 연속출전은 tiebreaker
+      const mustCov=ps.filter(p=>mustPlaySet.has(p)).length;
+      const consecScore=ps.reduce((acc,p)=>{
         if(!prevPlayers.has(p)) return acc;
         const pm=meta[p]||{};
         return acc+(pm.gender==='male'?0.4:1.6)*(1-(pm.wr||0)/200);
       },0);
+      const score=-mustCov*1000+consecScore;
       if(score<bestScore){bestScore=score;bestIdx=i;}
     }
     return bestIdx;
@@ -4234,15 +4243,34 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta){
     const roundPlayers=new Set();
     const round=[];
     let courtIdx=0;
+
+    // 이번 라운드 mustPlay: 직전 라운드 쉰 선수 중 remaining에 경기 남은 선수만
+    const availInRemaining=new Set(remaining.flatMap(m=>[...m.team0,...m.team1]));
+    const mustPlay=new Set([...prevRested].filter(p=>availInRemaining.has(p)));
+
     for(let c=0;c<courtCount&&remaining.length>0;c++){
-      // 모든 제한을 지키는 최선 후보만 배정 — fallback 없음 (조건 불만족 시 해당 코트 건너뜀)
-      const bestIdx=_findBest(roundPlayers,true,true);
-      if(bestIdx===-1) break;
+      // 1차: 모든 soft constraints 적용
+      let bestIdx=_findBest(roundPlayers,mustPlay,true,true);
+      // mustPlay 미커버 시 soft constraints 순차 완화 (mustPlay는 hard constraint)
+      if(mustPlay.size>0&&!_coversMustPlay(bestIdx,mustPlay)){
+        // 2차: 남복 연속 제한 완화
+        const idx2=_findBest(roundPlayers,mustPlay,false,true);
+        if(_coversMustPlay(idx2,mustPlay)) bestIdx=idx2;
+        else{
+          // 3차: 3연속 제한도 완화
+          const idx3=_findBest(roundPlayers,mustPlay,false,false);
+          if(idx3!==-1) bestIdx=idx3;
+        }
+      }
+      if(bestIdx===-1) break; // 보수적: 조건 만족 불가 시 해당 코트 건너뜀
       const card=remaining.splice(bestIdx,1)[0];
       card._round=roundNum;
       card._court=++courtIdx;
       round.push(card);
-      [...card.team0,...card.team1].forEach(p=>roundPlayers.add(p));
+      [...card.team0,...card.team1].forEach(p=>{
+        roundPlayers.add(p);
+        mustPlay.delete(p); // 커버된 mustPlay 제거
+      });
     }
     if(round.length===0) break;
     scheduled.push(...round);
@@ -4253,6 +4281,9 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta){
     });
     prevPrevPlayers=prevPlayers;
     prevPlayers=roundPlayers;
+    // 다음 라운드 mustPlay: 이번 라운드 쉰 선수 중 remaining에 경기 남은 선수
+    const nextAvail=new Set(remaining.flatMap(m=>[...m.team0,...m.team1]));
+    prevRested=new Set([...nextAvail].filter(p=>!roundPlayers.has(p)));
   }
   return scheduled;
 }
