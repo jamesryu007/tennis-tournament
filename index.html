@@ -452,8 +452,14 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 @keyframes confettiFall { 0%{transform:translateY(-20px) rotate(0deg);opacity:1} 100%{transform:translateY(120px) rotate(720deg);opacity:0} }
 @keyframes bounce-celebrate { 0%,100%{transform:translateY(0) rotate(0deg)} 30%{transform:translateY(-8px) rotate(-6deg)} 60%{transform:translateY(-4px) rotate(4deg)} }
 @keyframes shake-sad { 0%,100%{transform:rotate(0deg) translateY(0)} 20%{transform:rotate(-5deg) translateY(2px)} 40%{transform:rotate(5deg) translateY(0)} 70%{transform:rotate(-2deg) translateY(1px)} }
-.daily-add-btn { width:100%; border:3px dashed #7c3aed; background:linear-gradient(135deg,rgba(124,58,237,0.10),rgba(99,102,241,0.16)); border-radius:18px; color:#7c3aed; font-size:2.6rem; font-weight:300; padding:18px 10px; cursor:pointer; margin:6px 0 10px; line-height:1; box-shadow:0 3px 16px rgba(124,58,237,0.18); transition:transform 0.15s,box-shadow 0.15s; }
+.daily-add-btn { width:100%; border:3px dashed #7c3aed; background:linear-gradient(135deg,rgba(124,58,237,0.10),rgba(99,102,241,0.16)); border-radius:18px; color:#7c3aed; font-size:2.6rem; font-weight:300; padding:18px 10px; cursor:pointer; margin:6px 0 6px; line-height:1; box-shadow:0 3px 16px rgba(124,58,237,0.18); transition:transform 0.15s,box-shadow 0.15s; }
 .daily-add-btn:active { transform:scale(0.97); box-shadow:0 1px 6px rgba(124,58,237,0.12); }
+.daily-auto-btn { width:100%; border:2px solid #7c3aed; background:#fff; border-radius:14px; color:#7c3aed; font-size:0.88rem; font-weight:800; padding:10px; cursor:pointer; margin:0 0 10px; letter-spacing:0.3px; transition:background 0.15s,transform 0.1s; display:none; }
+.daily-auto-btn:active { background:#f5f3ff; transform:scale(0.98); }
+/* ── 자동대진 모달 ── */
+#auto-draw-modal .type-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f1f5f9; }
+#auto-draw-modal .type-label { font-size:1rem; font-weight:800; }
+#auto-draw-modal select { font-size:1rem; font-weight:700; padding:6px 12px; border:1.5px solid #e2e8f0; border-radius:10px; background:#f8fafc; color:#1e293b; font-family:inherit; cursor:pointer; }
 
 
 /* ── PARTICIPANT CHECKBOXES ── */
@@ -1606,6 +1612,7 @@ const firebaseConfig = {
     <div id="match-panel-daily" style="padding:4px 12px 0">
       <div id="daily-guide-row" style="text-align:center;padding:10px 0 8px;color:#94a3b8;font-size:0.82rem;font-weight:600;letter-spacing:0.02em">🎾 오늘의 멋진 경기를 만드세요</div>
       <button class="daily-add-btn" onclick="addDailyMatchCard()">⊕</button>
+      <button class="daily-auto-btn" id="daily-auto-btn" onclick="openAutoDrawModal()">🎾 대진표 자동 생성</button>
       <div id="daily-match-cards"></div>
     </div>
   </div>
@@ -1632,6 +1639,42 @@ const firebaseConfig = {
       <div style="font-size:2.5rem;margin-bottom:8px">📸</div>
       아직 올라온 사진이 없어요<br>
       <span style="font-size:0.75rem">첫 번째 추억을 기록해 보세요</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ AUTO DRAW MODAL ══ -->
+<div class="modal-overlay" id="auto-draw-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-round">🎾 자동 대진 생성</span>
+      <button class="modal-close" onclick="closeAutoDrawModal()">✕</button>
+    </div>
+    <div style="padding:14px 16px 28px">
+      <div id="auto-draw-attendees" style="background:#f8fafc;border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:0.8rem;color:#64748b;line-height:1.6"></div>
+      <div>
+        <div class="type-row">
+          <span class="type-label" style="color:#7c3aed">🟣 혼복 (혼합복식)</span>
+          <select id="auto-mixed-cnt">
+            <option value="0">0경기</option><option value="1">1경기</option><option value="2">2경기</option><option value="3">3경기</option><option value="4">4경기</option><option value="5">5경기</option><option value="6">6경기</option><option value="7">7경기</option><option value="8">8경기</option><option value="9">9경기</option><option value="10">10경기</option>
+          </select>
+        </div>
+        <div class="type-row">
+          <span class="type-label" style="color:#2563eb">🔵 남복 (남자복식)</span>
+          <select id="auto-mens-cnt">
+            <option value="0">0경기</option><option value="1">1경기</option><option value="2">2경기</option><option value="3">3경기</option><option value="4">4경기</option><option value="5">5경기</option><option value="6">6경기</option><option value="7">7경기</option><option value="8">8경기</option><option value="9">9경기</option><option value="10">10경기</option>
+          </select>
+        </div>
+        <div class="type-row" style="border-bottom:none">
+          <span class="type-label" style="color:#db2777">🩷 여복 (여자복식)</span>
+          <select id="auto-womens-cnt">
+            <option value="0">0경기</option><option value="1">1경기</option><option value="2">2경기</option><option value="3">3경기</option><option value="4">4경기</option><option value="5">5경기</option><option value="6">6경기</option><option value="7">7경기</option><option value="8">8경기</option><option value="9">9경기</option><option value="10">10경기</option>
+          </select>
+        </div>
+      </div>
+      <div id="auto-draw-warn" style="color:#dc2626;font-size:0.8rem;margin:10px 0 0;display:none"></div>
+      <button id="auto-draw-submit-btn" onclick="generateAutoDrawCards()" style="width:100%;margin-top:18px;padding:14px;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.3px">대진 생성</button>
     </div>
   </div>
 </div>
@@ -2237,7 +2280,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v481';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v482';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4102,7 +4145,220 @@ function renderDailyTab(){
   const days=['일','월','화','수','목','금','토'];
   const dateEl=document.getElementById('daily-today-date');
   if(dateEl) dateEl.textContent=`${now.getMonth()+1}월 ${now.getDate()}일(${days[now.getDay()]})`;
+  // 관리자만 자동 대진 버튼 표시
+  const autoBtn=document.getElementById('daily-auto-btn');
+  if(autoBtn) autoBtn.style.display=isAdmin()?'':'none';
   _setupDailyCardsListener();
+}
+
+// ══ 자동 대진 생성 ══════════════════════════════════════════════════
+
+function openAutoDrawModal(){
+  // 오늘 참석자 요약 표시
+  const attendees=_getAutoDrawAttendees();
+  const males=attendees.filter(p=>p.gender==='male');
+  const females=attendees.filter(p=>p.gender!=='male');
+  const el=document.getElementById('auto-draw-attendees');
+  if(el){
+    el.innerHTML=attendees.length
+      ? `<b>오늘 참석자 ${attendees.length}명</b> — 남 ${males.length}명 / 여 ${females.length}명<br>` +
+        `<span style="color:#475569">${attendees.map(p=>p.name).join(', ')}</span>`
+      : '<span style="color:#dc2626">출첵 참석자 정보가 없습니다. 출첵 탭에서 참석자를 확인해주세요.</span>';
+  }
+  document.getElementById('auto-draw-warn').style.display='none';
+  document.getElementById('auto-draw-modal').classList.add('open');
+}
+
+function closeAutoDrawModal(){
+  document.getElementById('auto-draw-modal').classList.remove('open');
+}
+
+// 오늘 참석자 목록 (출첵 기준, 멤버+게스트)
+function _getAutoDrawAttendees(){
+  const votes=state.pollData&&state.pollData.votes
+    ?(Array.isArray(state.pollData.votes)?state.pollData.votes:Object.values(state.pollData.votes))
+    :[];
+  const attendNames=new Set(votes.filter(v=>v.vote==='attend'||v.vote==='late').map(v=>v.name));
+  // 정회원 중 참석자
+  const members=state.members
+    .filter(m=>attendNames.has(m.name))
+    .map(m=>({name:m.name,gender:m.gender||'male',ntrp:m.ntrp||''}));
+  // 게스트 (출첵 게스트)
+  const guests=state.pollData&&state.pollData.guests
+    ?Object.values(state.pollData.guests).map(g=>({name:g.name,gender:g.gender||'male',ntrp:g.ntrp||''}))
+    :[];
+  // 중복 제거
+  const seen=new Set(members.map(m=>m.name));
+  const all=[...members];
+  guests.forEach(g=>{if(!seen.has(g.name)){seen.add(g.name);all.push(g);}});
+  return all;
+}
+
+// NTRP 수치 변환
+const _NTRP_VAL={'4.5':6,'4.0':5,'3.5':4,'3.0':3,'2.5':2,'2.0':1,'':0};
+
+// 플레이어 랭킹 정렬 (승률→승수→NTRP)
+function _autoSortByRank(players,statsData){
+  return players.slice().sort((a,b)=>{
+    const sa=statsData[a.name]||{},sb=statsData[b.name]||{};
+    const wa=effWr(sa.wins||0,sa.draws||0,sa.losses||0);
+    const wb=effWr(sb.wins||0,sb.draws||0,sb.losses||0);
+    if(wb!==wa) return wb-wa;
+    if((sb.wins||0)!==(sa.wins||0)) return (sb.wins||0)-(sa.wins||0);
+    return (_NTRP_VAL[b.ntrp||'']||0)-(_NTRP_VAL[a.ntrp||'']||0);
+  });
+}
+
+// 페어 역대 경기 수 (많을수록 같이 뛴 경험 많음)
+function _pairPlayCount(a,b,pairStats){
+  const k=[a,b].sort().join('_');
+  const s=pairStats[k]||{};
+  return (s.wins||0)+(s.draws||0)+(s.losses||0);
+}
+
+// 같은 성별 N경기 생성 (남복/여복)
+// sorted: 랭킹순 플레이어 배열, pairStats: 페어이력
+function _autoGenSameGender(sorted,pairStats,count){
+  const n=sorted.length;
+  const result=[];
+  if(n<4||count===0) return result;
+  for(let m=0;m<count;m++){
+    const base=m*4;
+    // 사용 가능한 인덱스 (순환)
+    const idx=[base%n,(base+1)%n,(base+2)%n,(base+3)%n];
+    // 중복 방지: 같은 인덱스가 나오면 건너뜀
+    if(new Set(idx).size<4){ break; }
+    const p=idx.map(i=>sorted[i].name);
+    // 기본 팀 구성: 상위+하위 vs 중위+중위
+    let t0=[p[0],p[3]], t1=[p[1],p[2]];
+    // 페어 이력 최적화: 두 팀 내 페어 교환이 더 나으면 swap
+    const cur=_pairPlayCount(t0[0],t0[1],pairStats)+_pairPlayCount(t1[0],t1[1],pairStats);
+    const swp=_pairPlayCount(t0[0],t1[1],pairStats)+_pairPlayCount(t1[0],t0[1],pairStats);
+    if(swp<cur){ t0=[p[0],p[2]]; t1=[p[1],p[3]]; }
+    result.push({team0:t0,team1:t1});
+  }
+  return result;
+}
+
+// 혼복 N경기 생성 (각 팀: 남1+여1, 랭킹높은남+랭킹낮은여 vs 랭킹낮은남+랭킹높은여)
+function _autoGenMixed(sortedM,sortedF,pairStats,count){
+  const nm=sortedM.length, nf=sortedF.length;
+  const result=[];
+  if(nm<2||nf<2||count===0) return result;
+  for(let m=0;m<count;m++){
+    const mi=m*2, fi=m*2;
+    if(mi+1>=nm*2&&fi+1>=nf*2) break; // 충분한 선수 없음
+    const mA=sortedM[mi%nm].name, mB=sortedM[(mi+1)%nm].name;
+    const fA=sortedF[fi%nf].name, fB=sortedF[(fi+1)%nf].name;
+    // team0: 랭킹높은남(mA)+랭킹낮은여(fB), team1: 랭킹낮은남(mB)+랭킹높은여(fA)
+    let t0=[mA,fB], t1=[mB,fA];
+    // 페어 이력 최적화
+    const cur=_pairPlayCount(mA,fB,pairStats)+_pairPlayCount(mB,fA,pairStats);
+    const swp=_pairPlayCount(mA,fA,pairStats)+_pairPlayCount(mB,fB,pairStats);
+    if(swp<cur){ t0=[mA,fA]; t1=[mB,fB]; }
+    result.push({team0:t0,team1:t1});
+  }
+  return result;
+}
+
+async function generateAutoDrawCards(){
+  const mixedCnt=parseInt(document.getElementById('auto-mixed-cnt').value)||0;
+  const mensCnt=parseInt(document.getElementById('auto-mens-cnt').value)||0;
+  const womensCnt=parseInt(document.getElementById('auto-womens-cnt').value)||0;
+  if(mixedCnt+mensCnt+womensCnt===0){
+    const w=document.getElementById('auto-draw-warn');
+    w.textContent='경기 수를 1개 이상 선택해주세요.'; w.style.display='';
+    return;
+  }
+  const btn=document.getElementById('auto-draw-submit-btn');
+  btn.disabled=true; btn.textContent='생성 중...';
+  try{
+    const attendees=_getAutoDrawAttendees();
+    const males=attendees.filter(p=>p.gender==='male');
+    const females=attendees.filter(p=>p.gender!=='male');
+    // DB에서 통계 로드
+    const yr=_rankYear;
+    const [plSnap,pairSnap]=await Promise.all([
+      db.ref(`jmt/playerStats/${yr}`).once('value'),
+      db.ref(`jmt/pairStats/${yr}`).once('value')
+    ]);
+    const playerStats=plSnap.val()||{};
+    const pairStats=pairSnap.val()||{};
+    // 랭킹순 정렬
+    const sortedAll=_autoSortByRank(attendees,playerStats);
+    const sortedM=_autoSortByRank(males,playerStats);
+    const sortedF=_autoSortByRank(females,playerStats);
+    // 경기 생성
+    const mixedMatches=_autoGenMixed(sortedM,sortedF,pairStats,mixedCnt);
+    const mensMatches=_autoGenSameGender(sortedM,pairStats,mensCnt);
+    const womensMatches=_autoGenSameGender(sortedF,pairStats,womensCnt);
+    const totalMade=mixedMatches.length+mensMatches.length+womensMatches.length;
+    if(totalMade===0){
+      const w=document.getElementById('auto-draw-warn');
+      w.textContent='참석 인원이 부족해 경기를 생성할 수 없습니다. (경기당 4명 필요)';
+      w.style.display=''; btn.disabled=false; btn.textContent='대진 생성'; return;
+    }
+    // 카드 생성 (역순으로 push → 화면에서 최신이 위)
+    const now=new Date();
+    const _mm=String(now.getMonth()+1).padStart(2,'0');
+    const _dd=String(now.getDate()).padStart(2,'0');
+    const baseTs=Date.now();
+    const allMatches=[
+      ...womensMatches.map((m,i)=>({...m,type:'womens',typeIdx:i+1})),
+      ...mensMatches.map((m,i)=>({...m,type:'mens',typeIdx:i+1})),
+      ...mixedMatches.map((m,i)=>({...m,type:'mixed',typeIdx:i+1}))
+    ];
+    const typeColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777'};
+    const typeName={mixed:'혼복경기',mens:'남복경기',womens:'여복경기'};
+    const bgImages=_DC_BG_IMAGES;
+    // DB에서 최신 카드 동기화 후 카드 생성
+    const snap=await db.ref('jmt/dailyCards').once('value');
+    const existing=snap.val()||{};
+    Object.entries(existing).forEach(([id,raw])=>{_dailyCards[id]=_normCard(raw);});
+    let numBase=Object.keys(_dailyCards).length;
+    const container=document.getElementById('daily-match-cards');
+    // 기존 DOM에 없는 카드 추가
+    Object.entries(existing).filter(([id])=>!document.getElementById(`daily-card-${id}`))
+      .forEach(([id])=>{
+        const data=_dailyCards[id];
+        const el=document.createElement('div');
+        el.id=`daily-card-${id}`; el.dataset.createdAt=data.createdAt||0;
+        container.appendChild(el); _renderDailyCard(id);
+      });
+    for(let i=0;i<allMatches.length;i++){
+      const match=allMatches[i];
+      const col=typeColor[match.type];
+      const tname=typeName[match.type];
+      const label=`<span style="color:${col};font-weight:900">${tname} ${match.typeIdx}</span> · ${_mm}/${_dd}`;
+      const bgImage='images/'+bgImages[Math.floor(Math.random()*bgImages.length)];
+      const createdAt=baseTs+i;
+      numBase++;
+      const cardData={
+        phase:'setup',team0:match.team0,team1:match.team1,
+        sets:[],winner:-1,bgImage,num:numBase,createdAt,label,
+        matchType:match.type
+      };
+      // Firebase push key로 즉시 저장
+      const newRef=db.ref('jmt/dailyCards').push();
+      const newKey=newRef.key;
+      newRef.set(cardData).catch(fbErr);
+      _dailyCards[newKey]=Object.assign({},cardData);
+      const el=document.createElement('div');
+      el.id=`daily-card-${newKey}`; el.dataset.createdAt=createdAt;
+      container.insertBefore(el,container.firstChild);
+      _renderDailyCard(newKey);
+    }
+    closeAutoDrawModal();
+    // 부족분 경고
+    if(totalMade<mixedCnt+mensCnt+womensCnt){
+      const lack=(mixedCnt+mensCnt+womensCnt)-totalMade;
+      setTimeout(()=>alert(`참석 인원 부족으로 ${lack}경기는 생성되지 않았습니다.`),300);
+    }
+  } catch(e){
+    alert('생성 실패: '+(e.message||e));
+  } finally{
+    btn.disabled=false; btn.textContent='대진 생성';
+  }
 }
 
 function _allPlayers(){
@@ -5440,7 +5696,6 @@ function initTournament(type) {
   renderTournament(type);
   document.getElementById(`${type}-empty`).style.display='none';
   document.getElementById(`${type}-content`).style.display='block';
-  _clearDailyCards();
   switchPage('setup');
   switchBracketTab(type);
 }
