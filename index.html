@@ -182,6 +182,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .dc-card-bg { position:absolute; top:0; right:0; bottom:0; left:0; opacity:0.68; pointer-events:none; }
 .dc-card-header { position:relative; display:flex; align-items:center; justify-content:space-between; padding:8px 12px 6px; background:rgba(0,0,0,0.58); }
 .dc-num { font-size:0.72rem; font-weight:800; color:#fff; letter-spacing:0.1em; }
+.dc-court-lbl { font-size:0.82rem; font-weight:900; color:#fcd34d; letter-spacing:0.06em; text-shadow:0 1px 4px rgba(0,0,0,0.8); line-height:1.2; }
 .dc-del-btn { background:none; border:none; color:rgba(255,255,255,0.5); font-size:1.0rem; cursor:pointer; padding:2px 4px; line-height:1; }
 .dc-body { position:relative; display:flex; align-items:stretch; min-height:130px; }
 /* 캐러셀과 동일한 컬럼 배경 */
@@ -1656,6 +1657,12 @@ const firebaseConfig = {
     <div style="padding:14px 16px 28px">
       <div id="auto-draw-attendees" style="background:#f8fafc;border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:0.8rem;color:#64748b;line-height:1.6"></div>
       <div>
+        <div class="type-row" style="border-bottom:2px solid #e2e8f0;padding-bottom:14px;margin-bottom:4px">
+          <span class="type-label" style="color:#0f766e">🎾 코트 수</span>
+          <select id="auto-court-cnt">
+            <option value="1">1코트</option><option value="2" selected>2코트</option><option value="3">3코트</option><option value="4">4코트</option><option value="5">5코트</option>
+          </select>
+        </div>
         <div class="type-row">
           <span class="type-label" style="color:#7c3aed">🟣 혼복</span>
           <select id="auto-mixed-cnt">
@@ -2282,7 +2289,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v488';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v489';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4195,6 +4202,38 @@ function renderDailyTab(){
 
 // ══ 자동 대진 생성 ══════════════════════════════════════════════════
 
+// 라운드별 코트 스케줄링 — 같은 라운드 내 선수 중복 없이, 이전 라운드 연속 출전 최소화
+function _scheduleCourtOrder(matches, courtCount){
+  const remaining=matches.slice();
+  const scheduled=[];
+  let prevPlayers=new Set();
+  while(remaining.length>0){
+    const roundPlayers=new Set();
+    const round=[];
+    for(let c=0;c<courtCount&&remaining.length>0;c++){
+      let bestIdx=-1,bestScore=Infinity;
+      for(let i=0;i<remaining.length;i++){
+        const m=remaining[i];
+        const ps=[...m.team0,...m.team1];
+        if(ps.some(p=>roundPlayers.has(p))) continue; // 같은 라운드 중복 불가
+        const score=ps.filter(p=>prevPlayers.has(p)).length; // 이전 라운드 겹치는 수
+        if(score<bestScore){bestScore=score;bestIdx=i;}
+      }
+      if(bestIdx===-1) break;
+      const card=remaining.splice(bestIdx,1)[0];
+      round.push(card);
+      [...card.team0,...card.team1].forEach(p=>roundPlayers.add(p));
+    }
+    if(round.length===0) break;
+    scheduled.push(...round);
+    prevPlayers=roundPlayers;
+  }
+  return scheduled;
+}
+
+// 원문자 ①②③... (최대 ⑳, 초과 시 괄호 숫자)
+function _circleNum(n){ return (n>=1&&n<=20)?String.fromCharCode(0x2460+n-1):`(${n})`; }
+
 function openAutoDrawModal(){
   // 오늘 참석자 요약 표시
   const attendees=_getAutoDrawAttendees();
@@ -4375,23 +4414,30 @@ async function generateAutoDrawCards(){
     const typeName={mixed:'혼복경기',mens:'남복경기',womens:'여복경기'};
     const typeIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
     const bgImages=_DC_BG_IMAGES;
+    // 코트 수 읽기 → 코트별 라운드 스케줄링
+    const courtCount=parseInt(document.getElementById('auto-court-cnt').value)||2;
+    const scheduled=_scheduleCourtOrder(allMatches,courtCount);
+    // 코트 레이블 할당: schedIdx 0 = 1번코트 ①
+    scheduled.forEach((match,si)=>{
+      match.courtLabel=`${(si%courtCount)+1}번코트 ${_circleNum(Math.floor(si/courtCount)+1)}`;
+    });
     // 카드 번호 기준: 현재 로컬 카드 수
     let numBase=Object.keys(_dailyCards).length;
     const container=document.getElementById('daily-match-cards');
-    for(let i=0;i<allMatches.length;i++){
-      const match=allMatches[i];
-      const col=typeColor[match.type];
+    // 역순 삽입(insertBefore firstChild) → scheduled[0]이 화면 맨 위에 위치
+    for(let si=scheduled.length-1;si>=0;si--){
+      const match=scheduled[si];
       const tname=typeName[match.type];
       const label=`${typeIcon[match.type]} <span style="color:#fff;font-weight:900;font-size:0.9rem;text-shadow:0 1px 4px rgba(0,0,0,0.7)">${tname} ${match.typeIdx}</span> · ${_mm}/${_dd}`;
       const bgImage='images/'+bgImages[Math.floor(Math.random()*bgImages.length)];
-      const createdAt=baseTs+i;
+      const createdAt=baseTs+si;
       numBase++;
       const cardData={
         phase:'setup',team0:match.team0,team1:match.team1,
         sets:[],winner:-1,bgImage,num:numBase,createdAt,label,
-        matchType:match.type
+        matchType:match.type,courtLabel:match.courtLabel
       };
-      // 로컬에만 저장 — 시작 버튼 누를 때 DB에 push (수동 생성 카드와 동일)
+      // 로컬에만 저장 — 시작 버튼 누를 때 DB에 push
       const newId=++_dailyCardCounter;
       _dailyCards[newId]=Object.assign({},cardData);
       const el=document.createElement('div');
@@ -4484,7 +4530,10 @@ function _renderDailyCard(id){
     return `<div class="dc-card">
       <div class="dc-card-bg" style="background-image:url('${bgImg}');background-size:cover;background-position:center;background-repeat:no-repeat"></div>
       <div class="dc-card-header">
-        <span class="dc-num">${numLabel}</span>
+        <div style="display:flex;flex-direction:column;gap:1px;flex:1;min-width:0">
+          ${d.courtLabel?`<span class="dc-court-lbl">${d.courtLabel}</span>`:''}
+          <span class="dc-num">${numLabel}</span>
+        </div>
         ${isManager()?`<button class="dc-del-btn" onclick="adminRemoveDailyCard('${id}')" title="카드 삭제">✕</button>`:''}
       </div>
       <div class="dc-body">
