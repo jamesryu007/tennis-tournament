@@ -455,14 +455,18 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 @keyframes confettiFall { 0%{transform:translateY(-20px) rotate(0deg);opacity:1} 100%{transform:translateY(120px) rotate(720deg);opacity:0} }
 @keyframes bounce-celebrate { 0%,100%{transform:translateY(0) rotate(0deg)} 30%{transform:translateY(-8px) rotate(-6deg)} 60%{transform:translateY(-4px) rotate(4deg)} }
 @keyframes shake-sad { 0%,100%{transform:rotate(0deg) translateY(0)} 20%{transform:rotate(-5deg) translateY(2px)} 40%{transform:rotate(5deg) translateY(0)} 70%{transform:rotate(-2deg) translateY(1px)} }
-.daily-add-btn { width:100%; border:3px dashed #7c3aed; background:linear-gradient(135deg,rgba(124,58,237,0.10),rgba(99,102,241,0.16)); border-radius:18px; color:#7c3aed; font-size:2.6rem; font-weight:300; padding:18px 10px; cursor:pointer; margin:6px 0 6px; line-height:1; box-shadow:0 3px 16px rgba(124,58,237,0.18); transition:transform 0.15s,box-shadow 0.15s; }
+.daily-btn-row { display:flex; gap:8px; margin:6px 0 8px; }
+.daily-add-btn { flex:0 0 76px; border:3px dashed #7c3aed; background:linear-gradient(135deg,rgba(124,58,237,0.10),rgba(99,102,241,0.16)); border-radius:18px; color:#7c3aed; font-size:2.4rem; font-weight:300; padding:14px 10px; cursor:pointer; line-height:1; box-shadow:0 3px 16px rgba(124,58,237,0.18); transition:transform 0.15s,box-shadow 0.15s; }
 .daily-add-btn:active { transform:scale(0.97); box-shadow:0 1px 6px rgba(124,58,237,0.12); }
-.daily-auto-btn { width:100%; border:2px solid #7c3aed; background:#fff; border-radius:14px; color:#7c3aed; font-size:0.88rem; font-weight:800; padding:10px; cursor:pointer; margin:0 0 10px; letter-spacing:0.3px; transition:background 0.15s,transform 0.1s; display:none; }
-.daily-auto-btn:active { background:#f5f3ff; transform:scale(0.98); }
+.daily-auto-btn { flex:1; border:3px dashed #7c3aed; background:linear-gradient(135deg,rgba(124,58,237,0.07),rgba(99,102,241,0.13)); border-radius:18px; color:#7c3aed; font-size:0.92rem; font-weight:800; padding:14px 10px; cursor:pointer; letter-spacing:0.3px; transition:background 0.15s,transform 0.1s; display:none; line-height:1.45; }
+.daily-auto-btn:active { background:rgba(124,58,237,0.18); transform:scale(0.97); }
 /* ── 자동대진 모달 ── */
-#auto-draw-modal .type-row { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:10px 0; border-bottom:1px solid #f1f5f9; }
-#auto-draw-modal .type-label { font-size:1rem; font-weight:800; flex:1; }
-#auto-draw-modal select { font-size:0.95rem; font-weight:700; padding:6px 8px; border:1.5px solid #e2e8f0; border-radius:10px; background:#f8fafc; color:#1e293b; font-family:inherit; cursor:pointer; width:90px; flex-shrink:0; }
+#auto-draw-modal .type-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid #f1f5f9; }
+#auto-draw-modal .type-label { font-size:1.05rem; font-weight:800; flex:1; }
+#auto-draw-modal select { font-size:1rem; font-weight:700; padding:9px 10px; border:2px solid #e2e8f0; border-radius:12px; background:#f8fafc; color:#1e293b; font-family:inherit; cursor:pointer; width:115px; flex-shrink:0; }
+#auto-draw-modal .court-row { background:linear-gradient(135deg,rgba(13,148,136,0.07),rgba(16,185,129,0.05)); border-radius:14px; padding:14px 16px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; }
+#auto-draw-modal .court-row .type-label { font-size:1.1rem; }
+#auto-draw-modal .court-row select { width:130px; font-size:1.05rem; padding:10px 12px; border-color:#0d9488; }
 
 
 /* ── PARTICIPANT CHECKBOXES ── */
@@ -1614,8 +1618,10 @@ const firebaseConfig = {
     <!-- 경기 안내 + 추가 -->
     <div id="match-panel-daily" style="padding:4px 12px 0">
       <div id="daily-guide-row" style="text-align:center;padding:10px 0 8px;color:#94a3b8;font-size:0.82rem;font-weight:600;letter-spacing:0.02em">🎾 오늘의 멋진 경기를 만드세요</div>
-      <button class="daily-add-btn" onclick="addDailyMatchCard()">⊕</button>
-      <button class="daily-auto-btn" id="daily-auto-btn" onclick="openAutoDrawModal()">🎾 대진표 자동 생성</button>
+      <div class="daily-btn-row">
+        <button class="daily-add-btn" onclick="addDailyMatchCard()">⊕</button>
+        <button class="daily-auto-btn" id="daily-auto-btn" onclick="openAutoDrawModal()">🎾<br>대진표 자동 생성</button>
+      </div>
       <div id="daily-match-cards"></div>
     </div>
   </div>
@@ -1655,9 +1661,9 @@ const firebaseConfig = {
       <button class="modal-close" onclick="closeAutoDrawModal()">✕</button>
     </div>
     <div style="padding:14px 16px 28px">
-      <div id="auto-draw-attendees" style="background:#f8fafc;border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:0.8rem;color:#64748b;line-height:1.6"></div>
+      <div id="auto-draw-attendees" style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:0.93rem;font-weight:600;color:#166534;line-height:1.65"></div>
       <div>
-        <div class="type-row" style="border-bottom:2px solid #e2e8f0;padding-bottom:14px;margin-bottom:4px">
+        <div class="court-row">
           <span class="type-label" style="color:#0f766e">🎾 코트 수</span>
           <select id="auto-court-cnt">
             <option value="1">1코트</option><option value="2" selected>2코트</option><option value="3">3코트</option><option value="4">4코트</option><option value="5">5코트</option>
@@ -4196,7 +4202,7 @@ function renderDailyTab(){
   if(dateEl) dateEl.textContent=`${now.getMonth()+1}월 ${now.getDate()}일(${days[now.getDay()]})`;
   // 관리자만 자동 대진 버튼 표시
   const autoBtn=document.getElementById('daily-auto-btn');
-  if(autoBtn) autoBtn.style.display=isAdmin()?'block':'none';
+  if(autoBtn) autoBtn.style.display=isAdmin()?'flex':'none';
   _setupDailyCardsListener();
 }
 
@@ -4430,7 +4436,7 @@ async function generateAutoDrawCards(){
       const tname=typeName[match.type];
       const label=`${typeIcon[match.type]} <span style="color:#fff;font-weight:900;font-size:0.9rem;text-shadow:0 1px 4px rgba(0,0,0,0.7)">${tname} ${match.typeIdx}</span> · ${_mm}/${_dd}`;
       const bgImage='images/'+bgImages[Math.floor(Math.random()*bgImages.length)];
-      const createdAt=baseTs+si;
+      const createdAt=baseTs+(scheduled.length-1-si); // si=0(1코트①)이 가장 높아 정렬 시 맨 위
       numBase++;
       const cardData={
         phase:'setup',team0:match.team0,team1:match.team1,
