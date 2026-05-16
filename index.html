@@ -2282,7 +2282,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v485';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v486';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4286,7 +4286,8 @@ async function generateAutoDrawCards(){
   // 기존 자동 생성 카드 삭제 (matchType이 있는 카드 = 자동생성)
   const autoIds=Object.keys(_dailyCards).filter(id=>_dailyCards[id].matchType);
   for(const aid of autoIds){
-    db.ref(`jmt/dailyCards/${aid}`).remove().catch(fbErr);
+    // Firebase key('-' 시작)였던 이전 버전 카드만 DB에서도 삭제
+    if(String(aid).startsWith('-')) db.ref(`jmt/dailyCards/${aid}`).remove().catch(fbErr);
     delete _dailyCards[aid];
     const ael=document.getElementById(`daily-card-${aid}`);
     if(ael) ael.remove();
@@ -4332,20 +4333,9 @@ async function generateAutoDrawCards(){
     const typeColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777'};
     const typeName={mixed:'혼복경기',mens:'남복경기',womens:'여복경기'};
     const bgImages=_DC_BG_IMAGES;
-    // DB에서 최신 카드 동기화 후 카드 생성
-    const snap=await db.ref('jmt/dailyCards').once('value');
-    const existing=snap.val()||{};
-    Object.entries(existing).forEach(([id,raw])=>{_dailyCards[id]=_normCard(raw);});
+    // 카드 번호 기준: 현재 로컬 카드 수
     let numBase=Object.keys(_dailyCards).length;
     const container=document.getElementById('daily-match-cards');
-    // 기존 DOM에 없는 카드 추가
-    Object.entries(existing).filter(([id])=>!document.getElementById(`daily-card-${id}`))
-      .forEach(([id])=>{
-        const data=_dailyCards[id];
-        const el=document.createElement('div');
-        el.id=`daily-card-${id}`; el.dataset.createdAt=data.createdAt||0;
-        container.appendChild(el); _renderDailyCard(id);
-      });
     for(let i=0;i<allMatches.length;i++){
       const match=allMatches[i];
       const col=typeColor[match.type];
@@ -4359,15 +4349,13 @@ async function generateAutoDrawCards(){
         sets:[],winner:-1,bgImage,num:numBase,createdAt,label,
         matchType:match.type
       };
-      // Firebase push key로 즉시 저장
-      const newRef=db.ref('jmt/dailyCards').push();
-      const newKey=newRef.key;
-      newRef.set(cardData).catch(fbErr);
-      _dailyCards[newKey]=Object.assign({},cardData);
+      // 로컬에만 저장 — 시작 버튼 누를 때 DB에 push (수동 생성 카드와 동일)
+      const newId=++_dailyCardCounter;
+      _dailyCards[newId]=Object.assign({},cardData);
       const el=document.createElement('div');
-      el.id=`daily-card-${newKey}`; el.dataset.createdAt=createdAt;
+      el.id=`daily-card-${newId}`; el.dataset.createdAt=createdAt;
       container.insertBefore(el,container.firstChild);
-      _renderDailyCard(newKey);
+      _renderDailyCard(newId);
     }
     closeAutoDrawModal();
     // 부족분 경고
@@ -4658,7 +4646,7 @@ function startDailyMatch(id){
       _renderDailyCard(id);
     } else {
       // 수동 생성 카드(숫자 id): 새 Firebase 항목 push
-      const cardData={phase:'playing',team0:[...d.team0],team1:[...d.team1],sets:[],winner:-1,bgImage:d.bgImage,num:d.num,createdAt:d.createdAt||Date.now(),label:d.label||`경기${d.num}`};
+      const cardData={phase:'playing',team0:[...d.team0],team1:[...d.team1],sets:[],winner:-1,bgImage:d.bgImage,num:d.num,createdAt:d.createdAt||Date.now(),label:d.label||`경기${d.num}`,...(d.matchType?{matchType:d.matchType}:{})};
       const ref=db.ref('jmt/dailyCards').push(cardData);
       const newKey=ref.key;
       // 로컬 임시 카드 제거
