@@ -459,9 +459,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .daily-auto-btn { width:100%; border:2px solid #7c3aed; background:#fff; border-radius:14px; color:#7c3aed; font-size:0.88rem; font-weight:800; padding:10px; cursor:pointer; margin:0 0 10px; letter-spacing:0.3px; transition:background 0.15s,transform 0.1s; display:none; }
 .daily-auto-btn:active { background:#f5f3ff; transform:scale(0.98); }
 /* ── 자동대진 모달 ── */
-#auto-draw-modal .type-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f1f5f9; }
-#auto-draw-modal .type-label { font-size:1rem; font-weight:800; }
-#auto-draw-modal select { font-size:1rem; font-weight:700; padding:6px 12px; border:1.5px solid #e2e8f0; border-radius:10px; background:#f8fafc; color:#1e293b; font-family:inherit; cursor:pointer; }
+#auto-draw-modal .type-row { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:10px 0; border-bottom:1px solid #f1f5f9; }
+#auto-draw-modal .type-label { font-size:1rem; font-weight:800; flex:1; }
+#auto-draw-modal select { font-size:0.95rem; font-weight:700; padding:6px 8px; border:1.5px solid #e2e8f0; border-radius:10px; background:#f8fafc; color:#1e293b; font-family:inherit; cursor:pointer; width:90px; flex-shrink:0; }
 
 
 /* ── PARTICIPANT CHECKBOXES ── */
@@ -2282,7 +2282,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v486';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v487';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4332,6 +4332,7 @@ async function generateAutoDrawCards(){
     ];
     const typeColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777'};
     const typeName={mixed:'혼복경기',mens:'남복경기',womens:'여복경기'};
+    const typeIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
     const bgImages=_DC_BG_IMAGES;
     // 카드 번호 기준: 현재 로컬 카드 수
     let numBase=Object.keys(_dailyCards).length;
@@ -4340,7 +4341,7 @@ async function generateAutoDrawCards(){
       const match=allMatches[i];
       const col=typeColor[match.type];
       const tname=typeName[match.type];
-      const label=`<span style="color:${col};font-weight:900">${tname} ${match.typeIdx}</span> · ${_mm}/${_dd}`;
+      const label=`${typeIcon[match.type]} <span style="color:#fff;font-weight:900;font-size:0.9rem;text-shadow:0 1px 4px rgba(0,0,0,0.7)">${tname} ${match.typeIdx}</span> · ${_mm}/${_dd}`;
       const bgImage='images/'+bgImages[Math.floor(Math.random()*bgImages.length)];
       const createdAt=baseTs+i;
       numBase++;
