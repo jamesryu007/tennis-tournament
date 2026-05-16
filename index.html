@@ -181,8 +181,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .dc-card { background:#0f172a; border-radius:18px; overflow:hidden; position:relative; margin-bottom:10px; box-shadow:0 6px 24px rgba(0,0,0,0.22); }
 .dc-card-bg { position:absolute; top:0; right:0; bottom:0; left:0; opacity:0.68; pointer-events:none; }
 .dc-card-header { position:relative; display:flex; align-items:center; justify-content:space-between; padding:8px 12px 6px; background:rgba(0,0,0,0.58); }
-.dc-num { font-size:0.72rem; font-weight:800; color:#fff; letter-spacing:0.1em; }
-.dc-court-lbl { font-size:0.82rem; font-weight:900; color:#fcd34d; letter-spacing:0.06em; text-shadow:0 1px 4px rgba(0,0,0,0.8); line-height:1.2; }
+.dc-num { font-size:0.65rem; font-weight:700; color:rgba(255,255,255,0.75); letter-spacing:0.05em; }
+.dc-court-lbl { font-size:1.05rem; font-weight:900; color:#fcd34d; letter-spacing:0.04em; text-shadow:0 1px 6px rgba(0,0,0,0.9); line-height:1.2; }
 .dc-del-btn { background:none; border:none; color:rgba(255,255,255,0.5); font-size:1.0rem; cursor:pointer; padding:2px 4px; line-height:1; }
 .dc-body { position:relative; display:flex; align-items:stretch; min-height:130px; }
 /* 캐러셀과 동일한 컬럼 배경 */
@@ -1620,7 +1620,7 @@ const firebaseConfig = {
       <div id="daily-guide-row" style="text-align:center;padding:10px 0 8px;color:#94a3b8;font-size:0.82rem;font-weight:600;letter-spacing:0.02em">🎾 오늘의 멋진 경기를 만드세요</div>
       <div class="daily-btn-row">
         <button class="daily-add-btn" onclick="addDailyMatchCard()">⊕</button>
-        <button class="daily-auto-btn" id="daily-auto-btn" onclick="openAutoDrawModal()">🎾<br>대진표 자동 생성</button>
+        <button class="daily-auto-btn" id="daily-auto-btn" onclick="openAutoDrawModal()">🎾 대진표 자동 생성</button>
       </div>
       <div id="daily-match-cards"></div>
     </div>
@@ -4425,7 +4425,7 @@ async function generateAutoDrawCards(){
     const scheduled=_scheduleCourtOrder(allMatches,courtCount);
     // 코트 레이블 할당: schedIdx 0 = 1번코트 ①
     scheduled.forEach((match,si)=>{
-      match.courtLabel=`${(si%courtCount)+1}번코트 ${_circleNum(Math.floor(si/courtCount)+1)}`;
+      match.courtLabel=`${(si%courtCount)+1}번코트 제${_circleNum(Math.floor(si/courtCount)+1)}경기`;
     });
     // 카드 번호 기준: 현재 로컬 카드 수
     let numBase=Object.keys(_dailyCards).length;
