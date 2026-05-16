@@ -4251,37 +4251,58 @@ function _scheduleCourtOrder(matches, courtCount, playerMeta){
 // 원문자 ①②③... (최대 ⑳, 초과 시 괄호 숫자)
 function _circleNum(n){ return (n>=1&&n<=20)?String.fromCharCode(0x2460+n-1):`(${n})`; }
 
-// 코트수 × 시간 기준 최대 경기수 (한 경기 30분)
-function _calcMaxGames(courts,hrs){ return courts*hrs*2; }
+// 코트수 × 시간 기준 최대 경기수 (한 경기 40분)
+function _calcMaxGames(courts,hrs){ return Math.floor(courts*hrs*1.5); }
 
-// 참석자 성별 비율로 혼복/남복/여복 추천 경기수 계산
+// 하이브리드 추천: 기본 혼복45% 남복35% 여복20%, 인원 불가 시 재분배
 function _recommendCounts(nm,nf,maxGames){
-  const total=nm+nf;
-  if(total<4||maxGames===0) return {mixed:0,mens:0,womens:0};
+  if(maxGames===0||nm+nf<4) return {mixed:0,mens:0,womens:0};
   const canMixed=nm>=2&&nf>=2, canMens=nm>=4, canWomens=nf>=4;
   if(!canMixed&&!canMens&&!canWomens) return {mixed:0,mens:0,womens:0};
-  // 성별 비율로 총 player-game 슬롯 분배 (균등 참여 기반)
-  const mT=Math.round(4*maxGames*nm/total); // 남자 총 슬롯
-  const fT=4*maxGames-mT;                   // 여자 총 슬롯
-  let mixed=0,mens=0,womens=0;
-  if(canMixed){
-    // 혼복 최대화: 혼복 1경기당 남2+여2 소모 → 최대 min(mT/2, fT/2)
-    mixed=Math.min(Math.floor(mT/2),Math.floor(fT/2),maxGames);
+
+  // 기본 비율 적용
+  let mixed=canMixed?Math.round(maxGames*0.45):0;
+  let mens=canMens?Math.round(maxGames*0.35):0;
+  let womens=canWomens?Math.round(maxGames*0.20):0;
+
+  // 불가능한 종목의 경기수를 가능한 종목으로 재분배
+  if(!canMixed){
+    const r=mixed; mixed=0;
+    // 남복/여복 비율(35:20)로 재분배
+    const toMens=canMens?Math.round(r*35/55):0;
+    if(canMens) mens+=toMens;
+    if(canWomens) womens+=r-toMens;
+    else if(canMens) mens+=r-toMens;
   }
-  if(canMens) mens=Math.max(0,Math.round((mT-2*mixed)/4));
-  if(canWomens) womens=Math.max(0,Math.round((fT-2*mixed)/4));
-  // 합산 조정
+  if(!canMens){
+    const r=mens; mens=0;
+    const toMixed=canMixed?Math.round(r*45/65):0;
+    if(canMixed) mixed+=toMixed;
+    if(canWomens) womens+=r-toMixed;
+    else if(canMixed) mixed+=r-toMixed;
+  }
+  if(!canWomens){
+    const r=womens; womens=0;
+    const toMixed=canMixed?Math.round(r*45/80):0;
+    if(canMixed) mixed+=toMixed;
+    if(canMens) mens+=r-toMixed;
+    else if(canMixed) mixed+=r-toMixed;
+  }
+
+  // 합산을 maxGames에 맞게 보정 (반올림 오차)
   let sum=mixed+mens+womens;
   if(sum<maxGames){
     const gap=maxGames-sum;
-    if(canMens&&nm>=nf) mens+=gap;
-    else if(canWomens) womens+=gap;
-    else if(canMixed) mixed=Math.min(maxGames,mixed+gap);
+    if(canMixed) mixed+=gap;
     else if(canMens) mens+=gap;
+    else womens+=gap;
   } else if(sum>maxGames){
-    const ex=sum-maxGames;
-    if(womens>=ex) womens-=ex;
-    else { const ex2=ex-womens; womens=0; if(mens>=ex2) mens-=ex2; else { mens=0; mixed-=(ex2-mens); } }
+    let ex=sum-maxGames;
+    if(womens>=ex){womens-=ex;ex=0;}
+    else{ex-=womens;womens=0;}
+    if(ex>0&&mens>=ex){mens-=ex;ex=0;}
+    else if(ex>0){ex-=mens;mens=0;}
+    if(ex>0) mixed=Math.max(0,mixed-ex);
   }
   return {mixed:Math.max(0,mixed),mens:Math.max(0,mens),womens:Math.max(0,womens)};
 }
