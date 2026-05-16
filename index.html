@@ -1665,27 +1665,28 @@ const firebaseConfig = {
       <div>
         <div class="court-row">
           <span class="type-label" style="color:#0f766e">🎾 코트 수</span>
-          <select id="auto-court-cnt">
+          <select id="auto-court-cnt" onchange="autoRecommendGames()">
             <option value="1">1코트</option><option value="2" selected>2코트</option><option value="3">3코트</option><option value="4">4코트</option><option value="5">5코트</option>
           </select>
         </div>
+        <div class="court-row" style="margin-top:8px">
+          <span class="type-label" style="color:#0f766e">⏱ 경기 시간</span>
+          <select id="auto-time-hrs" onchange="autoRecommendGames()">
+            <option value="2">2시간</option><option value="3">3시간</option><option value="4" selected>4시간</option><option value="5">5시간</option><option value="6">6시간</option><option value="7">7시간</option><option value="8">8시간</option>
+          </select>
+        </div>
+        <div id="auto-recommend-info" style="font-size:0.78rem;color:#0f766e;font-weight:700;background:#f0fdf4;border-radius:8px;padding:7px 12px;margin:10px 0 4px;text-align:center"></div>
         <div class="type-row">
           <span class="type-label" style="color:#7c3aed">🟣 혼복</span>
-          <select id="auto-mixed-cnt">
-            <option value="0">0경기</option><option value="1">1경기</option><option value="2">2경기</option><option value="3">3경기</option><option value="4">4경기</option><option value="5">5경기</option><option value="6">6경기</option><option value="7">7경기</option><option value="8">8경기</option><option value="9">9경기</option><option value="10">10경기</option>
-          </select>
+          <select id="auto-mixed-cnt"></select>
         </div>
         <div class="type-row">
           <span class="type-label" style="color:#2563eb">🔵 남복</span>
-          <select id="auto-mens-cnt">
-            <option value="0">0경기</option><option value="1">1경기</option><option value="2">2경기</option><option value="3">3경기</option><option value="4">4경기</option><option value="5">5경기</option><option value="6">6경기</option><option value="7">7경기</option><option value="8">8경기</option><option value="9">9경기</option><option value="10">10경기</option>
-          </select>
+          <select id="auto-mens-cnt"></select>
         </div>
         <div class="type-row" style="border-bottom:none">
           <span class="type-label" style="color:#db2777">🩷 여복</span>
-          <select id="auto-womens-cnt">
-            <option value="0">0경기</option><option value="1">1경기</option><option value="2">2경기</option><option value="3">3경기</option><option value="4">4경기</option><option value="5">5경기</option><option value="6">6경기</option><option value="7">7경기</option><option value="8">8경기</option><option value="9">9경기</option><option value="10">10경기</option>
-          </select>
+          <select id="auto-womens-cnt"></select>
         </div>
       </div>
       <div id="auto-draw-warn" style="color:#dc2626;font-size:0.8rem;margin:10px 0 0;display:none"></div>
@@ -4209,7 +4210,9 @@ function renderDailyTab(){
 // ══ 자동 대진 생성 ══════════════════════════════════════════════════
 
 // 라운드별 코트 스케줄링 — 같은 라운드 내 선수 중복 없이, 이전 라운드 연속 출전 최소화
-function _scheduleCourtOrder(matches, courtCount){
+// playerMeta: {[name]:{gender,wr}} — 연속 출전 시 남자·고승률 우선 배정
+function _scheduleCourtOrder(matches, courtCount, playerMeta){
+  const meta=playerMeta||{};
   const remaining=matches.slice();
   const scheduled=[];
   let prevPlayers=new Set();
@@ -4222,7 +4225,15 @@ function _scheduleCourtOrder(matches, courtCount){
         const m=remaining[i];
         const ps=[...m.team0,...m.team1];
         if(ps.some(p=>roundPlayers.has(p))) continue; // 같은 라운드 중복 불가
-        const score=ps.filter(p=>prevPlayers.has(p)).length; // 이전 라운드 겹치는 수
+        // 연속 출전 페널티: 남자(0.4) < 여자(1.6) → 남자가 연속 출전 선호 대상
+        // 승률 높을수록 페널티 소폭 감소 (승률 100%=0, 0%=1)
+        const score=ps.reduce((acc,p)=>{
+          if(!prevPlayers.has(p)) return acc;
+          const pm=meta[p]||{};
+          const gPenalty=pm.gender==='male'?0.4:1.6;
+          const wrFactor=1-(pm.wr||0)/200; // 승률 50%→0.75, 100%→0.5
+          return acc+gPenalty*wrFactor;
+        },0);
         if(score<bestScore){bestScore=score;bestIdx=i;}
       }
       if(bestIdx===-1) break;
@@ -4240,6 +4251,68 @@ function _scheduleCourtOrder(matches, courtCount){
 // 원문자 ①②③... (최대 ⑳, 초과 시 괄호 숫자)
 function _circleNum(n){ return (n>=1&&n<=20)?String.fromCharCode(0x2460+n-1):`(${n})`; }
 
+// 코트수 × 시간 기준 최대 경기수 (한 경기 30분)
+function _calcMaxGames(courts,hrs){ return courts*hrs*2; }
+
+// 참석자 성별 비율로 혼복/남복/여복 추천 경기수 계산
+function _recommendCounts(nm,nf,maxGames){
+  const total=nm+nf;
+  if(total<4||maxGames===0) return {mixed:0,mens:0,womens:0};
+  const canMixed=nm>=2&&nf>=2, canMens=nm>=4, canWomens=nf>=4;
+  if(!canMixed&&!canMens&&!canWomens) return {mixed:0,mens:0,womens:0};
+  // 성별 비율로 총 player-game 슬롯 분배 (균등 참여 기반)
+  const mT=Math.round(4*maxGames*nm/total); // 남자 총 슬롯
+  const fT=4*maxGames-mT;                   // 여자 총 슬롯
+  let mixed=0,mens=0,womens=0;
+  if(canMixed){
+    // 혼복 최대화: 혼복 1경기당 남2+여2 소모 → 최대 min(mT/2, fT/2)
+    mixed=Math.min(Math.floor(mT/2),Math.floor(fT/2),maxGames);
+  }
+  if(canMens) mens=Math.max(0,Math.round((mT-2*mixed)/4));
+  if(canWomens) womens=Math.max(0,Math.round((fT-2*mixed)/4));
+  // 합산 조정
+  let sum=mixed+mens+womens;
+  if(sum<maxGames){
+    const gap=maxGames-sum;
+    if(canMens&&nm>=nf) mens+=gap;
+    else if(canWomens) womens+=gap;
+    else if(canMixed) mixed=Math.min(maxGames,mixed+gap);
+    else if(canMens) mens+=gap;
+  } else if(sum>maxGames){
+    const ex=sum-maxGames;
+    if(womens>=ex) womens-=ex;
+    else { const ex2=ex-womens; womens=0; if(mens>=ex2) mens-=ex2; else { mens=0; mixed-=(ex2-mens); } }
+  }
+  return {mixed:Math.max(0,mixed),mens:Math.max(0,mens),womens:Math.max(0,womens)};
+}
+
+// select 옵션 동적 생성 (0~max경기)
+function _updateGameSelectOptions(maxGames){
+  ['auto-mixed-cnt','auto-mens-cnt','auto-womens-cnt'].forEach(id=>{
+    const sel=document.getElementById(id); if(!sel) return;
+    const cur=parseInt(sel.value)||0;
+    sel.innerHTML=Array.from({length:maxGames+1},(_,i)=>`<option value="${i}">${i}경기</option>`).join('');
+    sel.value=Math.min(cur,maxGames);
+  });
+}
+
+// 코트수·시간 변경 시 경기수 자동 추천
+function autoRecommendGames(){
+  const courts=parseInt(document.getElementById('auto-court-cnt').value)||2;
+  const hrs=parseInt(document.getElementById('auto-time-hrs')&&document.getElementById('auto-time-hrs').value)||4;
+  const maxGames=_calcMaxGames(courts,hrs);
+  _updateGameSelectOptions(maxGames);
+  const attendees=_getAutoDrawAttendees();
+  const nm=attendees.filter(p=>p.gender==='male').length;
+  const nf=attendees.filter(p=>p.gender!=='male').length;
+  const rec=_recommendCounts(nm,nf,maxGames);
+  document.getElementById('auto-mixed-cnt').value=rec.mixed;
+  document.getElementById('auto-mens-cnt').value=rec.mens;
+  document.getElementById('auto-womens-cnt').value=rec.womens;
+  const infoEl=document.getElementById('auto-recommend-info');
+  if(infoEl) infoEl.textContent=`${courts}코트 × ${hrs}시간 기준 최대 ${maxGames}경기 | 🟣혼복 ${rec.mixed} · 🔵남복 ${rec.mens} · 🩷여복 ${rec.womens} 추천`;
+}
+
 function openAutoDrawModal(){
   // 오늘 참석자 요약 표시
   const attendees=_getAutoDrawAttendees();
@@ -4253,6 +4326,7 @@ function openAutoDrawModal(){
       : '<span style="color:#dc2626">출첵 참석자 정보가 없습니다. 출첵 탭에서 참석자를 확인해주세요.</span>';
   }
   document.getElementById('auto-draw-warn').style.display='none';
+  autoRecommendGames(); // 참석자/코트/시간 기준 경기수 자동 추천
   document.getElementById('auto-draw-modal').classList.add('open');
 }
 
@@ -4289,14 +4363,17 @@ const _NTRP_VAL={'4.5':6,'4.0':5,'3.5':4,'3.0':3,'2.5':2,'2.0':1,'':0};
 function _autoSortByRank(players,statsData){
   return players.slice().sort((a,b)=>{
     const sa=statsData[a.name]||{},sb=statsData[b.name]||{};
-    const wa=effWr(sa.wins||0,sa.draws||0,sa.losses||0);
-    const wb=effWr(sb.wins||0,sb.draws||0,sb.losses||0);
-    if(wb!==wa) return wb-wa;
-    if((sb.wins||0)!==(sa.wins||0)) return (sb.wins||0)-(sa.wins||0);
-    // 누적 게임수 적을수록 우선 (게임 기회 균등화)
+    // 1순위: 누적 게임수 적은 순 (기회 균등화 최우선)
     const ga=(sa.wins||0)+(sa.draws||0)+(sa.losses||0);
     const gb=(sb.wins||0)+(sb.draws||0)+(sb.losses||0);
     if(ga!==gb) return ga-gb;
+    // 2순위: 유효승률
+    const wa=effWr(sa.wins||0,sa.draws||0,sa.losses||0);
+    const wb=effWr(sb.wins||0,sb.draws||0,sb.losses||0);
+    if(wb!==wa) return wb-wa;
+    // 3순위: 승수
+    if((sb.wins||0)!==(sa.wins||0)) return (sb.wins||0)-(sa.wins||0);
+    // 4순위: NTRP
     return (_NTRP_VAL[b.ntrp||'']||0)-(_NTRP_VAL[a.ntrp||'']||0);
   });
 }
@@ -4412,9 +4489,9 @@ async function generateAutoDrawCards(){
     const _dd=String(now.getDate()).padStart(2,'0');
     const baseTs=Date.now();
     const allMatches=[
+      ...mixedMatches.map((m,i)=>({...m,type:'mixed',typeIdx:i+1})),
       ...womensMatches.map((m,i)=>({...m,type:'womens',typeIdx:i+1})),
-      ...mensMatches.map((m,i)=>({...m,type:'mens',typeIdx:i+1})),
-      ...mixedMatches.map((m,i)=>({...m,type:'mixed',typeIdx:i+1}))
+      ...mensMatches.map((m,i)=>({...m,type:'mens',typeIdx:i+1}))
     ];
     const typeColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777'};
     const typeName={mixed:'혼복경기',mens:'남복경기',womens:'여복경기'};
@@ -4422,7 +4499,13 @@ async function generateAutoDrawCards(){
     const bgImages=_DC_BG_IMAGES;
     // 코트 수 읽기 → 코트별 라운드 스케줄링
     const courtCount=parseInt(document.getElementById('auto-court-cnt').value)||2;
-    const scheduled=_scheduleCourtOrder(allMatches,courtCount);
+    // 연속 출전 시 남자우선 적용을 위한 선수 메타 맵 생성
+    const playerMeta={};
+    attendees.forEach(a=>{
+      const st=playerStats[a.name]||{};
+      playerMeta[a.name]={gender:a.gender,wr:effWr(st.wins||0,st.draws||0,st.losses||0)};
+    });
+    const scheduled=_scheduleCourtOrder(allMatches,courtCount,playerMeta);
     // 코트 레이블 할당: schedIdx 0 = 1번코트 ①
     scheduled.forEach((match,si)=>{
       match.courtLabel=`${(si%courtCount)+1}번코트 제${_circleNum(Math.floor(si/courtCount)+1)}경기`;
