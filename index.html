@@ -1655,19 +1655,19 @@ const firebaseConfig = {
       <div id="auto-draw-attendees" style="background:#f8fafc;border-radius:12px;padding:10px 14px;margin-bottom:16px;font-size:0.8rem;color:#64748b;line-height:1.6"></div>
       <div>
         <div class="type-row">
-          <span class="type-label" style="color:#7c3aed">🟣 혼복 (혼합복식)</span>
+          <span class="type-label" style="color:#7c3aed">🟣 혼복</span>
           <select id="auto-mixed-cnt">
             <option value="0">0경기</option><option value="1">1경기</option><option value="2">2경기</option><option value="3">3경기</option><option value="4">4경기</option><option value="5">5경기</option><option value="6">6경기</option><option value="7">7경기</option><option value="8">8경기</option><option value="9">9경기</option><option value="10">10경기</option>
           </select>
         </div>
         <div class="type-row">
-          <span class="type-label" style="color:#2563eb">🔵 남복 (남자복식)</span>
+          <span class="type-label" style="color:#2563eb">🔵 남복</span>
           <select id="auto-mens-cnt">
             <option value="0">0경기</option><option value="1">1경기</option><option value="2">2경기</option><option value="3">3경기</option><option value="4">4경기</option><option value="5">5경기</option><option value="6">6경기</option><option value="7">7경기</option><option value="8">8경기</option><option value="9">9경기</option><option value="10">10경기</option>
           </select>
         </div>
         <div class="type-row" style="border-bottom:none">
-          <span class="type-label" style="color:#db2777">🩷 여복 (여자복식)</span>
+          <span class="type-label" style="color:#db2777">🩷 여복</span>
           <select id="auto-womens-cnt">
             <option value="0">0경기</option><option value="1">1경기</option><option value="2">2경기</option><option value="3">3경기</option><option value="4">4경기</option><option value="5">5경기</option><option value="6">6경기</option><option value="7">7경기</option><option value="8">8경기</option><option value="9">9경기</option><option value="10">10경기</option>
           </select>
@@ -2280,7 +2280,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v483';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v484';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4197,7 +4197,8 @@ function _getAutoDrawAttendees(){
 // NTRP 수치 변환
 const _NTRP_VAL={'4.5':6,'4.0':5,'3.5':4,'3.0':3,'2.5':2,'2.0':1,'':0};
 
-// 플레이어 랭킹 정렬 (승률→승수→NTRP)
+// 플레이어 랭킹 정렬 (승률→승수→누적게임수↑→NTRP)
+// 누적 게임수가 적을수록 먼저 배정 → 시간이 지날수록 게임수 균등화
 function _autoSortByRank(players,statsData){
   return players.slice().sort((a,b)=>{
     const sa=statsData[a.name]||{},sb=statsData[b.name]||{};
@@ -4205,6 +4206,10 @@ function _autoSortByRank(players,statsData){
     const wb=effWr(sb.wins||0,sb.draws||0,sb.losses||0);
     if(wb!==wa) return wb-wa;
     if((sb.wins||0)!==(sa.wins||0)) return (sb.wins||0)-(sa.wins||0);
+    // 누적 게임수 적을수록 우선 (게임 기회 균등화)
+    const ga=(sa.wins||0)+(sa.draws||0)+(sa.losses||0);
+    const gb=(sb.wins||0)+(sb.draws||0)+(sb.losses||0);
+    if(ga!==gb) return ga-gb;
     return (_NTRP_VAL[b.ntrp||'']||0)-(_NTRP_VAL[a.ntrp||'']||0);
   });
 }
@@ -4262,6 +4267,12 @@ function _autoGenMixed(sortedM,sortedF,pairStats,count){
 }
 
 async function generateAutoDrawCards(){
+  // 이미 시작(또는 완료)된 경기카드가 있으면 재생성 차단
+  const hasStarted=Object.values(_dailyCards).some(d=>d.phase!=='setup');
+  if(hasStarted){
+    alert('이미 시작된 경기가 있어 자동 대진을 재생성할 수 없습니다.');
+    return;
+  }
   const mixedCnt=parseInt(document.getElementById('auto-mixed-cnt').value)||0;
   const mensCnt=parseInt(document.getElementById('auto-mens-cnt').value)||0;
   const womensCnt=parseInt(document.getElementById('auto-womens-cnt').value)||0;
@@ -4269,6 +4280,14 @@ async function generateAutoDrawCards(){
     const w=document.getElementById('auto-draw-warn');
     w.textContent='경기 수를 1개 이상 선택해주세요.'; w.style.display='';
     return;
+  }
+  // 기존 자동 생성 카드 삭제 (matchType이 있는 카드 = 자동생성)
+  const autoIds=Object.keys(_dailyCards).filter(id=>_dailyCards[id].matchType);
+  for(const aid of autoIds){
+    db.ref(`jmt/dailyCards/${aid}`).remove().catch(fbErr);
+    delete _dailyCards[aid];
+    const ael=document.getElementById(`daily-card-${aid}`);
+    if(ael) ael.remove();
   }
   const btn=document.getElementById('auto-draw-submit-btn');
   btn.disabled=true; btn.textContent='생성 중...';
@@ -4447,16 +4466,16 @@ function _renderDailyCard(id){
     const t0=_getTeamDisplay(d.team0),t1=_getTeamDisplay(d.team1);
     const t0f=d.team0.length===2,t1f=d.team1.length===2;
     const left=`<div class="dc-team-left">
-      <button class="dc-team-btn${t0f?' filled':''}" onclick="openDailyPick(${id},0)">
+      <button class="dc-team-btn${t0f?' filled':''}" onclick="openDailyPick('${id}',0)">
         ${t0f?`<div class="dc-tnick">${t0.nick}</div><div class="dc-tmembers">${t0.memberStr}</div>`:'팀 A 선택 ▾'}
       </button>
     </div>`;
     const right=`<div class="dc-team-right">
-      <button class="dc-team-btn${t1f?' filled':''}" onclick="openDailyPick(${id},1)">
+      <button class="dc-team-btn${t1f?' filled':''}" onclick="openDailyPick('${id}',1)">
         ${t1f?`<div class="dc-tnick">${t1.nick}</div><div class="dc-tmembers">${t1.memberStr}</div>`:'팀 B 선택 ▾'}
       </button>
     </div>`;
-    const mid=`<button class="dc-start-btn" onclick="startDailyMatch(${id})"${t0f&&t1f?'':' disabled'}>시작</button>`;
+    const mid=`<button class="dc-start-btn" onclick="startDailyMatch('${id}')"${t0f&&t1f?'':' disabled'}>시작</button>`;
     el.innerHTML=mkCard(d.label||`경기${d.num}`, left, mid, right);
 
   } else if(d.phase==='playing'){
@@ -4625,21 +4644,29 @@ function startDailyMatch(id){
   if(!d||d.team0.length!==2||d.team1.length!==2) return;
   d.phase='playing';
   if(db){
-    const cardData={phase:'playing',team0:[...d.team0],team1:[...d.team1],sets:[],winner:-1,bgImage:d.bgImage,num:d.num,createdAt:d.createdAt||Date.now()};
-    const ref=db.ref('jmt/dailyCards').push(cardData);
-    const newKey=ref.key;
-    // 로컬 임시 카드 제거
-    delete _dailyCards[id];
-    const oldEl=document.getElementById(`daily-card-${id}`);
-    if(oldEl) oldEl.remove();
-    // 새 Firebase key로 즉시 카드 생성 (맨 위에)
-    _dailyCards[newKey]=Object.assign({},cardData);
-    const container=document.getElementById('daily-match-cards');
-    const newEl=document.createElement('div');
-    newEl.id=`daily-card-${newKey}`;
-    newEl.dataset.createdAt=cardData.createdAt;
-    container.insertBefore(newEl,container.firstChild);
-    _renderDailyCard(newKey);
+    // 자동 생성 카드(Firebase push key = 문자열 '-'로 시작): 기존 항목 update
+    const isFirebaseKey=typeof id==='string'&&id.startsWith('-');
+    if(isFirebaseKey){
+      db.ref(`jmt/dailyCards/${id}`).update({phase:'playing',team0:[...d.team0],team1:[...d.team1],sets:[],winner:-1}).catch(fbErr);
+      _renderDailyCard(id);
+    } else {
+      // 수동 생성 카드(숫자 id): 새 Firebase 항목 push
+      const cardData={phase:'playing',team0:[...d.team0],team1:[...d.team1],sets:[],winner:-1,bgImage:d.bgImage,num:d.num,createdAt:d.createdAt||Date.now(),label:d.label||`경기${d.num}`};
+      const ref=db.ref('jmt/dailyCards').push(cardData);
+      const newKey=ref.key;
+      // 로컬 임시 카드 제거
+      delete _dailyCards[id];
+      const oldEl=document.getElementById(`daily-card-${id}`);
+      if(oldEl) oldEl.remove();
+      // 새 Firebase key로 즉시 카드 생성 (맨 위에)
+      _dailyCards[newKey]=Object.assign({},d,cardData);
+      const container=document.getElementById('daily-match-cards');
+      const newEl=document.createElement('div');
+      newEl.id=`daily-card-${newKey}`;
+      newEl.dataset.createdAt=cardData.createdAt;
+      container.insertBefore(newEl,container.firstChild);
+      _renderDailyCard(newKey);
+    }
   } else {
     _renderDailyCard(id);
   }
