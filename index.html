@@ -2330,7 +2330,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v527';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v528';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -16394,15 +16394,32 @@ function _bzRenderMessages(phase, forceBottom) {
           ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
       : m.type === 'restaurant'
-      ? `<div data-bzbubble="1" onclick="bzOpenRestoUrl('${(m.restaurantId||'').replace(/'/g,"\\'")}');" style="max-width:82%;border-radius:${bubbleRadius};border:${bubbleBorder};overflow:hidden;cursor:${m.restaurantUrl?'pointer':'default'};background:${bubbleBg}">
-          ${replyBox}
-          <div style="padding:10px 12px">
-            <div style="font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.75)':'#94a3b8'};margin-bottom:3px">${RESTO_THEME_EMOJI[m.restaurantTheme]||'🍴'} ${m.restaurantTheme||''}</div>
-            <div style="font-size:0.95rem;font-weight:800;color:${isMine?'#fff':'#1e293b'};margin-bottom:4px">🍽️ ${m.restaurantName||'맛집'}</div>
-            <div style="font-size:0.75rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'}">${m.restaurantAvgRating?`⭐ ${m.restaurantAvgRating} · `:''}방문 ${m.restaurantVisitCount||0}회</div>
-            ${m.restaurantUrl?`<div style="font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#2563eb'};margin-top:5px;font-weight:600">👉 네이버 지도 →</div>`:''}
-          </div>
-        </div>`
+      ? (() => {
+          const _lR = (_restoData||{})[m.restaurantId]||{};
+          const _rName  = _lR.name ||m.restaurantName||'맛집';
+          const _rTheme = _lR.theme||m.restaurantTheme||'기타';
+          const _rUrl   = _lR.url  ||m.restaurantUrl  ||'';
+          const _rScores = Object.values((_restoRatingsData||{})[m.restaurantId]||{}).map(v=>v.score||0).filter(s=>s>0);
+          const _rAvg   = _rScores.length ? Math.round(_rScores.reduce((a,b)=>a+b,0)/_rScores.length*10)/10 : 0;
+          const _rCnt   = _rScores.length;
+          const _rVisit = _lR.visitCount!==undefined ? _lR.visitCount : (m.restaurantVisitCount||0);
+          const _rMemo  = _lR.memo||'';
+          const _stars  = [1,2,3,4,5].map(s=>`<span style="font-size:0.9rem;color:${_rAvg>=s?'#f59e0b':'#d1d5db'}">★</span>`).join('');
+          const _idE    = (m.restaurantId||'').replace(/'/g,"\\'");
+          return `<div data-bzbubble="1" onclick="bzOpenRestoUrl('${_idE}')" style="width:220px;border-radius:14px;border:1.5px solid #fcd34d;overflow:hidden;cursor:${_rUrl?'pointer':'default'};background:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.08)">
+            ${replyBox}
+            <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:7px 12px;display:flex;align-items:center">
+              <span style="font-size:0.75rem;font-weight:700;color:#fff">${RESTO_THEME_EMOJI[_rTheme]||'🍴'} ${_rTheme}</span>
+              <span style="font-size:0.62rem;color:rgba(255,255,255,0.85);margin-left:auto;font-weight:600">🍽️ 단골집</span>
+            </div>
+            <div style="padding:10px 12px">
+              <div style="font-size:0.97rem;font-weight:800;color:#1e293b;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_rName}</div>
+              <div style="display:flex;align-items:center;gap:1px;margin-bottom:3px">${_stars}<span style="font-size:0.68rem;color:#64748b;margin-left:5px">${_rAvg>0?`${_rAvg}점 · ${_rCnt}명`:'별점 없음'}</span></div>
+              <div style="font-size:0.7rem;color:#94a3b8">방문 ${_rVisit}회${_rMemo?' · '+_rMemo:''}</div>
+              ${_rUrl?`<div style="font-size:0.7rem;color:#2563eb;margin-top:7px;font-weight:700;border-top:1px solid #f1f5f9;padding-top:6px">🗺️ 네이버 지도에서 보기 →</div>`:''}
+            </div>
+          </div>`;
+        })()
       : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.93rem;border:${bubbleBorder};word-break:break-word;white-space:pre-wrap;cursor:pointer;-webkit-tap-highlight-color:transparent">${replyBox}${_bzLinkify(m.text)}</div>`;
     window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl, mediaType: m.videoUrl ? 'video' : _photos ? 'photos' : (m.imageUrl || m.imageData) ? 'image' : m.type === 'restaurant' ? 'restaurant' : '' };
     const dateSepHtml = _bzShowDateSep[i] ? `<div style="text-align:center;padding:10px 0 4px"><span style="background:#e2e8f0;color:#64748b;font-size:0.7rem;padding:3px 14px;border-radius:20px;font-weight:600">${_bzFormatDateLabel(m.ts)}</span></div>` : '';
@@ -16597,15 +16614,32 @@ function _bzIncrementalUpdateMessages(newMessages) {
           ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
       : m.type === 'restaurant'
-      ? `<div data-bzbubble="1" onclick="bzOpenRestoUrl('${(m.restaurantId||'').replace(/'/g,"\\'")}');" style="max-width:82%;border-radius:${bubbleRadius};border:${bubbleBorder};overflow:hidden;cursor:${m.restaurantUrl?'pointer':'default'};background:${bubbleBg}">
-          ${replyBox}
-          <div style="padding:10px 12px">
-            <div style="font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.75)':'#94a3b8'};margin-bottom:3px">${RESTO_THEME_EMOJI[m.restaurantTheme]||'🍴'} ${m.restaurantTheme||''}</div>
-            <div style="font-size:0.95rem;font-weight:800;color:${isMine?'#fff':'#1e293b'};margin-bottom:4px">🍽️ ${m.restaurantName||'맛집'}</div>
-            <div style="font-size:0.75rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'}">${m.restaurantAvgRating?`⭐ ${m.restaurantAvgRating} · `:''}방문 ${m.restaurantVisitCount||0}회</div>
-            ${m.restaurantUrl?`<div style="font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#2563eb'};margin-top:5px;font-weight:600">👉 네이버 지도 →</div>`:''}
-          </div>
-        </div>`
+      ? (() => {
+          const _lR = (_restoData||{})[m.restaurantId]||{};
+          const _rName  = _lR.name ||m.restaurantName||'맛집';
+          const _rTheme = _lR.theme||m.restaurantTheme||'기타';
+          const _rUrl   = _lR.url  ||m.restaurantUrl  ||'';
+          const _rScores = Object.values((_restoRatingsData||{})[m.restaurantId]||{}).map(v=>v.score||0).filter(s=>s>0);
+          const _rAvg   = _rScores.length ? Math.round(_rScores.reduce((a,b)=>a+b,0)/_rScores.length*10)/10 : 0;
+          const _rCnt   = _rScores.length;
+          const _rVisit = _lR.visitCount!==undefined ? _lR.visitCount : (m.restaurantVisitCount||0);
+          const _rMemo  = _lR.memo||'';
+          const _stars  = [1,2,3,4,5].map(s=>`<span style="font-size:0.9rem;color:${_rAvg>=s?'#f59e0b':'#d1d5db'}">★</span>`).join('');
+          const _idE    = (m.restaurantId||'').replace(/'/g,"\\'");
+          return `<div data-bzbubble="1" onclick="bzOpenRestoUrl('${_idE}')" style="width:220px;border-radius:14px;border:1.5px solid #fcd34d;overflow:hidden;cursor:${_rUrl?'pointer':'default'};background:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.08)">
+            ${replyBox}
+            <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:7px 12px;display:flex;align-items:center">
+              <span style="font-size:0.75rem;font-weight:700;color:#fff">${RESTO_THEME_EMOJI[_rTheme]||'🍴'} ${_rTheme}</span>
+              <span style="font-size:0.62rem;color:rgba(255,255,255,0.85);margin-left:auto;font-weight:600">🍽️ 단골집</span>
+            </div>
+            <div style="padding:10px 12px">
+              <div style="font-size:0.97rem;font-weight:800;color:#1e293b;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_rName}</div>
+              <div style="display:flex;align-items:center;gap:1px;margin-bottom:3px">${_stars}<span style="font-size:0.68rem;color:#64748b;margin-left:5px">${_rAvg>0?`${_rAvg}점 · ${_rCnt}명`:'별점 없음'}</span></div>
+              <div style="font-size:0.7rem;color:#94a3b8">방문 ${_rVisit}회${_rMemo?' · '+_rMemo:''}</div>
+              ${_rUrl?`<div style="font-size:0.7rem;color:#2563eb;margin-top:7px;font-weight:700;border-top:1px solid #f1f5f9;padding-top:6px">🗺️ 네이버 지도에서 보기 →</div>`:''}
+            </div>
+          </div>`;
+        })()
       : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.93rem;border:${bubbleBorder};word-break:break-word;white-space:pre-wrap;cursor:pointer;-webkit-tap-highlight-color:transparent">${replyBox}${_bzLinkify(m.text)}</div>`;
     window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl, mediaType: m.videoUrl ? 'video' : _photos ? 'photos' : (m.imageUrl || m.imageData) ? 'image' : m.type === 'restaurant' ? 'restaurant' : '' };
     const _msgMargin = _showName ? '10px' : '0';
