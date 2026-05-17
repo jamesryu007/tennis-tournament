@@ -2320,7 +2320,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v513';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v514';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5286,22 +5286,15 @@ function startDailyMatch(id){
       _renderDailyCard(id);
     } else {
       // 수동 생성 카드(숫자 id): 새 Firebase 항목 push
-      const cardData={phase:'playing',team0:[...d.team0],team1:[...d.team1],sets:[],winner:-1,bgImage:d.bgImage,num:d.num,createdAt:d.createdAt||Date.now(),label:d.label||`경기${d.num}`,...(d.matchType?{matchType:d.matchType}:{})};
+      const cardData={phase:'playing',team0:[...d.team0],team1:[...d.team1],sets:[],winner:-1,bgImage:d.bgImage,num:d.num,createdAt:d.createdAt||Date.now(),label:d.label||`경기${d.num}`,...(d.matchType?{matchType:d.matchType}:{}),...(d._round?{_round:d._round,_court:d._court,courtLabel:d.courtLabel}:{}),...(d.createdBy?{createdBy:d.createdBy}:{})};
       const ref=db.ref('jmt/dailyCards').push(cardData);
       const newKey=ref.key;
       // 로컬 임시 카드 제거
       delete _dailyCards[id];
       _saveLocalDailyCards(); // localStorage에서도 해당 카드 제거
-      const oldEl=document.getElementById(`daily-card-${id}`);
-      if(oldEl) oldEl.remove();
-      // 새 Firebase key로 즉시 카드 생성 (맨 위에)
+      // 새 Firebase key로 로컬 카드 등록 후 프레임 재구성
       _dailyCards[newKey]=Object.assign({},d,cardData);
-      const container=document.getElementById('daily-match-cards');
-      const newEl=document.createElement('div');
-      newEl.id=`daily-card-${newKey}`;
-      newEl.dataset.createdAt=cardData.createdAt;
-      container.insertBefore(newEl,container.firstChild);
-      _renderDailyCard(newKey);
+      _reGroupDailyCards();
     }
   } else {
     _renderDailyCard(id);
