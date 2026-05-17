@@ -2330,7 +2330,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v528';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v529';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -16349,7 +16349,8 @@ function _bzRenderMessages(phase, forceBottom) {
     const senderLabel = showRealNames
       ? `${m.alias} <span style="color:#94a3b8;font-size:0.7rem">(${realOfAlias})</span>`
       : m.alias;
-    const _bzNameColor = _getMemberColor(m.alias);
+    const _bzIsBot = m.realName === '자미봇';
+    const _bzNameColor = _bzIsBot ? '#7c3aed' : _getMemberColor(m.alias);
     const isMine = m.realName === myName;
     const keyEsc      = m._key.replace(/'/g, "\\'");
     const aliasEsc    = m.alias.replace(/'/g, "\\'");
@@ -16381,7 +16382,7 @@ function _bzRenderMessages(phase, forceBottom) {
     const imgSrc = m.imageUrl || m.imageData || '';
     const _photos = m.photos && m.photos.length ? m.photos : null;
     const bubbleRadius = `${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}`;
-    const bubbleBg = `${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'}`;
+    const bubbleBg = isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : _bzIsBot ? '#f5f3ff' : '#fff';
     const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#e2e8f0'}`;
     const bubble = m.videoUrl
       ? `<div data-bzbubble="1" style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
@@ -16438,7 +16439,7 @@ function _bzRenderMessages(phase, forceBottom) {
       : `<div data-bzkey="${m._key}" data-bzts="${m.ts}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:${msgGap};margin-top:${msgMargin}">
           <div style="display:flex;gap:4px;align-items:flex-start;width:100%">
             ${showName
-              ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${m.alias[0]}</span>`
+              ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzIsBot?'linear-gradient(135deg,#7c3aed,#5b21b6)':_bzNameColor};color:#fff;font-size:${_bzIsBot?'0.75':'0.85'}rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${_bzIsBot?'🤖':m.alias[0]}</span>`
               : `<span style="width:22px;flex-shrink:0"></span>`}
             <div style="flex:1;min-width:0">
               ${showName ? `<div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>` : ''}
@@ -16571,7 +16572,8 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const senderLabel = showRealNames
       ? `${m.alias} <span style="color:#94a3b8;font-size:0.7rem">(${realOfAlias})</span>`
       : m.alias;
-    const _bzNameColor = _getMemberColor(m.alias);
+    const _bzIsBot = m.realName === '자미봇';
+    const _bzNameColor = _bzIsBot ? '#7c3aed' : _getMemberColor(m.alias);
     const isMine = m.realName === myName;
     const keyEsc      = m._key.replace(/'/g, "\'");
     const aliasEsc    = m.alias.replace(/'/g, "\'");
@@ -16601,7 +16603,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const imgSrc = m.imageUrl || m.imageData || '';
     const _photos = m.photos && m.photos.length ? m.photos : null;
     const bubbleRadius = `${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}`;
-    const bubbleBg = `${isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : '#fff'}`;
+    const bubbleBg = isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : _bzIsBot ? '#f5f3ff' : '#fff';
     const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#e2e8f0'}`;
     const bubble = m.videoUrl
       ? `<div data-bzbubble="1" style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
@@ -16655,7 +16657,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
       : `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:${_msgGap};margin-top:${_msgMargin}">
           <div style="display:flex;gap:4px;align-items:flex-start;width:100%">
             ${_showName
-              ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzNameColor};color:#fff;font-size:0.85rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${m.alias[0]}</span>`
+              ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzIsBot?'linear-gradient(135deg,#7c3aed,#5b21b6)':_bzNameColor};color:#fff;font-size:${_bzIsBot?'0.75':'0.85'}rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${_bzIsBot?'🤖':m.alias[0]}</span>`
               : `<span style="width:22px;flex-shrink:0"></span>`}
             <div style="flex:1;min-width:0">
               ${_showName ? `<div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>` : ''}

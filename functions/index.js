@@ -1416,3 +1416,290 @@ exports.fetchAtpNews = onSchedule(
     }
   }
 );
+
+// ══ 자미봇 — 채팅 트리거 자동 응답 ══════════════════════════════════
+
+const _BOT_NAME = '자미봇';
+const _BOT_BZ_REF = 'jmt/banzige/current';
+const _BOT_COOLDOWN_MS = 60 * 60 * 1000; // 1시간
+const _BOT_MANAGERS = ['유지원', '천지은', '김승수'];
+
+const _BOT_TRIGGERS = [
+  { key: 'restaurant', pattern: /점심|뭐먹|맛집추천/ },
+  { key: 'ranking',    pattern: /랭킹|순위/ },
+  { key: 'mystats',    pattern: /내\s*전적|내\s*기록/ },
+  { key: 'todaymatch', pattern: /오늘경기|오늘\s*경기|경기결과/ },
+  { key: 'weather',    pattern: /날씨/ },
+  { key: 'air',        pattern: /미세먼지|공기/ },
+  { key: 'fortune',    pattern: /운세|오늘\s*운세/ },
+  { key: 'quote',      pattern: /명언/ },
+  { key: 'quiz',       pattern: /퀴즈/ },
+  { key: 'notice',     pattern: /^!공지\s+/ },
+];
+const _BOT_NO_COOLDOWN = new Set(['mystats', 'notice']);
+
+// ── 운세 30개 ─────────────────────────────────────────────────────
+const _BOT_FORTUNES = [
+  '🍀 오늘은 용기 있는 한 발이 큰 변화를 만듭니다. 망설이지 마세요!',
+  '☀️ 따뜻한 사람과 함께하는 오늘, 기쁜 소식이 찾아옵니다.',
+  '🌙 지금 힘든 일이 있다면 곧 지나갑니다. 버티는 힘이 빛납니다.',
+  '⚡ 에너지 넘치는 날! 계획한 일을 지금 바로 시작하세요.',
+  '🌈 뜻밖의 인연이 좋은 기회를 가져올 것입니다.',
+  '💪 오늘은 체력 관리가 중요합니다. 충분히 휴식하세요.',
+  '🎯 집중력이 높아지는 날입니다. 어려운 문제도 잘 풀립니다.',
+  '🌊 흐름에 맡기세요. 억지로 밀어붙이면 오히려 역효과가 납니다.',
+  '🏆 노력한 만큼 결과가 보이기 시작하는 날입니다.',
+  '🤝 주변 사람에게 먼저 손을 내밀어 보세요. 좋은 반응이 옵니다.',
+  '💡 창의적인 아이디어가 떠오를 것입니다. 메모해두세요!',
+  '🌺 작은 행복에 감사하는 마음이 더 큰 행복을 불러옵니다.',
+  '🎵 오늘은 즐겁고 긍정적인 기운이 넘칩니다. 마음껏 표현하세요.',
+  '🔥 도전을 두려워 말고 뛰어들어 보세요. 생각보다 잘 됩니다.',
+  '🌿 건강에 신경 써야 하는 날. 가벼운 운동이 도움이 됩니다.',
+  '⭐ 오늘 당신이 하는 말 한마디가 누군가에게 큰 힘이 됩니다.',
+  '🦋 변화를 두려워하지 마세요. 새로운 시작이 기다립니다.',
+  '🎁 기다리던 소식이 올 수 있는 날입니다. 연락을 확인하세요.',
+  '💎 진가가 드러나는 날입니다. 자신감을 가지고 나서세요.',
+  '🚀 미뤄왔던 일을 오늘 처리하면 좋습니다. 추진력이 강한 날!',
+  '🌸 주변 정리가 마음도 정리해줍니다. 공간을 가볍게 만들어보세요.',
+  '🎪 예상치 못한 즐거움이 기다립니다. 기대해도 좋아요!',
+  '🧘 차분히 생각하는 날. 큰 결정은 오늘 서두르지 마세요.',
+  '🌟 오늘 만나는 사람들과 좋은 인연을 이어가세요.',
+  '🍊 건강한 식사가 오늘 활력의 원천입니다. 잘 먹고 잘 자세요.',
+  '🏄 파도를 타는 것처럼 상황에 유연하게 대응하면 성공합니다.',
+  '🎯 정확한 판단을 내릴 수 있는 날. 중요한 결정을 해도 좋습니다.',
+  '🌻 주변에 감사 표현을 많이 하세요. 관계가 더욱 깊어집니다.',
+  '🦅 높은 곳을 바라보세요. 당신의 가능성은 생각보다 훨씬 큽니다.',
+  '🎾 오늘 코트에서 최고의 플레이가 나올 예감! 자신을 믿으세요.',
+];
+
+// ── 테니스 명언 20개 ───────────────────────────────────────────────
+const _BOT_QUOTES = [
+  { text: '챔피언이 되는 것은 재능의 문제가 아니라 의지의 문제다.', author: '빌리 진 킹' },
+  { text: '코트에서 지는 것이 두렵다면, 결코 최고가 될 수 없다.', author: '지미 코너스' },
+  { text: '승리는 준비하는 자의 것이다. 기회는 아무에게나 오지 않는다.', author: '로저 페더러' },
+  { text: '나는 패배에서 배운다. 매 경기가 나를 더 강하게 만든다.', author: '라파엘 나달' },
+  { text: '정신력이 기술보다 강하다. 마음이 먼저 포기하지 않으면 몸도 버틴다.', author: '노바크 조코비치' },
+  { text: '코트에 들어서는 순간, 과거도 미래도 없다. 오직 지금 이 공만 있다.', author: '아서 애시' },
+  { text: '가장 중요한 포인트는 항상 다음 포인트다.', author: '빌리 진 킹' },
+  { text: '테니스는 체스와 같다. 두 수 앞을 생각해야 한다.', author: '안드레 애거시' },
+  { text: '압박감은 특권이다. 중요한 순간에 설 수 있다는 것 자체가 행운이다.', author: '빌리 진 킹' },
+  { text: '최고를 목표로 하라. 그리고 즐겨라. 그것이 테니스다.', author: '로저 페더러' },
+  { text: '실패를 두려워하지 마라. 도전하지 않는 것이 진짜 실패다.', author: '마르티나 나브라틸로바' },
+  { text: '코트에서 100% 집중하지 않으면, 상대방이 반드시 기회를 잡는다.', author: '피트 샘프라스' },
+  { text: '근성은 선천적인 것이 아니다. 매일 쌓아나가는 것이다.', author: '라파엘 나달' },
+  { text: '공은 항상 거짓말을 하지 않는다.', author: '테니스 격언' },
+  { text: '테니스는 혼자서 배우지만, 함께 할 때 더욱 빛난다.', author: '자미터 테니스' },
+  { text: '어제보다 1% 나은 플레이어가 되는 것, 그것이 진보다.', author: '자미터 테니스' },
+  { text: '서브는 시작이 아니라 공격이다.', author: '존 맥켄로' },
+  { text: '흔들리지 않는 루틴이 흔들리는 순간을 이긴다.', author: '노바크 조코비치' },
+  { text: '테니스에서 가장 긴 거리는 머리에서 손까지의 거리다.', author: '팀 갈웨이' },
+  { text: '나는 오늘의 내가 어제의 나보다 더 나음을 믿는다.', author: '자미터 테니스' },
+];
+
+// ── 테니스 퀴즈 20문항 ─────────────────────────────────────────────
+const _BOT_QUIZ = [
+  { q: '테니스에서 0점을 뜻하는 단어는?', a: '러브(Love) — 0점을 "러브"라고 부릅니다 🎾' },
+  { q: '그랜드슬램 4개 대회를 모두 말해보세요!', a: '호주오픈 · 프랑스오픈(롤랑가로스) · 윔블던 · US오픈 🏆' },
+  { q: '잔디 코트에서 열리는 그랜드슬램은?', a: '윔블던(Wimbledon) 🌿' },
+  { q: '서브를 두 번 연속 실패하면?', a: '더블 폴트(Double Fault) — 상대방 포인트 😅' },
+  { q: 'ATP 역사상 그랜드슬램 최다 우승자는? (2024 기준)', a: '노바크 조코비치 — 24회 🏆' },
+  { q: '서브가 네트에 걸리고 서비스 박스 안에 들어가면?', a: '렛(Let) — 다시 서브합니다!' },
+  { q: '게임 스코어 40:40을 뭐라고 하나요?', a: '듀스(Deuce) — 이후 2점 연속 득점해야 게임 승리!' },
+  { q: '윔블던에서 선수들이 반드시 착용해야 하는 복장 색은?', a: '흰색(White) ⬜ — 전통입니다!' },
+  { q: '"에이스(Ace)"란 무엇인가요?', a: '상대방이 전혀 건드리지 못한 서브 포인트 💥' },
+  { q: '복식 경기에서 서비스 박스 옆 구역 이름은?', a: '앨리(Alley) 또는 트램라인(Tramline)' },
+  { q: 'WTA는 무슨 약자인가요?', a: "Women's Tennis Association — 여자 프로 테니스 협회 👩" },
+  { q: '테니스공이 공식적으로 노란색인 이유는?', a: 'TV 화면에서 잘 보이도록 1972년 윔블던이 채택! 📺' },
+  { q: '세계 최초 테니스 경기는 어느 나라에서 시작됐나요?', a: '영국 🇬🇧 — 1873년 월터 클롭턴 윙필드가 고안' },
+  { q: '테니스 세트에서 최소 몇 게임을 이겨야 하나요?', a: '6게임 (단, 5-5면 7게임까지 필요!)' },
+  { q: '한 선수가 0점으로 상대를 이기는 게임을?', a: '러브 게임(Love Game)! 상대 0점으로 완봉승 💪' },
+  { q: 'ATP는 무슨 약자인가요?', a: 'Association of Tennis Professionals — 남자 프로 테니스 협회' },
+  { q: '테니스 채점에서 15, 30, 40 다음은 왜 60이 아닐까요?', a: '중세 시계 문자판 유래설! 40 다음은 바로 게임 — 역사의 불가사의 🕰️' },
+  { q: '듀스 이후 1점 앞서면?', a: '어드밴티지(Advantage) — 한 번 더 이기면 게임!' },
+  { q: '타이브레이크는 몇 점을 먼저 따야 하나요?', a: '7점 (단, 6-6 시 2점 차가 날 때까지!)' },
+  { q: '자미터 테니스 클럽의 자랑은?', a: '재미와 열정! 그리고 사랑하는 사람들의 모임 🎾❤️' },
+];
+
+function _botDailyItem(arr) {
+  const d = new Date();
+  const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  return arr[seed % arr.length];
+}
+
+async function _postBotMsg(msgData) {
+  await db.ref(`${_BOT_BZ_REF}/messages`).push({
+    alias: _BOT_NAME, realName: _BOT_NAME, ts: Date.now(), ...msgData,
+  });
+}
+
+// ── 점심/맛집 추천 ─────────────────────────────────────────────────
+async function _botRestaurant() {
+  const snap = await db.ref('jmt/restaurants').once('value');
+  const restos = snap.val() || {};
+  const entries = Object.entries(restos);
+  if (!entries.length) return { text: '🍽️ 아직 단골집이 없어요!\n자미톡방 → 맛집 탭에서 먼저 등록해주세요 😋' };
+  // 방문횟수 가중 랜덤 (많이 간 곳일수록 확률 높음)
+  const pool = [];
+  entries.forEach(e => { for (let i = 0; i < Math.max(e[1].visitCount || 1, 1); i++) pool.push(e); });
+  const [id, r] = pool[Math.floor(Math.random() * pool.length)];
+  const ratSnap = await db.ref(`jmt/restaurantRatings/${id}`).once('value');
+  const scores = Object.values(ratSnap.val() || {}).map(v => v.score || 0).filter(s => s > 0);
+  const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length * 10) / 10 : 0;
+  return {
+    type: 'restaurant',
+    restaurantId: id, restaurantName: r.name, restaurantTheme: r.theme || '기타',
+    restaurantUrl: r.url || '', restaurantAvgRating: avg, restaurantVisitCount: r.visitCount || 0,
+    text: `🍽️ 오늘 점심은 여기 어때요? → ${r.name}`,
+  };
+}
+
+// ── 랭킹 TOP 5 ────────────────────────────────────────────────────
+async function _botRanking() {
+  const year = new Date().getFullYear();
+  const snap = await db.ref(`jmt/playerStats/${year}`).once('value');
+  const stats = snap.val() || {};
+  const sorted = Object.entries(stats)
+    .filter(([, s]) => (s.wins || 0) + (s.losses || 0) >= 3)
+    .sort((a, b) => {
+      const aT = (a[1].wins||0) + (a[1].losses||0), bT = (b[1].wins||0) + (b[1].losses||0);
+      return (bT ? (b[1].wins||0)/bT : 0) - (aT ? (a[1].wins||0)/aT : 0);
+    }).slice(0, 5);
+  if (!sorted.length) return { text: '📊 아직 기록된 경기가 없어요!' };
+  const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+  const lines = sorted.map(([name, s], i) => {
+    const total = (s.wins||0) + (s.losses||0);
+    const rate = total ? Math.round((s.wins||0)/total*100) : 0;
+    return `${medals[i]} ${name}  ${rate}%  (${s.wins||0}승 ${s.losses||0}패)`;
+  });
+  return { text: `🏆 ${year}년 자미터 개인랭킹\n\n${lines.join('\n')}` };
+}
+
+// ── 내 전적 ────────────────────────────────────────────────────────
+async function _botMyStats(senderName) {
+  if (!senderName) return { text: '😅 이름을 알 수 없어요. 먼저 체크인해주세요!' };
+  const year = new Date().getFullYear();
+  const snap = await db.ref(`jmt/playerStats/${year}/${senderName}`).once('value');
+  const s = snap.val();
+  if (!s) return { text: `📊 ${senderName}님의 ${year}년 기록이 없어요. 경기부터 뛰어요! 🎾` };
+  const total = (s.wins||0) + (s.losses||0);
+  const rate = total ? Math.round((s.wins||0)/total*100) : 0;
+  return { text: `📊 ${senderName}님의 ${year}년 전적\n\n${s.wins||0}승 ${s.draws||0}무 ${s.losses||0}패\n승률 ${rate}%  (총 ${total}경기)` };
+}
+
+// ── 오늘의 경기 결과 ───────────────────────────────────────────────
+async function _botTodayMatch() {
+  const snap = await db.ref('jmt/dailyCards').orderByChild('createdAt').limitToLast(30).once('value');
+  const all = snap.val() || {};
+  const todayStr = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit' });
+  const today = Object.values(all).filter(c => c.createdAt &&
+    new Date(c.createdAt).toLocaleDateString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit' }) === todayStr
+  );
+  if (!today.length) return { text: '🎾 오늘 등록된 경기가 없어요!\n먼저 경기를 시작해보세요 💪' };
+  const lines = today.slice(0, 6).map((c, i) => {
+    const t0 = (c.team0 || []).join('·'), t1 = (c.team1 || []).join('·');
+    const score = (c.sets || []).map(s => `${s[0]}-${s[1]}`).join(' ');
+    const win = c.winner !== undefined ? (c.winner === 0 ? ` ← ${t0} 승` : ` → ${t1} 승`) : '';
+    return `${i+1}. ${t0} vs ${t1}  ${score}${win}`;
+  });
+  return { text: `🎾 오늘의 경기 결과 (${today.length}경기)\n\n${lines.join('\n')}` };
+}
+
+// ── 날씨 (OpenWeatherMap) ──────────────────────────────────────────
+async function _botWeather() {
+  const apiKey = process.env.OPENWEATHER_API_KEY;
+  if (!apiKey) return { text: '⚠️ 날씨 API 키가 설정되지 않았습니다.\n관리자에게 문의하세요 (OPENWEATHER_API_KEY).' };
+  try {
+    const lat = process.env.BOT_WEATHER_LAT || '37.5665';
+    const lon = process.env.BOT_WEATHER_LON || '126.9780';
+    const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=kr`);
+    const d = await res.json();
+    if (!d.main) return { text: '🌤️ 날씨 정보를 가져올 수 없어요.' };
+    const emoji = (() => { const id = d.weather?.[0]?.id||800; if(id<300)return'⛈️'; if(id<400)return'🌦️'; if(id<600)return'🌧️'; if(id<700)return'❄️'; if(id<800)return'🌫️'; if(id===800)return'☀️'; if(id===801)return'🌤️'; if(id===802)return'⛅'; return'🌥️'; })();
+    const desc = d.weather?.[0]?.description || '';
+    return { text: `${emoji} ${d.name||'서울'} 현재 날씨\n\n🌡️ ${Math.round(d.main.temp)}°C  (체감 ${Math.round(d.main.feels_like)}°C)\n💧 습도 ${d.main.humidity}%  💨 바람 ${Math.round((d.wind?.speed||0)*3.6)}km/h\n☁️ ${desc}` };
+  } catch (e) {
+    return { text: '🌤️ 날씨 정보를 가져오는 데 실패했어요.' };
+  }
+}
+
+// ── 미세먼지 (에어코리아) ──────────────────────────────────────────
+async function _botAir() {
+  const apiKey = process.env.AIRKOREA_API_KEY;
+  if (!apiKey) return { text: '⚠️ 에어코리아 API 키가 설정되지 않았습니다.\n관리자에게 문의하세요 (AIRKOREA_API_KEY).' };
+  try {
+    const station = encodeURIComponent(process.env.BOT_AIR_STATION || '종로구');
+    const url = `https://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getMsrstnAcctoRltmMesureDnsty?stationName=${station}&dataTerm=daily&pageNo=1&numOfRows=1&returnType=json&serviceKey=${apiKey}&ver=1.3`;
+    const res = await fetch(url);
+    const json = await res.json();
+    const item = json?.response?.body?.items?.[0];
+    if (!item) return { text: '🌬️ 미세먼지 정보를 가져올 수 없어요.' };
+    const g = (val, t) => { const v=parseInt(val); if(isNaN(v))return''; return t==='pm10' ? (v<=30?'😊좋음':v<=80?'🙂보통':v<=150?'😷나쁨':'🚨매우나쁨') : (v<=15?'😊좋음':v<=35?'🙂보통':v<=75?'😷나쁨':'🚨매우나쁨'); };
+    return { text: `🌬️ ${decodeURIComponent(station)} 현재 공기질\n\n미세먼지(PM10): ${item.pm10Value}㎍/㎥  ${g(item.pm10Value,'pm10')}\n초미세먼지(PM2.5): ${item.pm25Value}㎍/㎥  ${g(item.pm25Value,'pm25')}` };
+  } catch (e) {
+    return { text: '🌬️ 미세먼지 정보를 가져오는 데 실패했어요.' };
+  }
+}
+
+// ── 운세 / 명언 / 퀴즈 / 공지 ────────────────────────────────────
+function _botFortune() {
+  const d = new Date().toLocaleDateString('ko-KR', { month:'long', day:'numeric' });
+  return { text: `🔮 ${d} 오늘의 운세\n\n${_botDailyItem(_BOT_FORTUNES)}` };
+}
+function _botQuote() {
+  const q = _botDailyItem(_BOT_QUOTES);
+  return { text: `💬 오늘의 테니스 명언\n\n"${q.text}"\n\n— ${q.author}` };
+}
+function _botQuiz() {
+  const q = _botDailyItem(_BOT_QUIZ);
+  return { text: `🎯 오늘의 테니스 퀴즈\n\n❓ ${q.q}\n\n\n\n\n\n✅ 정답: ${q.a}` };
+}
+function _botNotice(text, senderName) {
+  const content = text.replace(/^!공지\s+/, '').trim();
+  if (!content) return null;
+  return { text: `📢 공지사항\n\n${content}\n\n— ${senderName}` };
+}
+
+// ── 메인 트리거 함수 ───────────────────────────────────────────────
+exports.handleBotTriggers = onValueCreated(
+  { ref: 'jmt/banzige/current/messages/{msgId}', region: 'asia-southeast1' },
+  async (event) => {
+    try {
+      const msg = event.data.val();
+      if (!msg || !msg.text || msg.realName === _BOT_NAME) return;
+      const text = (msg.text || '').trim();
+      const senderName = msg.realName || '';
+
+      let trigger = null;
+      for (const { key, pattern } of _BOT_TRIGGERS) {
+        if (pattern.test(text)) { trigger = key; break; }
+      }
+      if (!trigger) return;
+
+      if (trigger === 'notice' && !_BOT_MANAGERS.includes(senderName)) return;
+
+      if (!_BOT_NO_COOLDOWN.has(trigger)) {
+        const coolRef = db.ref(`jmt/botCooldown/${trigger}`);
+        const snap = await coolRef.once('value');
+        if (Date.now() - (snap.val() || 0) < _BOT_COOLDOWN_MS) return;
+        await coolRef.set(Date.now());
+      }
+
+      let result;
+      switch (trigger) {
+        case 'restaurant': result = await _botRestaurant(); break;
+        case 'ranking':    result = await _botRanking(); break;
+        case 'mystats':    result = await _botMyStats(senderName); break;
+        case 'todaymatch': result = await _botTodayMatch(); break;
+        case 'weather':    result = await _botWeather(); break;
+        case 'air':        result = await _botAir(); break;
+        case 'fortune':    result = _botFortune(); break;
+        case 'quote':      result = _botQuote(); break;
+        case 'quiz':       result = _botQuiz(); break;
+        case 'notice':     result = _botNotice(text, senderName); break;
+      }
+      if (result) await _postBotMsg(result);
+    } catch (e) {
+      console.error('handleBotTriggers error:', e);
+    }
+  }
+);
