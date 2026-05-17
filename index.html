@@ -2330,7 +2330,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v526';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v527';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -14963,10 +14963,19 @@ function _restoUpdateThemeButtons() {
 function restoSelectTheme(t) { _restoModalTheme = t; _restoUpdateThemeButtons(); }
 
 async function bzSaveResto() {
-  const name = (document.getElementById('bz-resto-name-input').value || '').trim();
-  if (!name) { alert('맛집 이름을 입력해주세요.'); return; }
   const myName = (state.identity && state.identity.name) || '';
-  const url  = (document.getElementById('bz-resto-url-input').value  || '').trim();
+  const rawUrl = (document.getElementById('bz-resto-url-input').value || '').trim();
+  // 네이버 공유 텍스트("[네이버지도] 맛집명 주소  https://naver.me/xxx") 에서 URL만 추출
+  const urlMatch = rawUrl.match(/https?:\/\/\S+/);
+  const url = urlMatch ? urlMatch[0] : rawUrl;
+  // 이름 입력란이 비어있고 공유 텍스트라면 맛집명 자동 추출 시도
+  let nameInput = document.getElementById('bz-resto-name-input');
+  if (!nameInput.value.trim() && rawUrl.includes('[네이버지도]')) {
+    const m = rawUrl.match(/\[네이버지도\]\s*(.+?)\s{2,}/);
+    if (m) nameInput.value = m[1].trim();
+  }
+  const name = (nameInput.value || '').trim();
+  if (!name) { alert('맛집 이름을 입력해주세요.'); return; }
   const memo = (document.getElementById('bz-resto-memo-input').value || '').trim();
   const data = { name, theme: _restoModalTheme, url, memo, updatedBy: myName, updatedAt: Date.now() };
   if (_restoEditId) {
