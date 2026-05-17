@@ -1439,7 +1439,7 @@ const firebaseConfig = {
     <!-- ══ 범찾게 채팅방 화면 ══ -->
     <div id="bet-screen-banzige" style="display:none">
       <!-- 헤더 — 순백 -->
-      <div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#ffffff;border-bottom:1px solid #e2e8f0">
+      <div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;padding-top:max(env(safe-area-inset-top,0px),10px);background:#ffffff;border-bottom:1px solid #e2e8f0">
         <button onclick="bzLeaveRoom()" style="border:none;background:none;font-size:1.4rem;cursor:pointer;padding:0;color:#64748b">←</button>
         <div style="display:flex;gap:3px;background:#f1f5f9;border-radius:20px;padding:3px">
           <button id="bz-tab-btn-chat" onclick="bzSwitchBzTab('chat')" style="padding:5px 14px;border-radius:16px;border:none;background:#f59e0b;color:#fff;font-size:0.82rem;font-weight:800;cursor:pointer;transition:all 0.15s">💬 채팅</button>
@@ -2320,7 +2320,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v520';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v521';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
