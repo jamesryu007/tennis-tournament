@@ -2330,7 +2330,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v522';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v523';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -14526,7 +14526,7 @@ function bzSendPhoto(e) {
     const file = files[0];
     const senderAlias = (_bzState && _bzState.jinsilTok) ? myName : (_bzCurrentAlias || myName);
     const ts = Date.now();
-    const photoBtn = document.getElementById('bz-btn-photo');
+    const photoBtn = document.getElementById('bz-btn-plus');
     if (file.size > BZ_CONFIG.maxVideoSize) {
       alert(`영상은 최대 ${BZ_CONFIG.maxVideoSize / 1024 / 1024}MB까지 전송할 수 있습니다.`); return;
     }
@@ -14568,7 +14568,7 @@ function bzSendPhoto(e) {
         bzCancelReply();
       })
       .catch(err => { console.error('영상 업로드 오류:', err); alert('영상 전송 실패: ' + (err.message || err)); })
-      .finally(() => { if (photoBtn) { photoBtn.disabled = false; photoBtn.textContent = '📷'; } });
+      .finally(() => { if (photoBtn) { photoBtn.disabled = false; photoBtn.textContent = '+'; } });
     return;
   }
 
@@ -16020,7 +16020,8 @@ function _bzRender() {
   // 입력 영역 — revealed 단계 비활성
   document.getElementById('bz-input-area').style.opacity = phase === 'revealed' ? '0.4' : '1';
   document.getElementById('bz-input').disabled = phase === 'revealed';
-  document.getElementById('bz-btn-photo').disabled = phase === 'revealed';
+  const _bzPlusBtn = document.getElementById('bz-btn-plus');
+  if (_bzPlusBtn) _bzPlusBtn.disabled = phase === 'revealed';
 
   // 채팅 메시지 렌더 — forceBottom=true: jinsilTok/showRealNames 등 비메시지 변경 시 항상 맨 아래 유지
   _bzRenderMessages(phase, true);
