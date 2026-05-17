@@ -685,6 +685,13 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .bet-loser-count-btn{width:40px;height:40px;border-radius:50%;border:2px solid #e2e8f0;background:#f8fafc;font-size:1.2rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#1d4ed8;transition:transform 0.08s, box-shadow 0.08s, background 0.1s;box-shadow:0 4px 0 #bfdbfe;}
 .bet-loser-count-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #bfdbfe;background:#dbeafe;}
 .bet-history-item{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;margin-bottom:10px}
+/* ── 단골맛집 ── */
+.bz-resto-card{background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px}
+.bz-theme-chip{display:inline-flex;align-items:center;padding:4px 10px;border-radius:12px;font-size:0.72rem;font-weight:700;cursor:pointer;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#64748b;white-space:nowrap;transition:all 0.12s;-webkit-tap-highlight-color:transparent}
+.bz-theme-chip.active{background:#f59e0b;border-color:#f59e0b;color:#fff}
+.bz-star{font-size:1.25rem;cursor:pointer;color:#d1d5db;transition:color 0.1s;-webkit-tap-highlight-color:transparent}
+.bz-star.on{color:#f59e0b}
+#bz-picker-filter::-webkit-scrollbar{display:none}
 </style>
 <!-- Firebase SDK (compat) -->
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -1444,6 +1451,7 @@ const firebaseConfig = {
         <div style="display:flex;gap:3px;background:#f1f5f9;border-radius:20px;padding:3px">
           <button id="bz-tab-btn-chat" onclick="bzSwitchBzTab('chat')" style="padding:5px 14px;border-radius:16px;border:none;background:#f59e0b;color:#fff;font-size:0.82rem;font-weight:800;cursor:pointer;transition:all 0.15s">💬 채팅</button>
           <button id="bz-tab-btn-photo" onclick="bzSwitchBzTab('photo')" style="padding:5px 14px;border-radius:16px;border:none;background:none;color:#94a3b8;font-size:0.82rem;font-weight:800;cursor:pointer;transition:all 0.15s">📷 사진</button>
+          <button id="bz-tab-btn-restaurant" onclick="bzSwitchBzTab('restaurant')" style="padding:5px 14px;border-radius:16px;border:none;background:none;color:#94a3b8;font-size:0.82rem;font-weight:800;cursor:pointer;transition:all 0.15s">🍽️ 맛집</button>
         </div>
         <button id="bz-info-toggle" onclick="_bzToggleInfoFrame()" title="정보 접기/펼치기"
           style="border:none;background:none;font-size:1rem;color:#d97706;cursor:pointer;padding:2px;width:28px;height:28px;flex-shrink:0">▽</button>
@@ -1516,6 +1524,7 @@ const firebaseConfig = {
         <div id="bz-chat-empty" style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:30px 0">아직 대화가 없습니다.<br>가명을 선택하고 첫 메시지를 남겨보세요!</div>
       </div>
       <div id="bz-photo-grid" style="display:none;flex:1 1 auto;overflow-y:auto;background:#f0f4fb"></div>
+      <div id="bz-restaurant-tab" style="display:none;flex:1 1 auto;overflow-y:auto;background:#f8fafc;padding:12px"></div>
 
       <!-- 메시지 컨텍스트 메뉴 -->
       <div id="bz-msg-menu" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9100;background:rgba(0,0,0,0.32)" onclick="bzCloseMsgMenu()">
@@ -1572,8 +1581,9 @@ const firebaseConfig = {
         <!-- @멘션 드롭다운 -->
         <div id="bz-mention-dropdown" style="display:none;position:absolute;bottom:100%;left:0;right:0;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 -4px 16px rgba(0,0,0,0.1);max-height:200px;overflow-y:auto;z-index:10"></div>
         <input type="file" id="bz-photo-input" accept="image/*,video/*" multiple style="display:none" onchange="bzSendPhoto(event)">
+        <input type="file" id="bz-camera-input" accept="image/*,video/*" capture="environment" style="display:none" onchange="bzSendPhoto(event)">
         <div style="display:flex;gap:8px;align-items:flex-end">
-          <button id="bz-btn-photo" onclick="bzOpenPhotoInput()" style="padding:9px 11px;border-radius:12px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:1rem;cursor:pointer;flex-shrink:0;margin-bottom:1px">📷</button>
+          <button id="bz-btn-plus" onclick="bzOpenActionSheet()" style="width:36px;height:36px;border-radius:50%;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:1.5rem;font-weight:300;cursor:pointer;flex-shrink:0;margin-bottom:1px;display:flex;align-items:center;justify-content:center;line-height:1">+</button>
           <textarea id="bz-input" placeholder="메시지 입력..." maxlength="1000" rows="1" enterkeyhint="enter"
             oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';_bzHandleMentionInput(this)"
             onfocus="_bzOnInputFocus()"
@@ -2320,7 +2330,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v521';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v522';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8492,7 +8502,7 @@ changeCheckinPhotoRandom();
       setupFirebaseListeners(); // 리스너가 초기 데이터 로드 + 렌더링 처리
       changeTeamPhotoRandom(); // db 초기화 후 랜드스케이프 사진 재로드
       // BZ_REF 등 하위 const가 초기화된 후 실행 (TDZ 방지)
-      setTimeout(() => _bzInitUnreadListener(), 0);
+      setTimeout(() => { _bzInitUnreadListener(); _bzHandleShareTarget(); }, 0);
     } else {
       // ── localStorage 폴백 모드 (Firebase 미설정) ───────────────
       setConnStatus(false);
@@ -14333,7 +14343,7 @@ function bzSetReply(alias, text, realName, msgKey, mediaType) {
   const bar = document.getElementById('bz-reply-bar');
   if (bar) {
     document.getElementById('bz-reply-label').textContent = `↩ '${alias}'에게 답장`;
-    const _previewText = text || (mediaType === 'image' ? '📷 이미지' : mediaType === 'video' ? '🎬 영상' : '[미디어]');
+    const _previewText = text || (mediaType === 'image' ? '📷 이미지' : mediaType === 'video' ? '🎬 영상' : mediaType === 'restaurant' ? '🍽️ 맛집' : '[미디어]');
     document.getElementById('bz-reply-preview').textContent = _previewText.length > 40 ? _previewText.slice(0, 40) + '…' : _previewText;
     bar.style.display = 'flex';
   }
@@ -14733,23 +14743,312 @@ function _bzGetAllPhotos() {
 function bzSwitchBzTab(tab) {
   const chatArea   = document.getElementById('bz-chat-area');
   const photoGrid  = document.getElementById('bz-photo-grid');
+  const restoTab   = document.getElementById('bz-restaurant-tab');
   const inputArea  = document.getElementById('bz-input-area');
   const chatBtn    = document.getElementById('bz-tab-btn-chat');
   const photoBtn   = document.getElementById('bz-tab-btn-photo');
+  const restoBtn   = document.getElementById('bz-tab-btn-restaurant');
   if (!chatArea || !photoGrid) return;
-  const isPhoto = tab === 'photo';
-  chatArea.style.display  = isPhoto ? 'none' : 'flex';
-  inputArea.style.display = isPhoto ? 'none' : '';
-  photoGrid.style.display = isPhoto ? 'block' : 'none';
-  if (chatBtn)  { chatBtn.style.background  = isPhoto ? 'none' : '#f59e0b'; chatBtn.style.color  = isPhoto ? '#94a3b8' : '#fff'; }
-  if (photoBtn) { photoBtn.style.background = isPhoto ? '#f59e0b' : 'none'; photoBtn.style.color = isPhoto ? '#fff' : '#94a3b8'; }
-  if (isPhoto) {
+  chatArea.style.display  = tab === 'chat' ? 'flex' : 'none';
+  inputArea.style.display = tab === 'chat' ? '' : 'none';
+  photoGrid.style.display = tab === 'photo' ? 'block' : 'none';
+  if (restoTab) restoTab.style.display = tab === 'restaurant' ? 'block' : 'none';
+  const _setTab = (btn, on) => { if (btn) { btn.style.background = on ? '#f59e0b' : 'none'; btn.style.color = on ? '#fff' : '#94a3b8'; } };
+  _setTab(chatBtn, tab === 'chat');
+  _setTab(photoBtn, tab === 'photo');
+  _setTab(restoBtn, tab === 'restaurant');
+  if (tab === 'photo') {
     if (window._bzPhotoGridCleanup) { window._bzPhotoGridCleanup(); window._bzPhotoGridCleanup = null; }
     photoGrid.style.transform = '';
     photoGrid.style.opacity = '';
     _bzRenderPhotoGrid();
+  } else if (tab === 'restaurant') {
+    if (window._bzPhotoGridCleanup) { window._bzPhotoGridCleanup(); window._bzPhotoGridCleanup = null; }
+    _restoSubscribe();
+    _bzRenderRestoTab();
   } else {
     if (window._bzPhotoGridCleanup) { window._bzPhotoGridCleanup(); window._bzPhotoGridCleanup = null; }
+  }
+}
+
+// ══ 자미터 단골집 ══════════════════════════════════════════════════
+
+const RESTO_THEMES = ['전체', '한식', '중식', '일식', '양식', '태국', '기타'];
+const RESTO_THEME_EMOJI = { '한식':'🍚', '중식':'🥡', '일식':'🍣', '양식':'🍝', '태국':'🌶️', '기타':'🍴' };
+
+let _restoData = {};
+let _restoRatingsData = {};
+let _restoTabFilter = '전체';
+let _restoPickerFilter = '전체';
+let _restoEditId = null;
+let _restoModalTheme = '한식';
+let _restoSubscribed = false;
+
+function _restoSubscribe() {
+  if (_restoSubscribed) return;
+  _restoSubscribed = true;
+  db.ref('jmt/restaurants').on('value', snap => {
+    _restoData = snap.val() || {};
+    _bzRenderRestoTab();
+    _bzRenderRestoPicker();
+  });
+  db.ref('jmt/restaurantRatings').on('value', snap => {
+    _restoRatingsData = snap.val() || {};
+    _bzRenderRestoTab();
+    _bzRenderRestoPicker();
+  });
+}
+
+function _restoAvgRating(id) {
+  const scores = Object.values(_restoRatingsData[id] || {}).map(r => r.score || 0).filter(s => s > 0);
+  if (!scores.length) return 0;
+  return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length * 10) / 10;
+}
+
+function _restoMyRating(id) {
+  const myName = (state.identity && state.identity.name) || '';
+  return (_restoRatingsData[id] && _restoRatingsData[id][myName] && _restoRatingsData[id][myName].score) || 0;
+}
+
+// ── 단골맛집 탭 렌더 ─────────────────────────────────────────────
+function _bzRenderRestoTab() {
+  const el = document.getElementById('bz-restaurant-tab');
+  if (!el || el.style.display === 'none') return;
+  const entries = Object.entries(_restoData).sort((a, b) => (b[1].visitCount || 0) - (a[1].visitCount || 0));
+  const filtered = _restoTabFilter === '전체' ? entries : entries.filter(([, r]) => r.theme === _restoTabFilter);
+  let html = `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none;margin-bottom:8px">`;
+  RESTO_THEMES.forEach(t => {
+    html += `<button class="bz-theme-chip${_restoTabFilter===t?' active':''}" onclick="_restoSetTabFilter('${t}')">${t==='전체'?'🍽️ 전체':(RESTO_THEME_EMOJI[t]||'')+'&nbsp;'+t}</button>`;
+  });
+  html += `</div>`;
+  html += `<button onclick="bzOpenRestoModal(null)" style="width:100%;padding:11px;border-radius:12px;border:1.5px dashed #fcd34d;background:#fffbeb;font-size:0.88rem;font-weight:700;color:#d97706;cursor:pointer;margin-bottom:10px;font-family:inherit">+ 맛집 등록</button>`;
+  if (!filtered.length) {
+    html += `<div style="text-align:center;padding:40px 0;color:#94a3b8;font-size:0.85rem">아직 등록된 맛집이 없습니다.<br>위 버튼으로 추가해보세요!</div>`;
+  } else {
+    filtered.forEach(([id, r]) => {
+      const avg = _restoAvgRating(id);
+      const myRating = _restoMyRating(id);
+      const ratingCount = Object.keys(_restoRatingsData[id] || {}).length;
+      const idEsc = id.replace(/'/g, "\\'");
+      html += `<div class="bz-resto-card">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+            <span style="font-size:0.72rem;background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:10px;font-weight:700">${RESTO_THEME_EMOJI[r.theme]||'🍴'} ${r.theme||'기타'}</span>
+            ${r.url?`<span style="font-size:0.7rem;color:#2563eb;font-weight:600">📍</span>`:''}
+          </div>
+          <div style="font-size:0.95rem;font-weight:800;color:#1e293b;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.name}</div>
+          <div style="display:flex;align-items:center;gap:2px;margin-bottom:3px">
+            ${[1,2,3,4,5].map(s=>`<span class="bz-star${myRating>=s?' on':''}" onclick="bzRateResto('${idEsc}',${s})">★</span>`).join('')}
+            <span style="font-size:0.72rem;color:#64748b;margin-left:4px">${avg>0?`⭐${avg} (${ratingCount}명)`:'별점 없음'}</span>
+          </div>
+          <div style="font-size:0.72rem;color:#94a3b8">방문 ${r.visitCount||0}회${r.memo?` · ${r.memo}`:''}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;margin-left:6px">
+          <button onclick="bzShareRestoToChat('${idEsc}')" style="padding:6px 10px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">💬 공유</button>
+          ${r.url?`<button onclick="bzOpenRestoUrl('${idEsc}')" style="padding:6px 10px;border-radius:10px;border:1.5px solid #bfdbfe;background:#eff6ff;color:#2563eb;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">🗺️ 지도</button>`:''}
+          <button onclick="bzOpenRestoModal('${idEsc}')" style="padding:6px 10px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">✏️ 수정</button>
+        </div>
+      </div>`;
+    });
+  }
+  el.innerHTML = html;
+}
+
+function _restoSetTabFilter(t) {
+  _restoTabFilter = t;
+  _bzRenderRestoTab();
+}
+
+// ── 빠른공유 피커 ─────────────────────────────────────────────────
+function _bzRenderRestoPicker() {
+  const listEl   = document.getElementById('bz-picker-list');
+  const filterEl = document.getElementById('bz-picker-filter');
+  if (!listEl) return;
+  if (filterEl) {
+    filterEl.innerHTML = RESTO_THEMES.map(t =>
+      `<button class="bz-theme-chip${_restoPickerFilter===t?' active':''}" onclick="_restoSetPickerFilter('${t}')" style="flex-shrink:0">${t==='전체'?'전체':(RESTO_THEME_EMOJI[t]||'')+' '+t}</button>`
+    ).join('');
+  }
+  const entries = Object.entries(_restoData).sort((a, b) => (b[1].visitCount || 0) - (a[1].visitCount || 0));
+  const filtered = _restoPickerFilter === '전체' ? entries : entries.filter(([, r]) => r.theme === _restoPickerFilter);
+  if (!filtered.length) {
+    listEl.innerHTML = `<div style="text-align:center;padding:30px 0;color:#94a3b8;font-size:0.85rem">등록된 맛집이 없습니다.<br><button onclick="bzCloseRestoPicker();bzOpenRestoModal(null)" style="margin-top:8px;padding:8px 16px;border-radius:10px;border:1.5px solid #fcd34d;background:#fffbeb;color:#d97706;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit">+ 등록하기</button></div>`;
+    return;
+  }
+  listEl.innerHTML = filtered.map(([id, r]) => {
+    const avg = _restoAvgRating(id);
+    const idEsc = id.replace(/'/g, "\\'");
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f1f5f9">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
+          <span style="font-size:0.7rem;background:#fef3c7;color:#d97706;padding:1px 7px;border-radius:8px;font-weight:700">${RESTO_THEME_EMOJI[r.theme]||'🍴'} ${r.theme||'기타'}</span>
+        </div>
+        <div style="font-size:0.92rem;font-weight:800;color:#1e293b">${r.name}</div>
+        <div style="font-size:0.72rem;color:#94a3b8">${avg>0?`⭐${avg} · `:''}방문 ${r.visitCount||0}회</div>
+      </div>
+      <button onclick="bzShareRestoToChat('${idEsc}');bzCloseRestoPicker()" style="padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.82rem;font-weight:700;cursor:pointer;flex-shrink:0;font-family:inherit">공유</button>
+    </div>`;
+  }).join('');
+}
+
+function _restoSetPickerFilter(t) {
+  _restoPickerFilter = t;
+  _bzRenderRestoPicker();
+}
+
+// ── 액션시트 ─────────────────────────────────────────────────────
+function bzOpenActionSheet() {
+  const phase = (_bzState && _bzState.phase) || '';
+  if (phase === 'revealed') return;
+  const s = document.getElementById('bz-action-sheet');
+  if (s) s.style.display = 'flex';
+}
+function bzCloseActionSheet() {
+  const s = document.getElementById('bz-action-sheet');
+  if (s) s.style.display = 'none';
+}
+function bzActionGallery() { bzCloseActionSheet(); document.getElementById('bz-photo-input').click(); }
+function bzActionCamera()  { bzCloseActionSheet(); document.getElementById('bz-camera-input').click(); }
+function bzActionRestoList() { bzCloseActionSheet(); setTimeout(bzOpenRestoPicker, 150); }
+
+// ── 피커 ─────────────────────────────────────────────────────────
+function bzOpenRestoPicker() {
+  _restoSubscribe();
+  _bzRenderRestoPicker();
+  const s = document.getElementById('bz-resto-picker-sheet');
+  if (s) s.style.display = 'flex';
+}
+function bzCloseRestoPicker() {
+  const s = document.getElementById('bz-resto-picker-sheet');
+  if (s) s.style.display = 'none';
+}
+
+// ── 등록/수정 모달 ───────────────────────────────────────────────
+function bzOpenRestoModal(editId) {
+  _restoEditId = editId;
+  const r = editId ? (_restoData[editId] || {}) : {};
+  document.getElementById('bz-resto-modal-title').textContent = editId ? '✏️ 맛집 수정' : '🍽️ 단골맛집 등록';
+  document.getElementById('bz-resto-name-input').value = r.name || '';
+  document.getElementById('bz-resto-url-input').value  = r.url  || '';
+  document.getElementById('bz-resto-memo-input').value = r.memo || '';
+  _restoModalTheme = r.theme || '한식';
+  // 공유타겟 pending 데이터 자동입력 (등록 모드)
+  if (!editId && window._restoPendingShare) {
+    document.getElementById('bz-resto-name-input').value = window._restoPendingShare.title || '';
+    document.getElementById('bz-resto-url-input').value  = window._restoPendingShare.url   || '';
+    window._restoPendingShare = null;
+  }
+  _restoUpdateThemeButtons();
+  const delBtn = document.getElementById('bz-resto-delete-btn');
+  if (delBtn) delBtn.style.display = editId ? 'block' : 'none';
+  const modal = document.getElementById('bz-resto-modal');
+  if (modal) modal.style.display = 'flex';
+  if (!editId) setTimeout(_restoCheckClipboard, 300);
+}
+function bzCloseRestoModal() {
+  const modal = document.getElementById('bz-resto-modal');
+  if (modal) modal.style.display = 'none';
+  _restoEditId = null;
+}
+function _restoUpdateThemeButtons() {
+  RESTO_THEMES.filter(t => t !== '전체').forEach(t => {
+    const btn = document.getElementById(`bz-theme-btn-${t}`);
+    if (!btn) return;
+    const on = _restoModalTheme === t;
+    btn.style.background   = on ? '#f59e0b' : '#f1f5f9';
+    btn.style.color        = on ? '#fff' : '#64748b';
+    btn.style.borderColor  = on ? '#f59e0b' : '#e2e8f0';
+  });
+}
+function restoSelectTheme(t) { _restoModalTheme = t; _restoUpdateThemeButtons(); }
+
+async function bzSaveResto() {
+  const name = (document.getElementById('bz-resto-name-input').value || '').trim();
+  if (!name) { alert('맛집 이름을 입력해주세요.'); return; }
+  const myName = (state.identity && state.identity.name) || '';
+  const url  = (document.getElementById('bz-resto-url-input').value  || '').trim();
+  const memo = (document.getElementById('bz-resto-memo-input').value || '').trim();
+  const data = { name, theme: _restoModalTheme, url, memo, updatedBy: myName, updatedAt: Date.now() };
+  if (_restoEditId) {
+    await db.ref(`jmt/restaurants/${_restoEditId}`).update(data).catch(fbErr);
+  } else {
+    data.createdBy = myName; data.createdAt = Date.now(); data.visitCount = 0;
+    await db.ref('jmt/restaurants').push(data).catch(fbErr);
+  }
+  bzCloseRestoModal();
+}
+function bzDeleteResto() {
+  if (!_restoEditId || !confirm('이 맛집을 삭제할까요?')) return;
+  db.ref(`jmt/restaurants/${_restoEditId}`).remove().catch(fbErr);
+  db.ref(`jmt/restaurantRatings/${_restoEditId}`).remove().catch(fbErr);
+  bzCloseRestoModal();
+}
+
+// ── 별점 ─────────────────────────────────────────────────────────
+function bzRateResto(id, score) {
+  const myName = (state.identity && state.identity.name) || '';
+  if (!myName) { alert('로그인 후 이용하세요.'); return; }
+  const cur = _restoMyRating(id);
+  const newScore = cur === score ? 0 : score;
+  if (newScore === 0) {
+    db.ref(`jmt/restaurantRatings/${id}/${myName}`).remove().catch(fbErr);
+  } else {
+    db.ref(`jmt/restaurantRatings/${id}/${myName}`).set({ score: newScore, createdAt: Date.now() }).catch(fbErr);
+  }
+}
+
+// ── 채팅 공유 ─────────────────────────────────────────────────────
+function bzShareRestoToChat(id) {
+  const r = _restoData[id];
+  if (!r) return;
+  const myName = (state.identity && state.identity.name) || '';
+  if (!myName) { alert('로그인 후 이용하세요.'); return; }
+  const phase = (_bzState && _bzState.phase) || 'chatting';
+  if (phase === 'revealed') { alert('게임이 종료되었습니다.'); return; }
+  const senderAlias = (_bzState && _bzState.jinsilTok) ? myName : (_bzCurrentAlias || myName);
+  const avg = _restoAvgRating(id);
+  const msgData = {
+    alias: senderAlias, realName: myName, ts: Date.now(),
+    type: 'restaurant',
+    restaurantId: id, restaurantName: r.name, restaurantTheme: r.theme || '기타',
+    restaurantUrl: r.url || '', restaurantAvgRating: avg || 0,
+    restaurantVisitCount: (r.visitCount || 0) + 1,
+  };
+  db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
+  db.ref(`jmt/restaurants/${id}/visitCount`).transaction(cur => (cur || 0) + 1).catch(fbErr);
+  bzSwitchBzTab('chat');
+}
+function bzOpenRestoUrl(id) {
+  const r = _restoData[id];
+  if (r && r.url) window.open(r.url, '_blank');
+}
+
+// ── 클립보드 자동 감지 ────────────────────────────────────────────
+function _restoCheckClipboard() {
+  if (!navigator.clipboard || !navigator.clipboard.readText) return;
+  navigator.clipboard.readText().then(text => {
+    if (!text) return;
+    if (!(text.includes('naver.me') || text.includes('map.naver.com'))) return;
+    const urlInput = document.getElementById('bz-resto-url-input');
+    if (!urlInput || urlInput.value) return;
+    if (confirm('클립보드에 네이버 지도 링크가 있습니다.\n자동으로 입력할까요?')) {
+      urlInput.value = text.trim();
+    }
+  }).catch(() => {});
+}
+
+// ── Web Share Target 처리 ─────────────────────────────────────────
+function _bzHandleShareTarget() {
+  const params = new URLSearchParams(location.search);
+  if (params.get('action') !== 'share-restaurant') return;
+  const sharedTitle = params.get('title') || '';
+  const sharedUrl   = params.get('url')   || '';
+  history.replaceState({}, '', location.pathname);
+  if (sharedTitle || sharedUrl) {
+    window._restoPendingShare = { title: sharedTitle, url: sharedUrl };
+    setTimeout(() => {
+      alert(`네이버 지도 공유 링크가 수신되었습니다.\n자미톡방 → 🍽️ 맛집 탭에서 등록해주세요.\n\n맛집명: ${sharedTitle || '(직접 입력)'}`);
+    }, 1000);
   }
 }
 
@@ -16066,8 +16365,18 @@ function _bzRenderMessages(phase, forceBottom) {
       ? `<div data-bzbubble="1" style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
           ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
+      : m.type === 'restaurant'
+      ? `<div data-bzbubble="1" onclick="bzOpenRestoUrl('${(m.restaurantId||'').replace(/'/g,"\\'")}');" style="max-width:82%;border-radius:${bubbleRadius};border:${bubbleBorder};overflow:hidden;cursor:${m.restaurantUrl?'pointer':'default'};background:${bubbleBg}">
+          ${replyBox}
+          <div style="padding:10px 12px">
+            <div style="font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.75)':'#94a3b8'};margin-bottom:3px">${RESTO_THEME_EMOJI[m.restaurantTheme]||'🍴'} ${m.restaurantTheme||''}</div>
+            <div style="font-size:0.95rem;font-weight:800;color:${isMine?'#fff':'#1e293b'};margin-bottom:4px">🍽️ ${m.restaurantName||'맛집'}</div>
+            <div style="font-size:0.75rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'}">${m.restaurantAvgRating?`⭐ ${m.restaurantAvgRating} · `:''}방문 ${m.restaurantVisitCount||0}회</div>
+            ${m.restaurantUrl?`<div style="font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#2563eb'};margin-top:5px;font-weight:600">👉 네이버 지도 →</div>`:''}
+          </div>
+        </div>`
       : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.93rem;border:${bubbleBorder};word-break:break-word;white-space:pre-wrap;cursor:pointer;-webkit-tap-highlight-color:transparent">${replyBox}${_bzLinkify(m.text)}</div>`;
-    window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl, mediaType: m.videoUrl ? 'video' : _photos ? 'photos' : (m.imageUrl || m.imageData) ? 'image' : '' };
+    window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl, mediaType: m.videoUrl ? 'video' : _photos ? 'photos' : (m.imageUrl || m.imageData) ? 'image' : m.type === 'restaurant' ? 'restaurant' : '' };
     const dateSepHtml = _bzShowDateSep[i] ? `<div style="text-align:center;padding:10px 0 4px"><span style="background:#e2e8f0;color:#64748b;font-size:0.7rem;padding:3px 14px;border-radius:20px;font-weight:600">${_bzFormatDateLabel(m.ts)}</span></div>` : '';
     const timeHtml = _bzShowTime[i] ? `<span data-bztime="1" style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;align-self:flex-end;padding-bottom:2px">${_bzFormatTime(m.ts)}</span>` : '';
     const showName = _bzShowName[i];
@@ -16259,8 +16568,18 @@ function _bzIncrementalUpdateMessages(newMessages) {
       ? `<div data-bzbubble="1" style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
           ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
+      : m.type === 'restaurant'
+      ? `<div data-bzbubble="1" onclick="bzOpenRestoUrl('${(m.restaurantId||'').replace(/'/g,"\\'")}');" style="max-width:82%;border-radius:${bubbleRadius};border:${bubbleBorder};overflow:hidden;cursor:${m.restaurantUrl?'pointer':'default'};background:${bubbleBg}">
+          ${replyBox}
+          <div style="padding:10px 12px">
+            <div style="font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.75)':'#94a3b8'};margin-bottom:3px">${RESTO_THEME_EMOJI[m.restaurantTheme]||'🍴'} ${m.restaurantTheme||''}</div>
+            <div style="font-size:0.95rem;font-weight:800;color:${isMine?'#fff':'#1e293b'};margin-bottom:4px">🍽️ ${m.restaurantName||'맛집'}</div>
+            <div style="font-size:0.75rem;color:${isMine?'rgba(255,255,255,0.85)':'#64748b'}">${m.restaurantAvgRating?`⭐ ${m.restaurantAvgRating} · `:''}방문 ${m.restaurantVisitCount||0}회</div>
+            ${m.restaurantUrl?`<div style="font-size:0.72rem;color:${isMine?'rgba(255,255,255,0.85)':'#2563eb'};margin-top:5px;font-weight:600">👉 네이버 지도 →</div>`:''}
+          </div>
+        </div>`
       : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.93rem;border:${bubbleBorder};word-break:break-word;white-space:pre-wrap;cursor:pointer;-webkit-tap-highlight-color:transparent">${replyBox}${_bzLinkify(m.text)}</div>`;
-    window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl, mediaType: m.videoUrl ? 'video' : _photos ? 'photos' : (m.imageUrl || m.imageData) ? 'image' : '' };
+    window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl, mediaType: m.videoUrl ? 'video' : _photos ? 'photos' : (m.imageUrl || m.imageData) ? 'image' : m.type === 'restaurant' ? 'restaurant' : '' };
     const _msgMargin = _showName ? '10px' : '0';
     const _msgGap = _showName ? '2px' : '1px';
     const html = isMine
@@ -18070,5 +18389,64 @@ function deleteMpHistory(pollId, event) {
   }, { passive: true });
 })();
 </script>
+
+<!-- ══ 자미터 단골집 — 액션시트 ══ -->
+<div id="bz-action-sheet" style="display:none;position:fixed;inset:0;z-index:710;background:rgba(0,0,0,0.45);align-items:flex-end" onclick="bzCloseActionSheet()">
+  <div style="width:100%;background:#fff;border-radius:20px 20px 0 0;padding:16px 16px max(env(safe-area-inset-bottom,20px),20px)" onclick="event.stopPropagation()">
+    <div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px"></div>
+    <button onclick="bzActionGallery()" style="width:100%;padding:14px;border-radius:12px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:0.92rem;font-weight:700;cursor:pointer;margin-bottom:8px;text-align:left;font-family:inherit;color:#1e293b">📷 사진 보관함</button>
+    <button onclick="bzActionCamera()" style="width:100%;padding:14px;border-radius:12px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:0.92rem;font-weight:700;cursor:pointer;margin-bottom:8px;text-align:left;font-family:inherit;color:#1e293b">📸 사진 찍기</button>
+    <button onclick="bzActionRestoList()" style="width:100%;padding:14px;border-radius:12px;border:1.5px solid #fde68a;background:#fffbeb;font-size:0.92rem;font-weight:700;cursor:pointer;margin-bottom:8px;text-align:left;font-family:inherit;color:#d97706">🍽️ 자미터 단골집</button>
+    <button onclick="bzCloseActionSheet()" style="width:100%;padding:12px;border-radius:12px;border:none;background:#f1f5f9;font-size:0.92rem;font-weight:700;cursor:pointer;color:#64748b;font-family:inherit">취소</button>
+  </div>
+</div>
+
+<!-- ══ 자미터 단골집 — 빠른공유 피커 ══ -->
+<div id="bz-resto-picker-sheet" style="display:none;position:fixed;inset:0;z-index:720;background:rgba(0,0,0,0.45);align-items:flex-end" onclick="bzCloseRestoPicker()">
+  <div style="width:100%;max-height:72vh;background:#fff;border-radius:20px 20px 0 0;display:flex;flex-direction:column;padding-bottom:max(env(safe-area-inset-bottom,16px),16px)" onclick="event.stopPropagation()">
+    <div style="flex-shrink:0;padding:14px 16px 8px">
+      <div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 12px"></div>
+      <div style="font-size:1rem;font-weight:800;color:#1e293b;margin-bottom:10px">🍽️ 자미터 단골집</div>
+      <div id="bz-picker-filter" style="display:flex;gap:6px;overflow-x:auto;padding-bottom:6px"></div>
+    </div>
+    <div id="bz-picker-list" style="flex:1;overflow-y:auto;padding:0 16px 8px"></div>
+  </div>
+</div>
+
+<!-- ══ 자미터 단골집 — 등록/수정 모달 ══ -->
+<div id="bz-resto-modal" style="display:none;position:fixed;inset:0;z-index:730;background:rgba(0,0,0,0.45);align-items:flex-end" onclick="bzCloseRestoModal()">
+  <div style="width:100%;background:#fff;border-radius:20px 20px 0 0;padding:20px 16px max(env(safe-area-inset-bottom,24px),24px);max-height:88vh;overflow-y:auto" onclick="event.stopPropagation()">
+    <div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div id="bz-resto-modal-title" style="font-size:1rem;font-weight:800;color:#1e293b">🍽️ 단골맛집 등록</div>
+      <button onclick="bzCloseRestoModal()" style="border:none;background:none;font-size:1.3rem;color:#94a3b8;cursor:pointer">✕</button>
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:5px">맛집 이름 *</div>
+      <input id="bz-resto-name-input" type="text" placeholder="예: 스시하루" maxlength="30" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.9rem;background:#f8fafc;outline:none;font-family:inherit">
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:7px">음식 테마</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        <button id="bz-theme-btn-한식" onclick="restoSelectTheme('한식')" style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍚 한식</button>
+        <button id="bz-theme-btn-중식" onclick="restoSelectTheme('중식')" style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🥡 중식</button>
+        <button id="bz-theme-btn-일식" onclick="restoSelectTheme('일식')" style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍣 일식</button>
+        <button id="bz-theme-btn-양식" onclick="restoSelectTheme('양식')" style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍝 양식</button>
+        <button id="bz-theme-btn-태국" onclick="restoSelectTheme('태국')" style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🌶️ 태국</button>
+        <button id="bz-theme-btn-기타" onclick="restoSelectTheme('기타')" style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍴 기타</button>
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:5px">네이버 지도 링크 <span style="font-weight:400;color:#94a3b8">(선택)</span></div>
+      <input id="bz-resto-url-input" type="url" placeholder="https://naver.me/..." style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.85rem;background:#f8fafc;outline:none;font-family:inherit">
+    </div>
+    <div style="margin-bottom:18px">
+      <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:5px">메모 <span style="font-weight:400;color:#94a3b8">(선택)</span></div>
+      <input id="bz-resto-memo-input" type="text" placeholder="주차 가능, 단체석 있음 등" maxlength="60" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.85rem;background:#f8fafc;outline:none;font-family:inherit">
+    </div>
+    <button onclick="bzSaveResto()" style="width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.95rem;font-weight:800;cursor:pointer;margin-bottom:8px;font-family:inherit">저장하기</button>
+    <button id="bz-resto-delete-btn" onclick="bzDeleteResto()" style="display:none;width:100%;padding:12px;border-radius:12px;border:1.5px solid #fca5a5;background:#fff;color:#dc2626;font-size:0.88rem;font-weight:700;cursor:pointer;font-family:inherit">삭제</button>
+  </div>
+</div>
 </body>
 </html>
