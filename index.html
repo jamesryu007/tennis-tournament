@@ -1582,8 +1582,9 @@ const firebaseConfig = {
         <div id="bz-mention-dropdown" style="display:none;position:absolute;bottom:100%;left:0;right:0;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 -4px 16px rgba(0,0,0,0.1);max-height:200px;overflow-y:auto;z-index:10"></div>
         <input type="file" id="bz-photo-input" accept="image/*" multiple style="display:none" onchange="bzSendPhoto(event)">
         <input type="file" id="bz-camera-input" accept="image/*,video/*" capture="environment" style="display:none" onchange="bzSendPhoto(event)">
-        <div style="display:flex;gap:8px;align-items:flex-end">
-          <button id="bz-btn-plus" onclick="bzOpenActionSheet()" style="width:36px;height:36px;border-radius:50%;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:1.5rem;font-weight:300;cursor:pointer;flex-shrink:0;margin-bottom:1px;display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+        <div style="display:flex;gap:6px;align-items:flex-end">
+          <button id="bz-btn-plus" onclick="document.getElementById('bz-photo-input').click()" style="width:34px;height:34px;border-radius:50%;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:1.1rem;cursor:pointer;flex-shrink:0;margin-bottom:1px;display:flex;align-items:center;justify-content:center;line-height:1">📷</button>
+          <button id="bz-btn-camera" onclick="document.getElementById('bz-camera-input').click()" style="width:34px;height:34px;border-radius:50%;border:none;background:linear-gradient(135deg,#64748b,#475569);color:#fff;font-size:1.1rem;cursor:pointer;flex-shrink:0;margin-bottom:1px;display:flex;align-items:center;justify-content:center;line-height:1">📸</button>
           <textarea id="bz-input" placeholder="메시지 입력..." maxlength="1000" rows="1" enterkeyhint="enter"
             oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';_bzHandleMentionInput(this)"
             onfocus="_bzOnInputFocus()"
@@ -2330,7 +2331,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v524';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v525';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -15037,6 +15038,24 @@ function _restoCheckClipboard() {
   }).catch(() => {});
 }
 
+function _restoPasteClipboard() {
+  if (!navigator.clipboard || !navigator.clipboard.readText) {
+    alert('클립보드 접근이 지원되지 않습니다.\n직접 붙여넣기(길게 누르기)를 사용해주세요.');
+    return;
+  }
+  navigator.clipboard.readText().then(text => {
+    const urlInput = document.getElementById('bz-resto-url-input');
+    if (!urlInput) return;
+    if (!text || !(text.includes('naver.me') || text.includes('map.naver.com') || text.startsWith('http'))) {
+      alert('클립보드에 유효한 링크가 없습니다.\n네이버 지도 앱에서 공유 → 링크 복사 후 다시 시도하세요.');
+      return;
+    }
+    urlInput.value = text.trim();
+  }).catch(() => {
+    alert('클립보드 접근 권한이 없습니다.\nURL 입력란을 길게 눌러 직접 붙여넣기 해주세요.');
+  });
+}
+
 // ── Web Share Target 처리 ─────────────────────────────────────────
 function _bzHandleShareTarget() {
   const params = new URLSearchParams(location.search);
@@ -16022,6 +16041,8 @@ function _bzRender() {
   document.getElementById('bz-input').disabled = phase === 'revealed';
   const _bzPlusBtn = document.getElementById('bz-btn-plus');
   if (_bzPlusBtn) _bzPlusBtn.disabled = phase === 'revealed';
+  const _bzCamBtn = document.getElementById('bz-btn-camera');
+  if (_bzCamBtn) _bzCamBtn.disabled = phase === 'revealed';
 
   // 채팅 메시지 렌더 — forceBottom=true: jinsilTok/showRealNames 등 비메시지 변경 시 항상 맨 아래 유지
   _bzRenderMessages(phase, true);
@@ -18439,7 +18460,11 @@ function deleteMpHistory(pollId, event) {
     </div>
     <div style="margin-bottom:12px">
       <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:5px">네이버 지도 링크 <span style="font-weight:400;color:#94a3b8">(선택)</span></div>
-      <input id="bz-resto-url-input" type="url" placeholder="https://naver.me/..." style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.85rem;background:#f8fafc;outline:none;font-family:inherit">
+      <div style="display:flex;gap:6px;align-items:center">
+        <input id="bz-resto-url-input" type="url" placeholder="https://naver.me/..." style="flex:1;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.85rem;background:#f8fafc;outline:none;font-family:inherit">
+        <button onclick="_restoPasteClipboard()" style="padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:0.78rem;font-weight:700;color:#d97706;cursor:pointer;white-space:nowrap;font-family:inherit">📋 붙여넣기</button>
+      </div>
+      <div style="font-size:0.72rem;color:#94a3b8;margin-top:4px">네이버 지도 앱 → 공유 → 링크 복사 후 붙여넣기</div>
     </div>
     <div style="margin-bottom:18px">
       <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:5px">메모 <span style="font-weight:400;color:#94a3b8">(선택)</span></div>
