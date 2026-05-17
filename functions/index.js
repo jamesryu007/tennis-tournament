@@ -1677,12 +1677,13 @@ exports.handleBotTriggers = onValueCreated(
 
       if (trigger === 'notice' && !_BOT_MANAGERS.includes(senderName)) return;
 
-      if (!_BOT_NO_COOLDOWN.has(trigger)) {
-        const coolRef = db.ref(`jmt/botCooldown/${trigger}`);
-        const snap = await coolRef.once('value');
-        if (Date.now() - (snap.val() || 0) < _BOT_COOLDOWN_MS) return;
-        await coolRef.set(Date.now());
-      }
+      // 쿨다운 비활성화 (테스트 중) — 나중에 다시 활성화
+      // if (!_BOT_NO_COOLDOWN.has(trigger)) {
+      //   const coolRef = db.ref(`jmt/botCooldown/${trigger}`);
+      //   const snap = await coolRef.once('value');
+      //   if (Date.now() - (snap.val() || 0) < _BOT_COOLDOWN_MS) return;
+      //   await coolRef.set(Date.now());
+      // }
 
       let result;
       switch (trigger) {
