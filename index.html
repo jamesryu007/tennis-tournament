@@ -2320,7 +2320,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v515';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v516';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4825,9 +4825,8 @@ async function generateAutoDrawCards(){
     w.textContent='경기 수를 1개 이상 선택해주세요.'; w.style.display='';
     return;
   }
-  // done 카드는 유지, setup/playing 카드만 삭제 (playing은 위에서 차단됨)
+  // 기존 모든 카드 삭제 (done 포함 — done은 차단 조건에서만 제외)
   for(const aid of Object.keys(_dailyCards)){
-    if(_dailyCards[aid].phase==='done') continue;
     if(String(aid).startsWith('-')) db.ref(`jmt/dailyCards/${aid}`).remove().catch(fbErr);
     delete _dailyCards[aid];
     const ael=document.getElementById(`daily-card-${aid}`);
