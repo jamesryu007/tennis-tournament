@@ -19,7 +19,7 @@
 /* ── 전역 버튼 눌림 효과 (클래스별 :active가 없는 inline 버튼 커버) ── */
 button:not([disabled]) { transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.1s ease, opacity 0.1s ease; }
 button:not([disabled]):active { transform: translateY(1px); opacity: 0.88; }
-body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; color: #1e293b; min-height: 100vh; padding-bottom: 70px; font-size: 15px; overflow-x: hidden; }
+body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; color: #1e293b; min-height: 100vh; padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); font-size: 15px; overflow-x: hidden; }
 
 /* ── HEADER ── */
 .app-header { background: #ffffff; padding: 14px 16px 11px; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 200; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
@@ -27,7 +27,7 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
 .app-header p { font-size: 0.72rem; color: #94a3b8; margin-top: 1px; }
 
 /* ── BOTTOM NAV ── */
-.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 76px; background: #ffffff; border-top: 1px solid #e2e8f0; display: flex; z-index: 50; padding-bottom: env(safe-area-inset-bottom, 0px); box-shadow: 0 -2px 10px rgba(0,0,0,0.06); }
+.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: calc(76px + env(safe-area-inset-bottom, 0px)); background: #ffffff; border-top: 1px solid #e2e8f0; display: flex; z-index: 50; padding-bottom: env(safe-area-inset-bottom, 0px); box-shadow: 0 -2px 10px rgba(0,0,0,0.06); }
 .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; color: #94a3b8; font-size: 0.65rem; letter-spacing: 0.2px; transition: color 0.15s, transform 0.08s, background 0.08s; padding: 8px 2px; position: relative; user-select: none; -webkit-tap-highlight-color: transparent; }
 .nav-item .ni { font-size: 1.45rem; line-height: 1; transition: transform 0.15s, filter 0.15s; }
 .nav-item:active { transform: translateY(2px); background: rgba(37,99,235,0.06); border-radius: 10px; }
@@ -1439,7 +1439,7 @@ const firebaseConfig = {
     <!-- ══ 범찾게 채팅방 화면 ══ -->
     <div id="bet-screen-banzige" style="display:none">
       <!-- 헤더 — 순백 -->
-      <div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#ffffff;border-bottom:1px solid #e2e8f0">
+      <div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;padding-top:max(env(safe-area-inset-top,0px),10px);background:#ffffff;border-bottom:1px solid #e2e8f0">
         <button onclick="bzLeaveRoom()" style="border:none;background:none;font-size:1.4rem;cursor:pointer;padding:0;color:#64748b">←</button>
         <div style="display:flex;gap:3px;background:#f1f5f9;border-radius:20px;padding:3px">
           <button id="bz-tab-btn-chat" onclick="bzSwitchBzTab('chat')" style="padding:5px 14px;border-radius:16px;border:none;background:#f59e0b;color:#fff;font-size:0.82rem;font-weight:800;cursor:pointer;transition:all 0.15s">💬 채팅</button>
@@ -2320,7 +2320,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v519';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v521';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
