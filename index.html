@@ -2320,7 +2320,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v511';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v512';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5195,16 +5195,21 @@ function _renderDailyPickList(){
     }
   });
 
+  // 자동대진이 있을 때 — 참석자 외 선수 비활성화
+  const hasAutoDraw=Object.values(_dailyCards).some(d=>d._round);
+  const attendeeSet=hasAutoDraw?new Set(_getAutoDrawAttendees().map(p=>p.name)):null;
+
   // 페어링된 닉네임 섹션 — 전체 표시, 비활성화만 처리
   const allPairs=Object.entries(state.pairNicknames||{});
   if(allPairs.length){
     const btns=allPairs.map(([key,nick])=>{
       const [a,b]=key.split('_');
       const isSel=_dailyPickSel.length===2&&_dailyPickSel.includes(a)&&_dailyPickSel.includes(b);
-      // 비활성화: 상대팀 선수와 한 명이라도 겹치거나, 진행 중 경기 선수 포함
+      // 비활성화: 상대팀 선수와 한 명이라도 겹치거나, 진행 중 경기 선수 포함, 참석자 외
       const isOtherTeam=other.length>0&&(otherSet.has(a)||otherSet.has(b));
       const isPlaying=playingPlayers.has(a)||playingPlayers.has(b);
-      const dis=isOtherTeam||isPlaying;
+      const isNotAttendee=attendeeSet&&(!attendeeSet.has(a)||!attendeeSet.has(b));
+      const dis=isOtherTeam||isPlaying||isNotAttendee;
       const baseStyle=`font-size:0.7rem;padding:4px 7px;white-space:normal;word-break:keep-all;text-align:center;`;
       const style=dis?baseStyle+`background:#f1f5f9;border-color:#cbd5e1;color:#94a3b8;cursor:not-allowed;`
                     :isSel?baseStyle  // 선택됨: CSS .selected 클래스가 파란색 처리
@@ -5215,12 +5220,12 @@ function _renderDailyPickList(){
     html+=`<div style="margin-bottom:12px"><div class="pick-group-label">⭐ 페어링된 닉네임</div><div style="display:flex;flex-wrap:wrap;gap:5px">${btns}</div></div>`;
   }
 
-  // 성별 그룹 — 상대팀 선수 또는 진행 중 선수는 비활성화
+  // 성별 그룹 — 상대팀 선수·진행 중 선수·비참석자 비활성화
   const mkGroup=(group,label)=>{
     if(!group.length) return '';
     const btns=group.map(p=>{
       const sel=_dailyPickSel.includes(p);
-      const dis=!sel&&(other.includes(p)||playingPlayers.has(p)||_dailyPickSel.length>=2);
+      const dis=!sel&&(other.includes(p)||playingPlayers.has(p)||_dailyPickSel.length>=2||(attendeeSet&&!attendeeSet.has(p)));
       return `<button class="player-pick-btn${sel?' selected':''}${dis?' pick-disabled':''}" onclick="toggleDailyPick('${p}')">${p}</button>`;
     }).join('');
     return `<div style="margin-bottom:10px"><div class="pick-group-label">${label}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${btns}</div></div>`;
