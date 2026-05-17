@@ -410,6 +410,9 @@ async function fetchAndParseAtpData() {
   // 선택된 토너먼트의 경기만 추출
   const matches = [];
   for (const grp of (ev.groupings || [])) {
+    // 복합(ATP+WTA) 대회 대응: grouping 이름으로 성별 판별
+    const grpName = (grp.displayName || '').toLowerCase();
+    const isWomens = grpName.includes('women') || grpName.includes('female');
     for (const comp of (grp.competitions || [])) {
       const c = comp.competitors || [];
       const p1 = c[0] || {}, p2 = c[1] || {};
@@ -419,6 +422,7 @@ async function fetchAndParseAtpData() {
         roundName:      comp.round?.displayName || grp.displayName || '',
         date:           comp.date || '',
         status:         st.type?.name || '',
+        gender:         isWomens ? 'women' : 'men',
         player1Id:      p1.athlete?.id           || '',
         player1Name:    p1.athlete?.displayName  || '',
         player1Country: p1.athlete?.flag?.alt    || '',
@@ -522,13 +526,14 @@ async function autoProcessWinnerBet(matches) {
   const matchList = matches || [];
   const now = new Date().toISOString();
 
-  // TBD가 아닌 실제 결승 경기 전체 (ATP/WTA 복합 대회 대응)
+  // TBD가 아닌 실제 남자부 결승 경기 (WTA 복합 대회에서 여자부 우승자로 처리되는 버그 방지)
   const allRealFinals = matchList.filter(m => {
     const rn = (m.roundName || '').toLowerCase();
     return (rn === 'final' || rn === 'the final')
       && !rn.includes('semi') && !rn.includes('qualify')
       && m.player1Name && m.player1Name !== 'TBD'
-      && m.player2Name && m.player2Name !== 'TBD';
+      && m.player2Name && m.player2Name !== 'TBD'
+      && m.gender !== 'women';  // WTA 결승 제외
   });
 
   // 아직 시작 안 한 실제 결승이 있으면 winner 베팅 처리 보류
