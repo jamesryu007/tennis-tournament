@@ -1431,6 +1431,7 @@ const _BOT_TRIGGERS = [
   { key: 'ranking_att',  pattern: /출석\s*랭킹|출석\s*순위|개근\s*순위/ },
   { key: 'ranking_ind',  pattern: /개인\s*랭킹|개인\s*순위|싱글\s*랭킹|랭킹|순위/ },
   { key: 'mystats',      pattern: /내\s*전적|내\s*기록|나의\s*전적|내\s*승률/ },
+  { key: 'schedule',     pattern: /일정|다음\s*모임|이번\s*모임|모임\s*언제|언제\s*모임|몇\s*명|모임\s*날|정기\s*모임/ },
   { key: 'checkin',      pattern: /출첵|출석\s*체크|출석\s*현황|체크인\s*현황/ },
   { key: 'todaymatch',   pattern: /오늘\s*경기|경기\s*결과|오늘\s*결과/ },
   { key: 'weather',      pattern: /날씨/ },
@@ -1670,6 +1671,108 @@ async function _botTodayMatch() {
   return { text: `🎾 오늘의 경기 결과 (${today.length}경기)\n\n${lines.join('\n')}` };
 }
 
+// ── 모임 일정 + 출석 현황 통합 ────────────────────────────────────
+async function _botSchedule() {
+  // pollState 로드
+  const psSnap = await db.ref('jmt/pollState').once('value');
+  const ps = psSnap.val();
+  if (!ps || !ps.satDate) {
+    return { text: '📅 현재 등록된 모임 일정이 없어요.\n관리자가 출첵을 오픈하면 일정이 등록됩니다.' };
+  }
+
+  // 날짜 파싱
+  const [y, mo, d] = ps.satDate.split('-').map(Number);
+  const satDateObj  = new Date(y, mo - 1, d);
+  const today       = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+  today.setHours(0, 0, 0, 0);
+  const diffDays    = Math.round((satDateObj - today) / 86400000);
+  const dayLabel    = diffDays === 0 ? '오늘' : diffDays === 1 ? '내일' : diffDays > 0 ? `${diffDays}일 후` : `${-diffDays}일 전 (종료)`;
+  const dateStr     = `${y}년 ${mo}월 ${d}일 (토)`;
+
+  // 모임 번호 계산 (index.html과 동일한 공식)
+  const BASE_MS     = new Date('2026-03-28').getTime();
+  const weeksDiff   = Math.round((satDateObj.getTime() - BASE_MS) / (7 * 24 * 60 * 60 * 1000));
+  const meetNum     = 308 + weeksDiff;
+
+  // 멤버 목록 (게스트 제외)
+  const membSnap    = await db.ref('jmt/members').once('value');
+  const members     = Object.values(membSnap.val() || {})
+    .filter(m => m.name && !m.isGuest)
+    .map(m => m.name);
+  const total       = members.length;
+
+  // 투표 현황
+  const votesSnap   = await db.ref(`jmt/poll/${ps.weekId}/votes`).once('value');
+  const votes       = votesSnap.val() || {};
+  const attend = [], late = [], absent = [], noResp = [];
+  for (const name of members) {
+    const v = votes[name];
+    if (!v)                noResp.push(name);
+    else if (v === 'attend') attend.push(name);
+    else if (v === 'late')   late.push(name);
+    else if (v === 'absent') absent.push(name);
+  }
+  const playCount = attend.length + late.length;
+  const doneCount = playCount + absent.length;
+  const statusLabel = ps.status === 'closed' ? '마감' : '출첵 진행중';
+
+  // 이번 주 경기 결과 (토요일 당일이면)
+  let matchSummary = '';
+  if (diffDays <= 0 && diffDays > -3) {
+    const matchSnap = await db.ref('jmt/dailyCards')
+      .orderByChild('createdAt').limitToLast(20).once('value');
+    const allCards = matchSnap.val() || {};
+    const todayCards = Object.values(allCards).filter(c => {
+      if (!c.createdAt) return false;
+      const cd = new Date(c.createdAt);
+      return cd.getFullYear() === y && (cd.getMonth() + 1) === mo && cd.getDate() === d;
+    });
+    if (todayCards.length) {
+      matchSummary = `\n\n── 경기 결과 (${todayCards.length}경기) ──`;
+      todayCards.slice(0, 5).forEach((c, i) => {
+        const t0 = (c.team0 || []).join('·');
+        const t1 = (c.team1 || []).join('·');
+        const sc = (c.sets || []).map(s => `${s[0]}-${s[1]}`).join(' ');
+        const win = c.winner === 0 ? `▶ ${t0}` : c.winner === 1 ? `▶ ${t1}` : '';
+        matchSummary += `\n${i + 1}. ${t0} vs ${t1}  ${sc}  ${win}`;
+      });
+    }
+  }
+
+  // 응답자 막대 시각화 (10칸)
+  const barFill = total > 0 ? Math.round(doneCount / total * 10) : 0;
+  const bar = '▓'.repeat(barFill) + '░'.repeat(10 - barFill);
+
+  const noRespStr = noResp.length
+    ? `\n❓ 미응답 ${noResp.length}명: ${noResp.join(', ')}`
+    : '';
+  const tailMsg = noResp.length
+    ? `\n\n⚠️ 미응답 ${noResp.length}명 — 빨리 출첵 눌러주세요!`
+    : '\n\n✨ 모든 멤버 응답 완료!';
+
+  return { text: [
+    `📅 자미터 정기 모임 일정`,
+    ``,
+    `━━━━━━━━━━━━━━━━━━`,
+    `🎾 제${meetNum}회 정기 모임`,
+    `📆 ${dateStr}`,
+    `🗓  ${dayLabel}`,
+    `━━━━━━━━━━━━━━━━━━`,
+    ``,
+    `출석체크 [${statusLabel}]`,
+    `[${bar}] ${doneCount}/${total}명 응답`,
+    ``,
+    `✅ 참여 ${attend.length}명${attend.length ? ': ' + attend.join(', ') : ''}`,
+    `⏰ 지각 ${late.length}명${late.length ? ': ' + late.join(', ') : ''}`,
+    `❌ 불참 ${absent.length}명${absent.length ? ': ' + absent.join(', ') : ''}`,
+    noRespStr,
+    ``,
+    `🏸 예상 참여 인원: ${playCount}명`,
+    matchSummary,
+    tailMsg,
+  ].join('\n').replace(/\n{3,}/g, '\n\n').trim() };
+}
+
 // ── 출석체크 현황 ──────────────────────────────────────────────────
 async function _botCheckin() {
   // 멤버 목록 (게스트 제외)
@@ -1900,6 +2003,7 @@ exports.handleBotTriggers = onValueCreated(
         case 'ranking_ind':   result = await _botRankingInd(); break;
         case 'ranking_pair':  result = await _botRankingPair(); break;
         case 'ranking_att':   result = await _botRankingAtt(); break;
+        case 'schedule':      result = await _botSchedule(); break;
         case 'checkin':       result = await _botCheckin(); break;
         case 'mystats':       result = await _botMyStats(senderName); break;
         case 'todaymatch':    result = await _botTodayMatch(); break;
