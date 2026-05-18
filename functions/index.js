@@ -1431,6 +1431,7 @@ const _BOT_TRIGGERS = [
   { key: 'ranking_att',  pattern: /출석\s*랭킹|출석\s*순위|개근\s*순위/ },
   { key: 'ranking_ind',  pattern: /개인\s*랭킹|개인\s*순위|싱글\s*랭킹|랭킹|순위/ },
   { key: 'mystats',      pattern: /내\s*전적|내\s*기록|나의\s*전적|내\s*승률/ },
+  { key: 'checkin',      pattern: /출첵|출석\s*체크|출석\s*현황|체크인\s*현황/ },
   { key: 'todaymatch',   pattern: /오늘\s*경기|경기\s*결과|오늘\s*결과/ },
   { key: 'weather',      pattern: /날씨/ },
   { key: 'air',          pattern: /미세먼지|공기/ },
@@ -1669,6 +1670,49 @@ async function _botTodayMatch() {
   return { text: `🎾 오늘의 경기 결과 (${today.length}경기)\n\n${lines.join('\n')}` };
 }
 
+// ── 출석체크 현황 ──────────────────────────────────────────────────
+async function _botCheckin() {
+  // 멤버 목록 (게스트 제외)
+  const membSnap = await db.ref('jmt/members').once('value');
+  const members = Object.values(membSnap.val() || {})
+    .filter(m => m.name && !m.isGuest)
+    .map(m => m.name);
+
+  // 가장 최근 poll (weekId 내림차순)
+  const pollSnap = await db.ref('jmt/poll').orderByKey().limitToLast(5).once('value');
+  const polls = pollSnap.val() || {};
+  if (!Object.keys(polls).length) return { text: '📋 현재 진행 중인 출석체크가 없어요.' };
+
+  const weekId = Object.keys(polls).sort().pop();
+  const week = polls[weekId];
+  const votes = week.votes || {};
+  const pollStatus = week.status || 'open';
+
+  const attend = [], late = [], absent = [], noResp = [];
+  for (const name of members) {
+    const v = votes[name];
+    if (!v)              noResp.push(name);
+    else if (v === 'attend') attend.push(name);
+    else if (v === 'late')   late.push(name);
+    else if (v === 'absent') absent.push(name);
+  }
+
+  const lines = [];
+  if (attend.length)  lines.push(`✅ 참여 ${attend.length}명: ${attend.join(', ')}`);
+  if (late.length)    lines.push(`⏰ 지각 ${late.length}명: ${late.join(', ')}`);
+  if (absent.length)  lines.push(`❌ 불참 ${absent.length}명: ${absent.join(', ')}`);
+  if (noResp.length)  lines.push(`❓ 미응답 ${noResp.length}명: ${noResp.join(', ')}`);
+
+  const total = members.length;
+  const done  = attend.length + late.length + absent.length;
+  const statusLabel = pollStatus === 'closed' ? '마감' : '진행중';
+  const tail = noResp.length
+    ? `\n⚠️ 미응답 ${noResp.length}명 — 빨리 출첵해주세요!`
+    : '\n✨ 모든 멤버가 응답 완료!';
+
+  return { text: `📋 출석체크 현황 [${statusLabel}]\n${weekId}  (${done}/${total}명 응답)\n\n${lines.join('\n')}${tail}` };
+}
+
 // ── 날씨 (OpenWeatherMap) ──────────────────────────────────────────
 async function _botWeather() {
   const apiKey = process.env.OPENWEATHER_API_KEY;
@@ -1724,55 +1768,91 @@ async function _botAir() {
 }
 
 // ── 띠별 운세 ──────────────────────────────────────────────────────
-const _ZODIAC_NAMES = ['쥐','소','호랑이','토끼','용','뱀','말','양','원숭이','닭','개','돼지'];
+const _ZODIAC_NAMES  = ['쥐','소','호랑이','토끼','용','뱀','말','양','원숭이','닭','개','돼지'];
 const _ZODIAC_EMOJIS = ['🐭','🐮','🐯','🐰','🐲','🐍','🐴','🐑','🐵','🐔','🐶','🐷'];
-// 각 띠별 운세 메시지 (행운 컬러/숫자 포함)
+
+// 오늘의 운세 (띠만 알 때 — 날짜 시드 기반 1개 표시)
 const _ZODIAC_FORTUNES = [
-  ['오늘은 새로운 시작의 기운이 강합니다. 주변의 작은 기회도 놓치지 마세요. 행운의 색: 파랑 🔵', '민첩함을 발휘할 때입니다. 빠른 판단이 좋은 결과를 가져와요. 행운의 숫자: 3', '오늘은 인간관계에 집중하세요. 뜻밖의 인연이 큰 도움이 됩니다. 행운의 색: 빨강 🔴'],
-  ['묵묵히 노력한 일이 빛을 발하는 날입니다. 서두르지 말고 꾸준함을 유지하세요. 행운의 숫자: 8', '재물운이 좋은 날입니다. 작은 투자라도 신중하게 결정하세요. 행운의 색: 초록 🟢', '건강 관리에 신경 쓸 때입니다. 무리하지 않고 충분한 휴식을 취하세요. 행운의 숫자: 6'],
-  ['용기를 발휘해야 할 순간입니다. 두려움 없이 도전하면 반드시 성과가 있어요. 행운의 색: 주황 🟠', '오늘은 리더십이 빛납니다. 팀을 이끌어 가면 큰 성과를 거둡니다. 행운의 숫자: 1', '에너지가 넘치는 날! 운동이나 야외활동이 특히 좋습니다. 행운의 색: 노랑 🟡'],
-  ['온화한 기운으로 주변을 편안하게 만드는 날입니다. 관계가 더 깊어져요. 행운의 숫자: 4', '창의적인 아이디어가 샘솟는 날입니다. 메모해 두면 큰 자산이 돼요. 행운의 색: 보라 🟣', '사랑운이 좋습니다. 소중한 사람에게 따뜻한 말 한마디를 건네보세요. 행운의 숫자: 9'],
-  ['원대한 꿈을 향해 한 발짝 나아가기 좋은 날입니다. 자신감을 가지세요. 행운의 색: 금색 ✨', '리더십과 카리스마가 빛나는 날! 중요한 발표나 협상에 좋습니다. 행운의 숫자: 5', '새로운 계획을 세우기 좋은 날입니다. 장기적인 목표를 다시 점검해보세요. 행운의 색: 파랑 🔵'],
-  ['지혜롭게 상황을 분석하면 해결책이 보입니다. 급하게 행동하지 마세요. 행운의 숫자: 7', '조용히 내실을 다지기 좋은 날입니다. 남들이 모르는 곳에서 빛나고 있어요. 행운의 색: 검정 ⚫', '예상치 못한 소식이 들어올 수 있습니다. 유연하게 대처하면 이득이 됩니다. 행운의 숫자: 2'],
-  ['자유롭게 행동하면 좋은 결과가 따릅니다. 너무 얽매이지 마세요. 행운의 색: 하늘 🔵', '오늘은 직감을 믿어보세요. 첫 번째 선택이 정답일 가능성이 높습니다. 행운의 숫자: 8', '멀리 있는 사람과의 소통이 좋은 인연으로 이어집니다. 연락해보세요. 행운의 색: 초록 🟢'],
-  ['따뜻한 마음으로 나누면 배로 돌아오는 날입니다. 인덕이 쌓여요. 행운의 숫자: 3', '예술적 감수성이 높아지는 날! 음악이나 영화를 즐기면 영감이 옵니다. 행운의 색: 분홍 🩷', '가족 또는 가까운 사람과의 시간이 소중해지는 날입니다. 행운의 숫자: 6'],
-  ['순발력과 임기응변이 빛나는 날! 변화를 두려워하지 마세요. 행운의 색: 주황 🟠', '다재다능함을 발휘할 기회입니다. 여러 분야에 관심을 가져보세요. 행운의 숫자: 4', '사교적인 활동이 좋은 결과를 가져옵니다. 새로운 모임에 참여해보세요. 행운의 색: 노랑 🟡'],
-  ['꼼꼼하게 일을 처리하면 신뢰가 쌓입니다. 완벽함이 강점인 날! 행운의 숫자: 1', '외모나 건강 관리에 투자하면 좋은 날입니다. 자기 관리가 빛납니다. 행운의 색: 하양 ⚪', '공식적인 자리에서 인정받는 날입니다. 자신감 있게 행동하세요. 행운의 숫자: 9'],
-  ['의리와 신뢰로 주변을 감동시키는 날입니다. 믿음직한 모습이 빛나요. 행운의 색: 갈색 🟤', '오랜 친구나 지인과의 만남이 좋은 일을 가져옵니다. 연락해보세요. 행운의 숫자: 7', '솔직한 마음을 표현하면 관계가 더 깊어집니다. 진심을 전하세요. 행운의 색: 파랑 🔵'],
-  ['풍요로운 기운이 감돌는 날입니다. 나눔을 실천하면 복이 돌아와요. 행운의 숫자: 5', '긍정적인 마음으로 하루를 시작하면 좋은 일이 생깁니다. 웃음이 행운! 행운의 색: 빨강 🔴', '재물복이 있는 날입니다. 작은 행운도 감사하게 여기면 큰 복이 됩니다. 행운의 숫자: 2'],
+  ['민첩함을 발휘할 때입니다. 빠른 판단이 좋은 결과를 가져와요. 행운의 숫자: 3', '인간관계에 집중하세요. 뜻밖의 인연이 큰 도움이 됩니다. 행운의 색: 빨강 🔴', '새로운 시작의 기운이 강합니다. 작은 기회도 놓치지 마세요. 행운의 색: 파랑 🔵'],
+  ['묵묵히 노력한 일이 빛을 발하는 날입니다. 꾸준함을 유지하세요. 행운의 숫자: 8', '재물운이 좋습니다. 작은 투자라도 신중하게 결정하세요. 행운의 색: 초록 🟢', '건강 관리에 신경 쓸 때입니다. 충분한 휴식을 취하세요. 행운의 숫자: 6'],
+  ['두려움 없이 도전하면 반드시 성과가 있어요. 행운의 색: 주황 🟠', '리더십이 빛납니다. 팀을 이끌어 가면 큰 성과를 거둡니다. 행운의 숫자: 1', '에너지가 넘치는 날! 야외활동이 특히 좋습니다. 행운의 색: 노랑 🟡'],
+  ['온화한 기운으로 주변을 편안하게 만드는 날입니다. 행운의 숫자: 4', '창의적인 아이디어가 샘솟는 날! 메모해 두면 큰 자산이 됩니다. 행운의 색: 보라 🟣', '사랑운이 좋습니다. 소중한 사람에게 따뜻한 말 한마디를 건네보세요. 행운의 숫자: 9'],
+  ['원대한 꿈을 향해 한 발짝 나아가기 좋은 날입니다. 행운의 색: 금색 ✨', '카리스마가 빛나는 날! 중요한 협상에 좋습니다. 행운의 숫자: 5', '새로운 계획을 세우기 좋은 날입니다. 장기 목표를 점검해보세요. 행운의 색: 파랑 🔵'],
+  ['지혜롭게 분석하면 해결책이 보입니다. 급하게 행동하지 마세요. 행운의 숫자: 7', '조용히 내실을 다지기 좋은 날입니다. 남들 모르게 빛나고 있어요. 행운의 색: 검정 ⚫', '예상치 못한 소식이 들어올 수 있습니다. 유연하게 대처하면 이득이 됩니다. 행운의 숫자: 2'],
+  ['자유롭게 행동하면 좋은 결과가 따릅니다. 행운의 색: 하늘 🔵', '직감을 믿어보세요. 첫 번째 선택이 정답일 가능성이 높습니다. 행운의 숫자: 8', '멀리 있는 사람과 연락하면 좋은 인연으로 이어집니다. 행운의 색: 초록 🟢'],
+  ['따뜻한 마음으로 나누면 배로 돌아옵니다. 행운의 숫자: 3', '예술적 감수성이 높아지는 날! 음악이나 영화를 즐기면 영감이 옵니다. 행운의 색: 분홍 🩷', '가족 또는 가까운 사람과의 시간이 소중해지는 날입니다. 행운의 숫자: 6'],
+  ['순발력과 임기응변이 빛나는 날! 변화를 두려워하지 마세요. 행운의 색: 주황 🟠', '다재다능함을 발휘할 기회입니다. 여러 분야에 관심을 가져보세요. 행운의 숫자: 4', '사교적인 활동이 좋은 결과를 가져옵니다. 행운의 색: 노랑 🟡'],
+  ['꼼꼼하게 일을 처리하면 신뢰가 쌓입니다. 행운의 숫자: 1', '건강 관리에 투자하면 좋은 날입니다. 자기 관리가 빛납니다. 행운의 색: 하양 ⚪', '공식적인 자리에서 인정받는 날입니다. 자신감 있게 행동하세요. 행운의 숫자: 9'],
+  ['의리와 신뢰로 주변을 감동시키는 날입니다. 행운의 색: 갈색 🟤', '오랜 친구와의 만남이 좋은 일을 가져옵니다. 행운의 숫자: 7', '솔직한 마음을 표현하면 관계가 더 깊어집니다. 행운의 색: 파랑 🔵'],
+  ['풍요로운 기운이 감돌는 날입니다. 나눔을 실천하면 복이 돌아와요. 행운의 숫자: 5', '긍정적인 마음으로 시작하면 좋은 일이 생깁니다. 행운의 색: 빨강 🔴', '재물복이 있는 날입니다. 작은 행운도 감사하게 여기면 큰 복이 됩니다. 행운의 숫자: 2'],
+];
+
+// 12년 운세 사이클 (출생연도 기준 position 0~11)
+const _CYCLE_DATA = [
+  { label: '본명년⚡', tennis: '과감한 포지션 변화를 시도하기 좋은 해, 도전이 성장을 만든다',          money: '큰 지출·투자는 충분히 검토 후 신중하게 결정할 것',          relation: '기존 관계 재정립, 새로운 인연이 등장하는 시기',          health: '건강검진으로 기초 체력을 점검할 것, 무리 금물' },
+  { label: '씨앗기🌱', tennis: '기초 스트로크 훈련에 집중하면 내년 도약이 따른다',                   money: '절약이 내년 풍요의 밑거름이 되는 시기',                    relation: '새 인연의 씨앗이 심어지는 해, 첫인상이 중요',            health: '규칙적인 생활 리듬 형성이 핵심, 수면 관리' },
+  { label: '성장기🌿', tennis: '꾸준한 연습이 눈에 보이게 실력으로 돌아오는 해',                     money: '소소한 투자나 부업이 좋은 결과를 낸다',                    relation: '우정과 신뢰가 깊어지고 팀워크가 빛나는 시기',            health: '체력이 오르는 것이 몸으로 느껴지는 해, 유산소 추천' },
+  { label: '결실기🌾', tennis: '게임 감각이 살아나며 승률이 눈에 띄게 오른다',                       money: '수입이 늘거나 보상이 돌아오는 풍요로운 시기',              relation: '인기 상승, 모임에서 자연스럽게 중심 역할을 맡게 됨',    health: '컨디션이 안정적, 야외 테니스 활동 적극 권장' },
+  { label: '절정기🏆', tennis: '실력이 최고조! 대회 도전과 리그 참가에 최적의 해',                   money: '재물운 최상, 과감한 결정도 성과로 이어진다',              relation: '귀인 등장, 인간관계가 폭발적으로 확장되는 시기',        health: '에너지 넘치는 해, 과로 방지를 위한 체력 관리 필수' },
+  { label: '안정기☀️', tennis: '안정적인 실력 유지, 후배 멘토링과 팀 리딩에 적합',                   money: '안정적인 수입, 무리하지 않고 유지하는 게 최선',            relation: '편안하고 따뜻한 인간관계가 이어지는 여유로운 시기',    health: '몸과 마음 모두 안정, 충분한 수면과 휴식을 챙길 것' },
+  { label: '전환점🔄', tennis: '새로운 플레이 스타일 탐색이 필요한 변화의 시기',                     money: '변화 기회를 유연하게 포착할 것, 고정관념을 버릴 때',      relation: '관계의 변화·재편이 일어나는 해, 새 멤버와의 인연',      health: '몸의 신호에 귀 기울이고 과부하 주의' },
+  { label: '성찰기🪞', tennis: '자신의 약점을 냉철하게 파악하고 보완하는 내실 다지기의 해',           money: '낭비를 줄이고 장기 플랜을 다시 세우는 시기',              relation: '깊은 관계는 더 깊어지고 피상적 관계는 자연히 정리됨',  health: '스트레스 관리와 정신 건강이 핵심 과제' },
+  { label: '준비기🔧', tennis: '체계적인 훈련 계획을 세우면 내년이 확실히 달라진다',                 money: '미래를 위한 저축과 작은 투자를 시작하기 좋은 때',          relation: '소중한 사람들과의 유대를 더 단단하게 만드는 시기',      health: '부족한 부분을 보완하는 재활·보강 운동 적기' },
+  { label: '수확기🍂', tennis: '오랜 훈련의 결과가 경기에서 빛나는 보람찬 해',                       money: '그동안의 노력이 금전적 보상으로 돌아오는 시기',            relation: '오래된 인연에서 깊은 감사와 유대를 느끼는 해',          health: '전반적으로 컨디션 최상, 적극적인 활동 권장' },
+  { label: '마무리기🏁', tennis: '시즌을 잘 마무리하고 충분한 휴식과 회복에 투자',                   money: '정리와 결산의 시기, 불필요한 지출과 부채 청산',            relation: '묵은 오해를 풀고 인간관계를 깔끔하게 정리',            health: '과로 주의, 충분한 수면과 영양 관리 필수' },
+  { label: '임박기🌅', tennis: '새 시즌을 위한 몸과 마음의 준비를 지금 시작할 것',                   money: '새로운 기회가 문 앞까지 와 있는 전환 직전 시기',          relation: '새 인연을 맞이할 마음의 공간을 비울 것',                health: '작은 증상도 무시하지 말고 조기에 대처할 것' },
 ];
 
 function _botFortune(msgText) {
+  const currentYear = new Date().getFullYear();
   const d = new Date().toLocaleDateString('ko-KR', { month:'long', day:'numeric' });
-  // 띠 키워드 매칭
-  const zodiacKeywords = ['쥐','소','호랑이','토끼','용','뱀','말','양','원숭이','닭','개','돼지'];
-  let zodiacIdx = -1;
-  for (let i = 0; i < zodiacKeywords.length; i++) {
-    if (msgText && msgText.includes(zodiacKeywords[i])) { zodiacIdx = i; break; }
-  }
-  // 출생연도 파싱 (1900~현재)
-  if (zodiacIdx < 0 && msgText) {
+
+  // 출생연도 파싱
+  let birthYear = null;
+  if (msgText) {
     const m4 = msgText.match(/(\d{4})년/);
     const m2 = msgText.match(/(\d{2})년생/);
-    let year = null;
-    if (m4) year = parseInt(m4[1]);
-    else if (m2) { const y2 = parseInt(m2[1]); year = y2 >= 0 && y2 <= 30 ? 2000 + y2 : 1900 + y2; }
-    if (year && year >= 1900 && year <= new Date().getFullYear()) {
-      zodiacIdx = ((year - 2020) % 12 + 1200) % 12;
+    if (m4) birthYear = parseInt(m4[1]);
+    else if (m2) { const y2 = parseInt(m2[1]); birthYear = y2 >= 0 && y2 <= 30 ? 2000 + y2 : 1900 + y2; }
+    if (birthYear && (birthYear < 1900 || birthYear > currentYear)) birthYear = null;
+  }
+
+  // ── 출생연도 있을 때: 7년 사이클 운세 ─────────────────────────────
+  if (birthYear) {
+    const zodiacIdx = ((birthYear - 2020) % 12 + 1200) % 12;
+    const zName  = _ZODIAC_NAMES[zodiacIdx];
+    const zEmoji = _ZODIAC_EMOJIS[zodiacIdx];
+    const age = currentYear - birthYear;
+    const lines = [];
+    for (let yr = currentYear - 3; yr <= currentYear + 3; yr++) {
+      const pos = ((yr - birthYear) % 12 + 12) % 12;
+      const cyc = _CYCLE_DATA[pos];
+      const isNow = yr === currentYear;
+      const prefix = isNow ? `★ ${yr}년 (${age}세)` : yr < currentYear ? `◀ ${yr}년` : `▶ ${yr}년`;
+      lines.push(`${prefix}  [${cyc.label}]\n   🎾 ${cyc.tennis}`);
+    }
+    const curPos = ((currentYear - birthYear) % 12 + 12) % 12;
+    const curCyc = _CYCLE_DATA[curPos];
+    return { text: `🔮 ${birthYear}년생 ${zEmoji}${zName}띠 | 만 ${age}세\n── 7년 운세 흐름 (-3 ~ +3) ──\n\n${lines.join('\n')}\n\n── ${currentYear}년 집중 포인트 ──\n💰 ${curCyc.money}\n❤️ ${curCyc.relation}\n🏃 ${curCyc.health}` };
+  }
+
+  // ── 띠 키워드만 있을 때: 오늘의 운세 ─────────────────────────────
+  let zodiacIdx = -1;
+  if (msgText) {
+    for (let i = 0; i < _ZODIAC_NAMES.length; i++) {
+      if (msgText.includes(_ZODIAC_NAMES[i])) { zodiacIdx = i; break; }
     }
   }
   if (zodiacIdx < 0) {
-    // 오늘 날짜로 임의 띠 선택 (날짜별 고정)
-    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+    const dayOfYear = Math.floor((Date.now() - new Date(currentYear, 0, 0)) / 86400000);
     zodiacIdx = dayOfYear % 12;
   }
   const zName  = _ZODIAC_NAMES[zodiacIdx];
   const zEmoji = _ZODIAC_EMOJIS[zodiacIdx];
   const fortunes = _ZODIAC_FORTUNES[zodiacIdx];
-  // 날짜 시드로 같은 날 같은 운세 반환
   const dayKey = new Date().toLocaleDateString('ko-KR');
   const fIdx = (dayKey.split('').reduce((a, c) => a + c.charCodeAt(0), 0) + zodiacIdx) % fortunes.length;
-  return { text: `🔮 ${d} ${zEmoji} ${zName}띠 운세\n\n${fortunes[fIdx]}\n\n─────────────────\n다른 띠 운세: "쥐띠 운세", "1990년 운세", "82년생 운세" 등으로 물어보세요!` };
+  return { text: `🔮 ${d} ${zEmoji}${zName}띠 운세\n\n${fortunes[fIdx]}\n\n─────────────────\n생년도 함께 말하면 7년 운세 흐름을 알려드려요!\n예) "1984년 운세" / "90년생 운세"` };
 }
 function _botQuote() {
   const q = _botDailyItem(_BOT_QUOTES);
@@ -1820,6 +1900,7 @@ exports.handleBotTriggers = onValueCreated(
         case 'ranking_ind':   result = await _botRankingInd(); break;
         case 'ranking_pair':  result = await _botRankingPair(); break;
         case 'ranking_att':   result = await _botRankingAtt(); break;
+        case 'checkin':       result = await _botCheckin(); break;
         case 'mystats':       result = await _botMyStats(senderName); break;
         case 'todaymatch':    result = await _botTodayMatch(); break;
         case 'weather':       result = await _botWeather(); break;
