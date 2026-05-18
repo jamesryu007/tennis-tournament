@@ -14766,6 +14766,18 @@ function bzSwitchBzTab(tab) {
     if (window._bzPhotoGridCleanup) { window._bzPhotoGridCleanup(); window._bzPhotoGridCleanup = null; }
     _restoSubscribe();
     _bzRenderRestoTab();
+    // 오른쪽 스와이프 → 채팅 탭으로 이동 (1회 등록)
+    if (restoTab && !restoTab._swipeAdded) {
+      restoTab._swipeAdded = true;
+      let _rSwipeX = null;
+      restoTab.addEventListener('touchstart', e => { _rSwipeX = e.touches[0].clientX; }, { passive: true });
+      restoTab.addEventListener('touchend', e => {
+        if (_rSwipeX === null) return;
+        const dx = e.changedTouches[0].clientX - _rSwipeX;
+        _rSwipeX = null;
+        if (dx > 60) bzSwitchBzTab('chat');
+      }, { passive: true });
+    }
   } else {
     if (window._bzPhotoGridCleanup) { window._bzPhotoGridCleanup(); window._bzPhotoGridCleanup = null; }
   }
@@ -14773,8 +14785,8 @@ function bzSwitchBzTab(tab) {
 
 // ══ 자미터 단골집 ══════════════════════════════════════════════════
 
-const RESTO_THEMES = ['전체', '한식', '중식', '일식', '양식', '태국', '기타'];
-const RESTO_THEME_EMOJI = { '한식':'🍚', '중식':'🥡', '일식':'🍣', '양식':'🍝', '태국':'🌶️', '기타':'🍴' };
+const RESTO_THEMES = ['전체', '한식', '일식', '중식', '양식', '베트남', '태국', '고기', '해산물', '치킨', '분식', '카페', '주점', '기타'];
+const RESTO_THEME_EMOJI = { '한식':'🍚', '일식':'🍣', '중식':'🥡', '양식':'🍝', '베트남':'🍜', '태국':'🌶️', '고기':'🥩', '해산물':'🦞', '치킨':'🍗', '분식':'🍢', '카페':'☕', '주점':'🍺', '기타':'🍴' };
 
 let _restoData = {};
 let _restoRatingsData = {};
@@ -18492,12 +18504,19 @@ function deleteMpHistory(pollId, event) {
     <div style="margin-bottom:12px">
       <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:7px">음식 테마</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">
-        <button id="bz-theme-btn-한식" onclick="restoSelectTheme('한식')" style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍚 한식</button>
-        <button id="bz-theme-btn-중식" onclick="restoSelectTheme('중식')" style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🥡 중식</button>
-        <button id="bz-theme-btn-일식" onclick="restoSelectTheme('일식')" style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍣 일식</button>
-        <button id="bz-theme-btn-양식" onclick="restoSelectTheme('양식')" style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍝 양식</button>
-        <button id="bz-theme-btn-태국" onclick="restoSelectTheme('태국')" style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🌶️ 태국</button>
-        <button id="bz-theme-btn-기타" onclick="restoSelectTheme('기타')" style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍴 기타</button>
+        <button id="bz-theme-btn-한식"   onclick="restoSelectTheme('한식')"   style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍚 한식</button>
+        <button id="bz-theme-btn-일식"   onclick="restoSelectTheme('일식')"   style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍣 일식</button>
+        <button id="bz-theme-btn-중식"   onclick="restoSelectTheme('중식')"   style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🥡 중식</button>
+        <button id="bz-theme-btn-양식"   onclick="restoSelectTheme('양식')"   style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍝 양식</button>
+        <button id="bz-theme-btn-베트남" onclick="restoSelectTheme('베트남')" style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍜 베트남</button>
+        <button id="bz-theme-btn-태국"   onclick="restoSelectTheme('태국')"   style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🌶️ 태국</button>
+        <button id="bz-theme-btn-고기"   onclick="restoSelectTheme('고기')"   style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🥩 고기</button>
+        <button id="bz-theme-btn-해산물" onclick="restoSelectTheme('해산물')" style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🦞 해산물</button>
+        <button id="bz-theme-btn-치킨"   onclick="restoSelectTheme('치킨')"   style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍗 치킨</button>
+        <button id="bz-theme-btn-분식"   onclick="restoSelectTheme('분식')"   style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍢 분식</button>
+        <button id="bz-theme-btn-카페"   onclick="restoSelectTheme('카페')"   style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">☕ 카페</button>
+        <button id="bz-theme-btn-주점"   onclick="restoSelectTheme('주점')"   style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍺 주점</button>
+        <button id="bz-theme-btn-기타"   onclick="restoSelectTheme('기타')"   style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍴 기타</button>
       </div>
     </div>
     <div style="margin-bottom:12px">
