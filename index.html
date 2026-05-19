@@ -14959,24 +14959,48 @@ function bzOpenRestoModal(editId) {
   if (!editId) setTimeout(_restoCheckClipboard, 300);
 }
 // ══ 공지사항 관리 ═══════════════════════════════════════════════════
+const _NOTICE_PASTELS = [
+  { bg: '#eff6ff', border: '#bfdbfe' }, // 파란
+  { bg: '#f0fdf4', border: '#bbf7d0' }, // 초록
+  { bg: '#fef9c3', border: '#fde68a' }, // 노랑
+  { bg: '#fdf4ff', border: '#e9d5ff' }, // 보라
+  { bg: '#fff7ed', border: '#fed7aa' }, // 주황
+  { bg: '#f0f9ff', border: '#bae6fd' }, // 하늘
+  { bg: '#fdf2f8', border: '#fbcfe8' }, // 분홍
+];
+let _noticeEditId = null;
+
 function openNoticeModal() {
+  // 관리자에게만 공지 작성 버튼 표시
+  const wrapEl = document.getElementById('notice-write-btn-wrap');
+  if (wrapEl) wrapEl.style.display = isManager() ? 'block' : 'none';
   document.getElementById('notice-list-modal').style.display = 'flex';
   _renderNoticeList();
 }
 function closeNoticeModal() {
   document.getElementById('notice-list-modal').style.display = 'none';
 }
-function openNoticeWriteModal() {
+function openNoticeWriteModal(editId) {
+  _noticeEditId = editId || null;
   document.getElementById('notice-title-input').value = '';
   document.getElementById('notice-content-input').value = '';
+  if (editId) {
+    db.ref('jmt/notices/' + editId).once('value').then(snap => {
+      const n = snap.val() || {};
+      document.getElementById('notice-title-input').value = n.title || '';
+      document.getElementById('notice-content-input').value = n.content || '';
+    });
+  }
   document.getElementById('notice-write-modal').style.display = 'flex';
 }
 function closeNoticeWriteModal() {
   document.getElementById('notice-write-modal').style.display = 'none';
+  _noticeEditId = null;
 }
 function _renderNoticeList() {
   const body = document.getElementById('notice-list-body');
   if (!db) return;
+  const mgr = isManager();
   db.ref('jmt/notices').orderByChild('createdAt').once('value').then(snap => {
     const all = snap.val() || {};
     const items = Object.entries(all).sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
@@ -14984,19 +15008,21 @@ function _renderNoticeList() {
       body.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:0.85rem;padding:20px">등록된 공지가 없어요</div>';
       return;
     }
-    body.innerHTML = items.map(([id, n]) => {
-      const date = n.createdAt ? new Date(n.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
-      const sentBadge = n.sentAt
-        ? `<span style="font-size:0.7rem;background:#dcfce7;color:#16a34a;padding:2px 6px;border-radius:6px;font-weight:700">전송완료</span>`
-        : `<button onclick="sendNoticeToChat('${id}')" style="font-size:0.72rem;background:#2563eb;color:#fff;border:none;padding:4px 10px;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit">자미봇 전송</button>`;
-      const deleteBtn = `<button onclick="deleteNotice('${id}')" style="font-size:0.72rem;background:none;color:#dc2626;border:1.5px solid #fecaca;padding:3px 8px;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit">삭제</button>`;
-      return `<div style="background:#f8fafc;border-radius:12px;padding:12px 14px;border:1.5px solid #e2e8f0">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
+    body.innerHTML = items.map(([id, n], idx) => {
+      const p = _NOTICE_PASTELS[idx % _NOTICE_PASTELS.length];
+      const dt = n.createdAt ? new Date(n.createdAt) : null;
+      const dateStr = dt ? `${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}` : '';
+      const mgrBtns = mgr ? `
+        <button onclick="sendNoticeToChat('${id}')" style="font-size:0.7rem;background:#2563eb;color:#fff;border:none;padding:3px 9px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">전송</button>
+        <button onclick="openNoticeWriteModal('${id}')" style="font-size:0.7rem;background:none;color:#2563eb;border:1.5px solid #93c5fd;padding:2px 8px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">수정</button>
+        <button onclick="deleteNotice('${id}')" style="font-size:0.7rem;background:none;color:#dc2626;border:1.5px solid #fecaca;padding:2px 8px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">삭제</button>` : '';
+      return `<div style="background:${p.bg};border-radius:12px;padding:12px 14px;border:1.5px solid ${p.border}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:5px">
           <div style="font-size:0.88rem;font-weight:800;color:#1e293b;flex:1">${n.title || '(제목 없음)'}</div>
-          <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">${sentBadge}${deleteBtn}</div>
+          <div style="display:flex;gap:5px;flex-shrink:0;align-items:center">${mgrBtns}</div>
         </div>
         <div style="font-size:0.82rem;color:#475569;white-space:pre-wrap;margin-bottom:6px">${n.content || ''}</div>
-        <div style="font-size:0.72rem;color:#94a3b8">${n.createdBy || ''} · ${date}</div>
+        <div style="font-size:0.71rem;color:#94a3b8">${n.createdBy || ''} · ${dateStr}</div>
       </div>`;
     }).join('');
   });
@@ -15006,7 +15032,11 @@ async function saveNotice() {
   const content = document.getElementById('notice-content-input').value.trim();
   if (!content) { alert('내용을 입력해주세요.'); return; }
   const curName = (state.identity && state.identity.name) || '';
-  await db.ref('jmt/notices').push({ title, content, createdBy: curName, createdAt: Date.now() }).catch(fbErr);
+  if (_noticeEditId) {
+    await db.ref('jmt/notices/' + _noticeEditId).update({ title, content }).catch(fbErr);
+  } else {
+    await db.ref('jmt/notices').push({ title, content, createdBy: curName, createdAt: Date.now() }).catch(fbErr);
+  }
   closeNoticeWriteModal();
   _renderNoticeList();
 }
@@ -15015,7 +15045,6 @@ async function sendNoticeToChat(noticeId) {
   const fn = firebase.app().functions('asia-southeast1').httpsCallable('sendNoticeAsBot');
   try {
     await fn({ senderName: curName, noticeId });
-    _renderNoticeList();
   } catch (e) {
     alert('전송 실패: ' + (e.message || e));
   }
@@ -16016,11 +16045,7 @@ function _bzRender() {
       rnBtn.textContent = showRN ? '👁 실명 ON' : '👁 실명 공개';
     }
 
-    // 공지 버튼 — 관리자만 표시
-    const noticeBtn = document.getElementById('bz-notice-btn');
-    if (noticeBtn) noticeBtn.style.display = isManager() ? 'inline-block' : 'none';
-
-    // 진실톡 버튼 상태 동기화
+    // 진실톡 버튼 — 유지원(isAdmin)만 표시
     const jinsilBtn = document.getElementById('bz-jinsil-btn');
     if (jinsilBtn) {
       jinsilBtn.style.display = 'inline-block';
@@ -16061,6 +16086,10 @@ function _bzRender() {
   } else {
     adminCtrl.style.display = 'none';
   }
+
+  // 공지 버튼 — 모든 멤버에게 표시 (관리자: 관리기능 포함, 일반: 조회만)
+  const noticeBtn = document.getElementById('bz-notice-btn');
+  if (noticeBtn) noticeBtn.style.display = 'inline-block';
 
   // 가명 선택 행 — revealed 단계에서는 숨김
   document.getElementById('bz-alias-row').style.display = phase === 'revealed' ? 'none' : 'flex';
@@ -18568,10 +18597,10 @@ function deleteMpHistory(pollId, event) {
   <div style="width:100%;background:#fff;border-radius:20px 20px 0 0;padding:20px 16px max(env(safe-area-inset-bottom,24px),24px);max-height:88vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
     <div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px;flex-shrink:0"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-shrink:0">
-      <div style="font-size:1rem;font-weight:800;color:#1e293b">📢 공지사항 관리</div>
+      <div style="font-size:1rem;font-weight:800;color:#1e293b">📢 공지사항</div>
       <button onclick="closeNoticeModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8">✕</button>
     </div>
-    <div style="flex-shrink:0;margin-bottom:12px">
+    <div id="notice-write-btn-wrap" style="display:none;flex-shrink:0;margin-bottom:12px">
       <button onclick="openNoticeWriteModal()" style="width:100%;padding:11px;border-radius:12px;border:2px dashed #2563eb;background:#eff6ff;color:#2563eb;font-size:0.9rem;font-weight:700;cursor:pointer">+ 공지 작성</button>
     </div>
     <div id="notice-list-body" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:10px">
