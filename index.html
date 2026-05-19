@@ -2349,7 +2349,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v547';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v548';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -16945,7 +16945,8 @@ function renderMpPollList() {
     const statusLabel = isOpen ? '진행 중' : '마감';
     const statusColor = isOpen ? '#22c55e' : '#94a3b8';
     const statusBg    = isOpen ? '#f0fdf4' : '#f8fafc';
-    const voteCount = Object.keys(poll.votes || {}).length;
+    const votes = poll.votes || {};
+    const voteCount = Object.keys(votes).length;
     let closesStr = '';
     if (isOpen && poll.closesAt) {
       const remaining = new Date(poll.closesAt) - Date.now();
@@ -16957,17 +16958,67 @@ function renderMpPollList() {
         closesStr = '⏰ 마감 시간 도달';
       }
     }
+    // 선두 항목 계산
+    const leadingStr = _mpLeadingLabel(poll, votes);
     return `<div class="card" onclick="openMpDetailModal('${pollId}')" style="cursor:pointer;padding:14px 16px;margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
         <div style="font-weight:700;font-size:0.92rem;color:#1e293b;flex:1">${poll.title||'제목 없음'}</div>
         <span style="font-size:0.72rem;font-weight:700;color:${statusColor};background:${statusBg};border:1.5px solid ${statusColor};border-radius:20px;padding:2px 8px;white-space:nowrap;margin-left:8px">${statusLabel}</span>
       </div>
-      <div style="font-size:0.78rem;color:#64748b;display:flex;gap:10px;flex-wrap:wrap">
+      <div style="font-size:0.78rem;color:#64748b;display:flex;gap:8px;flex-wrap:wrap;align-items:baseline">
         <span>👥 ${voteCount}명 참여</span>
+        ${leadingStr ? `<span style="color:#2563eb;font-weight:700">🔥 ${leadingStr} 유력</span>` : ''}
         ${closesStr ? `<span>${closesStr}</span>` : ''}
       </div>
     </div>`;
   }).join('');
+}
+
+// ── 투표 카드 선두 항목 레이블 ──
+function _mpLeadingLabel(poll, votes) {
+  const parts = [];
+  const voteVals = Object.values(votes || {});
+  if (!voteVals.length) return '';
+
+  // 날짜 선두
+  if (poll.type === 'date' || poll.type === 'both') {
+    const cnt = {};
+    (poll.dates || []).forEach(d => { cnt[d] = 0; });
+    (Object.values(poll.memberDates || {})).forEach(md => { if (md.date) cnt[md.date] = cnt[md.date] || 0; });
+    voteVals.forEach(v => {
+      if (!v.dates) return;
+      Object.keys(v.dates).forEach(dk => { if (v.dates[dk]) cnt[dk] = (cnt[dk] || 0) + 1; });
+    });
+    const mx = Math.max(...Object.values(cnt), 0);
+    if (mx > 0) {
+      const winners = Object.entries(cnt).filter(([,c]) => c === mx).map(([d]) => {
+        const o = new Date(d + 'T00:00:00');
+        return `${o.getMonth()+1}/${o.getDate()}`;
+      }).sort();
+      if (winners.length) parts.push(winners.join(' · '));
+    }
+  }
+
+  // 내용 선두
+  if (poll.type === 'content' || poll.type === 'both') {
+    const cnt = {};
+    (poll.contents || []).forEach((_, i) => { cnt[i] = 0; });
+    (Object.values(poll.memberContents || {})).forEach((mc, i) => { cnt['m'+i] = 0; });
+    voteVals.forEach(v => {
+      if (!v.contents) return;
+      Object.keys(v.contents).forEach(k => { if (v.contents[k]) cnt[k] = (cnt[k] || 0) + 1; });
+    });
+    const mx = Math.max(...Object.values(cnt), 0);
+    if (mx > 0) {
+      const winners = Object.entries(cnt).filter(([,c]) => c === mx).map(([k]) => {
+        if (k.startsWith('m')) return (Object.values(poll.memberContents || {})[Number(k.slice(1))] || {}).text || '';
+        return (poll.contents || [])[Number(k)] || '';
+      }).filter(Boolean).map(s => s.length > 6 ? s.slice(0, 6) + '..' : s);
+      if (winners.length) parts.push(winners.join(' · '));
+    }
+  }
+
+  return parts.join(' / ');
 }
 
 // ── 투표 만들기 모달 ──
