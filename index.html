@@ -16913,15 +16913,23 @@ function renderMpPollList() {
     const statusColor = isOpen ? '#22c55e' : '#94a3b8';
     const statusBg    = isOpen ? '#f0fdf4' : '#f8fafc';
     const voteCount = Object.keys(poll.votes || {}).length;
-    const typeLabel = poll.type === 'date' ? '날짜 투표' : poll.type === 'content' ? '내용 투표' : '날짜+내용 투표';
-    const closesStr = poll.closesAt ? `⏰ ${new Date(poll.closesAt).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'})}` : '';
+    let closesStr = '';
+    if (isOpen && poll.closesAt) {
+      const remaining = new Date(poll.closesAt) - Date.now();
+      if (remaining > 0) {
+        const h = Math.floor(remaining / 3600000);
+        const d = Math.floor(h / 24);
+        closesStr = d > 0 ? `⏰ ${d}일 ${h % 24}시간 남음` : h > 0 ? `⏰ ${h}시간 남음` : '⏰ 곧 마감';
+      } else {
+        closesStr = '⏰ 마감 시간 도달';
+      }
+    }
     return `<div class="card" onclick="openMpDetailModal('${pollId}')" style="cursor:pointer;padding:14px 16px;margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
         <div style="font-weight:700;font-size:0.92rem;color:#1e293b;flex:1">${poll.title||'제목 없음'}</div>
         <span style="font-size:0.72rem;font-weight:700;color:${statusColor};background:${statusBg};border:1.5px solid ${statusColor};border-radius:20px;padding:2px 8px;white-space:nowrap;margin-left:8px">${statusLabel}</span>
       </div>
       <div style="font-size:0.78rem;color:#64748b;display:flex;gap:10px;flex-wrap:wrap">
-        <span>${typeLabel}</span>
         <span>👥 ${voteCount}명 참여</span>
         ${closesStr ? `<span>${closesStr}</span>` : ''}
       </div>
