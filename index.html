@@ -2349,7 +2349,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v552';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v553';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -14932,7 +14932,7 @@ function _bzRenderRestoTab() {
       const ratingCount = Object.keys(_restoRatingsData[id] || {}).length;
       const idEsc = id.replace(/'/g, "\\'");
       html += `<div class="bz-resto-card" style="flex-direction:column;gap:10px">
-        <div style="display:flex;align-items:flex-start">
+        <div style="display:flex;align-items:flex-start;gap:10px">
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
               <span style="font-size:0.72rem;background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:10px;font-weight:700">${RESTO_THEME_EMOJI[r.theme]||'🍴'} ${r.theme||'기타'}</span>
@@ -14944,6 +14944,7 @@ function _bzRenderRestoTab() {
             </div>
             <div style="font-size:0.72rem;color:#94a3b8">방문 ${r.visitCount||0}회${r.memo?` · ${r.memo}`:''}</div>
           </div>
+          <div style="font-size:2.6rem;line-height:1;flex-shrink:0;opacity:0.55">${RESTO_THEME_EMOJI[r.theme]||'🍴'}</div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:8px">
           ${r.url?`<button onclick="bzOpenRestoUrl('${idEsc}')" style="padding:9px 16px;border-radius:10px;border:1.5px solid #bfdbfe;background:#eff6ff;color:#2563eb;font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">🗺️ 지도</button>`:''}
