@@ -2349,7 +2349,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v548';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v549';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -15179,17 +15179,34 @@ function _restoUpdateThemeButtons() {
 }
 function restoSelectTheme(t) { _restoModalTheme = t; _restoUpdateThemeButtons(); }
 
+function restoUrlAutoFill(raw) {
+  if (!raw) return;
+  const nameInput = document.getElementById('bz-resto-name-input');
+  if (!nameInput || nameInput.value.trim()) return;
+  // 카카오맵: "[카카오맵] 맛집명 https://kko.to/xxx"
+  const kakao = raw.match(/\[카카오맵\]\s*(.+?)\s+https?:\/\//);
+  // 네이버지도: "[네이버지도] 맛집명  주소  https://naver.me/xxx"
+  const naver = raw.match(/\[네이버지도\]\s*(.+?)\s{2,}/);
+  const name = kakao ? kakao[1].trim() : naver ? naver[1].trim() : '';
+  if (name) nameInput.value = name;
+}
+
 async function bzSaveResto() {
   const myName = (state.identity && state.identity.name) || '';
   const rawUrl = (document.getElementById('bz-resto-url-input').value || '').trim();
-  // 네이버 공유 텍스트("[네이버지도] 맛집명 주소  https://naver.me/xxx") 에서 URL만 추출
+  // 공유 텍스트("[네이버지도]"/  "[카카오맵]")에서 URL만 추출
   const urlMatch = rawUrl.match(/https?:\/\/\S+/);
   const url = urlMatch ? urlMatch[0] : rawUrl;
-  // 이름 입력란이 비어있고 공유 텍스트라면 맛집명 자동 추출 시도
+  // 이름 입력란이 비어있으면 공유 텍스트에서 맛집명 자동 추출 시도
   let nameInput = document.getElementById('bz-resto-name-input');
-  if (!nameInput.value.trim() && rawUrl.includes('[네이버지도]')) {
-    const m = rawUrl.match(/\[네이버지도\]\s*(.+?)\s{2,}/);
-    if (m) nameInput.value = m[1].trim();
+  if (!nameInput.value.trim()) {
+    if (rawUrl.includes('[네이버지도]')) {
+      const m = rawUrl.match(/\[네이버지도\]\s*(.+?)\s{2,}/);
+      if (m) nameInput.value = m[1].trim();
+    } else if (rawUrl.includes('[카카오맵]')) {
+      const m = rawUrl.match(/\[카카오맵\]\s*(.+?)\s+https?:\/\//);
+      if (m) nameInput.value = m[1].trim();
+    }
   }
   const name = (nameInput.value || '').trim();
   if (!name) { alert('맛집 이름을 입력해주세요.'); return; }
@@ -15254,11 +15271,15 @@ function _restoCheckClipboard() {
   if (!navigator.clipboard || !navigator.clipboard.readText) return;
   navigator.clipboard.readText().then(text => {
     if (!text) return;
-    if (!(text.includes('naver.me') || text.includes('map.naver.com'))) return;
+    const isNaver = text.includes('naver.me') || text.includes('map.naver.com');
+    const isKakao = text.includes('kko.to') || text.includes('kakaomap.com');
+    if (!isNaver && !isKakao) return;
     const urlInput = document.getElementById('bz-resto-url-input');
     if (!urlInput || urlInput.value) return;
-    if (confirm('클립보드에 네이버 지도 링크가 있습니다.\n자동으로 입력할까요?')) {
+    const label = isKakao ? '카카오맵' : '네이버 지도';
+    if (confirm(`클립보드에 ${label} 링크가 있습니다.\n자동으로 입력할까요?`)) {
       urlInput.value = text.trim();
+      restoUrlAutoFill(text.trim());
     }
   }).catch(() => {});
 }
@@ -15271,11 +15292,12 @@ function _restoPasteClipboard() {
   navigator.clipboard.readText().then(text => {
     const urlInput = document.getElementById('bz-resto-url-input');
     if (!urlInput) return;
-    if (!text || !(text.includes('naver.me') || text.includes('map.naver.com') || text.startsWith('http'))) {
-      alert('클립보드에 유효한 링크가 없습니다.\n네이버 지도 앱에서 공유 → 링크 복사 후 다시 시도하세요.');
+    if (!text || !(text.includes('naver.me') || text.includes('map.naver.com') || text.includes('kko.to') || text.includes('kakaomap.com') || text.startsWith('http'))) {
+      alert('클립보드에 유효한 링크가 없습니다.\n네이버 지도 또는 카카오맵에서 공유 → 링크 복사 후 다시 시도하세요.');
       return;
     }
     urlInput.value = text.trim();
+    restoUrlAutoFill(text.trim());
   }).catch(() => {
     alert('클립보드 접근 권한이 없습니다.\nURL 입력란을 길게 눌러 직접 붙여넣기 해주세요.');
   });
@@ -18822,6 +18844,15 @@ function saveMpComment(key) {
       <button onclick="bzCloseRestoModal()" style="border:none;background:none;font-size:1.3rem;color:#94a3b8;cursor:pointer">✕</button>
     </div>
     <div style="margin-bottom:12px">
+      <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:5px">지도 링크 <span style="font-weight:400;color:#94a3b8">(선택 — 붙여넣으면 이름 자동 입력)</span></div>
+      <input id="bz-resto-url-input" type="text" placeholder="네이버·카카오 링크 붙여넣기" oninput="restoUrlAutoFill(this.value)" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.85rem;background:#f8fafc;outline:none;font-family:inherit">
+      <div style="font-size:0.72rem;color:#94a3b8;margin-top:5px;line-height:1.6">
+        📍 네이버 지도 앱 → 공유 → 링크 복사<br>
+        📍 카카오맵 → 공유 → URL 복사하기<br>
+        → 입력란 길게 눌러 붙여넣기
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
       <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:5px">맛집 이름 *</div>
       <input id="bz-resto-name-input" type="text" placeholder="예: 스시하루" maxlength="30" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.9rem;background:#f8fafc;outline:none;font-family:inherit">
     </div>
@@ -18842,11 +18873,6 @@ function saveMpComment(key) {
         <button id="bz-theme-btn-주점"   onclick="restoSelectTheme('주점')"   style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍺 주점</button>
         <button id="bz-theme-btn-기타"   onclick="restoSelectTheme('기타')"   style="padding:6px 12px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;color:#64748b">🍴 기타</button>
       </div>
-    </div>
-    <div style="margin-bottom:12px">
-      <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:5px">네이버 지도 링크 <span style="font-weight:400;color:#94a3b8">(선택)</span></div>
-      <input id="bz-resto-url-input" type="url" placeholder="https://naver.me/..." style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.85rem;background:#f8fafc;outline:none;font-family:inherit">
-      <div style="font-size:0.72rem;color:#94a3b8;margin-top:4px">네이버 지도 앱 → 공유 → 링크 복사 → 입력란 길게 눌러 붙여넣기</div>
     </div>
     <div style="margin-bottom:18px">
       <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:5px">메모 <span style="font-weight:400;color:#94a3b8">(선택)</span></div>
