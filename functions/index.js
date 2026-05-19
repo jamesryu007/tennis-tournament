@@ -1990,9 +1990,14 @@ exports.sendNoticeAsBot = onCall({ region: 'asia-southeast1' }, async (req) => {
   const notice = snap.val();
   if (!notice) throw new Error('공지 없음');
   const titleLine = notice.title ? `[${notice.title}]\n` : '';
-  const text = `📢 공지사항\n\n${titleLine}${notice.content}\n\n— ${notice.createdBy}`;
-  await _postBotMsg({ text });
-  await db.ref(`jmt/notices/${noticeId}/sentAt`).set(Date.now());
+  const botText = `📢 공지사항\n\n${titleLine}${notice.content}\n\n— ${notice.createdBy}`;
+  // 자미톡에 봇 메시지 게시
+  await _postBotMsg({ text: botText });
+  // 전체 멤버에게 FCM 푸시 (쿨다운 없이 항상 발송)
+  const tokens = await getAllTokens();
+  const pushTitle = `📢 공지사항${notice.title ? ` — ${notice.title}` : ''}`;
+  const pushBody  = notice.content.length > 60 ? notice.content.slice(0, 60) + '…' : notice.content;
+  await sendPush(tokens, pushTitle, pushBody, 'matches', '', '', { subScreen: 'notices' });
   return { ok: true };
 });
 

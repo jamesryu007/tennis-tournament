@@ -1473,7 +1473,7 @@ const firebaseConfig = {
           </select>
           <div id="bz-alias-chips" style="display:flex;flex-wrap:wrap;gap:4px;flex:1"></div>
           <button id="bz-jinsil-btn" onclick="bzToggleJinsil()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#64748b;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">진실톡 OFF</button>
-          <button id="bz-notice-btn" onclick="openNoticeModal()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">📢 공지</button>
+          <button id="bz-notice-btn" onclick="openNoticeModal()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">📢 공지사항</button>
         </div>
         <div id="bz-alias-limit-msg" style="display:none;font-size:0.72rem;color:#dc2626;margin-bottom:4px">⚠️ 최대 2개의 가명만 사용할 수 있습니다.</div>
         <!-- 채팅중인 멤버 -->
@@ -8192,7 +8192,7 @@ function selectIdentity(name) {
   localStorage.setItem(LS_IDENTITY, JSON.stringify(state.identity));
   document.getElementById('identity-modal').classList.remove('open');
   // 푸시 알림으로 진입한 경우 해당 탭으로 이동
-  if (window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; setTimeout(() => { switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); },300); }, 100); }
+  if (window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; setTimeout(() => { switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); },300); if(ss==='notices') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(openNoticeModal,300); },300); }, 100); }
   // FCM: 처음 로그인이면 초기화(권한 요청 포함), 이미 초기화됐으면 토큰 재매핑
   if (!_fcmMessaging) {
     initFCM(true); // 사용자 클릭 제스처 시점이므로 권한 요청 가능
@@ -8443,7 +8443,7 @@ initBirthdaySelects();
 // FCM 초기화 (접속자 선택 후 실행 — identity 모달 닫힐 때 호출)
 setTimeout(() => {
   if(state.identity) initFCM();
-  if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); },300); }
+  if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); },300); if(ss==='notices') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(openNoticeModal,300); },300); }
 }, 1500);
 document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
 // 랜덤 사진 변경 — 자.만.추. landscape 이미지 우선, 없으면 팀 사진 fallback
@@ -10687,6 +10687,7 @@ async function triggerAtpRefresh() {
           if (commentId) setTimeout(() => scrollToComment(commentId), 400);
           if (betId) setTimeout(() => { switchAtpTab('bet'); showBetResultCelebration(betId, isWinnerHint); }, 500);
           if (subScreen === 'banzige') setTimeout(() => { switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory, 100); }, 300);
+          if (subScreen === 'notices') setTimeout(() => { switchPage('matches'); switchMatchesTab('memory'); setTimeout(openNoticeModal, 300); }, 300);
         } else {
           window._pendingTab = tab;
           window._pendingCommentId = commentId;
@@ -15017,12 +15018,15 @@ function _renderNoticeList() {
         <button onclick="openNoticeWriteModal('${id}')" style="font-size:0.7rem;background:none;color:#2563eb;border:1.5px solid #93c5fd;padding:2px 8px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">수정</button>
         <button onclick="deleteNotice('${id}')" style="font-size:0.7rem;background:none;color:#dc2626;border:1.5px solid #fecaca;padding:2px 8px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">삭제</button>` : '';
       return `<div style="background:${p.bg};border-radius:12px;padding:12px 14px;border:1.5px solid ${p.border}">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:5px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px">
           <div style="font-size:0.88rem;font-weight:800;color:#1e293b;flex:1">${n.title || '(제목 없음)'}</div>
-          <div style="display:flex;gap:5px;flex-shrink:0;align-items:center">${mgrBtns}</div>
+          <div style="font-size:0.71rem;color:#94a3b8;flex-shrink:0">${dateStr}</div>
         </div>
         <div style="font-size:0.82rem;color:#475569;white-space:pre-wrap;margin-bottom:6px">${n.content || ''}</div>
-        <div style="font-size:0.71rem;color:#94a3b8">${n.createdBy || ''} · ${dateStr}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:0.71rem;color:#94a3b8">${n.createdBy || ''}</div>
+          <div style="display:flex;gap:5px;align-items:center">${mgrBtns}</div>
+        </div>
       </div>`;
     }).join('');
   });
@@ -16016,9 +16020,9 @@ function _bzRender() {
     }
   });
 
-  // 채팅중인 멤버 (메시지에 등장한 가명 목록)
+  // 채팅중인 멤버 (메시지에 등장한 가명 목록, 자미봇 제외)
   const msgs = _bzState.messages ? Object.values(_bzState.messages) : [];
-  const activeAliases = [...new Set(msgs.map(m => m.alias))];
+  const activeAliases = [...new Set(msgs.map(m => m.alias))].filter(a => a !== '자미봇');
   const activeMembersEl = document.getElementById('bz-active-members');
   if (activeMembersEl) {
     activeMembersEl.textContent = activeAliases.length > 0
