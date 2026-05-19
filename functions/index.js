@@ -1177,20 +1177,7 @@ async function translateTexts(texts) {
   }
 }
 
-// ══ 모임 정하기 푸시 ══════════════════════════════════════════════
-
-// 투표 생성 시 전체 알림
-exports.notifyMeetingPollOpen = onValueCreated(
-  { ref: 'jmt/meetingPoll/status', region: 'asia-southeast1' },
-  async snap => {
-    if (snap.data.val() !== 'open') return;
-    const pollSnap = await db.ref('jmt/meetingPoll').once('value');
-    const poll = pollSnap.val();
-    if (!poll) return;
-    const tokens = await getAllTokens();
-    await sendPush(tokens, '📅 모임 정하기 투표 오픈!', `"${poll.title||'모임 정하기'}" 투표에 참여해 주세요!`, 'setup');
-  }
-);
+// ══ 머든 정하기 푸시 ══════════════════════════════════════════════
 
 // 날짜 포맷 헬퍼
 function fmtDate(dateStr) {
@@ -1199,16 +1186,31 @@ function fmtDate(dateStr) {
   return `${o.getMonth()+1}월 ${o.getDate()}일(${weekDays[o.getDay()]})`;
 }
 
+// 투표 생성 시 전체 알림
+exports.notifyMeetingPollOpen = onValueCreated(
+  { ref: 'jmt/meetingPolls/{pollId}/status', region: 'asia-southeast1' },
+  async (event) => {
+    if (event.data.val() !== 'open') return;
+    const pollId = event.params.pollId;
+    const pollSnap = await db.ref(`jmt/meetingPolls/${pollId}`).once('value');
+    const poll = pollSnap.val();
+    if (!poll) return;
+    const tokens = await getAllTokens();
+    await sendPush(tokens, '🗳️ 머든 정하기 투표 오픈!', `"${poll.title||'머든 정하기'}" 투표에 참여해 주세요!`, 'setup');
+  }
+);
+
 // 투표 마감 시 전체 알림
 exports.notifyMeetingPollClosed = onValueWritten(
-  { ref: 'jmt/meetingPoll/status', region: 'asia-southeast1' },
-  async snap => {
-    if (snap.data.after.val() !== 'closed') return;
-    const pollSnap = await db.ref('jmt/meetingPoll').once('value');
+  { ref: 'jmt/meetingPolls/{pollId}/status', region: 'asia-southeast1' },
+  async (event) => {
+    if (event.data.after.val() !== 'closed') return;
+    const pollId = event.params.pollId;
+    const pollSnap = await db.ref(`jmt/meetingPolls/${pollId}`).once('value');
     const poll = pollSnap.val();
     if (!poll) return;
 
-    const title = poll.title || '모임 정하기';
+    const title = poll.title || '머든 정하기';
     const votes = poll.votes || {};
     const parts = [];
 
@@ -1241,7 +1243,7 @@ exports.notifyMeetingPollClosed = onValueWritten(
       : `"${title}" 투표가 마감되었습니다.`;
 
     const tokens = await getAllTokens();
-    await sendPush(tokens, '📅 모임 날짜/내용 확정!', body, 'setup');
+    await sendPush(tokens, '🗳️ 머든 정하기 확정!', body, 'setup');
   }
 );
 
@@ -1249,14 +1251,15 @@ exports.notifyMeetingPollClosed = onValueWritten(
 exports.notifyMeetingPollNudge = onCall(
   { region: 'asia-southeast1' },
   async (request) => {
-    const pollSnap = await db.ref('jmt/meetingPoll').once('value');
+    const { pollId } = request.data || {};
+    if (!pollId) throw new Error('pollId가 필요합니다.');
+    const pollSnap = await db.ref(`jmt/meetingPolls/${pollId}`).once('value');
     const poll = pollSnap.val();
     if (!poll || poll.status !== 'open') throw new Error('진행 중인 투표가 없습니다.');
 
     const votes = poll.votes || {};
     const voterNames = Object.values(votes).map(v => v.name).filter(Boolean);
 
-    // 멤버 목록 조회
     const membersSnap = await db.ref('jmt/members').once('value');
     const members = membersSnap.val() ? Object.values(membersSnap.val()).map(m => m.name) : [];
     const nonVoters = members.filter(n => !voterNames.includes(n));
@@ -1266,29 +1269,30 @@ exports.notifyMeetingPollNudge = onCall(
     const tokens = await getTokensByNames(nonVoters);
     if (!tokens.length) return { message: '독촉 알림을 보낼 대상이 없습니다.' };
 
-    await sendPush(tokens, '🔔 모임 정하기 투표 미참여 알림', `"${poll.title||'모임 정하기'}" 투표에 아직 참여하지 않으셨습니다. 지금 참여해 주세요!`, 'setup');
+    await sendPush(tokens, '🔔 머든 정하기 투표 미참여 알림', `"${poll.title||'머든 정하기'}" 투표에 아직 참여하지 않으셨습니다. 지금 참여해 주세요!`, 'setup');
     return { message: `${nonVoters.length}명에게 독촉 알림을 보냈습니다.` };
   }
 );
 
-// 자동 독촉 (하루 1회, 미참여자에게)
+// 자동 독촉 (하루 1회, 진행 중인 모든 투표)
 exports.notifyMeetingPollAutoNudge = onSchedule(
   { schedule: '0 12 * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
   async () => {
-    const pollSnap = await db.ref('jmt/meetingPoll').once('value');
-    const poll = pollSnap.val();
-    if (!poll || poll.status !== 'open') return;
-
-    const votes = poll.votes || {};
-    const voterNames = Object.values(votes).map(v => v.name).filter(Boolean);
+    const pollsSnap = await db.ref('jmt/meetingPolls').once('value');
+    const polls = pollsSnap.val() || {};
     const membersSnap = await db.ref('jmt/members').once('value');
     const members = membersSnap.val() ? Object.values(membersSnap.val()).map(m => m.name) : [];
-    const nonVoters = members.filter(n => !voterNames.includes(n));
-    if (!nonVoters.length) return;
 
-    const tokens = await getTokensByNames(nonVoters);
-    if (!tokens.length) return;
-    await sendPush(tokens, '📅 모임 정하기 투표 미참여 알림', `"${poll.title||'모임 정하기'}" 투표에 참여해 주세요!`, 'setup');
+    for (const poll of Object.values(polls)) {
+      if (!poll || poll.status !== 'open') continue;
+      const votes = poll.votes || {};
+      const voterNames = Object.values(votes).map(v => v.name).filter(Boolean);
+      const nonVoters = members.filter(n => !voterNames.includes(n));
+      if (!nonVoters.length) continue;
+      const tokens = await getTokensByNames(nonVoters);
+      if (!tokens.length) continue;
+      await sendPush(tokens, '🗳️ 머든 정하기 투표 미참여 알림', `"${poll.title||'머든 정하기'}" 투표에 참여해 주세요!`, 'setup');
+    }
   }
 );
 
@@ -1296,22 +1300,22 @@ exports.notifyMeetingPollAutoNudge = onSchedule(
 exports.checkMeetingPollDeadline = onSchedule(
   { schedule: '*/30 * * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
   async () => {
-    const pollSnap = await db.ref('jmt/meetingPoll').once('value');
-    const poll = pollSnap.val();
-    if (!poll || poll.status !== 'open' || !poll.closesAt) return;
-    if (new Date(poll.closesAt) > new Date()) return;
-    const closedAt = new Date().toISOString();
-    const pollId = (poll.createdAt||Date.now()).toString().replace(/[:.]/g,'_');
-    await db.ref('jmt/meetingPoll/status').set('closed');
-    await db.ref('jmt/meetingPoll/closedAt').set(closedAt);
-    await db.ref(`jmt/meetingPollsHistory/${pollId}`).set({...poll, status:'closed', closedAt});
-    // notifyMeetingPollClosed DB trigger fires automatically on status change
+    const pollsSnap = await db.ref('jmt/meetingPolls').once('value');
+    const polls = pollsSnap.val() || {};
+    const now = new Date();
+    for (const [pollId, poll] of Object.entries(polls)) {
+      if (!poll || poll.status !== 'open' || !poll.closesAt) continue;
+      if (new Date(poll.closesAt) > now) continue;
+      const closedAt = now.toISOString();
+      await db.ref(`jmt/meetingPolls/${pollId}/status`).set('closed');
+      await db.ref(`jmt/meetingPolls/${pollId}/closedAt`).set(closedAt);
+    }
   }
 );
 
 // ══ 모임 투표 댓글 알림 — DB 트리거 (전체) ══════════════════════
 exports.notifyMeetingPollComment = onValueCreated(
-  { ref: 'jmt/meetingPoll/comments/{commentId}', region: 'asia-southeast1' },
+  { ref: 'jmt/meetingPolls/{pollId}/comments/{commentId}', region: 'asia-southeast1' },
   async (event) => {
     const comment = event.data.val();
     if (!comment) return;
@@ -1328,13 +1332,13 @@ exports.notifyMeetingPollComment = onValueCreated(
 
 // ══ 모임 투표 답글 알림 — DB 트리거 (댓글 작성자에게만) ══════════
 exports.notifyMeetingPollReply = onValueCreated(
-  { ref: 'jmt/meetingPoll/comments/{commentId}/replies/{replyId}', region: 'asia-southeast1' },
+  { ref: 'jmt/meetingPolls/{pollId}/comments/{commentId}/replies/{replyId}', region: 'asia-southeast1' },
   async (event) => {
     const reply = event.data.val();
     if (!reply) return;
     const { author, text } = reply;
     if (!author) return;
-    const commentSnap = await db.ref(`jmt/meetingPoll/comments/${event.params.commentId}`).once('value');
+    const commentSnap = await db.ref(`jmt/meetingPolls/${event.params.pollId}/comments/${event.params.commentId}`).once('value');
     const comment = commentSnap.val();
     if (!comment || !comment.author || comment.author === author) return;
     const tokens = await getTokensByNames([comment.author]);
@@ -1344,12 +1348,12 @@ exports.notifyMeetingPollReply = onValueCreated(
 
 // ══ 모임 최종결정 알림 ════════════════════════════════════════════
 exports.notifyMeetingPollFinalDecision = onValueWritten(
-  { ref: 'jmt/meetingPoll/finalDecision', region: 'asia-southeast1' },
+  { ref: 'jmt/meetingPolls/{pollId}/finalDecision', region: 'asia-southeast1' },
   async (event) => {
     const fd = event.data.after.val();
     if (!fd) return;
 
-    const pollSnap = await db.ref('jmt/meetingPoll').once('value');
+    const pollSnap = await db.ref(`jmt/meetingPolls/${event.params.pollId}`).once('value');
     const poll = pollSnap.val();
     if (!poll) return;
 
