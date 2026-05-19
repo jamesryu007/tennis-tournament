@@ -1622,11 +1622,12 @@ async function _botRankingAtt() {
     const votes = week.votes || {};
     if (!Object.keys(votes).length) continue;
     totalWeeks++;
-    for (const [name, vote] of Object.entries(votes)) {
-      // vote는 문자열 'attend'/'late'/'absent' 또는 객체일 수 있음
-      const vStr = typeof vote === 'object' ? (vote.vote || '') : String(vote || '');
-      if (vStr === 'attend' || vStr === 'late') {
-        counts[name] = (counts[name] || 0) + 1;
+    // votes 구조: { memberNameKey: { name, vote, votedAt } }
+    for (const vObj of Object.values(votes)) {
+      const vStr  = typeof vObj === 'object' ? (vObj.vote || '') : String(vObj || '');
+      const mName = typeof vObj === 'object' ? (vObj.name || '') : '';
+      if (mName && (vStr === 'attend' || vStr === 'late')) {
+        counts[mName] = (counts[mName] || 0) + 1;
       }
     }
   }
@@ -1706,16 +1707,17 @@ async function _botSchedule() {
     .map(m => m.name);
   const total       = members.length;
 
-  // 투표 현황 — pollState.weekId와 실제 poll 키가 다를 수 있으므로
-  // jmt/poll 최신 키를 사용 (가장 신뢰성 높음)
-  const pollSnap2  = await db.ref('jmt/poll').orderByKey().limitToLast(5).once('value');
-  const polls2     = pollSnap2.val() || {};
-  const latestKey  = Object.keys(polls2).sort().pop();
-  const latestWeek = latestKey ? polls2[latestKey] : null;
-  const votes      = latestWeek ? (latestWeek.votes || {}) : {};
+  // 투표 현황 — pollState.weekId 기준 (app과 동일한 경로)
+  const votesSnap = await db.ref(`jmt/poll/${ps.weekId}/votes`).once('value');
+  const votes     = votesSnap.val() || {};
+  // votes 구조: { memberNameKey: { name, vote, votedAt } }
+  const voteMap = {};
+  for (const vObj of Object.values(votes)) {
+    if (vObj && vObj.name && vObj.vote) voteMap[vObj.name] = vObj.vote;
+  }
   const attend = [], late = [], absent = [], noResp = [];
   for (const name of members) {
-    const v = votes[name];
+    const v = voteMap[name];
     if (!v)                noResp.push(name);
     else if (v === 'attend') attend.push(name);
     else if (v === 'late')   late.push(name);
@@ -1780,20 +1782,24 @@ async function _botCheckin() {
     .filter(m => m.name && !m.isGuest)
     .map(m => m.name);
 
-  // 가장 최근 poll (weekId 내림차순)
-  const pollSnap = await db.ref('jmt/poll').orderByKey().limitToLast(5).once('value');
-  const polls = pollSnap.val() || {};
-  if (!Object.keys(polls).length) return { text: '📋 현재 진행 중인 출석체크가 없어요.' };
+  // pollState로 weekId 조회 (app과 동일한 경로)
+  const psSnap = await db.ref('jmt/pollState').once('value');
+  const ps     = psSnap.val();
+  if (!ps || !ps.weekId) return { text: '📋 현재 진행 중인 출석체크가 없어요.' };
 
-  const weekId = Object.keys(polls).sort().pop();
-  const week = polls[weekId];
-  const votes = week.votes || {};
-  const pollStatus = week.status || 'open';
+  const pollStatus = ps.status === 'closed' ? '마감' : '진행중';
+  const votesSnap  = await db.ref(`jmt/poll/${ps.weekId}/votes`).once('value');
+  const rawVotes   = votesSnap.val() || {};
+  // votes 구조: { memberNameKey: { name, vote, votedAt } }
+  const voteMap = {};
+  for (const vObj of Object.values(rawVotes)) {
+    if (vObj && vObj.name && vObj.vote) voteMap[vObj.name] = vObj.vote;
+  }
 
   const attend = [], late = [], absent = [], noResp = [];
   for (const name of members) {
-    const v = votes[name];
-    if (!v)              noResp.push(name);
+    const v = voteMap[name];
+    if (!v)                noResp.push(name);
     else if (v === 'attend') attend.push(name);
     else if (v === 'late')   late.push(name);
     else if (v === 'absent') absent.push(name);
