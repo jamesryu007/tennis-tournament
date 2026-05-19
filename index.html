@@ -2332,7 +2332,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v540';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v541';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -10688,7 +10688,7 @@ async function triggerAtpRefresh() {
           if (commentId) setTimeout(() => scrollToComment(commentId), 400);
           if (betId) setTimeout(() => { switchAtpTab('bet'); showBetResultCelebration(betId, isWinnerHint); }, 500);
           if (subScreen === 'banzige') setTimeout(() => { switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory, 100); }, 300);
-          if (subScreen === 'notices') setTimeout(openNoticeModal, 400);
+          if (subScreen === 'notices') setTimeout(() => { const m = document.getElementById('notice-list-modal'); if (m && m.style.display !== 'flex') openNoticeModal(); }, 400);
         } else {
           window._pendingTab = tab;
           window._pendingCommentId = commentId;
@@ -10718,6 +10718,25 @@ async function triggerAtpRefresh() {
       });
     }).catch(() => {});
   }
+
+  // ── 앱 포그라운드 복귀 시 공지 딥링크 처리 (iOS PWA 신뢰성 보완) ──
+  // visibilitychange: 알림 탭 후 앱이 포그라운드로 올 때, 캐시에서 직접 처리
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !('caches' in window)) return;
+    caches.open('jamite-nav').then(c => c.match('/pending-nav')).then(res => {
+      if (!res) return;
+      res.json().then(nav => {
+        if (!nav || !nav.subScreen || (Date.now() - (nav.ts || 0)) > 300000) return; // 5분 이내만
+        caches.open('jamite-nav').then(c => c.delete('/pending-nav'));
+        if (nav.subScreen === 'notices') {
+          setTimeout(() => {
+            const modal = document.getElementById('notice-list-modal');
+            if (modal && modal.style.display !== 'flex') openNoticeModal();
+          }, 500);
+        }
+      });
+    }).catch(() => {});
+  });
 </script>
 
 <!-- 로고 팝업 -->
