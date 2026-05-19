@@ -526,6 +526,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .player-pick-btn.pick-disabled { opacity: 0.28; cursor: not-allowed; pointer-events: none; }
 .pick-group-label { font-size: 0.72rem; font-weight: 700; color: #64748b; margin-bottom: 6px; padding-left: 2px; }
 .edit-mode-notice { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; color: #1d4ed8; margin-bottom: 8px; text-align: center; }
+#notice-content-editor:empty:before { content: attr(data-placeholder); color: #94a3b8; pointer-events: none; }
 
 /* ── MODALS ── */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 100; align-items: flex-end; justify-content: center; overscroll-behavior: none; }
@@ -923,14 +924,28 @@ const firebaseConfig = {
   </div>
 </div>
 
-<div id="mp-history-modal" class="modal-overlay" onclick="if(event.target===this)closeMpHistoryModal()">
-  <div class="modal-sheet" style="height:85vh;display:flex;flex-direction:column">
+
+<!-- ── 머든 정하기: 투표 만들기 모달 ── -->
+<div id="mp-create-modal" class="modal-overlay" onclick="if(event.target===this)closeMpCreateModal()">
+  <div class="modal-sheet" style="height:88vh;display:flex;flex-direction:column">
     <div class="modal-handle"></div>
     <div style="padding:14px 18px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-      <div id="mp-history-modal-title" style="font-size:1rem;font-weight:800;color:#1e293b">📋 이전 투표</div>
-      <button onclick="closeMpHistoryModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8">✕</button>
+      <div style="font-size:1rem;font-weight:800;color:#1e293b">🗳️ 투표 만들기</div>
+      <button onclick="closeMpCreateModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8">✕</button>
     </div>
-    <div id="mp-history-content" style="flex:1;overflow-y:auto;padding:14px 18px 24px"></div>
+    <div id="mp-create-content" style="flex:1;overflow-y:auto;padding:14px 18px 24px;overscroll-behavior:contain"></div>
+  </div>
+</div>
+
+<!-- ── 머든 정하기: 투표 상세 모달 ── -->
+<div id="mp-detail-modal" class="modal-overlay" onclick="if(event.target===this)closeMpDetailModal()">
+  <div class="modal-sheet" style="height:88vh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <div style="padding:14px 18px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div id="mp-detail-header-title" style="font-size:1rem;font-weight:800;color:#1e293b">투표</div>
+      <button onclick="closeMpDetailModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8">✕</button>
+    </div>
+    <div id="mp-detail-content" style="flex:1;overflow-y:auto;padding:14px 18px 24px;overscroll-behavior:contain"></div>
   </div>
 </div>
 
@@ -952,7 +967,7 @@ const firebaseConfig = {
 <!-- ══ PAGE: 대회만들기 ══ -->
 <div class="page" id="page-setup">
   <div class="sub-tabs" style="margin-bottom:10px">
-    <div class="sub-tab active" id="stab-meeting" onclick="switchSetupTab('meeting')">📅 모임 정하기</div>
+    <div class="sub-tab active" id="stab-meeting" onclick="switchSetupTab('meeting')">🗳️ 머든 정하기</div>
     <div class="sub-tab" id="stab-bet" onclick="switchSetupTab('bet')">🎲 무조건 내기</div>
     <div class="sub-tab" id="stab-create" onclick="switchSetupTab('create')">🏆 경기 진행</div>
   </div>
@@ -1107,9 +1122,12 @@ const firebaseConfig = {
 
   </div><!-- /setup-panel-create -->
 
-  <!-- 모임 정하기 패널 -->
+  <!-- 머든 정하기 패널 -->
   <div id="setup-panel-meeting">
-    <div id="meeting-poll-content">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+      <button id="mp-create-btn" onclick="openMpCreateModal()" style="display:none;padding:8px 18px;border-radius:20px;border:none;background:#2563eb;color:#fff;font-size:0.82rem;font-weight:700;cursor:pointer">🗳️ 투표 만들기</button>
+    </div>
+    <div id="mp-polls-list">
       <div class="card"><p style="text-align:center;color:#94a3b8;padding:20px 0">로딩 중...</p></div>
     </div>
   </div>
@@ -1473,6 +1491,7 @@ const firebaseConfig = {
           </select>
           <div id="bz-alias-chips" style="display:flex;flex-wrap:wrap;gap:4px;flex:1"></div>
           <button id="bz-jinsil-btn" onclick="bzToggleJinsil()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#64748b;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">진실톡 OFF</button>
+          <button id="bz-notice-btn" onclick="openNoticeModal()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">📢 공지사항</button>
         </div>
         <div id="bz-alias-limit-msg" style="display:none;font-size:0.72rem;color:#dc2626;margin-bottom:4px">⚠️ 최대 2개의 가명만 사용할 수 있습니다.</div>
         <!-- 채팅중인 멤버 -->
@@ -2330,7 +2349,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v529';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v541';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -2872,11 +2891,26 @@ function setupFirebaseListeners() {
     if(document.getElementById('page-checkin').classList.contains('active')) renderCheckinPage();
   }, fbErr);
 
-  // 모임 정하기 실시간 동기화
-  db.ref('jmt/meetingPoll').on('value', snap => {
-    _mpData = snap.val();
+  // 기존 jmt/meetingPoll → jmt/meetingPolls 마이그레이션 (1회)
+  db.ref('jmt/meetingPoll').once('value').then(snap => {
+    const old = snap.val();
+    if (old && old.status) {
+      const newRef = db.ref('jmt/meetingPolls').push();
+      newRef.set(old).then(() => {
+        db.ref('jmt/meetingPoll').remove().catch(() => {});
+      }).catch(fbErr);
+    }
+  }).catch(() => {});
+
+  // 머든 정하기 실시간 동기화
+  db.ref('jmt/meetingPolls').on('value', snap => {
+    _mpPolls = snap.val() || {};
     const panel = document.getElementById('setup-panel-meeting');
-    if (panel && panel.style.display !== 'none') renderMeetingPoll();
+    if (panel && panel.style.display !== 'none') renderMpPollList();
+    if (_mpActivePollId) {
+      _mpData = _mpPolls[_mpActivePollId] || null;
+      renderMpDetail();
+    }
   });
 }
 
@@ -8191,7 +8225,7 @@ function selectIdentity(name) {
   localStorage.setItem(LS_IDENTITY, JSON.stringify(state.identity));
   document.getElementById('identity-modal').classList.remove('open');
   // 푸시 알림으로 진입한 경우 해당 탭으로 이동
-  if (window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; setTimeout(() => { switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); },300); }, 100); }
+  if (window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; setTimeout(() => { switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); },300); if(ss==='notices') setTimeout(openNoticeModal, 400); }, 100); }
   // FCM: 처음 로그인이면 초기화(권한 요청 포함), 이미 초기화됐으면 토큰 재매핑
   if (!_fcmMessaging) {
     initFCM(true); // 사용자 클릭 제스처 시점이므로 권한 요청 가능
@@ -8442,7 +8476,7 @@ initBirthdaySelects();
 // FCM 초기화 (접속자 선택 후 실행 — identity 모달 닫힐 때 호출)
 setTimeout(() => {
   if(state.identity) initFCM();
-  if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); },300); }
+  if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); },300); if(ss==='notices') setTimeout(openNoticeModal, 400); }
 }, 1500);
 document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
 // 랜덤 사진 변경 — 자.만.추. landscape 이미지 우선, 없으면 팀 사진 fallback
@@ -10686,6 +10720,7 @@ async function triggerAtpRefresh() {
           if (commentId) setTimeout(() => scrollToComment(commentId), 400);
           if (betId) setTimeout(() => { switchAtpTab('bet'); showBetResultCelebration(betId, isWinnerHint); }, 500);
           if (subScreen === 'banzige') setTimeout(() => { switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory, 100); }, 300);
+          if (subScreen === 'notices') setTimeout(() => { const m = document.getElementById('notice-list-modal'); if (m && m.style.display !== 'flex') openNoticeModal(); }, 400);
         } else {
           window._pendingTab = tab;
           window._pendingCommentId = commentId;
@@ -10715,6 +10750,25 @@ async function triggerAtpRefresh() {
       });
     }).catch(() => {});
   }
+
+  // ── 앱 포그라운드 복귀 시 공지 딥링크 처리 (iOS PWA 신뢰성 보완) ──
+  // visibilitychange: 알림 탭 후 앱이 포그라운드로 올 때, 캐시에서 직접 처리
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden || !('caches' in window)) return;
+    caches.open('jamite-nav').then(c => c.match('/pending-nav')).then(res => {
+      if (!res) return;
+      res.json().then(nav => {
+        if (!nav || !nav.subScreen || (Date.now() - (nav.ts || 0)) > 300000) return; // 5분 이내만
+        caches.open('jamite-nav').then(c => c.delete('/pending-nav'));
+        if (nav.subScreen === 'notices') {
+          setTimeout(() => {
+            const modal = document.getElementById('notice-list-modal');
+            if (modal && modal.style.display !== 'flex') openNoticeModal();
+          }, 500);
+        }
+      });
+    }).catch(() => {});
+  });
 </script>
 
 <!-- 로고 팝업 -->
@@ -10801,6 +10855,8 @@ async function triggerAtpRefresh() {
 // ══ 모임 정하기 ══════════════════════════════════════════════════
 
 let _mpData = null;
+let _mpPolls = {};
+let _mpActivePollId = null;
 let _mpCal = { year: 0, month: 0, selected: [] };
 let _mpCreateDates = [];
 let _mpCreateContents = [];
@@ -14957,6 +15013,122 @@ function bzOpenRestoModal(editId) {
   if (modal) modal.style.display = 'flex';
   if (!editId) setTimeout(_restoCheckClipboard, 300);
 }
+// ══ 공지사항 관리 ═══════════════════════════════════════════════════
+const _NOTICE_PASTELS = [
+  { bg: '#eff6ff', border: '#bfdbfe' }, // 파란
+  { bg: '#f0fdf4', border: '#bbf7d0' }, // 초록
+  { bg: '#fef9c3', border: '#fde68a' }, // 노랑
+  { bg: '#fdf4ff', border: '#e9d5ff' }, // 보라
+  { bg: '#fff7ed', border: '#fed7aa' }, // 주황
+  { bg: '#f0f9ff', border: '#bae6fd' }, // 하늘
+  { bg: '#fdf2f8', border: '#fbcfe8' }, // 분홍
+];
+let _noticeEditId = null;
+
+function openNoticeModal() {
+  // 관리자에게만 공지 작성 버튼 표시
+  const wrapEl = document.getElementById('notice-write-btn-wrap');
+  if (wrapEl) wrapEl.style.display = isManager() ? 'block' : 'none';
+  document.getElementById('notice-list-modal').style.display = 'flex';
+  // 배경 스크롤 차단 (iOS PWA 호환)
+  document.body.style.overflow = 'hidden';
+  _renderNoticeList();
+}
+function closeNoticeModal() {
+  document.getElementById('notice-list-modal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+function openNoticeWriteModal(editId) {
+  _noticeEditId = editId || null;
+  document.getElementById('notice-title-input').value = '';
+  document.getElementById('notice-content-editor').innerHTML = '';
+  if (editId) {
+    db.ref('jmt/notices/' + editId).once('value').then(snap => {
+      const n = snap.val() || {};
+      document.getElementById('notice-title-input').value = n.title || '';
+      document.getElementById('notice-content-editor').innerHTML = n.content || '';
+    });
+  }
+  document.getElementById('notice-write-modal').style.display = 'flex';
+}
+function applyNoticeColor(type, color) {
+  const editor = document.getElementById('notice-content-editor');
+  editor.focus();
+  if (type === 'fore')  document.execCommand('foreColor',   false, color);
+  else if (type === 'back')  document.execCommand('hiliteColor', false, color);
+  else if (type === 'clear') document.execCommand('removeFormat', false, null);
+}
+function closeNoticeWriteModal() {
+  document.getElementById('notice-write-modal').style.display = 'none';
+  _noticeEditId = null;
+}
+function _renderNoticeList() {
+  const body = document.getElementById('notice-list-body');
+  if (!db) return;
+  const mgr = isManager();
+  db.ref('jmt/notices').orderByChild('createdAt').once('value').then(snap => {
+    const all = snap.val() || {};
+    const items = Object.entries(all).sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
+    if (!items.length) {
+      body.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:0.85rem;padding:20px">등록된 공지가 없어요</div>';
+      return;
+    }
+    body.innerHTML = items.map(([id, n], idx) => {
+      const p = _NOTICE_PASTELS[idx % _NOTICE_PASTELS.length];
+      const dt = n.createdAt ? new Date(n.createdAt) : null;
+      const dateStr = dt ? `${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}` : '';
+      const mgrBtns = mgr ? `
+        <button onclick="sendNoticeToChat('${id}')" style="font-size:0.7rem;background:#2563eb;color:#fff;border:none;padding:3px 9px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">전송</button>
+        <button onclick="openNoticeWriteModal('${id}')" style="font-size:0.7rem;background:none;color:#2563eb;border:1.5px solid #93c5fd;padding:2px 8px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">수정</button>
+        <button onclick="deleteNotice('${id}')" style="font-size:0.7rem;background:none;color:#dc2626;border:1.5px solid #fecaca;padding:2px 8px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">삭제</button>` : '';
+      return `<div style="background:${p.bg};border-radius:12px;padding:12px 14px;border:1.5px solid ${p.border}">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px">
+          <div style="font-size:0.88rem;font-weight:800;color:#1e293b;flex:1">${n.title || '(제목 없음)'}</div>
+          <div style="font-size:0.71rem;color:#94a3b8;flex-shrink:0">${dateStr}</div>
+        </div>
+        <div style="font-size:0.82rem;color:#475569;line-height:1.6;margin-bottom:6px">${n.content || ''}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:0.71rem;color:#94a3b8">${n.createdBy || ''}</div>
+          <div style="display:flex;gap:5px;align-items:center">${mgrBtns}</div>
+        </div>
+      </div>`;
+    }).join('');
+  });
+}
+async function saveNotice() {
+  const title   = document.getElementById('notice-title-input').value.trim();
+  const content = document.getElementById('notice-content-editor').innerHTML.trim();
+  if (!content || content === '<br>') { alert('내용을 입력해주세요.'); return; }
+  const curName = (state.identity && state.identity.name) || '';
+  if (_noticeEditId) {
+    await db.ref('jmt/notices/' + _noticeEditId).update({ title, content }).catch(fbErr);
+  } else {
+    await db.ref('jmt/notices').push({ title, content, createdBy: curName, createdAt: Date.now() }).catch(fbErr);
+  }
+  closeNoticeWriteModal();
+  _renderNoticeList();
+}
+async function sendNoticeToChat(noticeId) {
+  const curName = (state.identity && state.identity.name) || '';
+  const fn = firebase.app().functions('asia-southeast1').httpsCallable('sendNoticeAsBot');
+  try {
+    await fn({ senderName: curName, noticeId });
+    // 전송 성공 → 공지 모달 닫기 + 채팅 최하단 스크롤 + 입력창 포커스
+    closeNoticeModal();
+    const area = document.getElementById('bz-chat-area');
+    if (area) requestAnimationFrame(() => { area.scrollTop = 999999; });
+    const input = document.getElementById('bz-input');
+    if (input) setTimeout(() => input.focus(), 100);
+  } catch (e) {
+    alert('전송 실패: ' + (e.message || e));
+  }
+}
+async function deleteNotice(noticeId) {
+  if (!confirm('이 공지를 삭제할까요?')) return;
+  await db.ref('jmt/notices/' + noticeId).remove().catch(fbErr);
+  _renderNoticeList();
+}
+
 function bzCloseRestoModal() {
   const modal = document.getElementById('bz-resto-modal');
   if (modal) modal.style.display = 'none';
@@ -15918,9 +16090,9 @@ function _bzRender() {
     }
   });
 
-  // 채팅중인 멤버 (메시지에 등장한 가명 목록)
+  // 채팅중인 멤버 (메시지에 등장한 가명 목록, 자미봇 제외)
   const msgs = _bzState.messages ? Object.values(_bzState.messages) : [];
-  const activeAliases = [...new Set(msgs.map(m => m.alias))];
+  const activeAliases = [...new Set(msgs.map(m => m.alias))].filter(a => a !== '자미봇');
   const activeMembersEl = document.getElementById('bz-active-members');
   if (activeMembersEl) {
     activeMembersEl.textContent = activeAliases.length > 0
@@ -15947,7 +16119,7 @@ function _bzRender() {
       rnBtn.textContent = showRN ? '👁 실명 ON' : '👁 실명 공개';
     }
 
-    // 진실톡 버튼 상태 동기화
+    // 진실톡 버튼 — 유지원(isAdmin)만 표시
     const jinsilBtn = document.getElementById('bz-jinsil-btn');
     if (jinsilBtn) {
       jinsilBtn.style.display = 'inline-block';
@@ -15988,6 +16160,10 @@ function _bzRender() {
   } else {
     adminCtrl.style.display = 'none';
   }
+
+  // 공지 버튼 — 모든 멤버에게 표시 (관리자: 관리기능 포함, 일반: 조회만)
+  const noticeBtn = document.getElementById('bz-notice-btn');
+  if (noticeBtn) noticeBtn.style.display = 'inline-block';
 
   // 가명 선택 행 — revealed 단계에서는 숨김
   document.getElementById('bz-alias-row').style.display = phase === 'revealed' ? 'none' : 'flex';
@@ -16711,40 +16887,117 @@ function _bzIncrementalUpdateMessages(newMessages) {
 }
 
 function renderMeetingPoll() {
-  const el = document.getElementById('meeting-poll-content');
-  if (!el) return;
-  const me    = state.identity && state.identity.name;
-  const isMgr = isManager();
+  renderMpPollList();
+}
 
-  if (!_mpData || !_mpData.status) {
-    el.innerHTML = (isMgr ? _mpCreateFormHtml() :
-      `<div class="card"><p style="text-align:center;color:#94a3b8;padding:20px 0">진행 중인 투표가 없습니다.</p></div>`)
-      + _mpHistoryBtnHtml();
-    if (isMgr) _bindMpTypeRadios();
+// ── 투표 카드 목록 ──
+function renderMpPollList() {
+  const el = document.getElementById('mp-polls-list');
+  if (!el) return;
+  const isMgr = isManager();
+  const btn = document.getElementById('mp-create-btn');
+  const hasIdentity = !!(state.identity && state.identity.name);
+  if (btn) btn.style.display = hasIdentity ? 'flex' : 'none';
+
+  const polls = Object.entries(_mpPolls || {});
+  if (!polls.length) {
+    el.innerHTML = `<div class="card"><p style="text-align:center;color:#94a3b8;padding:20px 0">진행 중인 투표가 없습니다.</p></div>`;
     return;
   }
 
-  const poll = _mpData;
-  let html = '';
+  polls.sort((a, b) => new Date(b[1].createdAt || 0) - new Date(a[1].createdAt || 0));
 
+  el.innerHTML = polls.map(([pollId, poll]) => {
+    const isOpen = poll.status === 'open';
+    const statusLabel = isOpen ? '진행 중' : '마감';
+    const statusColor = isOpen ? '#22c55e' : '#94a3b8';
+    const statusBg    = isOpen ? '#f0fdf4' : '#f8fafc';
+    const voteCount = Object.keys(poll.votes || {}).length;
+    let closesStr = '';
+    if (isOpen && poll.closesAt) {
+      const remaining = new Date(poll.closesAt) - Date.now();
+      if (remaining > 0) {
+        const h = Math.floor(remaining / 3600000);
+        const d = Math.floor(h / 24);
+        closesStr = d > 0 ? `⏰ ${d}일 ${h % 24}시간 남음` : h > 0 ? `⏰ ${h}시간 남음` : '⏰ 곧 마감';
+      } else {
+        closesStr = '⏰ 마감 시간 도달';
+      }
+    }
+    return `<div class="card" onclick="openMpDetailModal('${pollId}')" style="cursor:pointer;padding:14px 16px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div style="font-weight:700;font-size:0.92rem;color:#1e293b;flex:1">${poll.title||'제목 없음'}</div>
+        <span style="font-size:0.72rem;font-weight:700;color:${statusColor};background:${statusBg};border:1.5px solid ${statusColor};border-radius:20px;padding:2px 8px;white-space:nowrap;margin-left:8px">${statusLabel}</span>
+      </div>
+      <div style="font-size:0.78rem;color:#64748b;display:flex;gap:10px;flex-wrap:wrap">
+        <span>👥 ${voteCount}명 참여</span>
+        ${closesStr ? `<span>${closesStr}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── 투표 만들기 모달 ──
+function openMpCreateModal() {
+  if (!(state.identity && state.identity.name)) { alert('먼저 접속자를 선택하세요.'); return; }
+  _mpCreateDates = []; _mpCreateContents = [];
+  const el = document.getElementById('mp-create-content');
+  if (el) {
+    el.innerHTML = _mpCreateFormHtml();
+    _bindMpTypeRadios();
+  }
+  document.body.style.overflow = 'hidden';
+  document.getElementById('mp-create-modal').classList.add('open');
+}
+function closeMpCreateModal() {
+  document.getElementById('mp-create-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ── 투표 상세 모달 ──
+function openMpDetailModal(pollId) {
+  _mpActivePollId = pollId;
+  _mpData = _mpPolls[pollId] || null;
+  document.body.style.overflow = 'hidden';
+  document.getElementById('mp-detail-modal').classList.add('open');
+  renderMpDetail();
+}
+function closeMpDetailModal() {
+  document.getElementById('mp-detail-modal').classList.remove('open');
+  document.body.style.overflow = '';
+  _mpActivePollId = null;
+  _mpData = null;
+}
+
+function renderMpDetail() {
+  const el = document.getElementById('mp-detail-content');
+  if (!el || !_mpActivePollId) return;
+  const poll = _mpPolls[_mpActivePollId];
+  if (!poll) {
+    el.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:20px">투표를 찾을 수 없습니다.</p>';
+    return;
+  }
+  _mpData = poll;
+  const me = state.identity && state.identity.name;
+  const isMgr = isManager();
+
+  const titleEl = document.getElementById('mp-detail-header-title');
+  if (titleEl) titleEl.textContent = poll.title || '투표';
+
+  let html = '';
   if (poll.status === 'open') {
     html += _mpVoteSection(poll, me);
   } else {
     html += _mpResultCard(poll, true);
   }
-
   if (isMgr) html += _mpAdminControls(poll);
   html += _mpCommentsHtml(poll);
-  html += _mpHistoryBtnHtml();
-
   el.innerHTML = html;
-  if (poll && poll.status === 'open' && poll.closesAt) _mpStartCountdown(poll.closesAt);
+  if (poll.status === 'open' && poll.closesAt) _mpStartCountdown(poll.closesAt);
 }
 
 function _mpHistoryBtnHtml() {
-  return `<div style="text-align:center;padding:4px 0 8px">
-    <button onclick="openMpHistoryModal()" style="background:none;border:none;color:#94a3b8;font-size:0.78rem;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px">📋 이전 투표 보기</button>
-  </div>`;
+  return '';
 }
 
 // ── 생성 폼 ──
@@ -16752,9 +17005,7 @@ function _mpCreateFormHtml() {
   const sectionStyle = 'border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 14px 10px;margin-bottom:10px';
   const checkRow = 'display:flex;align-items:center;gap:8px;font-size:0.82rem;font-weight:600;cursor:pointer;margin-top:10px';
   const checkHint = 'font-size:0.7rem;color:#94a3b8;font-weight:400';
-  return `<div class="card">
-    <div class="card-title">📅 모임 정하기 투표 만들기</div>
-    <div class="divider"></div>
+  return `<div>
     <div class="field-label">투표 제목</div>
     <input type="text" id="mp-title" placeholder="예) 5월 정기 모임">
     <div class="field-label" style="margin-top:10px">투표 유형</div>
@@ -17412,19 +17663,18 @@ function mpSetFinalDecision(field, value) {
   }
   if (!confirm(`"${label}"으로 최종 결정하시겠습니까?`)) return;
   const update = { [field]: value, decidedBy: (state.identity&&state.identity.name)||'관리자', decidedAt: new Date().toISOString() };
-  const pollId = (_mpData.createdAt||'').toString().replace(/[:.]/g,'_');
-  if (!db) return;
-  db.ref('jmt/meetingPoll/finalDecision').update(update).catch(fbErr);
-  if (pollId) db.ref(`jmt/meetingPollsHistory/${pollId}/finalDecision`).update(update).catch(fbErr);
+  if (!db || !_mpActivePollId) return;
+  db.ref(`jmt/meetingPolls/${_mpActivePollId}/finalDecision`).update(update).catch(fbErr);
 }
 
 // ── 관리자 컨트롤 ──
 function _mpAdminControls(poll) {
-  let html = `<div class="card" style="padding:11px">`;
-  if (poll.status==='open') {
+  let html = `<div class="card" style="padding:11px;display:flex;flex-direction:column;gap:8px">`;
+  if (poll.status === 'open') {
     html += `<button class="btn btn-warning btn-full" onclick="closeMeetingPoll()">🏁 투표 마감</button>`;
-  } else {
-    html += `<button class="btn btn-success btn-full" onclick="mpStartNew()">📅 새 투표 만들기</button>`;
+  }
+  if (isAdmin()) {
+    html += `<button class="btn btn-full" style="background:#fee2e2;color:#dc2626;border:none" onclick="mpDeletePoll()">🗑 투표 삭제</button>`;
   }
   html += `</div>`;
   return html;
@@ -17603,7 +17853,7 @@ function mpSetDeadline(days) {
 
 // ── 투표 생성 ──
 function createMeetingPoll() {
-  if (!isManager()) { alert('관리자만 투표를 생성할 수 있습니다.'); return; }
+  if (!(state.identity && state.identity.name)) { alert('먼저 접속자를 선택하세요.'); return; }
   const title = (document.getElementById('mp-title')||{}).value?.trim()||'';
   if (!title) { alert('투표 제목을 입력하세요.'); return; }
   const typeEl = document.querySelector('input[name="mp-type"]:checked');
@@ -17627,8 +17877,9 @@ function createMeetingPoll() {
   if (contents.length) poll.contents = contents;
 
   if (!db) return;
-  db.ref('jmt/meetingPoll').set(poll).then(() => {
+  db.ref('jmt/meetingPolls').push(poll).then(() => {
     _mpCreateDates = []; _mpCreateContents = [];
+    closeMpCreateModal();
   }).catch(fbErr);
 }
 
@@ -17640,7 +17891,7 @@ function mpToggleDateVote(dateStr) {
   if (_mpData.closesAt && new Date(_mpData.closesAt) <= new Date()) { alert('마감 시간이 지났습니다.'); return; }
   const multiSelect = _mpData.dateMultiSelect !== undefined ? _mpData.dateMultiSelect : (_mpData.multiSelect !== false);
   const key = me.replace(/[.#$[\]]/g,'_');
-  const ref = db.ref(`jmt/meetingPoll/votes/${key}`);
+  const ref = db.ref(`jmt/meetingPolls/${_mpActivePollId}/votes/${key}`);
   ref.once('value').then(snap => {
     const cur = snap.val()||{};
     const already = (cur.dates||{})[dateStr];
@@ -17662,7 +17913,7 @@ function mpToggleCannotAttend() {
   if (!_mpData||_mpData.status!=='open') { alert('투표가 마감되었습니다.'); return; }
   if (_mpData.closesAt && new Date(_mpData.closesAt) <= new Date()) { alert('마감 시간이 지났습니다.'); return; }
   const key = me.replace(/[.#$[\]]/g,'_');
-  const ref = db.ref(`jmt/meetingPoll/votes/${key}`);
+  const ref = db.ref(`jmt/meetingPolls/${_mpActivePollId}/votes/${key}`);
   ref.once('value').then(snap => {
     const cur = snap.val()||{};
     const already = cur.cannotAttend === true;
@@ -17682,7 +17933,7 @@ function mpToggleContentVote(idx) {
   if (_mpData.closesAt && new Date(_mpData.closesAt) <= new Date()) { alert('마감 시간이 지났습니다.'); return; }
   const multiSelect = _mpData.contentMultiSelect !== undefined ? _mpData.contentMultiSelect : (_mpData.multiSelect !== false);
   const key = me.replace(/[.#$[\]]/g,'_');
-  const ref = db.ref(`jmt/meetingPoll/votes/${key}`);
+  const ref = db.ref(`jmt/meetingPolls/${_mpActivePollId}/votes/${key}`);
   ref.once('value').then(snap => {
     const cur = snap.val()||{};
     const already = (cur.contents||{})[String(idx)];
@@ -17702,23 +17953,10 @@ function mpToggleContentVote(idx) {
 function closeMeetingPoll() {
   if (!isManager()) { alert('관리자만 마감할 수 있습니다.'); return; }
   if (!confirm('투표를 마감하시겠습니까?')) return;
-  if (!db||!_mpData) return;
+  if (!db || !_mpActivePollId) return;
   const closedAt = new Date().toISOString();
-  const pollId   = (_mpData.createdAt||Date.now()).toString().replace(/[:.]/g,'_');
-  db.ref('jmt/meetingPoll/status').set('closed').catch(fbErr);
-  db.ref('jmt/meetingPoll/closedAt').set(closedAt).catch(fbErr);
-  db.ref(`jmt/meetingPollsHistory/${pollId}`).set({..._mpData, status:'closed', closedAt}).catch(fbErr);
-}
-
-function mpStartNew() {
-  if (!isManager()) { alert('관리자만 사용할 수 있습니다.'); return; }
-  if (!confirm('새 투표를 만드시겠습니까? 현재 데이터는 히스토리로 보관됩니다.')) return;
-  if (!db) return;
-  if (_mpData) {
-    const pollId = (_mpData.createdAt||Date.now()).toString().replace(/[:.]/g,'_');
-    db.ref(`jmt/meetingPollsHistory/${pollId}`).set({..._mpData}).catch(fbErr);
-  }
-  db.ref('jmt/meetingPoll').remove().catch(fbErr);
+  db.ref(`jmt/meetingPolls/${_mpActivePollId}/status`).set('closed').catch(fbErr);
+  db.ref(`jmt/meetingPolls/${_mpActivePollId}/closedAt`).set(closedAt).catch(fbErr);
 }
 
 // ── 마감 카운트다운 ──
@@ -17757,8 +17995,8 @@ function _mpFormatRemaining(ms) {
 function mpDeletePoll() {
   if (!isAdmin()) return;
   if (!confirm('진행 중인 투표를 삭제하시겠습니까?\n히스토리에 저장되지 않고 완전히 삭제됩니다.')) return;
-  if (!db) return;
-  db.ref('jmt/meetingPoll').remove().catch(fbErr);
+  if (!db || !_mpActivePollId) return;
+  db.ref(`jmt/meetingPolls/${_mpActivePollId}`).remove().then(() => closeMpDetailModal()).catch(fbErr);
 }
 
 // ── 멤버 제안 날짜/내용 ──
@@ -17784,7 +18022,7 @@ function mpSubmitMemberDate(date) {
   if (!me) { alert('먼저 접속자를 선택하세요.'); return; }
   if (!db || !_mpData || _mpData.status !== 'open') return;
   if (!date) return;
-  db.ref('jmt/meetingPoll/memberDates').push({ date, addedBy: me, addedAt: new Date().toISOString() }).catch(fbErr);
+  db.ref(`jmt/meetingPolls/${_mpActivePollId}/memberDates`).push({ date, addedBy: me, addedAt: new Date().toISOString() }).catch(fbErr);
 }
 
 function mpSubmitMemberContent() {
@@ -17794,7 +18032,7 @@ function mpSubmitMemberContent() {
   const input = document.getElementById('mp-suggest-content-input');
   const text = input && input.value.trim();
   if (!text) return;
-  db.ref('jmt/meetingPoll/memberContents').push({ text, addedBy: me, addedAt: new Date().toISOString() }).catch(fbErr);
+  db.ref(`jmt/meetingPolls/${_mpActivePollId}/memberContents`).push({ text, addedBy: me, addedAt: new Date().toISOString() }).catch(fbErr);
   if (input) input.value = '';
 }
 
@@ -17805,7 +18043,7 @@ function mpToggleMemberDateVote(key) {
   if (_mpData.closesAt && new Date(_mpData.closesAt) <= new Date()) { alert('마감 시간이 지났습니다.'); return; }
   const multiSelect = _mpData.dateMultiSelect !== undefined ? _mpData.dateMultiSelect : (_mpData.multiSelect !== false);
   const userKey = me.replace(/[.#$[\]]/g, '_');
-  const ref = db.ref(`jmt/meetingPoll/votes/${userKey}`);
+  const ref = db.ref(`jmt/meetingPolls/${_mpActivePollId}/votes/${userKey}`);
   ref.once('value').then(snap => {
     const cur = snap.val() || {};
     const already = (cur.memberDates || {})[key];
@@ -17828,7 +18066,7 @@ function mpToggleMemberContentVote(key) {
   if (_mpData.closesAt && new Date(_mpData.closesAt) <= new Date()) { alert('마감 시간이 지났습니다.'); return; }
   const multiSelect = _mpData.contentMultiSelect !== undefined ? _mpData.contentMultiSelect : (_mpData.multiSelect !== false);
   const userKey = me.replace(/[.#$[\]]/g, '_');
-  const ref = db.ref(`jmt/meetingPoll/votes/${userKey}`);
+  const ref = db.ref(`jmt/meetingPolls/${_mpActivePollId}/votes/${userKey}`);
   ref.once('value').then(snap => {
     const cur = snap.val() || {};
     const already = (cur.memberContents || {})[key];
@@ -17848,7 +18086,7 @@ function mpToggleMemberContentVote(key) {
 function mpToggleSetting(field, value) {
   if (typeof isManager==='function' && !isManager()) return;
   if (!db) return;
-  db.ref('jmt/meetingPoll/' + field).set(value).catch(fbErr);
+  db.ref(`jmt/meetingPolls/${_mpActivePollId}/${field}`).set(value).catch(fbErr);
 }
 
 // ── 마감 시간 변경 (관리자만) ──
@@ -17856,21 +18094,21 @@ function mpUpdateDeadline(days) {
   if (typeof isManager==='function' && !isManager()) return;
   if (!db) return;
   if (days === 0) {
-    db.ref('jmt/meetingPoll/closesAt').remove().catch(fbErr);
+    db.ref(`jmt/meetingPolls/${_mpActivePollId}/closesAt`).remove().catch(fbErr);
   } else {
     const d = new Date();
     d.setDate(d.getDate() + days);
     d.setHours(18, 0, 0, 0);
-    db.ref('jmt/meetingPoll/closesAt').set(d.toISOString()).catch(fbErr);
+    db.ref(`jmt/meetingPolls/${_mpActivePollId}/closesAt`).set(d.toISOString()).catch(fbErr);
   }
 }
 
 // ── 독촉 푸시 (관리자만) ──
 function mpNudge() {
   if (!isAdmin()) { alert('최고관리자만 사용할 수 있습니다.'); return; }
-  if (!_mpData) return;
+  if (!_mpData || !_mpActivePollId) return;
   const fn = firebase.app().functions('asia-southeast1').httpsCallable('notifyMeetingPollNudge');
-  fn({ pollTitle: _mpData.title||'모임 정하기' })
+  fn({ pollId: _mpActivePollId, pollTitle: _mpData.title||'머든 정하기' })
     .then(r => alert((r.data&&r.data.message)||'독촉 알림을 보냈습니다.'))
     .catch(e => {
       if (e.code === 'messaging/token-subscribe-failed') return; // dev 환경 VAPID 불일치 — 무시
@@ -17892,7 +18130,7 @@ function mpAddComment() {
   const text  = input?input.value.trim():'';
   if (!text||!db||!_mpData) return;
   const author = (state.identity&&state.identity.name)||'익명';
-  db.ref('jmt/meetingPoll/comments').push({author,text,at:new Date().toISOString()}).catch(fbErr);
+  db.ref(`jmt/meetingPolls/${_mpActivePollId}/comments`).push({author,text,at:new Date().toISOString()}).catch(fbErr);
   if (input) { input.value=''; input.style.height='auto'; }
 }
 
@@ -17901,7 +18139,7 @@ function mpAddReply(cid) {
   const text  = input?input.value.trim():'';
   if (!text||!db||!_mpData) return;
   const author = (state.identity&&state.identity.name)||'익명';
-  db.ref(`jmt/meetingPoll/comments/${cid}/replies`).push({author,text,at:new Date().toISOString()}).catch(fbErr);
+  db.ref(`jmt/meetingPolls/${_mpActivePollId}/comments/${cid}/replies`).push({author,text,at:new Date().toISOString()}).catch(fbErr);
   if (input) input.value='';
   mpToggleReplyInput(cid);
 }
@@ -17925,110 +18163,9 @@ function saveMpComment(key) {
   if (!ta) return;
   const text = ta.value.trim();
   if (!text) return;
-  db.ref(`jmt/meetingPoll/comments/${key}/text`).set(text).catch(fbErr);
+  db.ref(`jmt/meetingPolls/${_mpActivePollId}/comments/${key}/text`).set(text).catch(fbErr);
 }
 
-// ── 모임정하기 히스토리 모달 ─────────────────────────────────────
-let _mpHistoryDetailKey = null;
-
-function openMpHistoryModal() {
-  _mpHistoryDetailKey = null;
-  document.getElementById('mp-history-modal').classList.add('open');
-  _loadMpHistory();
-}
-
-function closeMpHistoryModal() {
-  document.getElementById('mp-history-modal').classList.remove('open');
-  _mpHistoryDetailKey = null;
-}
-
-function _loadMpHistory() {
-  const el = document.getElementById('mp-history-content');
-  if (!el) return;
-  el.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:0.85rem">불러오는 중...</div>';
-  if (!db) return;
-  db.ref('jmt/meetingPollsHistory').once('value').then(snap => {
-    const data = snap.val() || {};
-    _renderMpHistoryList(data);
-  }).catch(() => {
-    el.innerHTML = '<div style="text-align:center;padding:24px;color:#ef4444;font-size:0.85rem">불러오기 실패</div>';
-  });
-}
-
-function _renderMpHistoryList(data) {
-  const titleEl = document.getElementById('mp-history-modal-title');
-  if (titleEl) titleEl.textContent = '📋 이전 투표';
-  const el = document.getElementById('mp-history-content');
-  if (!el) return;
-
-  const entries = Object.entries(data).sort((a, b) => (b[1].createdAt || b[0]).localeCompare(a[1].createdAt || a[0]));
-  if (!entries.length) {
-    el.innerHTML = '<div style="text-align:center;padding:32px;color:#94a3b8;font-size:0.85rem">이전 투표 기록이 없습니다.</div>';
-    return;
-  }
-
-  const weekDays = ['일','월','화','수','목','금','토'];
-  el.innerHTML = entries.map(([pid, poll]) => {
-    const date = poll.closedAt || poll.createdAt || '';
-    const dateStr = date ? new Date(date).toLocaleDateString('ko-KR', {year:'numeric',month:'long',day:'numeric'}) : '';
-    // 결과 요약
-    let summary = '';
-    const votes = poll.votes || {};
-    if ((poll.type==='date'||poll.type==='both') && poll.dates && poll.dates.length) {
-      const cnt = {};
-      poll.dates.forEach(d => { cnt[d] = 0; });
-      Object.values(votes).forEach(v => { if (v.dates) Object.keys(v.dates).forEach(dk => { if (v.dates[dk] && cnt.hasOwnProperty(dk)) cnt[dk]++; }); });
-      const mx = Math.max(...Object.values(cnt), 0);
-      const winners = mx > 0 ? Object.entries(cnt).filter(([,c]) => c===mx).map(([d]) => { const o=new Date(d+'T00:00:00'); return `${o.getMonth()+1}/${o.getDate()}(${weekDays[o.getDay()]})`; }) : [];
-      if (winners.length) summary += `📅 ${winners.join(', ')}`;
-    }
-    if ((poll.type==='content'||poll.type==='both') && poll.contents) {
-      const cnt = {};
-      poll.contents.forEach((_,i) => { cnt[i]=0; });
-      Object.values(votes).forEach(v => { if (v.contents) Object.keys(v.contents).forEach(i => { if (v.contents[i] && cnt.hasOwnProperty(Number(i))) cnt[Number(i)]++; }); });
-      const mx = Math.max(...Object.values(cnt), 0);
-      const winners = mx > 0 ? Object.entries(cnt).filter(([,c]) => c===mx).map(([i]) => poll.contents[Number(i)]).filter(Boolean) : [];
-      if (winners.length) summary += (summary?' · ':'') + `🎯 ${winners.join(', ')}`;
-    }
-    const voterCount = Object.keys(votes).length;
-    const adminBtn = isAdmin() ? `<button onclick="deleteMpHistory('${pid}',event)" style="background:none;border:none;color:#ef4444;font-size:0.72rem;font-weight:700;cursor:pointer;padding:0">삭제</button>` : '';
-
-    return `<div onclick="openMpHistoryDetail('${pid}')" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;margin-bottom:10px;cursor:pointer;active:background:#f8fafc">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div style="font-size:0.9rem;font-weight:800;color:#1e293b;flex:1">${poll.title||'모임 정하기'}</div>
-        ${adminBtn}
-      </div>
-      <div style="font-size:0.73rem;color:#94a3b8;margin-top:2px">${dateStr} · 참여 ${voterCount}명</div>
-      ${summary ? `<div style="font-size:0.78rem;font-weight:700;color:#166534;background:#f0fdf4;border-radius:8px;padding:5px 10px;margin-top:8px">${summary}</div>` : ''}
-    </div>`;
-  }).join('');
-}
-
-function openMpHistoryDetail(pollId) {
-  if (!db) return;
-  db.ref(`jmt/meetingPollsHistory/${pollId}`).once('value').then(snap => {
-    const poll = snap.val();
-    if (!poll) return;
-    _mpHistoryDetailKey = pollId;
-    const titleEl = document.getElementById('mp-history-modal-title');
-    if (titleEl) titleEl.innerHTML = `<button onclick="_backMpHistory()" style="background:none;border:none;color:#2563eb;font-size:0.85rem;font-weight:700;cursor:pointer;padding:0;margin-right:8px">← 목록</button>${poll.title||'모임 정하기'}`;
-    const el = document.getElementById('mp-history-content');
-    if (!el) return;
-    el.innerHTML = _mpResultCard(poll);
-  });
-}
-
-function _backMpHistory() {
-  _mpHistoryDetailKey = null;
-  _loadMpHistory();
-}
-
-function deleteMpHistory(pollId, event) {
-  event.stopPropagation();
-  if (!isAdmin()) return;
-  if (!confirm('이 투표 기록을 삭제하시겠습니까?')) return;
-  db.ref(`jmt/meetingPollsHistory/${pollId}`).remove().then(() => _loadMpHistory()).catch(fbErr);
-}
 </script>
 
 <script>
@@ -18490,6 +18627,62 @@ function deleteMpHistory(pollId, event) {
 </div>
 
 <!-- ══ 자미터 단골집 — 등록/수정 모달 ══ -->
+<!-- ── 공지사항 리스트 모달 ─────────────────────────────────────── -->
+<div id="notice-list-modal" style="display:none;position:fixed;inset:0;z-index:730;background:rgba(0,0,0,0.45);align-items:flex-end" onclick="closeNoticeModal()">
+  <div style="width:100%;background:#fff;border-radius:20px 20px 0 0;padding:20px 16px max(env(safe-area-inset-bottom,24px),24px);max-height:88vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+    <div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px;flex-shrink:0"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-shrink:0">
+      <div style="font-size:1rem;font-weight:800;color:#1e293b">📢 공지사항</div>
+      <button onclick="closeNoticeModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8">✕</button>
+    </div>
+    <div id="notice-write-btn-wrap" style="display:none;flex-shrink:0;margin-bottom:12px">
+      <button onclick="openNoticeWriteModal()" style="width:100%;padding:11px;border-radius:12px;border:2px dashed #2563eb;background:#eff6ff;color:#2563eb;font-size:0.9rem;font-weight:700;cursor:pointer">+ 공지 작성</button>
+    </div>
+    <div id="notice-list-body" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:10px;overscroll-behavior:contain">
+      <div style="text-align:center;color:#94a3b8;font-size:0.85rem;padding:20px">등록된 공지가 없어요</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 공지사항 작성 모달 ─────────────────────────────────────── -->
+<div id="notice-write-modal" style="display:none;position:fixed;inset:0;z-index:740;background:rgba(0,0,0,0.5);align-items:flex-end" onclick="closeNoticeWriteModal()">
+  <div style="width:100%;background:#fff;border-radius:20px 20px 0 0;padding:20px 16px max(env(safe-area-inset-bottom,24px),24px)" onclick="event.stopPropagation()">
+    <div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:1rem;font-weight:800;color:#1e293b">✏️ 공지 작성</div>
+      <button onclick="closeNoticeWriteModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8">✕</button>
+    </div>
+    <div style="margin-bottom:10px">
+      <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:4px">제목 (선택)</div>
+      <input id="notice-title-input" type="text" placeholder="공지 제목을 입력하세요" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.9rem;font-family:inherit">
+    </div>
+    <div style="margin-bottom:10px">
+      <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:6px">내용</div>
+      <!-- 컬러 툴바 -->
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#f8fafc;border:1.5px solid #e2e8f0;border-bottom:none;border-radius:10px 10px 0 0;padding:7px 10px">
+        <span style="font-size:0.7rem;color:#64748b;font-weight:700">글자색</span>
+        <button onclick="applyNoticeColor('fore','#dc2626')" style="width:20px;height:20px;border-radius:50%;background:#dc2626;border:2px solid #fff;box-shadow:0 0 0 1.5px #dc2626;cursor:pointer"></button>
+        <button onclick="applyNoticeColor('fore','#2563eb')" style="width:20px;height:20px;border-radius:50%;background:#2563eb;border:2px solid #fff;box-shadow:0 0 0 1.5px #2563eb;cursor:pointer"></button>
+        <button onclick="applyNoticeColor('fore','#16a34a')" style="width:20px;height:20px;border-radius:50%;background:#16a34a;border:2px solid #fff;box-shadow:0 0 0 1.5px #16a34a;cursor:pointer"></button>
+        <button onclick="applyNoticeColor('fore','#d97706')" style="width:20px;height:20px;border-radius:50%;background:#d97706;border:2px solid #fff;box-shadow:0 0 0 1.5px #d97706;cursor:pointer"></button>
+        <button onclick="applyNoticeColor('fore','#7c3aed')" style="width:20px;height:20px;border-radius:50%;background:#7c3aed;border:2px solid #fff;box-shadow:0 0 0 1.5px #7c3aed;cursor:pointer"></button>
+        <div style="width:1px;height:16px;background:#e2e8f0;margin:0 2px"></div>
+        <span style="font-size:0.7rem;color:#64748b;font-weight:700">형광펜</span>
+        <button onclick="applyNoticeColor('back','#fef08a')" style="width:20px;height:20px;border-radius:50%;background:#fef08a;border:2px solid #fff;box-shadow:0 0 0 1.5px #ca8a04;cursor:pointer"></button>
+        <button onclick="applyNoticeColor('back','#bae6fd')" style="width:20px;height:20px;border-radius:50%;background:#bae6fd;border:2px solid #fff;box-shadow:0 0 0 1.5px #0284c7;cursor:pointer"></button>
+        <button onclick="applyNoticeColor('back','#fbcfe8')" style="width:20px;height:20px;border-radius:50%;background:#fbcfe8;border:2px solid #fff;box-shadow:0 0 0 1.5px #db2777;cursor:pointer"></button>
+        <button onclick="applyNoticeColor('back','#bbf7d0')" style="width:20px;height:20px;border-radius:50%;background:#bbf7d0;border:2px solid #fff;box-shadow:0 0 0 1.5px #16a34a;cursor:pointer"></button>
+        <div style="width:1px;height:16px;background:#e2e8f0;margin:0 2px"></div>
+        <button onclick="applyNoticeColor('clear')" style="font-size:0.68rem;padding:2px 7px;border-radius:6px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;font-weight:700">지우기</button>
+      </div>
+      <!-- contenteditable 에디터 -->
+      <div id="notice-content-editor" contenteditable="true" data-placeholder="공지 내용을 입력하세요"
+        style="min-height:100px;padding:10px 12px;border-radius:0 0 10px 10px;border:1.5px solid #e2e8f0;font-size:0.9rem;font-family:inherit;line-height:1.6;outline:none;word-break:break-word"></div>
+    </div>
+    <button onclick="saveNotice()" style="width:100%;padding:13px;border-radius:12px;border:none;background:#2563eb;color:#fff;font-size:0.95rem;font-weight:800;cursor:pointer;margin-top:6px">저장</button>
+  </div>
+</div>
+
 <div id="bz-resto-modal" style="display:none;position:fixed;inset:0;z-index:730;background:rgba(0,0,0,0.45);align-items:flex-end" onclick="bzCloseRestoModal()">
   <div style="width:100%;background:#fff;border-radius:20px 20px 0 0;padding:20px 16px max(env(safe-area-inset-bottom,24px),24px);max-height:88vh;overflow-y:auto" onclick="event.stopPropagation()">
     <div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px"></div>
