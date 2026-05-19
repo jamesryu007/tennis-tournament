@@ -526,6 +526,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .player-pick-btn.pick-disabled { opacity: 0.28; cursor: not-allowed; pointer-events: none; }
 .pick-group-label { font-size: 0.72rem; font-weight: 700; color: #64748b; margin-bottom: 6px; padding-left: 2px; }
 .edit-mode-notice { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 8px 12px; font-size: 0.78rem; color: #1d4ed8; margin-bottom: 8px; text-align: center; }
+#notice-content-editor:empty:before { content: attr(data-placeholder); color: #94a3b8; pointer-events: none; }
 
 /* ── MODALS ── */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 100; align-items: flex-end; justify-content: center; overscroll-behavior: none; }
@@ -14984,15 +14985,22 @@ function closeNoticeModal() {
 function openNoticeWriteModal(editId) {
   _noticeEditId = editId || null;
   document.getElementById('notice-title-input').value = '';
-  document.getElementById('notice-content-input').value = '';
+  document.getElementById('notice-content-editor').innerHTML = '';
   if (editId) {
     db.ref('jmt/notices/' + editId).once('value').then(snap => {
       const n = snap.val() || {};
       document.getElementById('notice-title-input').value = n.title || '';
-      document.getElementById('notice-content-input').value = n.content || '';
+      document.getElementById('notice-content-editor').innerHTML = n.content || '';
     });
   }
   document.getElementById('notice-write-modal').style.display = 'flex';
+}
+function applyNoticeColor(type, color) {
+  const editor = document.getElementById('notice-content-editor');
+  editor.focus();
+  if (type === 'fore')  document.execCommand('foreColor',   false, color);
+  else if (type === 'back')  document.execCommand('hiliteColor', false, color);
+  else if (type === 'clear') document.execCommand('removeFormat', false, null);
 }
 function closeNoticeWriteModal() {
   document.getElementById('notice-write-modal').style.display = 'none';
@@ -15022,7 +15030,7 @@ function _renderNoticeList() {
           <div style="font-size:0.88rem;font-weight:800;color:#1e293b;flex:1">${n.title || '(제목 없음)'}</div>
           <div style="font-size:0.71rem;color:#94a3b8;flex-shrink:0">${dateStr}</div>
         </div>
-        <div style="font-size:0.82rem;color:#475569;white-space:pre-wrap;margin-bottom:6px">${n.content || ''}</div>
+        <div style="font-size:0.82rem;color:#475569;line-height:1.6;margin-bottom:6px">${n.content || ''}</div>
         <div style="display:flex;align-items:center;justify-content:space-between">
           <div style="font-size:0.71rem;color:#94a3b8">${n.createdBy || ''}</div>
           <div style="display:flex;gap:5px;align-items:center">${mgrBtns}</div>
@@ -15033,8 +15041,8 @@ function _renderNoticeList() {
 }
 async function saveNotice() {
   const title   = document.getElementById('notice-title-input').value.trim();
-  const content = document.getElementById('notice-content-input').value.trim();
-  if (!content) { alert('내용을 입력해주세요.'); return; }
+  const content = document.getElementById('notice-content-editor').innerHTML.trim();
+  if (!content || content === '<br>') { alert('내용을 입력해주세요.'); return; }
   const curName = (state.identity && state.identity.name) || '';
   if (_noticeEditId) {
     await db.ref('jmt/notices/' + _noticeEditId).update({ title, content }).catch(fbErr);
@@ -18625,11 +18633,30 @@ function deleteMpHistory(pollId, event) {
       <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:4px">제목 (선택)</div>
       <input id="notice-title-input" type="text" placeholder="공지 제목을 입력하세요" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.9rem;font-family:inherit">
     </div>
-    <div style="margin-bottom:16px">
-      <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:4px">내용</div>
-      <textarea id="notice-content-input" placeholder="공지 내용을 입력하세요" rows="4" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.9rem;font-family:inherit;resize:none"></textarea>
+    <div style="margin-bottom:10px">
+      <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:6px">내용</div>
+      <!-- 컬러 툴바 -->
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:#f8fafc;border:1.5px solid #e2e8f0;border-bottom:none;border-radius:10px 10px 0 0;padding:7px 10px">
+        <span style="font-size:0.7rem;color:#64748b;font-weight:700">글자색</span>
+        <button onclick="applyNoticeColor('fore','#dc2626')" style="width:20px;height:20px;border-radius:50%;background:#dc2626;border:2px solid #fff;box-shadow:0 0 0 1.5px #dc2626;cursor:pointer"></button>
+        <button onclick="applyNoticeColor('fore','#2563eb')" style="width:20px;height:20px;border-radius:50%;background:#2563eb;border:2px solid #fff;box-shadow:0 0 0 1.5px #2563eb;cursor:pointer"></button>
+        <button onclick="applyNoticeColor('fore','#16a34a')" style="width:20px;height:20px;border-radius:50%;background:#16a34a;border:2px solid #fff;box-shadow:0 0 0 1.5px #16a34a;cursor:pointer"></button>
+        <button onclick="applyNoticeColor('fore','#d97706')" style="width:20px;height:20px;border-radius:50%;background:#d97706;border:2px solid #fff;box-shadow:0 0 0 1.5px #d97706;cursor:pointer"></button>
+        <button onclick="applyNoticeColor('fore','#7c3aed')" style="width:20px;height:20px;border-radius:50%;background:#7c3aed;border:2px solid #fff;box-shadow:0 0 0 1.5px #7c3aed;cursor:pointer"></button>
+        <div style="width:1px;height:16px;background:#e2e8f0;margin:0 2px"></div>
+        <span style="font-size:0.7rem;color:#64748b;font-weight:700">형광펜</span>
+        <button onclick="applyNoticeColor('back','#fef08a')" style="width:20px;height:20px;border-radius:50%;background:#fef08a;border:2px solid #fff;box-shadow:0 0 0 1.5px #ca8a04;cursor:pointer"></button>
+        <button onclick="applyNoticeColor('back','#bae6fd')" style="width:20px;height:20px;border-radius:50%;background:#bae6fd;border:2px solid #fff;box-shadow:0 0 0 1.5px #0284c7;cursor:pointer"></button>
+        <button onclick="applyNoticeColor('back','#fbcfe8')" style="width:20px;height:20px;border-radius:50%;background:#fbcfe8;border:2px solid #fff;box-shadow:0 0 0 1.5px #db2777;cursor:pointer"></button>
+        <button onclick="applyNoticeColor('back','#bbf7d0')" style="width:20px;height:20px;border-radius:50%;background:#bbf7d0;border:2px solid #fff;box-shadow:0 0 0 1.5px #16a34a;cursor:pointer"></button>
+        <div style="width:1px;height:16px;background:#e2e8f0;margin:0 2px"></div>
+        <button onclick="applyNoticeColor('clear')" style="font-size:0.68rem;padding:2px 7px;border-radius:6px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;font-weight:700">지우기</button>
+      </div>
+      <!-- contenteditable 에디터 -->
+      <div id="notice-content-editor" contenteditable="true" data-placeholder="공지 내용을 입력하세요"
+        style="min-height:100px;padding:10px 12px;border-radius:0 0 10px 10px;border:1.5px solid #e2e8f0;font-size:0.9rem;font-family:inherit;line-height:1.6;outline:none;word-break:break-word"></div>
     </div>
-    <button onclick="saveNotice()" style="width:100%;padding:13px;border-radius:12px;border:none;background:#2563eb;color:#fff;font-size:0.95rem;font-weight:800;cursor:pointer">저장</button>
+    <button onclick="saveNotice()" style="width:100%;padding:13px;border-radius:12px;border:none;background:#2563eb;color:#fff;font-size:0.95rem;font-weight:800;cursor:pointer;margin-top:6px">저장</button>
   </div>
 </div>
 
