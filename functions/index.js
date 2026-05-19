@@ -1837,12 +1837,27 @@ async function _botCheckin() {
 }
 
 // ── 날씨 (OpenWeatherMap) ──────────────────────────────────────────
-async function _botWeather() {
+async function _botWeather(msgText) {
   const apiKey = process.env.OPENWEATHER_API_KEY;
   if (!apiKey) return { text: '⚠️ 날씨 API 키가 설정되지 않았습니다.\n관리자에게 문의하세요 (OPENWEATHER_API_KEY).' };
   try {
-    const lat = process.env.BOT_WEATHER_LAT || '37.5665';
-    const lon = process.env.BOT_WEATHER_LON || '126.9780';
+    // 메시지에서 위치 추출 (예: "강남 날씨", "부산 날씨 알려줘")
+    let lat = process.env.BOT_WEATHER_LAT || '37.5665';
+    let lon = process.env.BOT_WEATHER_LON || '126.9780';
+    let locationName = null;
+    if (msgText) {
+      const locMatch = msgText.replace(/날씨.*/, '').replace(/.*에서/, '').replace(/.*의/, '').trim();
+      if (locMatch && locMatch.length >= 2 && locMatch.length <= 10) {
+        // OpenWeatherMap Geocoding API로 한국 지명 → 좌표 변환
+        const geoRes = await fetch(`http://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(locMatch)},KR&limit=1&appid=${apiKey}`);
+        const geoData = await geoRes.json();
+        if (Array.isArray(geoData) && geoData.length > 0) {
+          lat = String(geoData[0].lat);
+          lon = String(geoData[0].lon);
+          locationName = geoData[0].local_names?.ko || geoData[0].name || locMatch;
+        }
+      }
+    }
     const res = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=kr`);
     const d = await res.json();
     if (!d.main) return { text: '🌤️ 날씨 정보를 가져올 수 없어요.' };
@@ -1852,6 +1867,7 @@ async function _botWeather() {
     const temp = d.main.temp;
     const wind = (d.wind?.speed || 0) * 3.6; // m/s → km/h
     const humid = d.main.humidity;
+    const displayName = locationName || d.name || '서울';
     // 테니스 추천지수 계산 (0~100)
     let score = 100;
     if (wId < 700) score -= 70;           // 비/눈/뇌우
@@ -1866,25 +1882,33 @@ async function _botWeather() {
     score = Math.max(0, Math.min(100, score));
     const tennisEmoji = score >= 80 ? '🎾 최상' : score >= 60 ? '🎾 좋음' : score >= 40 ? '⚠️ 보통' : '❌ 비추천';
     const tennisBar = '█'.repeat(Math.round(score/10)) + '░'.repeat(10 - Math.round(score/10));
-    return { text: `${emoji} ${d.name||'서울'} 현재 날씨\n\n🌡️ ${Math.round(temp)}°C  (체감 ${Math.round(d.main.feels_like)}°C)\n💧 습도 ${humid}%  💨 바람 ${Math.round(wind)}km/h\n☁️ ${desc}\n\n🎾 테니스 추천지수  ${score}점\n[${tennisBar}] ${tennisEmoji}` };
+    return { text: `${emoji} ${displayName} 현재 날씨\n\n🌡️ ${Math.round(temp)}°C  (체감 ${Math.round(d.main.feels_like)}°C)\n💧 습도 ${humid}%  💨 바람 ${Math.round(wind)}km/h\n☁️ ${desc}\n\n🎾 테니스 추천지수  ${score}점\n[${tennisBar}] ${tennisEmoji}` };
   } catch (e) {
     return { text: '🌤️ 날씨 정보를 가져오는 데 실패했어요.' };
   }
 }
 
 // ── 미세먼지 (에어코리아) ──────────────────────────────────────────
-async function _botAir() {
+async function _botAir(msgText) {
   const apiKey = process.env.AIRKOREA_API_KEY;
   if (!apiKey) return { text: '⚠️ 에어코리아 API 키가 설정되지 않았습니다.\n관리자에게 문의하세요 (AIRKOREA_API_KEY).' };
   try {
-    const station = encodeURIComponent(process.env.BOT_AIR_STATION || '종로구');
+    // 메시지에서 위치 추출 (예: "강남 미세먼지", "부산 공기")
+    let stationRaw = process.env.BOT_AIR_STATION || '종로구';
+    if (msgText) {
+      const locMatch = msgText.replace(/미세먼지.*|공기.*/, '').replace(/.*에서|.*의/, '').trim();
+      if (locMatch && locMatch.length >= 2 && locMatch.length <= 10) {
+        stationRaw = locMatch;
+      }
+    }
+    const station = encodeURIComponent(stationRaw);
     const url = `https://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getMsrstnAcctoRltmMesureDnsty?stationName=${station}&dataTerm=daily&pageNo=1&numOfRows=1&returnType=json&serviceKey=${apiKey}&ver=1.3`;
     const res = await fetch(url);
     const json = await res.json();
     const item = json?.response?.body?.items?.[0];
-    if (!item) return { text: '🌬️ 미세먼지 정보를 가져올 수 없어요.' };
+    if (!item) return { text: `🌬️ '${stationRaw}' 측정소 정보를 찾을 수 없어요.\n구 이름으로 입력해보세요 (예: 강남구, 종로구).` };
     const g = (val, t) => { const v=parseInt(val); if(isNaN(v))return''; return t==='pm10' ? (v<=30?'😊좋음':v<=80?'🙂보통':v<=150?'😷나쁨':'🚨매우나쁨') : (v<=15?'😊좋음':v<=35?'🙂보통':v<=75?'😷나쁨':'🚨매우나쁨'); };
-    return { text: `🌬️ ${decodeURIComponent(station)} 현재 공기질\n\n미세먼지(PM10): ${item.pm10Value}㎍/㎥  ${g(item.pm10Value,'pm10')}\n초미세먼지(PM2.5): ${item.pm25Value}㎍/㎥  ${g(item.pm25Value,'pm25')}` };
+    return { text: `🌬️ ${stationRaw} 현재 공기질\n\n미세먼지(PM10): ${item.pm10Value}㎍/㎥  ${g(item.pm10Value,'pm10')}\n초미세먼지(PM2.5): ${item.pm25Value}㎍/㎥  ${g(item.pm25Value,'pm25')}` };
   } catch (e) {
     return { text: '🌬️ 미세먼지 정보를 가져오는 데 실패했어요.' };
   }
@@ -2045,8 +2069,8 @@ exports.handleBotTriggers = onValueCreated(
         case 'checkin':       result = await _botCheckin(); break;
         case 'mystats':       result = await _botMyStats(senderName); break;
         case 'todaymatch':    result = await _botTodayMatch(); break;
-        case 'weather':       result = await _botWeather(); break;
-        case 'air':           result = await _botAir(); break;
+        case 'weather':       result = await _botWeather(text); break;
+        case 'air':           result = await _botAir(text); break;
         case 'fortune':       result = await _botFortune(text); break;
         case 'quote':         result = _botQuote(); break;
         case 'quiz':          result = _botQuiz(); break;
