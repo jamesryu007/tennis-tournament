@@ -2349,7 +2349,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v551';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v552';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -14931,23 +14931,24 @@ function _bzRenderRestoTab() {
       const myRating = _restoMyRating(id);
       const ratingCount = Object.keys(_restoRatingsData[id] || {}).length;
       const idEsc = id.replace(/'/g, "\\'");
-      html += `<div class="bz-resto-card">
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
-            <span style="font-size:0.72rem;background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:10px;font-weight:700">${RESTO_THEME_EMOJI[r.theme]||'🍴'} ${r.theme||'기타'}</span>
-            ${r.url?`<span style="font-size:0.7rem;color:#2563eb;font-weight:600">📍</span>`:''}
+      html += `<div class="bz-resto-card" style="flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:flex-start">
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px">
+              <span style="font-size:0.72rem;background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:10px;font-weight:700">${RESTO_THEME_EMOJI[r.theme]||'🍴'} ${r.theme||'기타'}</span>
+            </div>
+            <div style="font-size:0.95rem;font-weight:800;color:#1e293b;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.name}</div>
+            <div style="display:flex;align-items:center;gap:2px;margin-bottom:3px">
+              ${[1,2,3,4,5].map(s=>`<span class="bz-star${myRating>=s?' on':''}" onclick="bzRateResto('${idEsc}',${s})">★</span>`).join('')}
+              <span style="font-size:0.72rem;color:#64748b;margin-left:4px">${avg>0?`⭐${avg} (${ratingCount}명)`:'별점 없음'}</span>
+            </div>
+            <div style="font-size:0.72rem;color:#94a3b8">방문 ${r.visitCount||0}회${r.memo?` · ${r.memo}`:''}</div>
           </div>
-          <div style="font-size:0.95rem;font-weight:800;color:#1e293b;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.name}</div>
-          <div style="display:flex;align-items:center;gap:2px;margin-bottom:3px">
-            ${[1,2,3,4,5].map(s=>`<span class="bz-star${myRating>=s?' on':''}" onclick="bzRateResto('${idEsc}',${s})">★</span>`).join('')}
-            <span style="font-size:0.72rem;color:#64748b;margin-left:4px">${avg>0?`⭐${avg} (${ratingCount}명)`:'별점 없음'}</span>
-          </div>
-          <div style="font-size:0.72rem;color:#94a3b8">방문 ${r.visitCount||0}회${r.memo?` · ${r.memo}`:''}</div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0;margin-left:6px">
-          <button onclick="bzShareRestoToChat('${idEsc}')" style="padding:6px 10px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">💬 공유</button>
-          ${r.url?`<button onclick="bzOpenRestoUrl('${idEsc}')" style="padding:6px 10px;border-radius:10px;border:1.5px solid #bfdbfe;background:#eff6ff;color:#2563eb;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">🗺️ 지도</button>`:''}
-          <button onclick="bzOpenRestoModal('${idEsc}')" style="padding:6px 10px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">✏️ 수정</button>
+        <div style="display:flex;justify-content:flex-end;gap:8px">
+          ${r.url?`<button onclick="bzOpenRestoUrl('${idEsc}')" style="padding:9px 16px;border-radius:10px;border:1.5px solid #bfdbfe;background:#eff6ff;color:#2563eb;font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">🗺️ 지도</button>`:''}
+          <button onclick="bzOpenRestoModal('${idEsc}')" style="padding:9px 16px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">✏️ 수정</button>
+          <button onclick="bzShareRestoToChat('${idEsc}')" style="padding:9px 16px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit">💬 공유</button>
         </div>
       </div>`;
     });
