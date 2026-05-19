@@ -1437,9 +1437,6 @@ const _BOT_TRIGGERS = [
   { key: 'weather',      pattern: /날씨/ },
   { key: 'air',          pattern: /미세먼지|공기/ },
   { key: 'fortune',      pattern: /운세|쥐띠|소띠|호랑이띠|토끼띠|용띠|뱀띠|말띠|양띠|원숭이띠|닭띠|개띠|돼지띠|\d{4}년\s*운세|\d{2}년생/ },
-  { key: 'quote',        pattern: /명언/ },
-  { key: 'quiz',         pattern: /퀴즈/ },
-  { key: 'notice',       pattern: /^!공지\s+/ },
 ];
 const _BOT_NO_COOLDOWN = new Set(['mystats', 'notice']);
 
@@ -1477,59 +1474,7 @@ const _BOT_FORTUNES = [
   '🎾 오늘 코트에서 최고의 플레이가 나올 예감! 자신을 믿으세요.',
 ];
 
-// ── 테니스 명언 20개 ───────────────────────────────────────────────
-const _BOT_QUOTES = [
-  { text: '챔피언이 되는 것은 재능의 문제가 아니라 의지의 문제다.', author: '빌리 진 킹' },
-  { text: '코트에서 지는 것이 두렵다면, 결코 최고가 될 수 없다.', author: '지미 코너스' },
-  { text: '승리는 준비하는 자의 것이다. 기회는 아무에게나 오지 않는다.', author: '로저 페더러' },
-  { text: '나는 패배에서 배운다. 매 경기가 나를 더 강하게 만든다.', author: '라파엘 나달' },
-  { text: '정신력이 기술보다 강하다. 마음이 먼저 포기하지 않으면 몸도 버틴다.', author: '노바크 조코비치' },
-  { text: '코트에 들어서는 순간, 과거도 미래도 없다. 오직 지금 이 공만 있다.', author: '아서 애시' },
-  { text: '가장 중요한 포인트는 항상 다음 포인트다.', author: '빌리 진 킹' },
-  { text: '테니스는 체스와 같다. 두 수 앞을 생각해야 한다.', author: '안드레 애거시' },
-  { text: '압박감은 특권이다. 중요한 순간에 설 수 있다는 것 자체가 행운이다.', author: '빌리 진 킹' },
-  { text: '최고를 목표로 하라. 그리고 즐겨라. 그것이 테니스다.', author: '로저 페더러' },
-  { text: '실패를 두려워하지 마라. 도전하지 않는 것이 진짜 실패다.', author: '마르티나 나브라틸로바' },
-  { text: '코트에서 100% 집중하지 않으면, 상대방이 반드시 기회를 잡는다.', author: '피트 샘프라스' },
-  { text: '근성은 선천적인 것이 아니다. 매일 쌓아나가는 것이다.', author: '라파엘 나달' },
-  { text: '공은 항상 거짓말을 하지 않는다.', author: '테니스 격언' },
-  { text: '테니스는 혼자서 배우지만, 함께 할 때 더욱 빛난다.', author: '자미터 테니스' },
-  { text: '어제보다 1% 나은 플레이어가 되는 것, 그것이 진보다.', author: '자미터 테니스' },
-  { text: '서브는 시작이 아니라 공격이다.', author: '존 맥켄로' },
-  { text: '흔들리지 않는 루틴이 흔들리는 순간을 이긴다.', author: '노바크 조코비치' },
-  { text: '테니스에서 가장 긴 거리는 머리에서 손까지의 거리다.', author: '팀 갈웨이' },
-  { text: '나는 오늘의 내가 어제의 나보다 더 나음을 믿는다.', author: '자미터 테니스' },
-];
 
-// ── 테니스 퀴즈 20문항 ─────────────────────────────────────────────
-const _BOT_QUIZ = [
-  { q: '테니스에서 0점을 뜻하는 단어는?', a: '러브(Love) — 0점을 "러브"라고 부릅니다 🎾' },
-  { q: '그랜드슬램 4개 대회를 모두 말해보세요!', a: '호주오픈 · 프랑스오픈(롤랑가로스) · 윔블던 · US오픈 🏆' },
-  { q: '잔디 코트에서 열리는 그랜드슬램은?', a: '윔블던(Wimbledon) 🌿' },
-  { q: '서브를 두 번 연속 실패하면?', a: '더블 폴트(Double Fault) — 상대방 포인트 😅' },
-  { q: 'ATP 역사상 그랜드슬램 최다 우승자는? (2024 기준)', a: '노바크 조코비치 — 24회 🏆' },
-  { q: '서브가 네트에 걸리고 서비스 박스 안에 들어가면?', a: '렛(Let) — 다시 서브합니다!' },
-  { q: '게임 스코어 40:40을 뭐라고 하나요?', a: '듀스(Deuce) — 이후 2점 연속 득점해야 게임 승리!' },
-  { q: '윔블던에서 선수들이 반드시 착용해야 하는 복장 색은?', a: '흰색(White) ⬜ — 전통입니다!' },
-  { q: '"에이스(Ace)"란 무엇인가요?', a: '상대방이 전혀 건드리지 못한 서브 포인트 💥' },
-  { q: '복식 경기에서 서비스 박스 옆 구역 이름은?', a: '앨리(Alley) 또는 트램라인(Tramline)' },
-  { q: 'WTA는 무슨 약자인가요?', a: "Women's Tennis Association — 여자 프로 테니스 협회 👩" },
-  { q: '테니스공이 공식적으로 노란색인 이유는?', a: 'TV 화면에서 잘 보이도록 1972년 윔블던이 채택! 📺' },
-  { q: '세계 최초 테니스 경기는 어느 나라에서 시작됐나요?', a: '영국 🇬🇧 — 1873년 월터 클롭턴 윙필드가 고안' },
-  { q: '테니스 세트에서 최소 몇 게임을 이겨야 하나요?', a: '6게임 (단, 5-5면 7게임까지 필요!)' },
-  { q: '한 선수가 0점으로 상대를 이기는 게임을?', a: '러브 게임(Love Game)! 상대 0점으로 완봉승 💪' },
-  { q: 'ATP는 무슨 약자인가요?', a: 'Association of Tennis Professionals — 남자 프로 테니스 협회' },
-  { q: '테니스 채점에서 15, 30, 40 다음은 왜 60이 아닐까요?', a: '중세 시계 문자판 유래설! 40 다음은 바로 게임 — 역사의 불가사의 🕰️' },
-  { q: '듀스 이후 1점 앞서면?', a: '어드밴티지(Advantage) — 한 번 더 이기면 게임!' },
-  { q: '타이브레이크는 몇 점을 먼저 따야 하나요?', a: '7점 (단, 6-6 시 2점 차가 날 때까지!)' },
-  { q: '자미터 테니스 클럽의 자랑은?', a: '재미와 열정! 그리고 사랑하는 사람들의 모임 🎾❤️' },
-];
-
-function _botDailyItem(arr) {
-  const d = new Date();
-  const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-  return arr[seed % arr.length];
-}
 
 async function _postBotMsg(msgData) {
   await db.ref(`${_BOT_BZ_REF}/messages`).push({
@@ -1667,22 +1612,38 @@ async function _botTodayMatch() {
   const snap = await db.ref('jmt/dailyCards').orderByChild('createdAt').limitToLast(30).once('value');
   const all = snap.val() || {};
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-  const today = Object.values(all).filter(c => {
-    if (!c.createdAt) return false;
-    const cd = new Date(c.createdAt);
-    return cd.getFullYear() === now.getFullYear() &&
-           cd.getMonth()    === now.getMonth() &&
-           cd.getDate()     === now.getDate();
-  });
+  // Firebase 배열→객체 변환 처리 헬퍼
+  const toArr = v => Array.isArray(v) ? v : (v ? Object.values(v) : []);
+  const today = Object.values(all)
+    .filter(c => {
+      if (!c.createdAt) return false;
+      const cd = new Date(c.createdAt);
+      return cd.getFullYear() === now.getFullYear() &&
+             cd.getMonth()    === now.getMonth() &&
+             cd.getDate()     === now.getDate() &&
+             c.phase          === 'done';
+    })
+    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   if (!today.length) return { text: '🎾 오늘 등록된 경기가 없어요!\n먼저 경기를 시작해보세요 💪' };
-  const lines = today.slice(0, 6).map((c, i) => {
-    const t0    = (c.team0 || []).join(' · ');
-    const t1    = (c.team1 || []).join(' · ');
-    const score = (c.sets  || []).map(s => `${s[0]}-${s[1]}`).join(' ');
-    const win   = c.winner === 0 ? `▶ ${t0}` : c.winner === 1 ? `▶ ${t1}` : '무';
-    return `${i+1}. ${t0}  vs  ${t1}\n    ${score}  ${win}`;
+  const lines = today.slice(0, 8).map((c, i) => {
+    const t0   = toArr(c.team0).join(' · ');
+    const t1   = toArr(c.team1).join(' · ');
+    const sets = toArr(c.sets);
+    // 세트 스코어: {s0, s1} 구조
+    const scoreStr = sets.map(s => `${s.s0??'-'}:${s.s1??'-'}`).join('  ');
+    const sw0  = sets.filter(s => (s.s0 ?? 0) > (s.s1 ?? 0)).length;
+    const sw1  = sets.filter(s => (s.s1 ?? 0) > (s.s0 ?? 0)).length;
+    let winLine;
+    if (c.winner === 0 || (c.winner === undefined && sw0 > sw1)) {
+      winLine = `🏆 ${t0}  WIN`;
+    } else if (c.winner === 1 || sw1 > sw0) {
+      winLine = `🏆 ${t1}  WIN`;
+    } else {
+      winLine = '🤝 무승부';
+    }
+    return `${i+1}. ${t0}\n    vs ${t1}\n    📊 ${scoreStr}\n    ${winLine}`;
   });
-  return { text: `🎾 오늘의 경기 결과 · ${today.length}경기\n\n${lines.join('\n')}` };
+  return { text: `🎾 오늘의 경기 결과 · ${today.length}경기\n\n${lines.join('\n\n')}` };
 }
 
 // ── 모임 일정 + 출석 현황 통합 ────────────────────────────────────
@@ -2019,19 +1980,21 @@ async function _botFortune(msgText) {
   const fIdx = (dayKey.split('').reduce((a, c) => a + c.charCodeAt(0), 0) + zodiacIdx) % fortunes.length;
   return { text: `🔮 ${d} ${zEmoji}${zName}띠 운세\n\n${fortunes[fIdx]}\n\n─────────────────\n생년도 함께 말하면 7년 운세 흐름을 알려드려요!\n예) "1984년 운세" / "90년생 운세"` };
 }
-function _botQuote() {
-  const q = _botDailyItem(_BOT_QUOTES);
-  return { text: `💬 오늘의 테니스 명언\n\n"${q.text}"\n\n— ${q.author}` };
-}
-function _botQuiz() {
-  const q = _botDailyItem(_BOT_QUIZ);
-  return { text: `🎯 오늘의 테니스 퀴즈\n\n❓ ${q.q}\n\n\n\n\n\n✅ 정답: ${q.a}` };
-}
-function _botNotice(text, senderName) {
-  const content = text.replace(/^!공지\s+/, '').trim();
-  if (!content) return null;
-  return { text: `📢 공지사항\n\n${content}\n\n— ${senderName}` };
-}
+
+// ── 공지사항 전송 (관리자 UI에서 callable로 호출) ──────────────────
+exports.sendNoticeAsBot = onCall({ region: 'asia-southeast1' }, async (req) => {
+  const senderName = req.data.senderName || '';
+  const noticeId   = req.data.noticeId   || '';
+  if (!_BOT_MANAGERS.includes(senderName)) throw new Error('권한 없음');
+  const snap = await db.ref(`jmt/notices/${noticeId}`).once('value');
+  const notice = snap.val();
+  if (!notice) throw new Error('공지 없음');
+  const titleLine = notice.title ? `[${notice.title}]\n` : '';
+  const text = `📢 공지사항\n\n${titleLine}${notice.content}\n\n— ${notice.createdBy}`;
+  await _postBotMsg({ text });
+  await db.ref(`jmt/notices/${noticeId}/sentAt`).set(Date.now());
+  return { ok: true };
+});
 
 // ── 메인 트리거 함수 ───────────────────────────────────────────────
 exports.handleBotTriggers = onValueCreated(
@@ -2072,9 +2035,7 @@ exports.handleBotTriggers = onValueCreated(
         case 'weather':       result = await _botWeather(text); break;
         case 'air':           result = await _botAir(text); break;
         case 'fortune':       result = await _botFortune(text); break;
-        case 'quote':         result = _botQuote(); break;
-        case 'quiz':          result = _botQuiz(); break;
-        case 'notice':        result = _botNotice(text, senderName); break;
+
       }
       if (result) await _postBotMsg(result);
     } catch (e) {

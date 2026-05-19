@@ -1473,6 +1473,7 @@ const firebaseConfig = {
           </select>
           <div id="bz-alias-chips" style="display:flex;flex-wrap:wrap;gap:4px;flex:1"></div>
           <button id="bz-jinsil-btn" onclick="bzToggleJinsil()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#64748b;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">진실톡 OFF</button>
+          <button id="bz-notice-btn" onclick="openNoticeModal()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">📢 공지</button>
         </div>
         <div id="bz-alias-limit-msg" style="display:none;font-size:0.72rem;color:#dc2626;margin-bottom:4px">⚠️ 최대 2개의 가명만 사용할 수 있습니다.</div>
         <!-- 채팅중인 멤버 -->
@@ -14957,6 +14958,74 @@ function bzOpenRestoModal(editId) {
   if (modal) modal.style.display = 'flex';
   if (!editId) setTimeout(_restoCheckClipboard, 300);
 }
+// ══ 공지사항 관리 ═══════════════════════════════════════════════════
+function openNoticeModal() {
+  document.getElementById('notice-list-modal').style.display = 'flex';
+  _renderNoticeList();
+}
+function closeNoticeModal() {
+  document.getElementById('notice-list-modal').style.display = 'none';
+}
+function openNoticeWriteModal() {
+  document.getElementById('notice-title-input').value = '';
+  document.getElementById('notice-content-input').value = '';
+  document.getElementById('notice-write-modal').style.display = 'flex';
+}
+function closeNoticeWriteModal() {
+  document.getElementById('notice-write-modal').style.display = 'none';
+}
+function _renderNoticeList() {
+  const body = document.getElementById('notice-list-body');
+  if (!db) return;
+  db.ref('jmt/notices').orderByChild('createdAt').once('value').then(snap => {
+    const all = snap.val() || {};
+    const items = Object.entries(all).sort((a, b) => (b[1].createdAt || 0) - (a[1].createdAt || 0));
+    if (!items.length) {
+      body.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:0.85rem;padding:20px">등록된 공지가 없어요</div>';
+      return;
+    }
+    body.innerHTML = items.map(([id, n]) => {
+      const date = n.createdAt ? new Date(n.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
+      const sentBadge = n.sentAt
+        ? `<span style="font-size:0.7rem;background:#dcfce7;color:#16a34a;padding:2px 6px;border-radius:6px;font-weight:700">전송완료</span>`
+        : `<button onclick="sendNoticeToChat('${id}')" style="font-size:0.72rem;background:#2563eb;color:#fff;border:none;padding:4px 10px;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit">자미봇 전송</button>`;
+      const deleteBtn = `<button onclick="deleteNotice('${id}')" style="font-size:0.72rem;background:none;color:#dc2626;border:1.5px solid #fecaca;padding:3px 8px;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit">삭제</button>`;
+      return `<div style="background:#f8fafc;border-radius:12px;padding:12px 14px;border:1.5px solid #e2e8f0">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
+          <div style="font-size:0.88rem;font-weight:800;color:#1e293b;flex:1">${n.title || '(제목 없음)'}</div>
+          <div style="display:flex;gap:6px;flex-shrink:0;align-items:center">${sentBadge}${deleteBtn}</div>
+        </div>
+        <div style="font-size:0.82rem;color:#475569;white-space:pre-wrap;margin-bottom:6px">${n.content || ''}</div>
+        <div style="font-size:0.72rem;color:#94a3b8">${n.createdBy || ''} · ${date}</div>
+      </div>`;
+    }).join('');
+  });
+}
+async function saveNotice() {
+  const title   = document.getElementById('notice-title-input').value.trim();
+  const content = document.getElementById('notice-content-input').value.trim();
+  if (!content) { alert('내용을 입력해주세요.'); return; }
+  const curName = (state.identity && state.identity.name) || '';
+  await db.ref('jmt/notices').push({ title, content, createdBy: curName, createdAt: Date.now() }).catch(fbErr);
+  closeNoticeWriteModal();
+  _renderNoticeList();
+}
+async function sendNoticeToChat(noticeId) {
+  const curName = (state.identity && state.identity.name) || '';
+  const fn = firebase.app().functions('asia-southeast1').httpsCallable('sendNoticeAsBot');
+  try {
+    await fn({ senderName: curName, noticeId });
+    _renderNoticeList();
+  } catch (e) {
+    alert('전송 실패: ' + (e.message || e));
+  }
+}
+async function deleteNotice(noticeId) {
+  if (!confirm('이 공지를 삭제할까요?')) return;
+  await db.ref('jmt/notices/' + noticeId).remove().catch(fbErr);
+  _renderNoticeList();
+}
+
 function bzCloseRestoModal() {
   const modal = document.getElementById('bz-resto-modal');
   if (modal) modal.style.display = 'none';
@@ -15946,6 +16015,10 @@ function _bzRender() {
       rnBtn.style.border = showRN ? '1.5px solid #f59e0b' : '1.5px solid #e2e8f0';
       rnBtn.textContent = showRN ? '👁 실명 ON' : '👁 실명 공개';
     }
+
+    // 공지 버튼 — 관리자만 표시
+    const noticeBtn = document.getElementById('bz-notice-btn');
+    if (noticeBtn) noticeBtn.style.display = isManager() ? 'inline-block' : 'none';
 
     // 진실톡 버튼 상태 동기화
     const jinsilBtn = document.getElementById('bz-jinsil-btn');
@@ -18490,6 +18563,43 @@ function deleteMpHistory(pollId, event) {
 </div>
 
 <!-- ══ 자미터 단골집 — 등록/수정 모달 ══ -->
+<!-- ── 공지사항 리스트 모달 ─────────────────────────────────────── -->
+<div id="notice-list-modal" style="display:none;position:fixed;inset:0;z-index:730;background:rgba(0,0,0,0.45);align-items:flex-end" onclick="closeNoticeModal()">
+  <div style="width:100%;background:#fff;border-radius:20px 20px 0 0;padding:20px 16px max(env(safe-area-inset-bottom,24px),24px);max-height:88vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+    <div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px;flex-shrink:0"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-shrink:0">
+      <div style="font-size:1rem;font-weight:800;color:#1e293b">📢 공지사항 관리</div>
+      <button onclick="closeNoticeModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8">✕</button>
+    </div>
+    <div style="flex-shrink:0;margin-bottom:12px">
+      <button onclick="openNoticeWriteModal()" style="width:100%;padding:11px;border-radius:12px;border:2px dashed #2563eb;background:#eff6ff;color:#2563eb;font-size:0.9rem;font-weight:700;cursor:pointer">+ 공지 작성</button>
+    </div>
+    <div id="notice-list-body" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:10px">
+      <div style="text-align:center;color:#94a3b8;font-size:0.85rem;padding:20px">등록된 공지가 없어요</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 공지사항 작성 모달 ─────────────────────────────────────── -->
+<div id="notice-write-modal" style="display:none;position:fixed;inset:0;z-index:740;background:rgba(0,0,0,0.5);align-items:flex-end" onclick="closeNoticeWriteModal()">
+  <div style="width:100%;background:#fff;border-radius:20px 20px 0 0;padding:20px 16px max(env(safe-area-inset-bottom,24px),24px)" onclick="event.stopPropagation()">
+    <div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:1rem;font-weight:800;color:#1e293b">✏️ 공지 작성</div>
+      <button onclick="closeNoticeWriteModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8">✕</button>
+    </div>
+    <div style="margin-bottom:10px">
+      <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:4px">제목 (선택)</div>
+      <input id="notice-title-input" type="text" placeholder="공지 제목을 입력하세요" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.9rem;font-family:inherit">
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:4px">내용</div>
+      <textarea id="notice-content-input" placeholder="공지 내용을 입력하세요" rows="4" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.9rem;font-family:inherit;resize:none"></textarea>
+    </div>
+    <button onclick="saveNotice()" style="width:100%;padding:13px;border-radius:12px;border:none;background:#2563eb;color:#fff;font-size:0.95rem;font-weight:800;cursor:pointer">저장</button>
+  </div>
+</div>
+
 <div id="bz-resto-modal" style="display:none;position:fixed;inset:0;z-index:730;background:rgba(0,0,0,0.45);align-items:flex-end" onclick="bzCloseRestoModal()">
   <div style="width:100%;background:#fff;border-radius:20px 20px 0 0;padding:20px 16px max(env(safe-area-inset-bottom,24px),24px);max-height:88vh;overflow-y:auto" onclick="event.stopPropagation()">
     <div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px"></div>
