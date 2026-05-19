@@ -1958,6 +1958,22 @@ async function _botFortune(msgText) {
 }
 
 // ── 공지사항 전송 (관리자 UI에서 callable로 호출) ──────────────────
+// HTML → 순수 텍스트 변환 (채팅 전송용)
+function _htmlToPlainText(html) {
+  return (html || '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 exports.sendNoticeAsBot = onCall({ region: 'asia-southeast1' }, async (req) => {
   const senderName = req.data.senderName || '';
   const noticeId   = req.data.noticeId   || '';
@@ -1966,7 +1982,9 @@ exports.sendNoticeAsBot = onCall({ region: 'asia-southeast1' }, async (req) => {
   const notice = snap.val();
   if (!notice) throw new Error('공지 없음');
   const titleLine = notice.title ? `[${notice.title}]\n` : '';
-  const botText = `📢 공지사항\n\n${titleLine}${notice.content}\n\n— ${notice.createdBy}`;
+  // 채팅 전송용: HTML 태그 제거 후 순수 텍스트
+  const plainContent = _htmlToPlainText(notice.content);
+  const botText = `📢 공지사항\n\n${titleLine}${plainContent}\n\n— ${notice.createdBy}`;
   // 자미톡에 봇 메시지 게시
   await _postBotMsg({ text: botText });
   // 전체 멤버에게 FCM 푸시 (쿨다운 없이 항상 발송)
