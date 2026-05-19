@@ -2349,7 +2349,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v549';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v550';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -15185,8 +15185,8 @@ function restoUrlAutoFill(raw) {
   if (!nameInput || nameInput.value.trim()) return;
   // 카카오맵: "[카카오맵] 맛집명 https://kko.to/xxx"
   const kakao = raw.match(/\[카카오맵\]\s*(.+?)\s+https?:\/\//);
-  // 네이버지도: "[네이버지도] 맛집명  주소  https://naver.me/xxx"
-  const naver = raw.match(/\[네이버지도\]\s*(.+?)\s{2,}/);
+  // 네이버지도: "[네이버지도] 맛집명\n주소\nhttps://..." 또는 공백 2개 구분
+  const naver = raw.match(/\[네이버지도\]\s*(.+?)(\n|\s{2,})/);
   const name = kakao ? kakao[1].trim() : naver ? naver[1].trim() : '';
   if (name) nameInput.value = name;
 }
@@ -15201,7 +15201,7 @@ async function bzSaveResto() {
   let nameInput = document.getElementById('bz-resto-name-input');
   if (!nameInput.value.trim()) {
     if (rawUrl.includes('[네이버지도]')) {
-      const m = rawUrl.match(/\[네이버지도\]\s*(.+?)\s{2,}/);
+      const m = rawUrl.match(/\[네이버지도\]\s*(.+?)(\n|\s{2,})/);
       if (m) nameInput.value = m[1].trim();
     } else if (rawUrl.includes('[카카오맵]')) {
       const m = rawUrl.match(/\[카카오맵\]\s*(.+?)\s+https?:\/\//);
