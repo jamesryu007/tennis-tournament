@@ -1990,7 +1990,8 @@ exports.sendNoticeAsBot = onCall({ region: 'asia-southeast1' }, async (req) => {
   // 전체 멤버에게 FCM 푸시 (쿨다운 없이 항상 발송)
   const tokens = await getAllTokens();
   const pushTitle = `📢 공지사항${notice.title ? ` — ${notice.title}` : ''}`;
-  const pushBody  = notice.content.length > 60 ? notice.content.slice(0, 60) + '…' : notice.content;
+  const plainBody = _htmlToPlainText(notice.content);
+  const pushBody  = plainBody.length > 60 ? plainBody.slice(0, 60) + '…' : plainBody;
   await sendPush(tokens, pushTitle, pushBody, 'matches', '', '', { subScreen: 'notices' });
   return { ok: true };
 });
