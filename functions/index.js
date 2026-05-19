@@ -1568,19 +1568,17 @@ async function _botRankingInd() {
     .sort((a, b) => {
       const aT = (a[1].wins||0) + (a[1].draws||0) + (a[1].losses||0);
       const bT = (b[1].wins||0) + (b[1].draws||0) + (b[1].losses||0);
-      const aR = aT ? (a[1].wins||0)/aT : 0;
-      const bR = bT ? (b[1].wins||0)/bT : 0;
-      return bR - aR;
+      return (bT ? (b[1].wins||0)/bT : 0) - (aT ? (a[1].wins||0)/aT : 0);
     }).slice(0, 5);
-  if (!sorted.length) return { text: `📊 ${year}년 개인랭킹 집계 데이터가 없어요.\n경기를 더 뛰어봐요! 🎾` };
+  if (!sorted.length) return { text: `🏆 ${year}년 개인랭킹\n\n아직 3경기 이상 기록된 멤버가 없어요.\n열심히 경기를 뛰어봐요! 🎾` };
   const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
   const lines = sorted.map(([name, s], i) => {
     const total = (s.wins||0) + (s.draws||0) + (s.losses||0);
-    const rate = total ? Math.round((s.wins||0)/total*100) : 0;
-    const drawStr = (s.draws||0) > 0 ? ` ${s.draws}무` : '';
-    return `${medals[i]} ${name}  승률 ${rate}%\n   └ ${s.wins||0}승${drawStr} ${s.losses||0}패  (총 ${total}경기)`;
+    const rate  = total ? Math.round((s.wins||0)/total*100) : 0;
+    const draws = (s.draws||0) > 0 ? ` ${s.draws}무` : '';
+    return `${medals[i]} ${name}  승률 ${rate}%\n    ${s.wins||0}승${draws} ${s.losses||0}패 · 총 ${total}경기`;
   });
-  return { text: `🏆 ${year}년 자미터 개인랭킹 TOP 5\n(3경기 이상, 승률 기준)\n\n${lines.join('\n')}` };
+  return { text: `🏆 ${year}년 개인랭킹 TOP 5\n3경기 이상 · 승률 기준\n\n${lines.join('\n')}` };
 }
 
 // ── 팀페어 랭킹 TOP 5 ─────────────────────────────────────────────
@@ -1593,82 +1591,89 @@ async function _botRankingPair() {
     .sort((a, b) => {
       const aT = (a[1].wins||0) + (a[1].draws||0) + (a[1].losses||0);
       const bT = (b[1].wins||0) + (b[1].draws||0) + (b[1].losses||0);
-      const aR = aT ? (a[1].wins||0)/aT : 0;
-      const bR = bT ? (b[1].wins||0)/bT : 0;
-      return bR - aR;
+      return (bT ? (b[1].wins||0)/bT : 0) - (aT ? (a[1].wins||0)/aT : 0);
     }).slice(0, 5);
-  if (!sorted.length) return { text: `📊 ${year}년 팀페어 랭킹 데이터가 없어요.\n복식 경기를 더 기록해봐요! 🎾` };
+  if (!sorted.length) return { text: `👥 ${year}년 팀페어 랭킹\n\n아직 2경기 이상 기록된 팀이 없어요.\n복식 경기를 더 기록해봐요! 🎾` };
   const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
   const lines = sorted.map(([, s], i) => {
-    const total = (s.wins||0) + (s.draws||0) + (s.losses||0);
-    const rate = total ? Math.round((s.wins||0)/total*100) : 0;
-    const nickname = s.nickname ? `"${s.nickname}"  ` : '';
-    const players = (s.players || []).join(' · ');
-    const drawStr = (s.draws||0) > 0 ? ` ${s.draws}무` : '';
-    return `${medals[i]} ${nickname}${players}\n   └ 승률 ${rate}%  ${s.wins||0}승${drawStr} ${s.losses||0}패  (${total}경기)`;
+    const total    = (s.wins||0) + (s.draws||0) + (s.losses||0);
+    const rate     = total ? Math.round((s.wins||0)/total*100) : 0;
+    const draws    = (s.draws||0) > 0 ? ` ${s.draws}무` : '';
+    const nick     = s.nickname ? ` "${s.nickname}"` : '';
+    const players  = (s.players || []).join(' · ');
+    return `${medals[i]} ${players}${nick}\n    승률 ${rate}% · ${s.wins||0}승${draws} ${s.losses||0}패 · ${total}경기`;
   });
-  return { text: `👥 ${year}년 자미터 팀페어 랭킹 TOP 5\n(2경기 이상, 승률 기준)\n\n${lines.join('\n')}` };
+  return { text: `👥 ${year}년 팀페어 랭킹 TOP 5\n2경기 이상 · 승률 기준\n\n${lines.join('\n')}` };
 }
 
 // ── 출석 랭킹 TOP 5 ───────────────────────────────────────────────
 async function _botRankingAtt() {
   const year = new Date().getFullYear();
-  const snap = await db.ref('jmt/poll').once('value');
+  // startAt/endAt으로 해당 연도 poll만 정확히 조회
+  const snap = await db.ref('jmt/poll')
+    .orderByKey()
+    .startAt(String(year))
+    .endAt(String(year) + '\uf8ff')
+    .once('value');
   const poll = snap.val() || {};
   const counts = {};
   let totalWeeks = 0;
-  for (const [weekId, week] of Object.entries(poll)) {
-    // weekId 형식: "2025-01" 등, 연도 필터
-    if (!weekId.startsWith(String(year))) continue;
+  for (const [, week] of Object.entries(poll)) {
     const votes = week.votes || {};
+    if (!Object.keys(votes).length) continue;
     totalWeeks++;
     for (const [name, vote] of Object.entries(votes)) {
-      if (vote === 'attend' || vote === 'late') {
+      // vote는 문자열 'attend'/'late'/'absent' 또는 객체일 수 있음
+      const vStr = typeof vote === 'object' ? (vote.vote || '') : String(vote || '');
+      if (vStr === 'attend' || vStr === 'late') {
         counts[name] = (counts[name] || 0) + 1;
       }
     }
   }
-  if (!Object.keys(counts).length) return { text: `📊 ${year}년 출석 데이터가 없어요.` };
-  const sorted = Object.entries(counts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+  if (!Object.keys(counts).length) return { text: `📅 ${year}년 출석 랭킹\n\n아직 집계된 출석 데이터가 없어요.` };
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
   const lines = sorted.map(([name, cnt], i) => {
-    const rate = totalWeeks ? Math.round(cnt/totalWeeks*100) : 0;
-    return `${medals[i]} ${name}  ${cnt}회 출석  (출석률 ${rate}%)`;
+    const rate = totalWeeks ? Math.round(cnt / totalWeeks * 100) : 0;
+    return `${medals[i]} ${name}  ${cnt}회 출석 · 출석률 ${rate}%`;
   });
-  const weekStr = totalWeeks ? `  (총 ${totalWeeks}주 기준)` : '';
-  return { text: `📅 ${year}년 자미터 출석 랭킹 TOP 5${weekStr}\n\n${lines.join('\n')}` };
+  return { text: `📅 ${year}년 출석 랭킹 TOP 5\n총 ${totalWeeks}주 기준\n\n${lines.join('\n')}` };
 }
 
 // ── 내 전적 ────────────────────────────────────────────────────────
 async function _botMyStats(senderName) {
-  if (!senderName) return { text: '😅 이름을 알 수 없어요. 먼저 체크인해주세요!' };
+  if (!senderName) return { text: '😅 이름을 알 수 없어요. 먼저 체크인 후 이용해주세요!' };
   const year = new Date().getFullYear();
   const snap = await db.ref(`jmt/playerStats/${year}/${senderName}`).once('value');
   const s = snap.val();
-  if (!s) return { text: `📊 ${senderName}님의 ${year}년 기록이 없어요. 경기부터 뛰어요! 🎾` };
-  const total = (s.wins||0) + (s.losses||0);
-  const rate = total ? Math.round((s.wins||0)/total*100) : 0;
-  return { text: `📊 ${senderName}님의 ${year}년 전적\n\n${s.wins||0}승 ${s.draws||0}무 ${s.losses||0}패\n승률 ${rate}%  (총 ${total}경기)` };
+  if (!s) return { text: `📊 ${senderName}님의 ${year}년 기록이 없어요.\n경기부터 뛰어봐요! 🎾` };
+  const total = (s.wins||0) + (s.draws||0) + (s.losses||0);
+  const rate  = total ? Math.round((s.wins||0)/total*100) : 0;
+  const draws = (s.draws||0) > 0 ? ` ${s.draws}무` : '';
+  return { text: `📊 ${senderName}님의 ${year}년 전적\n\n${s.wins||0}승${draws} ${s.losses||0}패\n승률 ${rate}%  ·  총 ${total}경기` };
 }
 
 // ── 오늘의 경기 결과 ───────────────────────────────────────────────
 async function _botTodayMatch() {
   const snap = await db.ref('jmt/dailyCards').orderByChild('createdAt').limitToLast(30).once('value');
   const all = snap.val() || {};
-  const todayStr = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit' });
-  const today = Object.values(all).filter(c => c.createdAt &&
-    new Date(c.createdAt).toLocaleDateString('ko-KR', { year:'numeric', month:'2-digit', day:'2-digit' }) === todayStr
-  );
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+  const today = Object.values(all).filter(c => {
+    if (!c.createdAt) return false;
+    const cd = new Date(c.createdAt);
+    return cd.getFullYear() === now.getFullYear() &&
+           cd.getMonth()    === now.getMonth() &&
+           cd.getDate()     === now.getDate();
+  });
   if (!today.length) return { text: '🎾 오늘 등록된 경기가 없어요!\n먼저 경기를 시작해보세요 💪' };
   const lines = today.slice(0, 6).map((c, i) => {
-    const t0 = (c.team0 || []).join('·'), t1 = (c.team1 || []).join('·');
-    const score = (c.sets || []).map(s => `${s[0]}-${s[1]}`).join(' ');
-    const win = c.winner !== undefined ? (c.winner === 0 ? ` ← ${t0} 승` : ` → ${t1} 승`) : '';
-    return `${i+1}. ${t0} vs ${t1}  ${score}${win}`;
+    const t0    = (c.team0 || []).join(' · ');
+    const t1    = (c.team1 || []).join(' · ');
+    const score = (c.sets  || []).map(s => `${s[0]}-${s[1]}`).join(' ');
+    const win   = c.winner === 0 ? `▶ ${t0}` : c.winner === 1 ? `▶ ${t1}` : '무';
+    return `${i+1}. ${t0}  vs  ${t1}\n    ${score}  ${win}`;
   });
-  return { text: `🎾 오늘의 경기 결과 (${today.length}경기)\n\n${lines.join('\n')}` };
+  return { text: `🎾 오늘의 경기 결과 · ${today.length}경기\n\n${lines.join('\n')}` };
 }
 
 // ── 모임 일정 + 출석 현황 통합 ────────────────────────────────────
@@ -1701,9 +1706,13 @@ async function _botSchedule() {
     .map(m => m.name);
   const total       = members.length;
 
-  // 투표 현황
-  const votesSnap   = await db.ref(`jmt/poll/${ps.weekId}/votes`).once('value');
-  const votes       = votesSnap.val() || {};
+  // 투표 현황 — pollState.weekId와 실제 poll 키가 다를 수 있으므로
+  // jmt/poll 최신 키를 사용 (가장 신뢰성 높음)
+  const pollSnap2  = await db.ref('jmt/poll').orderByKey().limitToLast(5).once('value');
+  const polls2     = pollSnap2.val() || {};
+  const latestKey  = Object.keys(polls2).sort().pop();
+  const latestWeek = latestKey ? polls2[latestKey] : null;
+  const votes      = latestWeek ? (latestWeek.votes || {}) : {};
   const attend = [], late = [], absent = [], noResp = [];
   for (const name of members) {
     const v = votes[name];
@@ -1712,65 +1721,55 @@ async function _botSchedule() {
     else if (v === 'late')   late.push(name);
     else if (v === 'absent') absent.push(name);
   }
-  const playCount = attend.length + late.length;
-  const doneCount = playCount + absent.length;
-  const statusLabel = ps.status === 'closed' ? '마감' : '출첵 진행중';
+  const playCount   = attend.length + late.length;
+  const doneCount   = playCount + absent.length;
+  const statusLabel = ps.status === 'closed' ? '마감' : '진행중';
 
-  // 이번 주 경기 결과 (토요일 당일이면)
-  let matchSummary = '';
-  if (diffDays <= 0 && diffDays > -3) {
-    const matchSnap = await db.ref('jmt/dailyCards')
-      .orderByChild('createdAt').limitToLast(20).once('value');
-    const allCards = matchSnap.val() || {};
-    const todayCards = Object.values(allCards).filter(c => {
+  // 막대 그래프 (10칸)
+  const barFill = total > 0 ? Math.round(doneCount / total * 10) : 0;
+  const bar     = '■'.repeat(barFill) + '□'.repeat(10 - barFill);
+
+  // 출석 목록 포맷
+  const fmtList = (arr) => arr.length ? arr.join(', ') : '-';
+
+  // 이번 주 경기 결과 (토요일 당일/하루뒤)
+  let matchLines = [];
+  if (diffDays <= 0 && diffDays > -2) {
+    const mSnap = await db.ref('jmt/dailyCards').orderByChild('createdAt').limitToLast(20).once('value');
+    Object.values(mSnap.val() || {}).filter(c => {
       if (!c.createdAt) return false;
       const cd = new Date(c.createdAt);
       return cd.getFullYear() === y && (cd.getMonth() + 1) === mo && cd.getDate() === d;
+    }).slice(0, 5).forEach((c, i) => {
+      const t0 = (c.team0||[]).join('·'), t1 = (c.team1||[]).join('·');
+      const sc = (c.sets||[]).map(s=>`${s[0]}-${s[1]}`).join(' ');
+      const win = c.winner===0?`▶${t0}`:c.winner===1?`▶${t1}`:'';
+      matchLines.push(`${i+1}. ${t0} vs ${t1}  ${sc}  ${win}`);
     });
-    if (todayCards.length) {
-      matchSummary = `\n\n── 경기 결과 (${todayCards.length}경기) ──`;
-      todayCards.slice(0, 5).forEach((c, i) => {
-        const t0 = (c.team0 || []).join('·');
-        const t1 = (c.team1 || []).join('·');
-        const sc = (c.sets || []).map(s => `${s[0]}-${s[1]}`).join(' ');
-        const win = c.winner === 0 ? `▶ ${t0}` : c.winner === 1 ? `▶ ${t1}` : '';
-        matchSummary += `\n${i + 1}. ${t0} vs ${t1}  ${sc}  ${win}`;
-      });
-    }
   }
 
-  // 응답자 막대 시각화 (10칸)
-  const barFill = total > 0 ? Math.round(doneCount / total * 10) : 0;
-  const bar = '▓'.repeat(barFill) + '░'.repeat(10 - barFill);
+  const tail = noResp.length
+    ? `⚠️ 미응답 ${noResp.length}명 — 출첵 눌러주세요!`
+    : '✨ 모든 멤버 응답 완료!';
 
-  const noRespStr = noResp.length
-    ? `\n❓ 미응답 ${noResp.length}명: ${noResp.join(', ')}`
-    : '';
-  const tailMsg = noResp.length
-    ? `\n\n⚠️ 미응답 ${noResp.length}명 — 빨리 출첵 눌러주세요!`
-    : '\n\n✨ 모든 멤버 응답 완료!';
-
-  return { text: [
-    `📅 자미터 정기 모임 일정`,
+  const parts = [
+    `📅 제${meetNum}회 자미터 정기 모임`,
+    `📆 ${dateStr}  ·  D${diffDays<=0?'+'+Math.abs(diffDays):'-'+diffDays}  ·  출첵 ${statusLabel}`,
     ``,
-    `━━━━━━━━━━━━━━━━━━`,
-    `🎾 제${meetNum}회 정기 모임`,
-    `📆 ${dateStr}`,
-    `🗓  ${dayLabel}`,
-    `━━━━━━━━━━━━━━━━━━`,
+    `[${bar}]  ${doneCount} / ${total}명 응답`,
     ``,
-    `출석체크 [${statusLabel}]`,
-    `[${bar}] ${doneCount}/${total}명 응답`,
+    `✅ 참여 ${attend.length}명   ${fmtList(attend)}`,
+    `⏰ 지각 ${late.length}명   ${fmtList(late)}`,
+    `❌ 불참 ${absent.length}명   ${fmtList(absent)}`,
+    `❓ 미응답 ${noResp.length}명   ${fmtList(noResp)}`,
     ``,
-    `✅ 참여 ${attend.length}명${attend.length ? ': ' + attend.join(', ') : ''}`,
-    `⏰ 지각 ${late.length}명${late.length ? ': ' + late.join(', ') : ''}`,
-    `❌ 불참 ${absent.length}명${absent.length ? ': ' + absent.join(', ') : ''}`,
-    noRespStr,
-    ``,
-    `🏸 예상 참여 인원: ${playCount}명`,
-    matchSummary,
-    tailMsg,
-  ].join('\n').replace(/\n{3,}/g, '\n\n').trim() };
+    `🎾 예상 참여 ${playCount}명`,
+    tail,
+  ];
+  if (matchLines.length) {
+    parts.push('', `── 경기 결과 (${matchLines.length}경기) ──`, ...matchLines);
+  }
+  return { text: parts.join('\n') };
 }
 
 // ── 출석체크 현황 ──────────────────────────────────────────────────
@@ -1800,20 +1799,27 @@ async function _botCheckin() {
     else if (v === 'absent') absent.push(name);
   }
 
-  const lines = [];
-  if (attend.length)  lines.push(`✅ 참여 ${attend.length}명: ${attend.join(', ')}`);
-  if (late.length)    lines.push(`⏰ 지각 ${late.length}명: ${late.join(', ')}`);
-  if (absent.length)  lines.push(`❌ 불참 ${absent.length}명: ${absent.join(', ')}`);
-  if (noResp.length)  lines.push(`❓ 미응답 ${noResp.length}명: ${noResp.join(', ')}`);
-
-  const total = members.length;
-  const done  = attend.length + late.length + absent.length;
+  const total       = members.length;
+  const done        = attend.length + late.length + absent.length;
   const statusLabel = pollStatus === 'closed' ? '마감' : '진행중';
-  const tail = noResp.length
-    ? `\n⚠️ 미응답 ${noResp.length}명 — 빨리 출첵해주세요!`
-    : '\n✨ 모든 멤버가 응답 완료!';
+  const barFill     = total > 0 ? Math.round(done / total * 10) : 0;
+  const bar         = '■'.repeat(barFill) + '□'.repeat(10 - barFill);
+  const fmtList     = (arr) => arr.length ? arr.join(', ') : '-';
+  const tail        = noResp.length
+    ? `⚠️ 미응답 ${noResp.length}명 — 빨리 출첵해주세요!`
+    : '✨ 모든 멤버 응답 완료!';
 
-  return { text: `📋 출석체크 현황 [${statusLabel}]\n${weekId}  (${done}/${total}명 응답)\n\n${lines.join('\n')}${tail}` };
+  return { text: [
+    `📋 출석체크 현황 · 출첵 ${statusLabel}`,
+    `[${bar}]  ${done} / ${total}명 응답`,
+    ``,
+    `✅ 참여 ${attend.length}명   ${fmtList(attend)}`,
+    `⏰ 지각 ${late.length}명   ${fmtList(late)}`,
+    `❌ 불참 ${absent.length}명   ${fmtList(absent)}`,
+    `❓ 미응답 ${noResp.length}명   ${fmtList(noResp)}`,
+    ``,
+    tail,
+  ].join('\n') };
 }
 
 // ── 날씨 (OpenWeatherMap) ──────────────────────────────────────────
@@ -1906,17 +1912,32 @@ const _CYCLE_DATA = [
   { label: '임박기🌅', tennis: '새 시즌을 위한 몸과 마음의 준비를 지금 시작할 것',                   money: '새로운 기회가 문 앞까지 와 있는 전환 직전 시기',          relation: '새 인연을 맞이할 마음의 공간을 비울 것',                health: '작은 증상도 무시하지 말고 조기에 대처할 것' },
 ];
 
-function _botFortune(msgText) {
+async function _botFortune(msgText) {
   const currentYear = new Date().getFullYear();
   const d = new Date().toLocaleDateString('ko-KR', { month:'long', day:'numeric' });
 
   // 출생연도 파싱
   let birthYear = null;
+  let memberName = null;
+
   if (msgText) {
-    const m4 = msgText.match(/(\d{4})년/);
-    const m2 = msgText.match(/(\d{2})년생/);
-    if (m4) birthYear = parseInt(m4[1]);
-    else if (m2) { const y2 = parseInt(m2[1]); birthYear = y2 >= 0 && y2 <= 30 ? 2000 + y2 : 1900 + y2; }
+    // 1순위: 멤버 이름 감지 → DB에서 birthday 조회
+    const membSnap = await db.ref('jmt/members').once('value');
+    const allMembers = Object.values(membSnap.val() || {}).filter(m => m.name && !m.isGuest);
+    for (const m of allMembers) {
+      if (msgText.includes(m.name) && m.birthday) {
+        birthYear = parseInt(m.birthday.split('-')[0]);
+        memberName = m.name;
+        break;
+      }
+    }
+    // 2순위: 4자리 연도 또는 2자리 년생
+    if (!birthYear) {
+      const m4 = msgText.match(/(\d{4})년/);
+      const m2 = msgText.match(/(\d{2})년생/);
+      if (m4) birthYear = parseInt(m4[1]);
+      else if (m2) { const y2 = parseInt(m2[1]); birthYear = y2 >= 0 && y2 <= 30 ? 2000 + y2 : 1900 + y2; }
+    }
     if (birthYear && (birthYear < 1900 || birthYear > currentYear)) birthYear = null;
   }
 
@@ -1925,18 +1946,21 @@ function _botFortune(msgText) {
     const zodiacIdx = ((birthYear - 2020) % 12 + 1200) % 12;
     const zName  = _ZODIAC_NAMES[zodiacIdx];
     const zEmoji = _ZODIAC_EMOJIS[zodiacIdx];
-    const age = currentYear - birthYear;
+    const age    = currentYear - birthYear;
+    const header = memberName
+      ? `🔮 ${memberName}님 (${birthYear}년생 ${zEmoji}${zName}띠 · 만 ${age}세)`
+      : `🔮 ${birthYear}년생 ${zEmoji}${zName}띠 · 만 ${age}세`;
     const lines = [];
     for (let yr = currentYear - 3; yr <= currentYear + 3; yr++) {
-      const pos = ((yr - birthYear) % 12 + 12) % 12;
-      const cyc = _CYCLE_DATA[pos];
-      const isNow = yr === currentYear;
+      const pos    = ((yr - birthYear) % 12 + 12) % 12;
+      const cyc    = _CYCLE_DATA[pos];
+      const isNow  = yr === currentYear;
       const prefix = isNow ? `★ ${yr}년 (${age}세)` : yr < currentYear ? `◀ ${yr}년` : `▶ ${yr}년`;
       lines.push(`${prefix}  [${cyc.label}]\n   🎾 ${cyc.tennis}`);
     }
     const curPos = ((currentYear - birthYear) % 12 + 12) % 12;
     const curCyc = _CYCLE_DATA[curPos];
-    return { text: `🔮 ${birthYear}년생 ${zEmoji}${zName}띠 | 만 ${age}세\n── 7년 운세 흐름 (-3 ~ +3) ──\n\n${lines.join('\n')}\n\n── ${currentYear}년 집중 포인트 ──\n💰 ${curCyc.money}\n❤️ ${curCyc.relation}\n🏃 ${curCyc.health}` };
+    return { text: `${header}\n── 7년 운세 흐름 (-3 ~ +3) ──\n\n${lines.join('\n')}\n\n── ${currentYear}년 집중 포인트 ──\n💰 ${curCyc.money}\n❤️ ${curCyc.relation}\n🏃 ${curCyc.health}` };
   }
 
   // ── 띠 키워드만 있을 때: 오늘의 운세 ─────────────────────────────
@@ -2009,7 +2033,7 @@ exports.handleBotTriggers = onValueCreated(
         case 'todaymatch':    result = await _botTodayMatch(); break;
         case 'weather':       result = await _botWeather(); break;
         case 'air':           result = await _botAir(); break;
-        case 'fortune':       result = _botFortune(text); break;
+        case 'fortune':       result = await _botFortune(text); break;
         case 'quote':         result = _botQuote(); break;
         case 'quiz':          result = _botQuiz(); break;
         case 'notice':        result = _botNotice(text, senderName); break;
