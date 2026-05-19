@@ -1993,10 +1993,13 @@ exports.handleBotTriggers = onValueCreated(
       }
       if (!trigger) return;
 
-      // 쿨다운 체크 — 트리거별 지정 시간 내 재응답 차단
+      // 쿨다운 체크 — fortune은 사람별, 나머지는 트리거별
       const coolMs = _BOT_COOLDOWN[trigger];
       if (coolMs) {
-        const coolRef = db.ref(`jmt/botCooldown/${trigger}`);
+        const coolKey = trigger === 'fortune'
+          ? `jmt/botCooldown/fortune/${senderName.replace(/[.#$[\]/]/g, '_')}`
+          : `jmt/botCooldown/${trigger}`;
+        const coolRef = db.ref(coolKey);
         const coolSnap = await coolRef.once('value');
         if (Date.now() - (coolSnap.val() || 0) < coolMs) return;
         await coolRef.set(Date.now());
