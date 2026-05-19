@@ -1618,7 +1618,7 @@ const firebaseConfig = {
 </div>
 
 <!-- ══ PAGE: 오늘의 기록 ══ -->
-<div class="page" id="page-matches">
+<div class="page active" id="page-matches">
   <!-- 오늘의 기록 헤더 -->
   <div class="daily-page-header">
     <div style="position:relative;display:flex;align-items:flex-end;justify-content:space-between;margin-top:10px">
@@ -1879,7 +1879,7 @@ const firebaseConfig = {
 </div>
 
 <!-- ══ PAGE: 랭킹 ══ -->
-<div class="page active" id="page-history">
+<div class="page" id="page-history">
   <!-- 모임 사진 프레임 (탭하면 랜덤 변경) -->
   <div onclick="changeTeamPhotoRandom()" style="margin-bottom:14px;border-radius:18px;overflow:hidden;box-shadow:0 4px 20px rgba(37,99,235,0.13),0 1px 4px rgba(0,0,0,0.08);background:#111827;border:1px solid #e2e8f0;cursor:pointer;-webkit-tap-highlight-color:transparent">
     <div style="position:relative;">
@@ -2300,13 +2300,13 @@ const firebaseConfig = {
 
 <!-- ══ BOTTOM NAV ══ -->
 <nav class="bottom-nav">
-  <div class="nav-item active" id="nav-history" onclick="switchPage('history')">
+  <div class="nav-item" id="nav-history" onclick="switchPage('history')">
     <span class="ni">🏅</span><span>랭킹</span>
   </div>
   <div class="nav-item" id="nav-checkin" onclick="switchPage('checkin')">
     <span class="ni">✋</span><span>출첵</span>
   </div>
-  <div class="nav-item" id="nav-matches" onclick="switchPage('matches')">
+  <div class="nav-item active" id="nav-matches" onclick="switchPage('matches')">
     <span class="ni">⚡</span><span>자록</span>
   </div>
   <div class="nav-item" id="nav-setup" onclick="switchPage('setup')">
@@ -2349,7 +2349,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v556';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v557';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
