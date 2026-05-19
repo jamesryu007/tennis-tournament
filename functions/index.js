@@ -1568,7 +1568,11 @@ async function _botRankingInd() {
     .sort((a, b) => {
       const aT = (a[1].wins||0) + (a[1].draws||0) + (a[1].losses||0);
       const bT = (b[1].wins||0) + (b[1].draws||0) + (b[1].losses||0);
-      return (bT ? (b[1].wins||0)/bT : 0) - (aT ? (a[1].wins||0)/aT : 0);
+      const aR = aT ? (a[1].wins||0)/aT : 0;
+      const bR = bT ? (b[1].wins||0)/bT : 0;
+      if (bR !== aR) return bR - aR;           // 1순위: 승률
+      if ((b[1].wins||0) !== (a[1].wins||0)) return (b[1].wins||0) - (a[1].wins||0); // 2순위: 승수
+      return bT - aT;                          // 3순위: 총 경기수
     }).slice(0, 5);
   if (!sorted.length) return { text: `🏆 ${year}년 개인랭킹\n\n아직 3경기 이상 기록된 멤버가 없어요.\n열심히 경기를 뛰어봐요! 🎾` };
   const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
@@ -1591,7 +1595,11 @@ async function _botRankingPair() {
     .sort((a, b) => {
       const aT = (a[1].wins||0) + (a[1].draws||0) + (a[1].losses||0);
       const bT = (b[1].wins||0) + (b[1].draws||0) + (b[1].losses||0);
-      return (bT ? (b[1].wins||0)/bT : 0) - (aT ? (a[1].wins||0)/aT : 0);
+      const aR = aT ? (a[1].wins||0)/aT : 0;
+      const bR = bT ? (b[1].wins||0)/bT : 0;
+      if (bR !== aR) return bR - aR;           // 1순위: 승률
+      if ((b[1].wins||0) !== (a[1].wins||0)) return (b[1].wins||0) - (a[1].wins||0); // 2순위: 승수
+      return bT - aT;                          // 3순위: 총 경기수
     }).slice(0, 5);
   if (!sorted.length) return { text: `👥 ${year}년 팀페어 랭킹\n\n아직 2경기 이상 기록된 팀이 없어요.\n복식 경기를 더 기록해봐요! 🎾` };
   const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
