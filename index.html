@@ -16909,7 +16909,8 @@ function renderMpPollList() {
   if (!el) return;
   const isMgr = isManager();
   const btn = document.getElementById('mp-create-btn');
-  if (btn) btn.style.display = isMgr ? 'flex' : 'none';
+  const hasIdentity = !!(state.identity && state.identity.name);
+  if (btn) btn.style.display = hasIdentity ? 'flex' : 'none';
 
   const polls = Object.entries(_mpPolls || {});
   if (!polls.length) {
@@ -16943,7 +16944,7 @@ function renderMpPollList() {
 
 // ── 투표 만들기 모달 ──
 function openMpCreateModal() {
-  if (!isManager()) return;
+  if (!(state.identity && state.identity.name)) { alert('먼저 접속자를 선택하세요.'); return; }
   _mpCreateDates = []; _mpCreateContents = [];
   const el = document.getElementById('mp-create-content');
   if (el) {
@@ -17857,7 +17858,7 @@ function mpSetDeadline(days) {
 
 // ── 투표 생성 ──
 function createMeetingPoll() {
-  if (!isManager()) { alert('관리자만 투표를 생성할 수 있습니다.'); return; }
+  if (!(state.identity && state.identity.name)) { alert('먼저 접속자를 선택하세요.'); return; }
   const title = (document.getElementById('mp-title')||{}).value?.trim()||'';
   if (!title) { alert('투표 제목을 입력하세요.'); return; }
   const typeEl = document.querySelector('input[name="mp-type"]:checked');
