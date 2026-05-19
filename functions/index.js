@@ -1421,16 +1421,26 @@ exports.fetchAtpNews = onSchedule(
 
 const _BOT_NAME = '자미봇';
 const _BOT_BZ_REF = 'jmt/banzige/current';
-const _BOT_COOLDOWN_MS = 60 * 60 * 1000; // 1시간
 const _BOT_MANAGERS = ['유지원', '천지은', '김승수'];
+
+// 트리거별 쿨다운 (ms) — DB: jmt/botCooldown/{trigger}
+const _BOT_COOLDOWN = {
+  ranking_ind:  10 * 60 * 1000,  // 10분
+  ranking_pair: 10 * 60 * 1000,  // 10분
+  ranking_att:  10 * 60 * 1000,  // 10분
+  schedule:      5 * 60 * 1000,  //  5분
+  checkin:       5 * 60 * 1000,  //  5분
+  todaymatch:    3 * 60 * 1000,  //  3분
+  weather:      10 * 60 * 1000,  // 10분
+  air:          10 * 60 * 1000,  // 10분
+  fortune:      60 * 60 * 1000,  //  1시간
+};
 
 // 구체적인 패턴이 앞에 위치해야 먼저 매칭됨
 const _BOT_TRIGGERS = [
-  { key: 'restaurant',   pattern: /점심|뭐\s*먹|맛집\s*추천|오늘\s*뭐\s*먹|먹을\s*거/ },
   { key: 'ranking_pair', pattern: /팀\s*(페어\s*)?랭킹|팀페어|복식\s*랭킹|페어\s*랭킹|팀\s*순위|페어\s*순위/ },
   { key: 'ranking_att',  pattern: /출석\s*랭킹|출석\s*순위|개근\s*순위/ },
   { key: 'ranking_ind',  pattern: /개인\s*랭킹|개인\s*순위|싱글\s*랭킹|랭킹|순위/ },
-  { key: 'mystats',      pattern: /내\s*전적|내\s*기록|나의\s*전적|내\s*승률/ },
   { key: 'schedule',     pattern: /일정|다음\s*모임|이번\s*모임|모임\s*언제|언제\s*모임|몇\s*명|모임\s*날|정기\s*모임/ },
   { key: 'checkin',      pattern: /출첵|출석\s*체크|출석\s*현황|체크인\s*현황/ },
   { key: 'todaymatch',   pattern: /오늘\s*경기|경기\s*결과|오늘\s*결과/ },
@@ -1438,7 +1448,6 @@ const _BOT_TRIGGERS = [
   { key: 'air',          pattern: /미세먼지|공기/ },
   { key: 'fortune',      pattern: /운세|쥐띠|소띠|호랑이띠|토끼띠|용띠|뱀띠|말띠|양띠|원숭이띠|닭띠|개띠|돼지띠|\d{4}년\s*운세|\d{2}년생/ },
 ];
-const _BOT_NO_COOLDOWN = new Set(['mystats', 'notice']);
 
 // ── 운세 30개 ─────────────────────────────────────────────────────
 const _BOT_FORTUNES = [
@@ -1483,26 +1492,6 @@ async function _postBotMsg(msgData) {
 }
 
 // ── 점심/맛집 추천 ─────────────────────────────────────────────────
-async function _botRestaurant() {
-  const snap = await db.ref('jmt/restaurants').once('value');
-  const restos = snap.val() || {};
-  const entries = Object.entries(restos);
-  if (!entries.length) return { text: '🍽️ 아직 단골집이 없어요!\n자미톡방 → 맛집 탭에서 먼저 등록해주세요 😋' };
-  // 방문횟수 가중 랜덤 (많이 간 곳일수록 확률 높음)
-  const pool = [];
-  entries.forEach(e => { for (let i = 0; i < Math.max(e[1].visitCount || 1, 1); i++) pool.push(e); });
-  const [id, r] = pool[Math.floor(Math.random() * pool.length)];
-  const ratSnap = await db.ref(`jmt/restaurantRatings/${id}`).once('value');
-  const scores = Object.values(ratSnap.val() || {}).map(v => v.score || 0).filter(s => s > 0);
-  const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length * 10) / 10 : 0;
-  return {
-    type: 'restaurant',
-    restaurantId: id, restaurantName: r.name, restaurantTheme: r.theme || '기타',
-    restaurantUrl: r.url || '', restaurantAvgRating: avg, restaurantVisitCount: r.visitCount || 0,
-    text: `🍽️ 오늘 점심은 여기 어때요? → ${r.name}`,
-  };
-}
-
 // ── 개인 랭킹 TOP 5 ───────────────────────────────────────────────
 async function _botRankingInd() {
   const year = new Date().getFullYear();
@@ -1592,19 +1581,6 @@ async function _botRankingAtt() {
     return `${medals[i]} ${name}  ${cnt}회 출석 · 출석률 ${rate}%`;
   });
   return { text: `📅 ${year}년 출석 랭킹 TOP 5\n총 ${totalWeeks}주 기준\n\n${lines.join('\n')}` };
-}
-
-// ── 내 전적 ────────────────────────────────────────────────────────
-async function _botMyStats(senderName) {
-  if (!senderName) return { text: '😅 이름을 알 수 없어요. 먼저 체크인 후 이용해주세요!' };
-  const year = new Date().getFullYear();
-  const snap = await db.ref(`jmt/playerStats/${year}/${senderName}`).once('value');
-  const s = snap.val();
-  if (!s) return { text: `📊 ${senderName}님의 ${year}년 기록이 없어요.\n경기부터 뛰어봐요! 🎾` };
-  const total = (s.wins||0) + (s.draws||0) + (s.losses||0);
-  const rate  = total ? Math.round((s.wins||0)/total*100) : 0;
-  const draws = (s.draws||0) > 0 ? ` ${s.draws}무` : '';
-  return { text: `📊 ${senderName}님의 ${year}년 전적\n\n${s.wins||0}승${draws} ${s.losses||0}패\n승률 ${rate}%  ·  총 ${total}경기` };
 }
 
 // ── 오늘의 경기 결과 ───────────────────────────────────────────────
@@ -2017,30 +1993,26 @@ exports.handleBotTriggers = onValueCreated(
       }
       if (!trigger) return;
 
-      if (trigger === 'notice' && !_BOT_MANAGERS.includes(senderName)) return;
-
-      // 쿨다운 비활성화 (테스트 중) — 나중에 다시 활성화
-      // if (!_BOT_NO_COOLDOWN.has(trigger)) {
-      //   const coolRef = db.ref(`jmt/botCooldown/${trigger}`);
-      //   const snap = await coolRef.once('value');
-      //   if (Date.now() - (snap.val() || 0) < _BOT_COOLDOWN_MS) return;
-      //   await coolRef.set(Date.now());
-      // }
+      // 쿨다운 체크 — 트리거별 지정 시간 내 재응답 차단
+      const coolMs = _BOT_COOLDOWN[trigger];
+      if (coolMs) {
+        const coolRef = db.ref(`jmt/botCooldown/${trigger}`);
+        const coolSnap = await coolRef.once('value');
+        if (Date.now() - (coolSnap.val() || 0) < coolMs) return;
+        await coolRef.set(Date.now());
+      }
 
       let result;
       switch (trigger) {
-        case 'restaurant':    result = await _botRestaurant(); break;
         case 'ranking_ind':   result = await _botRankingInd(); break;
         case 'ranking_pair':  result = await _botRankingPair(); break;
         case 'ranking_att':   result = await _botRankingAtt(); break;
         case 'schedule':      result = await _botSchedule(); break;
         case 'checkin':       result = await _botCheckin(); break;
-        case 'mystats':       result = await _botMyStats(senderName); break;
         case 'todaymatch':    result = await _botTodayMatch(); break;
         case 'weather':       result = await _botWeather(text); break;
         case 'air':           result = await _botAir(text); break;
         case 'fortune':       result = await _botFortune(text); break;
-
       }
       if (result) await _postBotMsg(result);
     } catch (e) {
