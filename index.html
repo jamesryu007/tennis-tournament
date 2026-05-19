@@ -2332,7 +2332,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v539';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v540';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8193,7 +8193,7 @@ function selectIdentity(name) {
   localStorage.setItem(LS_IDENTITY, JSON.stringify(state.identity));
   document.getElementById('identity-modal').classList.remove('open');
   // 푸시 알림으로 진입한 경우 해당 탭으로 이동
-  if (window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; setTimeout(() => { switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); },300); if(ss==='notices') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); setTimeout(openNoticeModal,700); },300); }, 100); }
+  if (window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; setTimeout(() => { switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); },300); if(ss==='notices') setTimeout(openNoticeModal, 400); }, 100); }
   // FCM: 처음 로그인이면 초기화(권한 요청 포함), 이미 초기화됐으면 토큰 재매핑
   if (!_fcmMessaging) {
     initFCM(true); // 사용자 클릭 제스처 시점이므로 권한 요청 가능
@@ -8444,7 +8444,7 @@ initBirthdaySelects();
 // FCM 초기화 (접속자 선택 후 실행 — identity 모달 닫힐 때 호출)
 setTimeout(() => {
   if(state.identity) initFCM();
-  if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); },300); if(ss==='notices') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); setTimeout(openNoticeModal,700); },300); }
+  if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); },300); if(ss==='notices') setTimeout(openNoticeModal, 400); }
 }, 1500);
 document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
 // 랜덤 사진 변경 — 자.만.추. landscape 이미지 우선, 없으면 팀 사진 fallback
@@ -10688,7 +10688,7 @@ async function triggerAtpRefresh() {
           if (commentId) setTimeout(() => scrollToComment(commentId), 400);
           if (betId) setTimeout(() => { switchAtpTab('bet'); showBetResultCelebration(betId, isWinnerHint); }, 500);
           if (subScreen === 'banzige') setTimeout(() => { switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory, 100); }, 300);
-          if (subScreen === 'notices') setTimeout(() => { switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory, 100); setTimeout(openNoticeModal, 700); }, 300);
+          if (subScreen === 'notices') setTimeout(openNoticeModal, 400);
         } else {
           window._pendingTab = tab;
           window._pendingCommentId = commentId;
@@ -14976,21 +14976,14 @@ function openNoticeModal() {
   // 관리자에게만 공지 작성 버튼 표시
   const wrapEl = document.getElementById('notice-write-btn-wrap');
   if (wrapEl) wrapEl.style.display = isManager() ? 'block' : 'none';
-  const modal = document.getElementById('notice-list-modal');
-  modal.style.display = 'flex';
-  // 모달 열린 동안 배경 스크롤 차단
-  modal._noScroll = e => {
-    // 내부 스크롤 가능 영역(notice-list-body)은 허용
-    if (e.target.closest('#notice-list-body')) return;
-    e.preventDefault();
-  };
-  modal.addEventListener('touchmove', modal._noScroll, { passive: false });
+  document.getElementById('notice-list-modal').style.display = 'flex';
+  // 배경 스크롤 차단 (iOS PWA 호환)
+  document.body.style.overflow = 'hidden';
   _renderNoticeList();
 }
 function closeNoticeModal() {
-  const modal = document.getElementById('notice-list-modal');
-  modal.style.display = 'none';
-  if (modal._noScroll) { modal.removeEventListener('touchmove', modal._noScroll); modal._noScroll = null; }
+  document.getElementById('notice-list-modal').style.display = 'none';
+  document.body.style.overflow = '';
 }
 function openNoticeWriteModal(editId) {
   _noticeEditId = editId || null;
@@ -18631,7 +18624,7 @@ function deleteMpHistory(pollId, event) {
     <div id="notice-write-btn-wrap" style="display:none;flex-shrink:0;margin-bottom:12px">
       <button onclick="openNoticeWriteModal()" style="width:100%;padding:11px;border-radius:12px;border:2px dashed #2563eb;background:#eff6ff;color:#2563eb;font-size:0.9rem;font-weight:700;cursor:pointer">+ 공지 작성</button>
     </div>
-    <div id="notice-list-body" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:10px">
+    <div id="notice-list-body" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:10px;overscroll-behavior:contain">
       <div style="text-align:center;color:#94a3b8;font-size:0.85rem;padding:20px">등록된 공지가 없어요</div>
     </div>
   </div>
