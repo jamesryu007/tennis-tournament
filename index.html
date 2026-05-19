@@ -1633,12 +1633,12 @@ const firebaseConfig = {
 
   <!-- 서브탭 -->
   <div class="matches-subtab-bar">
-    <button class="matches-subtab active" id="mstab-game" onclick="switchMatchesTab('game')">오늘의 경기</button>
-    <button class="matches-subtab" id="mstab-memory" onclick="switchMatchesTab('memory')">자.만.추.</button>
+    <button class="matches-subtab" id="mstab-game" onclick="switchMatchesTab('game')">오늘의 경기</button>
+    <button class="matches-subtab active" id="mstab-memory" onclick="switchMatchesTab('memory')">자.만.추.</button>
   </div>
 
   <!-- ── 오늘의 경기 섹션 ── -->
-  <div id="matches-section-game">
+  <div id="matches-section-game" style="display:none">
     <!-- 최근 경기 요약 캐러셀 -->
     <div id="recent-matches-carousel-wrap" style="padding:0 12px 10px">
       <div class="carousel-section-title">📅 최근 경기 요약</div>
@@ -1663,7 +1663,7 @@ const firebaseConfig = {
   </div>
 
   <!-- ── 오늘의 추억 섹션 ── -->
-  <div id="matches-section-memory" style="display:none">
+  <div id="matches-section-memory">
     <!-- 필터 + 업로드 액션 바 -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:0 12px 10px">
       <button onclick="openPhotoFilter()" id="photo-filter-btn" style="display:flex;align-items:center;gap:5px;padding:7px 13px;border:1.5px solid #e2e8f0;border-radius:20px;background:#fff;font-size:0.78rem;font-weight:700;color:#475569;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent">
@@ -2349,7 +2349,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v557';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v558';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8473,6 +8473,8 @@ function updateSetupPageUI() {
 
 // ══ INIT ══
 initBirthdaySelects();
+// 초기 탭이 자록-자만추이므로 사진 미리 로드
+setTimeout(() => { if (!_photoAllItems.length) loadPhotos(); }, 500);
 // FCM 초기화 (접속자 선택 후 실행 — identity 모달 닫힐 때 호출)
 setTimeout(() => {
   if(state.identity) initFCM();
