@@ -1993,16 +1993,26 @@ exports.handleBotTriggers = onValueCreated(
       }
       if (!trigger) return;
 
-      // 쿨다운 체크 — fortune은 사람별, 나머지는 트리거별
+      // 쿨다운 체크
       const coolMs = _BOT_COOLDOWN[trigger];
       if (coolMs) {
-        const coolKey = trigger === 'fortune'
-          ? `jmt/botCooldown/fortune/${senderName.replace(/[.#$[\]/]/g, '_')}`
-          : `jmt/botCooldown/${trigger}`;
-        const coolRef = db.ref(coolKey);
-        const coolSnap = await coolRef.once('value');
-        if (Date.now() - (coolSnap.val() || 0) < coolMs) return;
-        await coolRef.set(Date.now());
+        if (trigger === 'fortune') {
+          // 운세: 사람별 하루 10회 무제한, 11회째부터 1시간 쿨다운
+          const today = new Date().toLocaleDateString('ko-KR');
+          const nameKey = senderName.replace(/[.#$[\]/]/g, '_');
+          const coolRef = db.ref(`jmt/botCooldown/fortune/${nameKey}`);
+          const coolSnap = await coolRef.once('value');
+          const prev = coolSnap.val() || {};
+          const count = prev.date === today ? (prev.count || 0) : 0;
+          if (count >= 10 && Date.now() - (prev.lastTs || 0) < coolMs) return;
+          await coolRef.set({ date: today, count: count + 1, lastTs: Date.now() });
+        } else {
+          // 나머지: 트리거별 쿨다운
+          const coolRef = db.ref(`jmt/botCooldown/${trigger}`);
+          const coolSnap = await coolRef.once('value');
+          if (Date.now() - (coolSnap.val() || 0) < coolMs) return;
+          await coolRef.set(Date.now());
+        }
       }
 
       let result;
