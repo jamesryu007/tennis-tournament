@@ -2349,7 +2349,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v558';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v560';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13387,11 +13387,8 @@ function _bzScrollToFirstUnread() {
     // scrollIntoView 자체도 scroll 이벤트를 발생시킴 — 즉시 리스너 등록 시 suppress가 바로 해제됨
     // 200ms 후 등록하여 programmatic scroll 이벤트가 settle된 뒤 사용자 스크롤만 감지
     setTimeout(() => {
-      const _bzOnScroll = () => {
-        _bzSuppressScrollDown = false;
-        div.style.opacity = '0';
-        setTimeout(() => { if (div.parentNode) div.remove(); }, 1200);
-      };
+      // 스크롤 시: suppress만 해제 (자동 스크롤 재허용) — 구분선은 방 나갈 때 제거
+      const _bzOnScroll = () => { _bzSuppressScrollDown = false; };
       area.addEventListener('scroll', _bzOnScroll, { passive: true, once: true });
     }, 200);
   });
@@ -14044,6 +14041,9 @@ function bzLeaveRoom() {
   bzSwitchBzTab('chat');
   _bzNeedsUnreadScroll = false;
   _bzSuppressScrollDown = false;
+  // 구분선 제거 — 방 나갈 때 정리
+  const _divider = document.getElementById('bz-unread-divider');
+  if (_divider) _divider.remove();
   if (_bzListener) { db.ref(BZ_REF).off('value', _bzListener); _bzListener = null; }
   _bzState = null;
   _bzCurrentAlias = null;
@@ -16722,15 +16722,20 @@ function _bzRenderMessages(phase, forceBottom) {
   }
   // 맨 아래 근처에 있던 경우만 자동 스크롤
   if (_bzWasAtBottom) {
-    // 첫 진입 초기 렌더 완료 — async 미읽음 재스크롤 차단
-    if (_bzIsFirstRender) _bzNeedsUnreadScroll = false;
     if (_bzIsFirstRender && area.style.opacity === '0') {
-      // 첫 진입: 이미지 모두 로드 후 scrollTop=999999 + fadeIn — 로드 중 opacity:0이므로 wobble 없음
+      // 첫 진입: 이미지 모두 로드 후 스크롤 + fadeIn (opacity:0 상태에서 위치 잡아 wobble 방지)
       const _show = () => {
-        area.scrollTop = 999999;
-        area.style.transition = 'opacity 0.15s';
-        area.style.opacity = '1';
-        setTimeout(() => { area.style.transition = ''; }, 200);
+        if (_bzNeedsUnreadScroll && _bzLastReadTs > 0) {
+          // 미읽음 있으면: opacity:0 상태에서 구분선 위치로 스크롤 후 fadeIn (scrollIntoView rAF 충돌 없음)
+          _bzScrollToFirstUnread();
+        } else {
+          area.scrollTop = 999999;
+        }
+        requestAnimationFrame(() => {
+          area.style.transition = 'opacity 0.15s';
+          area.style.opacity = '1';
+          setTimeout(() => { area.style.transition = ''; }, 200);
+        });
       };
       const _unloaded = [...area.querySelectorAll('img')].filter(img => !img.complete);
       if (_unloaded.length > 0) {
