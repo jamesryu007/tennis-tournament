@@ -2352,7 +2352,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v577';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v578';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8513,6 +8513,13 @@ function updateSetupPageUI() {
 
 // ══ INIT ══
 initBirthdaySelects();
+// page-matches가 기본 active — switchPage 없이 열릴 때 수동 초기화
+setTimeout(() => {
+  if (document.getElementById('page-matches').classList.contains('active')) {
+    renderDailyTab();
+    renderRecentMatchesCarousel();
+  }
+}, 300);
 // 초기 탭이 자록-자만추이므로 사진 미리 로드
 setTimeout(() => { if (!_photoAllItems.length) loadPhotos(); }, 500);
 // FCM 초기화 (접속자 선택 후 실행 — identity 모달 닫힐 때 호출)
