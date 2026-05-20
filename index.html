@@ -1554,19 +1554,19 @@ const firebaseConfig = {
             <div id="bz-menu-preview-name" style="font-size:0.78rem;color:#d97706;font-weight:800;margin-bottom:3px"></div>
             <div id="bz-menu-preview-text" style="font-size:0.88rem;color:#1e293b;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
           </div>
-          <div id="bz-menu-copy" onclick="bzMenuCopy()" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent">
+          <div id="bz-menu-copy" onclick="bzMenuCopy()" ontouchstart="this.style.background='#f1f5f9'" ontouchend="this.style.background=''" ontouchcancel="this.style.background=''" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent;transition:background 0.1s">
             <span style="font-size:0.92rem;color:#1e293b;font-weight:600">복사</span>
             <span style="font-size:1.3rem;line-height:1">📋</span>
           </div>
-          <div id="bz-menu-share" onclick="bzMenuShare()" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent">
-            <span style="font-size:0.92rem;color:#1e293b;font-weight:600">공유</span>
+          <div id="bz-menu-share" onclick="bzMenuShare()" ontouchstart="this.style.background='#f1f5f9'" ontouchend="this.style.background=''" ontouchcancel="this.style.background=''" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent;transition:background 0.1s">
+            <span id="bz-menu-share-label" style="font-size:0.92rem;color:#1e293b;font-weight:600">공유</span>
             <span style="font-size:1.1rem">📤</span>
           </div>
-          <div onclick="bzMenuReply()" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent">
+          <div onclick="bzMenuReply()" ontouchstart="this.style.background='#f1f5f9'" ontouchend="this.style.background=''" ontouchcancel="this.style.background=''" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent;transition:background 0.1s">
             <span style="font-size:0.92rem;color:#1e293b;font-weight:600">답글</span>
             <span style="font-size:1.1rem;color:#64748b">↩</span>
           </div>
-          <div id="bz-menu-delete" onclick="bzMenuDelete()" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent">
+          <div id="bz-menu-delete" onclick="bzMenuDelete()" ontouchstart="this.style.background='#fff1f2'" ontouchend="this.style.background=''" ontouchcancel="this.style.background=''" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent;transition:background 0.1s">
             <span style="font-size:0.92rem;color:#ef4444;font-weight:600">삭제</span>
             <span style="font-size:1.1rem">🗑</span>
           </div>
@@ -2350,7 +2350,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v567';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v568';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13320,6 +13320,7 @@ let _bzSwipeMoved = false;
 let _bzMenuKey = null;
 let _bzShareBlobCache = null;        // 공유 메뉴 열릴 때 미리 fetch해둔 이미지 blob
 let _bzShareBundleBlobsCache = null; // 번들 사진 전체 미리 fetch blob 배열
+let _bzNoticeBlobCache = null;       // 공지 카드 미리 캡처해둔 이미지 blob
 window._bzMsgMeta = {}; // 메시지 메타 (터치 핸들러용)
 
 const BZ_REF = 'jmt/banzige/current';
@@ -16470,6 +16471,7 @@ function bzShowMsgMenu(key, tapX, tapY) {
   // 이미지/번들 메시지면 공유용 blob 미리 fetch (bzMenuShare 시 user gesture 유지)
   _bzShareBlobCache = null;
   _bzShareBundleBlobsCache = null;
+  _bzNoticeBlobCache = null;
   const _preRaw = _bzState && _bzState.messages && _bzState.messages[key];
   const _preImgSrc = _preRaw && (_preRaw.imageUrl || _preRaw.imageData);
   if (_preImgSrc && _preImgSrc.startsWith('http')) {
@@ -16477,6 +16479,19 @@ function bzShowMsgMenu(key, tapX, tapY) {
   } else if (_preRaw && _preRaw.photos && _preRaw.photos.length) {
     Promise.all(_preRaw.photos.map(url => fetch(url).then(r => r.blob())))
       .then(bs => { _bzShareBundleBlobsCache = bs; }).catch(() => {});
+  } else if (meta.mediaType === 'notice' && typeof html2canvas !== 'undefined') {
+    // 공지 카드 — 롱프레스 시점에 미리 캡처 시작 (공유 버튼 탭 시 즉시 공유 가능)
+    const _noticeEl = document.querySelector(`[data-bzkey="${key}"] [data-bzbubble="1"]`);
+    if (_noticeEl) {
+      const _clone = _noticeEl.cloneNode(true);
+      _clone.style.cssText = 'position:fixed;left:-9999px;top:0;width:320px;overflow:visible;border-radius:14px;z-index:-1';
+      document.body.appendChild(_clone);
+      html2canvas(_clone, { scale: 2, useCORS: true, backgroundColor: null, logging: false })
+        .then(canvas => new Promise(res => canvas.toBlob(res, 'image/png')))
+        .then(blob => { _bzNoticeBlobCache = blob; })
+        .catch(() => {})
+        .finally(() => { if (_clone.parentNode) document.body.removeChild(_clone); });
+    }
   }
   const overlay = document.getElementById('bz-msg-menu');
   const box = document.getElementById('bz-msg-menu-box');
@@ -16516,33 +16531,30 @@ async function bzMenuShare() {
   bzCloseMsgMenu();
   if (!meta || !navigator.share) return;
   try {
-    // 공지 카드 — html2canvas로 이미지 캡처 후 파일 공유
+    // 공지 카드 — 미리 캡처된 blob 우선, 없으면 그 때 캡처
     if (meta.mediaType === 'notice') {
-      const bubbleEl = document.querySelector(`[data-bzkey="${key}"] [data-bzbubble="1"]`);
-      if (bubbleEl && typeof html2canvas !== 'undefined') {
-        // 클론을 오프스크린에 더 넓게 배치 — 폰트 렌더링 차이로 텍스트가 잘리는 문제 방지
+      const _shareNoticeBlob = async () => {
+        if (_bzNoticeBlobCache) {
+          const b = _bzNoticeBlobCache; _bzNoticeBlobCache = null; return b;
+        }
+        // 아직 캡처 중이거나 실패 → 직접 캡처
+        const bubbleEl = document.querySelector(`[data-bzkey="${key}"] [data-bzbubble="1"]`);
+        if (!bubbleEl || typeof html2canvas === 'undefined') return null;
         const clone = bubbleEl.cloneNode(true);
-        clone.style.position = 'fixed';
-        clone.style.left = '-9999px';
-        clone.style.top = '0';
-        clone.style.width = '320px';
-        clone.style.overflow = 'visible';
-        clone.style.borderRadius = '14px';
-        clone.style.zIndex = '-1';
+        clone.style.cssText = 'position:fixed;left:-9999px;top:0;width:320px;overflow:visible;border-radius:14px;z-index:-1';
         document.body.appendChild(clone);
         try {
           const canvas = await html2canvas(clone, { scale: 2, useCORS: true, backgroundColor: null, logging: false });
-          const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-          if (blob) {
-            const file = new File([blob], 'notice.png', { type: 'image/png' });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-              await navigator.share({ files: [file] });
-              document.body.removeChild(clone);
-              return;
-            }
-          }
+          return await new Promise(res => canvas.toBlob(res, 'image/png'));
         } finally {
           if (clone.parentNode) document.body.removeChild(clone);
+        }
+      };
+      const blob = await _shareNoticeBlob();
+      if (blob) {
+        const file = new File([blob], 'notice.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file] }); return;
         }
       }
       // fallback: 텍스트 공유
