@@ -2350,7 +2350,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v568';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v569';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -16531,33 +16531,17 @@ async function bzMenuShare() {
   bzCloseMsgMenu();
   if (!meta || !navigator.share) return;
   try {
-    // 공지 카드 — 미리 캡처된 blob 우선, 없으면 그 때 캡처
+    // 공지 카드 — 미리 캡처된 blob 있으면 이미지 공유, 없으면 텍스트로 즉시 공유
+    // (await html2canvas 중 user gesture 끊김 방지 — blob 없으면 await 없이 텍스트 공유)
     if (meta.mediaType === 'notice') {
-      const _shareNoticeBlob = async () => {
-        if (_bzNoticeBlobCache) {
-          const b = _bzNoticeBlobCache; _bzNoticeBlobCache = null; return b;
-        }
-        // 아직 캡처 중이거나 실패 → 직접 캡처
-        const bubbleEl = document.querySelector(`[data-bzkey="${key}"] [data-bzbubble="1"]`);
-        if (!bubbleEl || typeof html2canvas === 'undefined') return null;
-        const clone = bubbleEl.cloneNode(true);
-        clone.style.cssText = 'position:fixed;left:-9999px;top:0;width:320px;overflow:visible;border-radius:14px;z-index:-1';
-        document.body.appendChild(clone);
-        try {
-          const canvas = await html2canvas(clone, { scale: 2, useCORS: true, backgroundColor: null, logging: false });
-          return await new Promise(res => canvas.toBlob(res, 'image/png'));
-        } finally {
-          if (clone.parentNode) document.body.removeChild(clone);
-        }
-      };
-      const blob = await _shareNoticeBlob();
-      if (blob) {
+      if (_bzNoticeBlobCache) {
+        const blob = _bzNoticeBlobCache; _bzNoticeBlobCache = null;
         const file = new File([blob], 'notice.png', { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({ files: [file] }); return;
         }
       }
-      // fallback: 텍스트 공유
+      // blob 미준비(캡처 중) 또는 파일 공유 불가 → 텍스트로 즉시 공유
       if (meta.text) { await navigator.share({ text: meta.text }); return; }
       return;
     }
