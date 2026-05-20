@@ -2360,7 +2360,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v596';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v597';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -15273,7 +15273,47 @@ function bzOpenRestoModal(editId) {
   const delBtn = document.getElementById('bz-resto-delete-btn');
   if (delBtn) delBtn.style.display = editId ? 'block' : 'none';
   const modal = document.getElementById('bz-resto-modal');
-  if (modal) modal.style.display = 'flex';
+  if (!modal) return;
+  document.body.style.overflow = 'hidden';
+  modal.style.display = 'flex';
+  // 오른쪽 스와이프 → 오른쪽으로 스르르 사라지며 닫기 (한 번만 등록)
+  if (!modal._swipeAdded) {
+    modal._swipeAdded = true;
+    let _sx = 0, _sy = 0;
+    const inner = modal.querySelector('div');
+    modal.addEventListener('touchstart', e => {
+      _sx = e.touches[0].clientX; _sy = e.touches[0].clientY;
+      if (inner) inner.style.transition = 'none';
+    }, {passive: true});
+    modal.addEventListener('touchmove', e => {
+      const dx = e.touches[0].clientX - _sx;
+      const dy = Math.abs(e.touches[0].clientY - _sy);
+      if (dx > 0 && dy < 60 && inner) {
+        inner.style.transform = `translateX(${dx}px)`;
+        modal.style.background = `rgba(0,0,0,${Math.max(0, 0.45 * (1 - dx / window.innerWidth))})`;
+      }
+    }, {passive: true});
+    modal.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - _sx;
+      const dy = Math.abs(e.changedTouches[0].clientY - _sy);
+      if (dx > window.innerWidth * 0.3 && dy < 60 && inner) {
+        inner.style.transition = 'transform 0.25s cubic-bezier(0.4,0,1,1)';
+        modal.style.transition = 'background 0.25s';
+        inner.style.transform = `translateX(${window.innerWidth}px)`;
+        modal.style.background = 'rgba(0,0,0,0)';
+        setTimeout(() => {
+          inner.style.transition = ''; inner.style.transform = '';
+          modal.style.transition = ''; modal.style.background = '';
+          bzCloseRestoModal();
+        }, 250);
+      } else if (inner) {
+        inner.style.transition = 'transform 0.2s ease';
+        inner.style.transform = '';
+        modal.style.background = '';
+        setTimeout(() => { inner.style.transition = ''; }, 200);
+      }
+    }, {passive: true});
+  }
   if (!editId) setTimeout(_restoCheckClipboard, 300);
 }
 // ══ 공지사항 관리 ═══════════════════════════════════════════════════
@@ -15474,6 +15514,7 @@ async function bzMigrateImageSizes() {
 function bzCloseRestoModal() {
   const modal = document.getElementById('bz-resto-modal');
   if (modal) modal.style.display = 'none';
+  document.body.style.overflow = '';
   _restoEditId = null;
 }
 function _restoUpdateThemeButtons() {
