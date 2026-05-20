@@ -614,11 +614,156 @@ exports.fetchAtpData = onSchedule(
     try {
       const { tournamentInfo, matches, isGrandSlam } = await fetchAndParseAtpData();
       await saveAtpData(tournamentInfo, matches, isGrandSlam);
+      await _botReportAtpResults(matches, tournamentInfo).catch(e => console.error('_botReportAtpResults error:', e));
+      // 랭킹이 7일 이상 됐으면 자동 갱신 (폴백 데이터 의존 방지)
+      const rankMeta = await db.ref('jmt/atpRankings/updatedAt').once('value');
+      const rankAge  = Date.now() - new Date(rankMeta.val() || 0).getTime();
+      if (rankAge > 7 * 24 * 60 * 60 * 1000) {
+        await _fetchAndSaveAtpRankings().catch(e => console.error('auto-rankRefresh error:', e));
+      }
     } catch (e) {
       console.error('fetchAtpData error:', e);
     }
   }
 );
+
+// ══ 8b. ATP top 5 결과 다이제스트 (핵심 로직) ════════════════════
+const _FAKE_ATP_DATA = {
+  tournamentInfo: { tier: 'grandslam', displayName: 'Roland Garros (테스트)' },
+  matches: {
+    'fake-qf-1': { id: 'fake-qf-1', status: 'STATUS_FINAL', roundName: 'Quarterfinals',
+      player1Name: 'Jannik Sinner',        player1Score: '6 7 6', player1Winner: true,
+      player2Name: 'Novak Djokovic',       player2Score: '4 5 3', player2Winner: false },
+    'fake-qf-2': { id: 'fake-qf-2', status: 'STATUS_FINAL', roundName: 'Quarterfinals',
+      player1Name: 'Carlos Alcaraz',       player1Score: '6 4 6', player1Winner: true,
+      player2Name: 'Alexander Zverev',     player2Score: '3 6 2', player2Winner: false },
+    'fake-r4-1': { id: 'fake-r4-1', status: 'STATUS_FINAL', roundName: '4th Round',
+      player1Name: 'Taylor Fritz',         player1Score: '3 4 3', player1Winner: false,
+      player2Name: 'Felix Auger-Aliassime',player2Score: '6 6 6', player2Winner: true },
+  },
+};
+
+async function _runAtpDailyDigest(overrideData = null) {
+  let tournamentInfo, matches;
+  const isDryRun = !!overrideData;
+  if (overrideData) {
+    ({ tournamentInfo, matches } = overrideData);
+  } else {
+    const snap = await db.ref('jmt/atpData').once('value');
+    const atpData = snap.val();
+    if (!atpData || !atpData.matches || !atpData.tournamentInfo) return '데이터 없음';
+    ({ tournamentInfo, matches } = atpData);
+  }
+
+  if (tournamentInfo.tier !== 'grandslam') return '그랜드슬램 아님 — 발송 생략';
+
+  const rankSnap = await db.ref('jmt/atpRankings').once('value');
+  const rankPlayers = ((rankSnap.val() || {}).players || []).length
+    ? (rankSnap.val().players)
+    : _ATP_FALLBACK_RANKINGS;
+  const rankMap = {};
+  for (const p of rankPlayers) {
+    if (p.name) rankMap[p.name.toLowerCase()] = p.rank;
+  }
+  const getRank = (name) => {
+    if (!name) return null;
+    const key = name.toLowerCase();
+    if (rankMap[key]) return rankMap[key];
+    for (const [rn, rank] of Object.entries(rankMap)) {
+      if (key.includes(rn) || rn.includes(key)) return rank;
+    }
+    return null;
+  };
+
+  const reportedSnap = await db.ref('jmt/botReportedMatches').once('value');
+  const reported = reportedSnap.val() || {};
+
+  const CIRCLE = ['', '①', '②', '③', '④', '⑤'];
+  const ROUND_ORDER = { '1st round':1, '2nd round':2, '3rd round':3, '4th round':4, 'round of 128':1, 'round of 64':2, 'round of 32':3, 'round of 16':4, 'quarterfinals':5, 'semifinals':6, 'final':7 };
+  const ROUND_LABEL = { '1st round':'1R', '2nd round':'2R', '3rd round':'3R', '4th round':'4R', 'round of 128':'1R', 'round of 64':'2R', 'round of 32':'3R', 'round of 16':'4R', 'quarterfinals':'QF', 'semifinals':'SF', 'final':'F' };
+  const toKSTDate = iso => new Date(iso).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric' });
+
+  const newResults = [];
+  const nowTs = Date.now();
+  for (const m of Object.values(matches)) {
+    if (!m.id || m.status !== 'STATUS_FINAL') continue;
+    if (reported[m.id]) continue;
+    const r1 = getRank(m.player1Name);
+    const r2 = getRank(m.player2Name);
+    if (!((r1 && r1 <= 5) || (r2 && r2 <= 5))) continue;
+    if (!m.player1Winner && !m.player2Winner) continue;
+    newResults.push({ m, r1, r2 });
+  }
+
+  if (!newResults.length) return '미보고 결과 없음 — 발송 생략';
+
+  newResults.sort((a, b) => (ROUND_ORDER[(a.m.roundName || '').toLowerCase()] || 0) - (ROUND_ORDER[(b.m.roundName || '').toLowerCase()] || 0));
+
+  const groups = {};
+  for (const item of newResults) {
+    const rk = (item.m.roundName || '').toLowerCase();
+    (groups[rk] = groups[rk] || []).push(item);
+  }
+
+  const yesterday = toKSTDate(new Date(nowTs - 86400000).toISOString());
+  const tName = tournamentInfo.displayName || '';
+  const lines = [`🎾 ${tName} · ${yesterday} 결과`];
+
+  for (const [roundKey, items] of Object.entries(groups)) {
+    lines.push(``, `▪ ${ROUND_LABEL[roundKey] || roundKey}`);
+    for (const { m, r1, r2 } of items) {
+      const isP1Win = m.player1Winner;
+      const wName  = isP1Win ? m.player1Name : m.player2Name;
+      const lName  = isP1Win ? m.player2Name : m.player1Name;
+      const wRank  = isP1Win ? r1 : r2;
+      const lRank  = isP1Win ? r2 : r1;
+      const wScore = (isP1Win ? m.player1Score : m.player2Score || '').split(' ').filter(Boolean);
+      const lScore = (isP1Win ? m.player2Score : m.player1Score || '').split(' ').filter(Boolean);
+      const wSets  = wScore.filter((s, i) => parseInt(s) > parseInt(lScore[i] || 0)).length;
+      const lSets  = lScore.filter((s, i) => parseInt(s) > parseInt(wScore[i] || 0)).length;
+      // 세트별 점수: "6-4, 7-5, 6-3" 형태
+      const setScores = wScore.map((w, i) => `${w}-${lScore[i] || 0}`).join(', ');
+      const wLabel = wRank && wRank <= 5 ? `${wName}(${wRank}위)` : wName;
+      const lLabel = lRank && lRank <= 5 ? `${lName}(${lRank}위)` : lName;
+      lines.push(`${wLabel} vs. ${lLabel}  ${wSets}-${lSets}`);
+      lines.push(`  ${setScores}`);
+    }
+  }
+  lines.push(``, `Top5 ${newResults.length}경기 완료`);
+
+  await _postBotMsg({ text: lines.join('\n') });
+
+  // isDryRun(가짜 데이터)이면 DB 기록 생략
+  if (!isDryRun) {
+    const updates = {};
+    for (const { m } of newResults) updates[m.id] = nowTs;
+    await db.ref('jmt/botReportedMatches').update(updates);
+  }
+  return `완료 — ${newResults.length}경기 발송${isDryRun ? ' (테스트)' : ''}`;
+}
+
+// 스케줄 함수 (매일 8시 KST)
+exports.botAtpDailyDigest = onSchedule(
+  { schedule: '0 8 * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    try { await _runAtpDailyDigest(); } catch (e) { console.error('botAtpDailyDigest error:', e); }
+  }
+);
+
+// 테스트용 callable (관리자 전용 — 앱 콘솔에서 호출)
+// useFakeData:true → 가짜 top5 경기 데이터로 실행 (DB botReportedMatches 기록 안 함)
+exports.testBotAtpDigest = onCall({ region: 'asia-southeast1' }, async (req) => {
+  if (!_BOT_MANAGERS.includes(req.data.senderName || '')) throw new Error('권한 없음');
+  const result = await _runAtpDailyDigest(req.data.useFakeData ? _FAKE_ATP_DATA : null);
+  return { result };
+});
+
+// ATP 랭킹 즉시 갱신 callable (관리자 전용)
+exports.refreshAtpRankings = onCall({ region: 'asia-southeast1' }, async (req) => {
+  if (!_BOT_MANAGERS.includes(req.data.senderName || '')) throw new Error('권한 없음');
+  const ok = await _fetchAndSaveAtpRankings();
+  return { ok };
+});
 
 // ══ 9. ATP 베팅 오픈 시 전체 알림 (DB 트리거) ═════════════════════
 exports.notifyAtpBetOpen = onValueCreated(
@@ -1138,26 +1283,29 @@ exports.notifyFavPlayerMatch = onValueWritten(
   }
 );
 
-// ══ ATP 세계 랭킹 주 1회 업데이트 (매주 월요일 오전 6시) ══════════
+// ── ATP 랭킹 fetch 공통 함수 ──────────────────────────────────────
+async function _fetchAndSaveAtpRankings() {
+  const url = 'https://site.api.espn.com/apis/site/v2/sports/tennis/atp/rankings?limit=100';
+  const res  = await fetch(url);
+  const json = await res.json();
+  const entries = (json.rankings && json.rankings[0] && json.rankings[0].ranks) || [];
+  const players = entries.map(e => ({
+    rank:    e.current || 0,
+    name:    e.athlete ? `${e.athlete.firstName || ''} ${e.athlete.lastName || ''}`.trim() : '',
+    country: e.athlete?.flag?.alt || e.athlete?.flag?.href || '',
+  })).filter(p => p.name && p.rank);
+  if (!players.length) { console.warn('fetchAtpRankings: empty result'); return false; }
+  await db.ref('jmt/atpRankings').set({ players, updatedAt: new Date().toISOString() });
+  console.log(`fetchAtpRankings: saved ${players.length} players`);
+  return true;
+}
+
+// ══ ATP 세계 랭킹 — 매주 월요일 오전 6시 정기 업데이트 ══════════
 exports.fetchAtpRankings = onSchedule(
   { schedule: '0 6 * * 1', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
   async () => {
-    try {
-      const url = 'https://site.api.espn.com/apis/site/v2/sports/tennis/atp/rankings?limit=100';
-      const res  = await fetch(url);
-      const json = await res.json();
-      const entries = (json.rankings && json.rankings[0] && json.rankings[0].ranks) || [];
-      const players = entries.map(e => ({
-        rank:    e.current,
-        name:    e.athlete ? `${e.athlete.firstName} ${e.athlete.lastName}` : '',
-        country: e.athlete && e.athlete.flag ? e.athlete.flag.alt : '',
-      })).filter(p => p.name);
-      if (!players.length) { console.warn('fetchAtpRankings: empty result'); return; }
-      await db.ref('jmt/atpRankings').set({ players, updatedAt: new Date().toISOString() });
-      console.log(`fetchAtpRankings: saved ${players.length} players`);
-    } catch (e) {
-      console.error('fetchAtpRankings error:', e);
-    }
+    try { await _fetchAndSaveAtpRankings(); }
+    catch (e) { console.error('fetchAtpRankings error:', e); }
   }
 );
 
@@ -1424,28 +1572,41 @@ exports.fetchAtpNews = onSchedule(
 // ══ 자미봇 — 채팅 트리거 자동 응답 ══════════════════════════════════
 
 const _BOT_NAME = '자미봇';
+
+// ATP 랭킹 폴백 (jmt/atpRankings 미갱신 시 사용 — index.html ATP_TOP_PLAYERS와 동기화)
+const _ATP_FALLBACK_RANKINGS = [
+  { rank:1,  name:'Jannik Sinner' },    { rank:2,  name:'Carlos Alcaraz' },
+  { rank:3,  name:'Alexander Zverev' }, { rank:4,  name:'Novak Djokovic' },
+  { rank:5,  name:'Daniil Medvedev' },  { rank:6,  name:'Taylor Fritz' },
+  { rank:7,  name:'Casper Ruud' },      { rank:8,  name:'Andrey Rublev' },
+  { rank:9,  name:'Alex de Minaur' },   { rank:10, name:'Stefanos Tsitsipas' },
+];
 const _BOT_BZ_REF = 'jmt/banzige/current';
 const _BOT_MANAGERS = ['유지원', '천지은', '김승수'];
 
 // 트리거별 쿨다운 (ms) — DB: jmt/botCooldown/{trigger}
 const _BOT_COOLDOWN = {
-  ranking_ind:  10 * 60 * 1000,  // 10분
-  ranking_pair: 10 * 60 * 1000,  // 10분
-  ranking_att:  10 * 60 * 1000,  // 10분
-  schedule:      5 * 60 * 1000,  //  5분
-  checkin:       5 * 60 * 1000,  //  5분
-  todaymatch:    3 * 60 * 1000,  //  3분
-  weather:      10 * 60 * 1000,  // 10분
-  air:          10 * 60 * 1000,  // 10분
-  fortune:      60 * 60 * 1000,  //  1시간
+  ranking_ind:     10 * 60 * 1000,  // 10분
+  ranking_pair:    10 * 60 * 1000,  // 10분
+  ranking_att:     10 * 60 * 1000,  // 10분
+  member_ranking:   0,               // 쿨다운 없음 (개인 질문)
+  member_checkin:   0,               // 쿨다운 없음 (개인 질문)
+  schedule:         5 * 60 * 1000,  //  5분
+  checkin:          5 * 60 * 1000,  //  5분
+  todaymatch:       3 * 60 * 1000,  //  3분
+  weather:         10 * 60 * 1000,  // 10분
+  air:             10 * 60 * 1000,  // 10분
+  fortune:         60 * 60 * 1000,  //  1시간
 };
 
 // 구체적인 패턴이 앞에 위치해야 먼저 매칭됨
 const _BOT_TRIGGERS = [
   { key: 'ranking_pair', pattern: /팀\s*(페어\s*)?랭킹|팀페어|복식\s*랭킹|페어\s*랭킹|팀\s*순위|페어\s*순위/ },
   { key: 'ranking_att',  pattern: /출석\s*랭킹|출석\s*순위|개근\s*순위/ },
+  { key: 'member_ranking', pattern: /[가-힣]{2,4}(이|씨|님|형|오빠|누나|누님|언니|야|아)?\s*(몇\s*등|등수|몇\s*위|등\s*이야|등\s*해|등수야|등수인)/ },
   { key: 'ranking_ind',  pattern: /개인\s*랭킹|개인\s*순위|싱글\s*랭킹|랭킹|순위/ },
   { key: 'schedule',     pattern: /일정|다음\s*모임|이번\s*모임|모임\s*언제|언제\s*모임|몇\s*명|모임\s*날|정기\s*모임/ },
+  { key: 'member_checkin', pattern: /[가-힣]{2,4}(이|씨|님|형|오빠|누나|누님|언니|야|아)?\s*(출첵|출석)\s*(안|했|해|함|했나|했어|했음|안해|안했)/ },
   { key: 'checkin',      pattern: /출첵|출석\s*체크|출석\s*현황|체크인\s*현황/ },
   { key: 'todaymatch',   pattern: /오늘\s*경기|경기\s*결과|오늘\s*결과/ },
   { key: 'weather',      pattern: /날씨/ },
@@ -1493,6 +1654,92 @@ async function _postBotMsg(msgData) {
   await db.ref(`${_BOT_BZ_REF}/messages`).push({
     alias: _BOT_NAME, realName: _BOT_NAME, ts: Date.now(), ...msgData,
   });
+}
+
+// ── ATP 경기 결과/예고 자미봇 리포팅 ──────────────────────────────
+async function _botReportAtpResults(matches, tournamentInfo) {
+  if (!matches || !matches.length || !tournamentInfo) return;
+
+  // ATP 랭킹 로드
+  const rankSnap = await db.ref('jmt/atpRankings').once('value');
+  const rankPlayers = ((rankSnap.val() || {}).players || []).length
+    ? (rankSnap.val().players)
+    : _ATP_FALLBACK_RANKINGS;
+  const rankMap = {};
+  for (const p of rankPlayers) {
+    if (p.name) rankMap[p.name.toLowerCase()] = p.rank;
+  }
+  const getRank = (name) => {
+    if (!name) return null;
+    const key = name.toLowerCase();
+    if (rankMap[key]) return rankMap[key];
+    for (const [rn, rank] of Object.entries(rankMap)) {
+      if (key.includes(rn) || rn.includes(key)) return rank;
+    }
+    return null;
+  };
+
+  // 리포트/알림 완료 목록
+  const [reportedSnap, notifiedSnap] = await Promise.all([
+    db.ref('jmt/botReportedMatches').once('value'),
+    db.ref('jmt/botNotifiedMatches').once('value'),
+  ]);
+  const reported = reportedSnap.val() || {};
+  const notified = notifiedSnap.val() || {};
+
+  const now  = Date.now();
+  const TWO_HOURS = 2 * 60 * 60 * 1000;
+  const tName = tournamentInfo.displayName || '';
+
+  const ROUND_MAP = {
+    '1st round': '1R', '2nd round': '2R', '3rd round': '3R', '4th round': '4R',
+    'round of 128': '1R', 'round of 64': '2R', 'round of 32': '3R', 'round of 16': '4R',
+    'quarterfinals': 'QF', 'semifinals': 'SF', 'final': 'F',
+  };
+  const fmtRound = r => ROUND_MAP[(r || '').toLowerCase()] || r;
+
+  // ISO → KST 날짜 (2026.05.21)
+  const toKSTDate = iso => {
+    const d = new Date(iso);
+    const s = d.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit' });
+    return s.replace(/\. /g, '.').replace(/\.$/, '');
+  };
+  // ISO → KST 날짜+시간 (5/25 22:00)
+  const toKSTDateTime = iso => {
+    const d = new Date(iso);
+    return d.toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+  };
+
+  // 경기 예고만 처리 — top 3 + QF 이상, 2시간 이내 시작, 미알림 (결과는 아침 8시 다이제스트로 처리)
+  const PREVIEW_ROUNDS = ['quarterfinals', 'semifinals', 'final'];
+  for (const m of matches) {
+    if (!m.id) continue;
+    if (!PREVIEW_ROUNDS.includes((m.roundName || '').toLowerCase())) continue;
+    const r1 = getRank(m.player1Name);
+    const r2 = getRank(m.player2Name);
+
+    if (((r1 && r1 <= 3) || (r2 && r2 <= 3)) && !notified[m.id] && m.date && m.status !== 'STATUS_FINAL') {
+      const matchTs   = new Date(m.date).getTime();
+      const remaining = matchTs - now;
+      if (remaining > 0 && remaining <= TWO_HOURS) {
+        const p1Label = r1 ? `${m.player1Name} (ATP ${r1}위)` : m.player1Name;
+        const p2Label = r2 ? `${m.player2Name} (ATP ${r2}위)` : m.player2Name;
+
+        const text = [
+          `🔔 경기 예고 · ${tName} ${fmtRound(m.roundName)}`,
+          `━━━━━━━━━━━━━━━━━━━━`,
+          `🎾 ${p1Label}`,
+          `🆚 ${p2Label}`,
+          ``,
+          `⏰ ${toKSTDateTime(m.date)} (KST)`,
+          `약 2시간 후 시작 예정!`,
+        ].join('\n');
+
+        await _postBotMsg({ text });
+        await db.ref(`jmt/botNotifiedMatches/${m.id}`).set(now);
+      }
+    }
+  }
 }
 
 // ── 점심/맛집 추천 ─────────────────────────────────────────────────
@@ -1777,6 +2024,84 @@ async function _botCheckin() {
   ].join('\n') };
 }
 
+// ── 멤버 이름 추출 헬퍼 ───────────────────────────────────────────
+async function _findMemberByText(text) {
+  const snap = await db.ref('jmt/members').once('value');
+  const members = Object.values(snap.val() || {})
+    .filter(m => m.name && !m.isGuest)
+    .map(m => m.name);
+  // 1. 전체 이름 정확 매칭
+  for (const name of members) {
+    if (text.includes(name)) return name;
+  }
+  // 호칭/조사 목록
+  const _TITLES = ['이', '씨', '님', '형', '오빠', '누나', '누님', '언니', '야', '아'];
+  // 2. 성 제외 이름(2글자) + 호칭/공백 매칭
+  for (const name of members) {
+    const given = name.length >= 3 ? name.slice(1) : name;
+    if (_TITLES.some(t => text.includes(given + t)) || text.includes(given + ' ') || text.startsWith(given)) return name;
+  }
+  // 3. 2글자 전체 이름 + 호칭 매칭
+  for (const name of members) {
+    if (name.length === 2 && _TITLES.some(t => text.includes(name + t))) return name;
+  }
+  return null;
+}
+
+// ── 특정 멤버 개인 랭킹 ───────────────────────────────────────────
+async function _botMemberRanking(text) {
+  const member = await _findMemberByText(text);
+  if (!member) return null;
+  const year = new Date().getFullYear();
+  const snap = await db.ref(`jmt/playerStats/${year}`).once('value');
+  const stats = snap.val() || {};
+  const memberStats = stats[member];
+  if (!memberStats || (memberStats.wins||0) + (memberStats.losses||0) < 1) {
+    return { text: `🎾 ${member}님의 ${year}년 기록이 아직 없어요.\n경기를 더 뛰어봐요! 💪` };
+  }
+  const sorted = Object.entries(stats)
+    .filter(([, s]) => (s.wins||0) + (s.losses||0) >= 1)
+    .sort((a, b) => {
+      const aT = (a[1].wins||0) + (a[1].draws||0) + (a[1].losses||0);
+      const bT = (b[1].wins||0) + (b[1].draws||0) + (b[1].losses||0);
+      const aR = aT ? (a[1].wins||0)/aT : 0;
+      const bR = bT ? (b[1].wins||0)/bT : 0;
+      if (bR !== aR) return bR - aR;
+      if ((b[1].wins||0) !== (a[1].wins||0)) return (b[1].wins||0) - (a[1].wins||0);
+      return bT - aT;
+    });
+  const rank  = sorted.findIndex(([name]) => name === member) + 1;
+  const total = (memberStats.wins||0) + (memberStats.draws||0) + (memberStats.losses||0);
+  const rate  = total ? Math.round((memberStats.wins||0)/total*100) : 0;
+  const draws = (memberStats.draws||0) > 0 ? ` ${memberStats.draws}무` : '';
+  const rankLabel = rank === 1 ? '🥇 1위' : rank === 2 ? '🥈 2위' : rank === 3 ? '🥉 3위' : `${rank}위`;
+  return { text: `🏆 ${member}님 ${year}년 개인랭킹\n\n${rankLabel}  승률 ${rate}%\n${memberStats.wins||0}승${draws} ${memberStats.losses||0}패 · 총 ${total}경기\n(1경기 이상 기록 ${sorted.length}명 기준)` };
+}
+
+// ── 특정 멤버 출첵 현황 ───────────────────────────────────────────
+async function _botMemberCheckin(text) {
+  const member = await _findMemberByText(text);
+  if (!member) return null;
+  const psSnap = await db.ref('jmt/pollState').once('value');
+  const ps = psSnap.val();
+  if (!ps || !ps.weekId) {
+    return { text: `📋 현재 진행 중인 출첵이 없어요.` };
+  }
+  const votesSnap = await db.ref(`jmt/poll/${ps.weekId}/votes`).once('value');
+  const rawVotes = votesSnap.val() || {};
+  let vote = null;
+  for (const vObj of Object.values(rawVotes)) {
+    if (vObj && vObj.name === member && vObj.vote) { vote = vObj.vote; break; }
+  }
+  const pollStatus = ps.status === 'closed' ? '마감' : '진행중';
+  let statusText;
+  if (vote === 'attend')      statusText = '✅ 참여로 출첵했어요!';
+  else if (vote === 'late')   statusText = '⏰ 지각으로 출첵했어요.';
+  else if (vote === 'absent') statusText = '❌ 불참으로 출첵했어요.';
+  else                        statusText = `❓ 아직 출첵 안 했어요.\n${member}님~ 빨리 출첵해주세요! 🙏`;
+  return { text: `📋 ${member}님 출첵 현황 · ${pollStatus}\n\n${statusText}` };
+}
+
 // ── 날씨 (OpenWeatherMap) ──────────────────────────────────────────
 async function _botWeather(msgText) {
   const apiKey = process.env.OPENWEATHER_API_KEY;
@@ -2042,6 +2367,8 @@ exports.handleBotTriggers = onValueCreated(
 
       let result;
       switch (trigger) {
+        case 'member_ranking': result = await _botMemberRanking(text); break;
+        case 'member_checkin': result = await _botMemberCheckin(text); break;
         case 'ranking_ind':   result = await _botRankingInd(); break;
         case 'ranking_pair':  result = await _botRankingPair(); break;
         case 'ranking_att':   result = await _botRankingAtt(); break;
