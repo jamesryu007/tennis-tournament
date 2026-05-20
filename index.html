@@ -2360,7 +2360,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v581';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v582';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -15483,8 +15483,13 @@ function bzShareRestoToChat(id) {
 function bzOpenRestoUrl(id, fallbackUrl) {
   const r = _restoData[id];
   const url = (r && r.url) || fallbackUrl || '';
-  // iOS PWA에서 window.open(_blank)은 빈 탭을 남김 — location.href로 열면 딥링크 가로채기 후 현재 페이지 유지
-  if (url) window.location.href = url;
+  if (!url) return;
+  // Safari에서 열기 — location.href는 PWA 웹뷰 자체를 이동시켜 카카오맵 리다이렉트 페이지가 앱 안에 남음
+  const a = document.createElement('a');
+  a.href = url; a.target = '_blank'; a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 // ── 클립보드 자동 감지 ────────────────────────────────────────────
