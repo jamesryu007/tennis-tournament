@@ -1535,7 +1535,8 @@ const firebaseConfig = {
       <div id="bz-alias-strip" style="display:none;flex-shrink:0;align-items:center;gap:6px;padding:6px 12px;margin:6px 12px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;box-shadow:0 1px 6px rgba(245,158,11,0.1)">
         <span id="bz-jinsil-badge-strip" style="display:none;color:#00b341;font-size:1.1rem;line-height:1">●</span>
         <span style="font-size:0.73rem;font-weight:700;color:#92400e;white-space:nowrap">나의 가명:</span>
-        <div id="bz-alias-strip-chips" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+        <div id="bz-alias-strip-chips" style="display:flex;gap:5px;flex-wrap:wrap;flex:1"></div>
+        <button id="bz-notice-btn-strip" onclick="openNoticeModal()" style="padding:4px 10px;border-radius:8px;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">📢 공지사항</button>
       </div>
 
       <!-- 채팅 영역 — 순백 계열로 대화 구역 명확히 구분 -->
@@ -2349,7 +2350,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v564';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v565';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -14284,13 +14285,13 @@ function _bzUpdateAliasStrip() {
   const strip = document.getElementById('bz-alias-strip');
   const chipsEl = document.getElementById('bz-alias-strip-chips');
   if (!strip || !chipsEl) return;
-  // 가명이 없거나 프레임이 펼쳐진 상태면 숨김
-  if (!_bzInfoCollapsed || _bzMyAliases.length < 1) {
+  // 프레임이 펼쳐진 상태면 숨김
+  if (!_bzInfoCollapsed) {
     strip.style.display = 'none';
     return;
   }
   const myName = (state.identity && state.identity.name) || '';
-  // 나 자신 + 가명 목록 — 나 자신은 _bzCurrentAlias === ''
+  // 나 자신 + 가명 목록 — 가명 없으면 나 자신 칩만 표시
   const items = [{ label: myName, value: '' }, ..._bzMyAliases.map(n => ({ label: n, value: n }))];
   strip.style.display = 'flex';
   strip.style.opacity = '';
