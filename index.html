@@ -2349,7 +2349,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v559';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v560';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13387,11 +13387,8 @@ function _bzScrollToFirstUnread() {
     // scrollIntoView 자체도 scroll 이벤트를 발생시킴 — 즉시 리스너 등록 시 suppress가 바로 해제됨
     // 200ms 후 등록하여 programmatic scroll 이벤트가 settle된 뒤 사용자 스크롤만 감지
     setTimeout(() => {
-      const _bzOnScroll = () => {
-        _bzSuppressScrollDown = false;
-        div.style.opacity = '0';
-        setTimeout(() => { if (div.parentNode) div.remove(); }, 1200);
-      };
+      // 스크롤 시: suppress만 해제 (자동 스크롤 재허용) — 구분선은 방 나갈 때 제거
+      const _bzOnScroll = () => { _bzSuppressScrollDown = false; };
       area.addEventListener('scroll', _bzOnScroll, { passive: true, once: true });
     }, 200);
   });
@@ -14044,6 +14041,9 @@ function bzLeaveRoom() {
   bzSwitchBzTab('chat');
   _bzNeedsUnreadScroll = false;
   _bzSuppressScrollDown = false;
+  // 구분선 제거 — 방 나갈 때 정리
+  const _divider = document.getElementById('bz-unread-divider');
+  if (_divider) _divider.remove();
   if (_bzListener) { db.ref(BZ_REF).off('value', _bzListener); _bzListener = null; }
   _bzState = null;
   _bzCurrentAlias = null;
