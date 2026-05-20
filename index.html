@@ -529,9 +529,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 #notice-content-editor:empty:before { content: attr(data-placeholder); color: #94a3b8; pointer-events: none; }
 
 /* ── MODALS ── */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 100; align-items: flex-end; justify-content: center; overscroll-behavior: none; }
-#participant-modal { z-index: 110; }
-#draw-analysis-modal { z-index: 300; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 300; align-items: flex-end; justify-content: center; overscroll-behavior: none; }
+#participant-modal { z-index: 310; }
 #photo-edit-modal { z-index: 10001; }
 .modal-overlay.open { display: flex; }
 .modal { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
@@ -2361,7 +2360,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v591';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v592';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
