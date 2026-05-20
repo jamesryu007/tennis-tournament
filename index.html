@@ -1491,7 +1491,7 @@ const firebaseConfig = {
           </select>
           <div id="bz-alias-chips" style="display:flex;flex-wrap:wrap;gap:4px;flex:1"></div>
           <button id="bz-jinsil-btn" onclick="bzToggleJinsil()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#64748b;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">진실톡 OFF</button>
-          <button id="bz-notice-btn" onclick="openNoticeModal()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">📢 공지사항</button>
+          <button id="bz-notice-btn" onclick="openNoticeModal()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #fcd34d;background:#fffbeb;color:#92400e;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">📢 공지</button>
         </div>
         <div id="bz-alias-limit-msg" style="display:none;font-size:0.72rem;color:#dc2626;margin-bottom:4px">⚠️ 최대 2개의 가명만 사용할 수 있습니다.</div>
         <!-- 채팅중인 멤버 -->
@@ -1536,7 +1536,7 @@ const firebaseConfig = {
         <span id="bz-jinsil-badge-strip" style="display:none;color:#00b341;font-size:1.1rem;line-height:1">●</span>
         <span style="font-size:0.73rem;font-weight:700;color:#92400e;white-space:nowrap">나의 가명:</span>
         <div id="bz-alias-strip-chips" style="display:flex;gap:5px;flex-wrap:wrap;flex:1"></div>
-        <button id="bz-notice-btn-strip" onclick="openNoticeModal()" style="padding:4px 10px;border-radius:8px;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">📢 공지사항</button>
+        <button id="bz-notice-btn-strip" onclick="openNoticeModal()" style="padding:4px 10px;border-radius:8px;border:1.5px solid #fcd34d;background:#fffbeb;color:#92400e;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">📢 공지</button>
       </div>
 
       <!-- 채팅 영역 — 순백 계열로 대화 구역 명확히 구분 -->
@@ -2350,7 +2350,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v565';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v566';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -16516,6 +16516,24 @@ async function bzMenuShare() {
   bzCloseMsgMenu();
   if (!meta || !navigator.share) return;
   try {
+    // 공지 카드 — html2canvas로 이미지 캡처 후 파일 공유
+    if (meta.mediaType === 'notice') {
+      const bubbleEl = document.querySelector(`[data-bzkey="${key}"] [data-bzbubble="1"]`);
+      if (bubbleEl && typeof html2canvas !== 'undefined') {
+        const canvas = await html2canvas(bubbleEl, { scale: 2, useCORS: true, backgroundColor: null, logging: false });
+        const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+        if (blob) {
+          const file = new File([blob], 'notice.png', { type: 'image/png' });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file] });
+            return;
+          }
+        }
+      }
+      // fallback: 텍스트 공유
+      if (meta.text) { await navigator.share({ text: meta.text }); return; }
+      return;
+    }
     // 텍스트
     if (meta.text) { await navigator.share({ text: meta.text }); return; }
     // 이미지/영상 — _bzState 캐시에서 동기적으로 확보 (user gesture 유지, fetch 없음)
