@@ -1699,7 +1699,7 @@ const firebaseConfig = {
       <span class="modal-round">🎾 자동 대진 생성</span>
       <button class="modal-close" onclick="closeAutoDrawModal()">✕</button>
     </div>
-    <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px 28px;overscroll-behavior:contain">
+    <div id="auto-draw-scroll" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px 28px;overscroll-behavior:contain">
       <div id="auto-draw-attendees" style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:0.93rem;font-weight:600;color:#166534;line-height:1.65"></div>
       <div>
         <div class="court-row">
@@ -2360,7 +2360,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v597';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v598';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4533,6 +4533,8 @@ function openAutoDrawModal(){
   const modal=document.getElementById('auto-draw-modal');
   document.body.style.overflow='hidden';
   modal.classList.add('open');
+  // iOS 스크롤 freeze 해제
+  setTimeout(()=>{const s=document.getElementById('auto-draw-scroll');if(s){s.scrollTop+=1;s.scrollTop-=1;}},50);
   // 오른쪽 스와이프 → 오른쪽으로 스르르 사라지며 닫기 (한 번만 등록)
   if(!modal._swipeAdded){
     modal._swipeAdded=true;
@@ -4586,6 +4588,8 @@ function openDrawAnalysisModal(){
   const modal=document.getElementById('draw-analysis-modal');
   document.body.style.overflow='hidden';
   modal.classList.add('open');
+  // iOS 스크롤 freeze 해제
+  setTimeout(()=>{const s=document.getElementById('draw-analysis-scroll');if(s){s.scrollTop+=1;s.scrollTop-=1;}},50);
   // 오른쪽 스와이프 → 오른쪽으로 스르르 사라지며 닫기 (한 번만 등록)
   if(!modal._swipeAdded){
     modal._swipeAdded=true;
@@ -15276,6 +15280,8 @@ function bzOpenRestoModal(editId) {
   if (!modal) return;
   document.body.style.overflow = 'hidden';
   modal.style.display = 'flex';
+  // iOS 스크롤 freeze 해제
+  setTimeout(() => { const s = modal.querySelector('div'); if (s) { s.scrollTop += 1; s.scrollTop -= 1; } }, 50);
   // 오른쪽 스와이프 → 오른쪽으로 스르르 사라지며 닫기 (한 번만 등록)
   if (!modal._swipeAdded) {
     modal._swipeAdded = true;
