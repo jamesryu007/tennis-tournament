@@ -2360,7 +2360,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v598';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v599';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -19329,7 +19329,7 @@ function saveMpComment(key) {
 </div>
 
 <div id="bz-resto-modal" style="display:none;position:fixed;inset:0;z-index:730;background:rgba(0,0,0,0.45);align-items:flex-end" onclick="bzCloseRestoModal()">
-  <div style="width:100%;background:#fff;border-radius:20px 20px 0 0;padding:20px 16px max(env(safe-area-inset-bottom,24px),24px);max-height:88vh;overflow-y:auto" onclick="event.stopPropagation()">
+  <div style="width:100%;background:#f8fafc;border-radius:20px 20px 0 0;border-top:1.5px solid #e2e8f0;border-left:1.5px solid #e2e8f0;border-right:1.5px solid #e2e8f0;box-shadow:0 -6px 24px rgba(0,0,0,0.13);padding:20px 16px max(env(safe-area-inset-bottom,24px),24px);max-height:88vh;overflow-y:auto" onclick="event.stopPropagation()">
     <div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div id="bz-resto-modal-title" style="font-size:1rem;font-weight:800;color:#1e293b">🍽️ 단골맛집 등록</div>
