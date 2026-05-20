@@ -2361,7 +2361,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v608';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v609';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8784,7 +8784,8 @@ changeCheckinPhotoRandom();
       setupFirebaseListeners(); // 리스너가 초기 데이터 로드 + 렌더링 처리
       changeTeamPhotoRandom(); // db 초기화 후 랜드스케이프 사진 재로드
       // BZ_REF 등 하위 const가 초기화된 후 실행 (TDZ 방지)
-      setTimeout(() => { _bzInitUnreadListener(); _bzHandleShareTarget(); }, 0);
+      // _bzInitUnreadListener/HandleShareTarget은 하위 스크립트 블록에 정의 — 파싱 완료 후 실행 보장
+      window.addEventListener('load', () => { _bzInitUnreadListener(); _bzHandleShareTarget(); }, { once: true });
     } else {
       // ── localStorage 폴백 모드 (Firebase 미설정) ───────────────
       setConnStatus(false);
