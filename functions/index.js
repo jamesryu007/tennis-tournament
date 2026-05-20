@@ -1988,6 +1988,7 @@ exports.sendNoticeAsBot = onCall({ region: 'asia-southeast1' }, async (req) => {
   // 자미톡에 공지 카드 메시지 게시 (type:'notice' — 클라이언트에서 카드 렌더링)
   await _postBotMsg({
     type: 'notice',
+    noticeId:      noticeId,
     noticeTitle:   notice.title   || '',
     noticeContent: notice.content || '',
     text: `📢 ${notice.title || '공지사항'}`, // 푸시 미리보기·검색용

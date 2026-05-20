@@ -2349,7 +2349,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v561';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v562';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13357,6 +13357,47 @@ let _bzUnreadRef = null;           // 미읽음 리스너 쿼리 참조
 let _bzUnreadCb = null;            // 미읽음 리스너 콜백 참조
 let _bzModalOrigParent = null;    // body 이동 전 원래 부모 보관
 
+// HTML 태그 제거 → 순수 텍스트 (공지 복사/공유용)
+function _bzStripHtml(html) {
+  const d = document.createElement('div');
+  d.innerHTML = html;
+  return (d.textContent || d.innerText || '').trim();
+}
+
+// 공지 말풍선 탭 — 더블탭: 좋아요 / 싱글탭: 공지 팝업 열고 해당 공지로 스크롤
+function bzNoticeTap(msgKey) {
+  const now = Date.now();
+  if (!window._bzTapMap) window._bzTapMap = {};
+  if (window._bzTapMap[msgKey] && now - window._bzTapMap[msgKey] < 350) {
+    window._bzTapMap[msgKey] = 0;
+    bzToggleLike(msgKey);
+  } else {
+    window._bzTapMap[msgKey] = now;
+    setTimeout(() => {
+      if (window._bzTapMap[msgKey] !== now) return; // 더블탭 감지됨 — 스킵
+      const meta = window._bzMsgMeta && window._bzMsgMeta[msgKey];
+      if (meta && meta.noticeId) bzOpenNoticeFromChat(meta.noticeId);
+    }, 350);
+  }
+}
+
+// 공지 팝업 열기 + 해당 noticeId 항목으로 스크롤
+function bzOpenNoticeFromChat(noticeId) {
+  openNoticeModal();
+  // _renderNoticeList는 비동기(Firebase) — 렌더 완료 후 스크롤
+  const _try = (attempt) => {
+    const el = document.getElementById('notice-item-' + noticeId);
+    if (el) {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      el.style.outline = '2px solid #f59e0b';
+      setTimeout(() => { el.style.outline = ''; }, 1500);
+    } else if (attempt < 10) {
+      setTimeout(() => _try(attempt + 1), 100);
+    }
+  };
+  setTimeout(() => _try(0), 200);
+}
+
 // 미읽음 구분선 스크롤 — _bzLastReadTs 기준 첫 미읽음 메시지로 이동
 function _bzScrollToFirstUnread() {
   if (!_bzNeedsUnreadScroll || _bzLastReadTs <= 0) return;
@@ -15120,7 +15161,7 @@ function _renderNoticeList() {
         <button onclick="sendNoticeToChat('${id}')" style="font-size:0.7rem;background:#2563eb;color:#fff;border:none;padding:3px 9px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">전송</button>
         <button onclick="openNoticeWriteModal('${id}')" style="font-size:0.7rem;background:none;color:#2563eb;border:1.5px solid #93c5fd;padding:2px 8px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">수정</button>
         <button onclick="deleteNotice('${id}')" style="font-size:0.7rem;background:none;color:#dc2626;border:1.5px solid #fecaca;padding:2px 8px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">삭제</button>` : '';
-      return `<div style="background:${p.bg};border-radius:12px;padding:12px 14px;border:1.5px solid ${p.border}">
+      return `<div id="notice-item-${id}" style="background:${p.bg};border-radius:12px;padding:12px 14px;border:1.5px solid ${p.border};transition:outline 0.3s">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px">
           <div style="font-size:0.88rem;font-weight:800;color:#1e293b;flex:1">${n.title || '(제목 없음)'}</div>
           <div style="font-size:0.71rem;color:#94a3b8;flex-shrink:0">${dateStr}</div>
@@ -16648,10 +16689,11 @@ function _bzRenderMessages(phase, forceBottom) {
           ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
       : m.type === 'notice'
-      ? `<div data-bzbubble="1" style="width:240px;border-radius:14px;overflow:hidden;border:2px solid #fcd34d;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.08)">
+      ? `<div data-bzbubble="1" onclick="bzNoticeTap('${keyEsc}')" style="width:240px;border-radius:14px;overflow:hidden;border:2px solid #fcd34d;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.08);cursor:pointer;-webkit-tap-highlight-color:transparent">
           ${replyBox}
           <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:8px 12px;display:flex;align-items:center;gap:6px">
             <span style="font-size:0.8rem;font-weight:800;color:#fff">📢 공지사항</span>
+            <span style="font-size:0.68rem;color:rgba(255,255,255,0.85);margin-left:auto">눌러서 보기 →</span>
           </div>
           <div style="padding:10px 12px">
             ${m.noticeTitle ? `<div style="font-size:0.93rem;font-weight:800;color:#1e293b;margin-bottom:6px">${m.noticeTitle}</div>` : ''}
@@ -16686,7 +16728,8 @@ function _bzRenderMessages(phase, forceBottom) {
           </div>`;
         })()
       : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.93rem;border:${bubbleBorder};word-break:break-word;white-space:pre-wrap;cursor:pointer;-webkit-tap-highlight-color:transparent">${replyBox}${_bzLinkify(m.text)}</div>`;
-    window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl, mediaType: m.videoUrl ? 'video' : _photos ? 'photos' : (m.imageUrl || m.imageData) ? 'image' : m.type === 'restaurant' ? 'restaurant' : '' };
+    const _noticeText = m.type === 'notice' ? ((m.noticeTitle ? m.noticeTitle + '\n' : '') + _bzStripHtml(m.noticeContent || '')) : '';
+    window._bzMsgMeta[m._key] = { alias: m.alias, text: _noticeText || m.text || '', realName: m.realName || '', isMine, hasUrl, mediaType: m.videoUrl ? 'video' : _photos ? 'photos' : (m.imageUrl || m.imageData) ? 'image' : m.type === 'restaurant' ? 'restaurant' : m.type === 'notice' ? 'notice' : '', noticeId: m.noticeId || '' };
     const dateSepHtml = _bzShowDateSep[i] ? `<div style="text-align:center;padding:10px 0 4px"><span style="background:#e2e8f0;color:#64748b;font-size:0.7rem;padding:3px 14px;border-radius:20px;font-weight:600">${_bzFormatDateLabel(m.ts)}</span></div>` : '';
     const timeHtml = _bzShowTime[i] ? `<span data-bztime="1" style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;align-self:flex-end;padding-bottom:2px">${_bzFormatTime(m.ts)}</span>` : '';
     const showName = _bzShowName[i];
@@ -16885,10 +16928,11 @@ function _bzIncrementalUpdateMessages(newMessages) {
           ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
       : m.type === 'notice'
-      ? `<div data-bzbubble="1" style="width:240px;border-radius:14px;overflow:hidden;border:2px solid #fcd34d;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.08)">
+      ? `<div data-bzbubble="1" onclick="bzNoticeTap('${keyEsc}')" style="width:240px;border-radius:14px;overflow:hidden;border:2px solid #fcd34d;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.08);cursor:pointer;-webkit-tap-highlight-color:transparent">
           ${replyBox}
           <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:8px 12px;display:flex;align-items:center;gap:6px">
             <span style="font-size:0.8rem;font-weight:800;color:#fff">📢 공지사항</span>
+            <span style="font-size:0.68rem;color:rgba(255,255,255,0.85);margin-left:auto">눌러서 보기 →</span>
           </div>
           <div style="padding:10px 12px">
             ${m.noticeTitle ? `<div style="font-size:0.93rem;font-weight:800;color:#1e293b;margin-bottom:6px">${m.noticeTitle}</div>` : ''}
@@ -16923,7 +16967,8 @@ function _bzIncrementalUpdateMessages(newMessages) {
           </div>`;
         })()
       : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.93rem;border:${bubbleBorder};word-break:break-word;white-space:pre-wrap;cursor:pointer;-webkit-tap-highlight-color:transparent">${replyBox}${_bzLinkify(m.text)}</div>`;
-    window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl, mediaType: m.videoUrl ? 'video' : _photos ? 'photos' : (m.imageUrl || m.imageData) ? 'image' : m.type === 'restaurant' ? 'restaurant' : '' };
+    const _noticeText = m.type === 'notice' ? ((m.noticeTitle ? m.noticeTitle + '\n' : '') + _bzStripHtml(m.noticeContent || '')) : '';
+    window._bzMsgMeta[m._key] = { alias: m.alias, text: _noticeText || m.text || '', realName: m.realName || '', isMine, hasUrl, mediaType: m.videoUrl ? 'video' : _photos ? 'photos' : (m.imageUrl || m.imageData) ? 'image' : m.type === 'restaurant' ? 'restaurant' : m.type === 'notice' ? 'notice' : '', noticeId: m.noticeId || '' };
     const _msgMargin = _showName ? '10px' : '0';
     const _msgGap = _showName ? '2px' : '1px';
     const html = isMine
