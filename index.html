@@ -1546,7 +1546,8 @@ const firebaseConfig = {
         <div id="bz-chat-empty" style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:30px 0">아직 대화가 없습니다.<br>가명을 선택하고 첫 메시지를 남겨보세요!</div>
       </div>
       <div id="bz-photo-grid" style="display:none;flex:1 1 auto;overflow-y:auto;background:#f0f4fb"></div>
-      <div id="bz-restaurant-tab" style="display:none;flex:1 1 auto;overflow-y:auto;overflow-x:hidden;background:#f8fafc;padding:12px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y"></div>
+      <div id="bz-resto-header" style="display:none;flex-shrink:0;background:#f8fafc;padding:10px 12px 0;border-bottom:1px solid #e2e8f0"></div>
+      <div id="bz-restaurant-tab" style="display:none;flex:1 1 auto;overflow-y:auto;overflow-x:hidden;background:#f8fafc;padding:8px 12px 12px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y"></div>
 
       <!-- 메시지 컨텍스트 메뉴 -->
       <div id="bz-msg-menu" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9100;background:rgba(0,0,0,0.32)" onclick="bzCloseMsgMenu()">
@@ -2360,7 +2361,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v607';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v608';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -14166,18 +14167,19 @@ function bzShowRoom() {
   if (!myName) { alert('로그인 후 이용하세요.'); return; }
   betShowScreen('banzige');
 
-  // 진입 시 정보 프레임 즉시 펼침 — transition 없이 (빠른 Firebase 로드 시 layout 변화로 인한 스크롤 drift 방지)
-  _bzInfoCollapsed = false;
+  // 플로팅 버튼 진입 시 상단 접기, 탭/메모리 진입 시 펼치기
   const _ifr = document.getElementById('bz-info-frame');
-  if (_ifr) {
-    _ifr.style.transition = 'none';
-    _ifr.style.maxHeight = '500px';
-    _ifr.style.padding = '10px 14px';
-    _ifr.style.margin = '10px 12px 6px';
-    requestAnimationFrame(() => { _ifr.style.transition = ''; }); // 다음 프레임에서 transition 복원
-  }
   const _itg = document.getElementById('bz-info-toggle');
-  if (_itg) _itg.textContent = '▽';
+  if (_bzFromFloat) {
+    _bzInfoCollapsed = true;
+    if (_ifr) { _ifr.style.transition = 'none'; _ifr.style.maxHeight = '0'; _ifr.style.padding = '0'; _ifr.style.margin = '0 12px'; requestAnimationFrame(() => { _ifr.style.transition = ''; }); }
+    if (_itg) _itg.textContent = '▲';
+    _bzUpdateAliasStrip();
+  } else {
+    _bzInfoCollapsed = false;
+    if (_ifr) { _ifr.style.transition = 'none'; _ifr.style.maxHeight = '500px'; _ifr.style.padding = '10px 14px'; _ifr.style.margin = '10px 12px 6px'; requestAnimationFrame(() => { _ifr.style.transition = ''; }); }
+    if (_itg) _itg.textContent = '▽';
+  }
 
   // 풀스크린 모달로 전환: flex 컬럼 레이아웃, visualViewport 높이에 맞춤
   const modal = document.getElementById('bet-screen-banzige');
@@ -15113,6 +15115,8 @@ function bzSwitchBzTab(tab) {
   inputArea.style.display = tab === 'chat' ? '' : 'none';
   photoGrid.style.display = tab === 'photo' ? 'block' : 'none';
   if (restoTab) restoTab.style.display = tab === 'restaurant' ? 'block' : 'none';
+  const restoHeader = document.getElementById('bz-resto-header');
+  if (restoHeader) restoHeader.style.display = tab === 'restaurant' ? 'block' : 'none';
   const _setTab = (btn, on) => { if (btn) { btn.style.background = on ? '#f59e0b' : 'none'; btn.style.color = on ? '#fff' : '#94a3b8'; } };
   _setTab(chatBtn, tab === 'chat');
   _setTab(photoBtn, tab === 'photo');
@@ -15227,12 +15231,18 @@ function _bzRenderRestoTab() {
     return (a[1].name||'').localeCompare(b[1].name||'', 'ko');   // 3순위: 가나다
   });
   const filtered = _restoTabFilter === '전체' ? entries : entries.filter(([, r]) => r.theme === _restoTabFilter);
-  let html = `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none;margin-bottom:8px">`;
-  RESTO_THEMES.forEach(t => {
-    html += `<button class="bz-theme-chip${_restoTabFilter===t?' active':''}" onclick="_restoSetTabFilter('${t}')">${t==='전체'?'🍽️ 전체':(RESTO_THEME_EMOJI[t]||'')+'&nbsp;'+t}</button>`;
-  });
-  html += `</div>`;
-  html += `<button onclick="bzOpenRestoModal(null)" style="width:100%;padding:11px;border-radius:12px;border:1.5px dashed #fcd34d;background:#fffbeb;font-size:0.88rem;font-weight:700;color:#d97706;cursor:pointer;margin-bottom:10px;font-family:inherit">+ 맛집 등록</button>`;
+  // 테마 칩 + 등록 버튼 → sticky 헤더에 고정
+  const hdr = document.getElementById('bz-resto-header');
+  if (hdr) {
+    let hhtml = `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none">`;
+    RESTO_THEMES.forEach(t => {
+      hhtml += `<button class="bz-theme-chip${_restoTabFilter===t?' active':''}" onclick="_restoSetTabFilter('${t}')">${t==='전체'?'🍽️ 전체':(RESTO_THEME_EMOJI[t]||'')+'&nbsp;'+t}</button>`;
+    });
+    hhtml += `</div>`;
+    hhtml += `<button onclick="bzOpenRestoModal(null)" style="width:100%;padding:9px;border-radius:12px;border:1.5px dashed #fcd34d;background:#fffbeb;font-size:0.88rem;font-weight:700;color:#d97706;cursor:pointer;margin-bottom:8px;font-family:inherit">+ 맛집 등록</button>`;
+    hdr.innerHTML = hhtml;
+  }
+  let html = '';
   if (!filtered.length) {
     html += `<div style="text-align:center;padding:40px 0;color:#94a3b8;font-size:0.85rem">아직 등록된 맛집이 없습니다.<br>위 버튼으로 추가해보세요!</div>`;
   } else {
