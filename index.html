@@ -2352,7 +2352,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v570';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v571';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -16889,8 +16889,12 @@ function _bzRenderMessages(phase, forceBottom) {
     if (_bzIsFirstRender && area.style.opacity === '0') {
       // 첫 진입: 이미지 모두 로드 후 스크롤 + fadeIn (opacity:0 상태에서 위치 잡아 wobble 방지)
       const _show = () => {
-        if (_bzNeedsUnreadScroll && _bzLastReadTs > 0) {
-          // 미읽음 있으면: opacity:0 상태에서 구분선 위치로 스크롤 후 fadeIn (scrollIntoView rAF 충돌 없음)
+        const _existDiv = document.getElementById('bz-unread-divider');
+        if (_existDiv) {
+          // 이미 구분선 삽입됨(Firebase가 먼저 완료) — 구분선 위치 재확인 후 fadeIn
+          _existDiv.scrollIntoView({ block: 'start', behavior: 'instant' });
+        } else if (_bzNeedsUnreadScroll && _bzLastReadTs > 0) {
+          // Firebase 아직 미완료 — 직접 구분선 생성+스크롤
           _bzScrollToFirstUnread();
         } else {
           area.scrollTop = 999999;
