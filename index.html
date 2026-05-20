@@ -2360,7 +2360,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v587';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v588';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -16932,11 +16932,14 @@ function _bzRenderMessages(phase, forceBottom) {
           const _stars  = [1,2,3,4,5].map(s=>`<span style="font-size:0.9rem;color:${_rAvg>=s?'#f59e0b':'#d1d5db'}">★</span>`).join('');
           const _idE    = (m.restaurantId||'').replace(/'/g,"\\'");
           const _rUrlE  = _rUrl.replace(/'/g,"\\'");
+          const _sName  = m.alias||m.realName||'';
+          const _sCode  = _sName ? _sName.charCodeAt(_sName.length-1) : 0;
+          const _sSuffix= _sCode ? ((_sCode-0xAC00)%28!==0?'이':'가') : '';
+          const _hdrTxt = _sName ? `${_sName}${_sSuffix} 추천하는 ${_rTheme} 단골집` : `🍽️ 단골집`;
           return `<div data-bzbubble="1" onclick="bzOpenRestoUrl('${_idE}','${_rUrlE}')" style="width:220px;border-radius:14px;border:1.5px solid #fcd34d;overflow:hidden;cursor:${_rUrl?'pointer':'default'};background:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.08)">
             ${replyBox}
-            <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:7px 12px;display:flex;align-items:center">
-              <span style="font-size:0.75rem;font-weight:700;color:#fff">${RESTO_THEME_EMOJI[_rTheme]||'🍴'} ${_rTheme}</span>
-              <span style="font-size:0.62rem;color:rgba(255,255,255,0.85);margin-left:auto;font-weight:600">🍽️ 단골집</span>
+            <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:7px 12px;display:flex;align-items:center;gap:5px">
+              <span style="font-size:0.68rem;color:#fff;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${RESTO_THEME_EMOJI[_rTheme]||'🍴'} ${_hdrTxt}</span>
             </div>
             <div style="padding:10px 12px">
               <div style="font-size:0.97rem;font-weight:800;color:#1e293b;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_rName}</div>
@@ -17177,11 +17180,14 @@ function _bzIncrementalUpdateMessages(newMessages) {
           const _stars  = [1,2,3,4,5].map(s=>`<span style="font-size:0.9rem;color:${_rAvg>=s?'#f59e0b':'#d1d5db'}">★</span>`).join('');
           const _idE    = (m.restaurantId||'').replace(/'/g,"\\'");
           const _rUrlE  = _rUrl.replace(/'/g,"\\'");
+          const _sName  = m.alias||m.realName||'';
+          const _sCode  = _sName ? _sName.charCodeAt(_sName.length-1) : 0;
+          const _sSuffix= _sCode ? ((_sCode-0xAC00)%28!==0?'이':'가') : '';
+          const _hdrTxt = _sName ? `${_sName}${_sSuffix} 추천하는 ${_rTheme} 단골집` : `🍽️ 단골집`;
           return `<div data-bzbubble="1" onclick="bzOpenRestoUrl('${_idE}','${_rUrlE}')" style="width:220px;border-radius:14px;border:1.5px solid #fcd34d;overflow:hidden;cursor:${_rUrl?'pointer':'default'};background:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.08)">
             ${replyBox}
-            <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:7px 12px;display:flex;align-items:center">
-              <span style="font-size:0.75rem;font-weight:700;color:#fff">${RESTO_THEME_EMOJI[_rTheme]||'🍴'} ${_rTheme}</span>
-              <span style="font-size:0.62rem;color:rgba(255,255,255,0.85);margin-left:auto;font-weight:600">🍽️ 단골집</span>
+            <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:7px 12px;display:flex;align-items:center;gap:5px">
+              <span style="font-size:0.68rem;color:#fff;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${RESTO_THEME_EMOJI[_rTheme]||'🍴'} ${_hdrTxt}</span>
             </div>
             <div style="padding:10px 12px">
               <div style="font-size:0.97rem;font-weight:800;color:#1e293b;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_rName}</div>
