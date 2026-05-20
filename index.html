@@ -2360,7 +2360,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v605';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v606';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4576,8 +4576,20 @@ function openAutoDrawModal(){
   const modal=document.getElementById('auto-draw-modal');
   document.body.style.overflow='hidden';
   modal.classList.add('open');
-  // iOS 스크롤 freeze 해제
-  setTimeout(()=>{const s=document.getElementById('auto-draw-scroll');if(s){s.scrollTop+=1;s.scrollTop-=1;}},50);
+  // iOS 스크롤 freeze 해제 + rubber-band 차단
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const s=document.getElementById('auto-draw-scroll');
+    if(!s)return;
+    s.scrollTop+=1;s.scrollTop-=1;
+    if(s._bzBoundaryLocked)return;
+    s._bzBoundaryLocked=true;
+    let _ty=0;
+    s.addEventListener('touchstart',e=>{_ty=e.touches[0].clientY;},{passive:true});
+    s.addEventListener('touchmove',e=>{
+      const dy=e.touches[0].clientY-_ty;
+      if((s.scrollTop<=0&&dy>0)||(s.scrollTop+s.clientHeight>=s.scrollHeight-1&&dy<0))e.preventDefault();
+    },{passive:false});
+  }));
   // 오른쪽 스와이프 → 오른쪽으로 스르르 사라지며 닫기 (한 번만 등록)
   if(!modal._swipeAdded){
     modal._swipeAdded=true;
@@ -4631,8 +4643,20 @@ function openDrawAnalysisModal(){
   const modal=document.getElementById('draw-analysis-modal');
   document.body.style.overflow='hidden';
   modal.classList.add('open');
-  // iOS 스크롤 freeze 해제
-  setTimeout(()=>{const s=document.getElementById('draw-analysis-scroll');if(s){s.scrollTop+=1;s.scrollTop-=1;}},50);
+  // iOS 스크롤 freeze 해제 + rubber-band 차단
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const s=document.getElementById('draw-analysis-scroll');
+    if(!s)return;
+    s.scrollTop+=1;s.scrollTop-=1;
+    if(s._bzBoundaryLocked)return;
+    s._bzBoundaryLocked=true;
+    let _ty=0;
+    s.addEventListener('touchstart',e=>{_ty=e.touches[0].clientY;},{passive:true});
+    s.addEventListener('touchmove',e=>{
+      const dy=e.touches[0].clientY-_ty;
+      if((s.scrollTop<=0&&dy>0)||(s.scrollTop+s.clientHeight>=s.scrollHeight-1&&dy<0))e.preventDefault();
+    },{passive:false});
+  }));
   // 오른쪽 스와이프 → 오른쪽으로 스르르 사라지며 닫기 (한 번만 등록)
   if(!modal._swipeAdded){
     modal._swipeAdded=true;
