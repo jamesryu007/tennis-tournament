@@ -1717,18 +1717,26 @@ const firebaseConfig = {
         <div id="auto-recommend-info" style="display:none"></div>
         <div class="type-row">
           <span class="type-label" style="color:#7c3aed">🟣 혼복</span>
-          <select id="auto-mixed-cnt"></select>
+          <select id="auto-mixed-cnt" onchange="_checkAutoConsec3()"></select>
         </div>
         <div class="type-row">
           <span class="type-label" style="color:#2563eb">🔵 남복</span>
-          <select id="auto-mens-cnt"></select>
+          <select id="auto-mens-cnt" onchange="_checkAutoConsec3()"></select>
         </div>
         <div class="type-row">
           <span class="type-label" style="color:#db2777">🩷 여복</span>
-          <select id="auto-womens-cnt"></select>
+          <select id="auto-womens-cnt" onchange="_checkAutoConsec3()"></select>
         </div>
       </div>
       <div id="auto-draw-warn" style="color:#dc2626;font-size:0.8rem;margin:10px 0 0;display:none"></div>
+      <div id="auto-consec3-notice" style="display:none;background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:0.82rem">
+        <div style="font-weight:700;color:#92400e;margin-bottom:5px">⚠️ 3연속 출전 불가피</div>
+        <div style="color:#78350f;line-height:1.5;margin-bottom:8px">현재 인원/코트 조건에서는 모든 경기를 배정하면 일부 선수가 3연속 출전하게 됩니다.<br>허용하지 않으면 일부 경기가 미배정될 수 있습니다.</div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="auto-allow-consec3" style="width:18px;height:18px;accent-color:#f59e0b">
+          <span style="font-weight:700;color:#92400e">체력 부담 감수하고 전 경기 생성</span>
+        </label>
+      </div>
       <button id="auto-draw-submit-btn" onclick="generateAutoDrawCards()" style="width:100%;margin-top:18px;padding:14px;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.3px">대진 생성</button>
     </div>
   </div>
@@ -2352,7 +2360,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v578';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v580';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4480,6 +4488,31 @@ function autoRecommendGames(){
   document.getElementById('auto-womens-cnt').value=rec.womens;
   const infoEl=document.getElementById('auto-recommend-info');
   if(infoEl) infoEl.textContent=`${courts}코트 × ${hrs}시간 × ${attendees.length}명 기준 ${maxGames}경기 | 🟣혼복 ${rec.mixed} · 🔵남복 ${rec.mens} · 🩷여복 ${rec.womens} 추천`;
+  _checkAutoConsec3();
+}
+
+// 3연속 출전 불가피 여부 감지 → 경고 notice 표시
+function _checkAutoConsec3(){
+  const courts=parseInt(document.getElementById('auto-court-cnt').value)||2;
+  const attendees=_getAutoDrawAttendees();
+  const totalGames=
+    (parseInt(document.getElementById('auto-mixed-cnt').value)||0)+
+    (parseInt(document.getElementById('auto-mens-cnt').value)||0)+
+    (parseInt(document.getElementById('auto-womens-cnt').value)||0);
+  const notice=document.getElementById('auto-consec3-notice');
+  if(!notice) return;
+  // 3라운드에서 활용 가능한 "최소 1회 쉰" 선수 최대 = 2 × (N - courts×4)
+  // 이 값이 courts×4 미만이면 3연속 불가피: N < courts × 6
+  const playersPerRound=courts*4;
+  const unavoidable=attendees.length>0
+    && playersPerRound<=attendees.length        // 코트 채울 인원은 있음
+    && attendees.length<courts*6                // 3연속 회피 불가
+    && Math.ceil(totalGames/courts)>2;          // 3라운드 이상 필요
+  notice.style.display=unavoidable?'':'none';
+  if(!unavoidable){
+    const cb=document.getElementById('auto-allow-consec3');
+    if(cb) cb.checked=false;
+  }
 }
 
 function openAutoDrawModal(){
@@ -4766,18 +4799,19 @@ function _pairPlayCount(a,b,pairStats){
 
 // 혼복 1경기 온디맨드 생성
 // mustPlay: 직전 라운드 미배정 선수 → 우선 배정 (-1000점 보너스)
-function _genOneMixed(roundPlayers,prevPlayers,prevPrevPlayers,sortedM,sortedF,mSess,fSess,pairStats,usedCombos,mustPlay){
-  const isBlocked=p=>roundPlayers.has(p)||(prevPrevPlayers.has(p)&&prevPlayers.has(p));
+function _genOneMixed(roundPlayers,prevPlayers,prevPrevPlayers,sortedM,sortedF,mSess,fSess,pairStats,usedCombos,mustPlay,allowConsec3){
+  const isConsec3=p=>prevPrevPlayers.has(p)&&prevPlayers.has(p);
+  const isBlocked=p=>roundPlayers.has(p)||(!allowConsec3&&isConsec3(p));
   const poolM=[...sortedM].filter(p=>!isBlocked(p.name))
     .sort((a,b)=>{
-      const sa=(mustPlay.has(a.name)?-1000:0)+(mSess[a.name]||0);
-      const sb=(mustPlay.has(b.name)?-1000:0)+(mSess[b.name]||0);
+      const sa=(mustPlay.has(a.name)?-1000:0)+(allowConsec3&&isConsec3(a.name)?500:0)+(mSess[a.name]||0);
+      const sb=(mustPlay.has(b.name)?-1000:0)+(allowConsec3&&isConsec3(b.name)?500:0)+(mSess[b.name]||0);
       return sa-sb||sortedM.indexOf(a)-sortedM.indexOf(b);
     });
   const poolF=[...sortedF].filter(p=>!isBlocked(p.name))
     .sort((a,b)=>{
-      const sa=(mustPlay.has(a.name)?-1000:0)+(fSess[a.name]||0);
-      const sb=(mustPlay.has(b.name)?-1000:0)+(fSess[b.name]||0);
+      const sa=(mustPlay.has(a.name)?-1000:0)+(allowConsec3&&isConsec3(a.name)?500:0)+(fSess[a.name]||0);
+      const sb=(mustPlay.has(b.name)?-1000:0)+(allowConsec3&&isConsec3(b.name)?500:0)+(fSess[b.name]||0);
       return sa-sb||sortedF.indexOf(a)-sortedF.indexOf(b);
     });
   if(poolM.length<2||poolF.length<2) return null;
@@ -4801,13 +4835,14 @@ function _genOneMixed(roundPlayers,prevPlayers,prevPrevPlayers,sortedM,sortedF,m
 
 // 남복/여복 1경기 온디맨드 생성
 // type: 'mens'|'womens', sorted: 해당 성별 랭킹순 배열, sess: 세션 내 게임수 맵
-function _genOneSameGender(type,roundPlayers,prevPlayers,prevPrevPlayers,prevMensPlayers,sorted,sess,pairStats,usedCombos,mustPlay){
+function _genOneSameGender(type,roundPlayers,prevPlayers,prevPrevPlayers,prevMensPlayers,sorted,sess,pairStats,usedCombos,mustPlay,allowConsec3){
   const isMens=type==='mens';
-  const isBlocked=p=>roundPlayers.has(p)||(prevPrevPlayers.has(p)&&prevPlayers.has(p))||(isMens&&prevMensPlayers.has(p));
+  const isConsec3=p=>prevPrevPlayers.has(p)&&prevPlayers.has(p);
+  const isBlocked=p=>roundPlayers.has(p)||(!allowConsec3&&isConsec3(p))||(isMens&&prevMensPlayers.has(p));
   const pool=[...sorted].filter(p=>!isBlocked(p.name))
     .sort((a,b)=>{
-      const sa=(mustPlay.has(a.name)?-1000:0)+(sess[a.name]||0);
-      const sb=(mustPlay.has(b.name)?-1000:0)+(sess[b.name]||0);
+      const sa=(mustPlay.has(a.name)?-1000:0)+(allowConsec3&&isConsec3(a.name)?500:0)+(sess[a.name]||0);
+      const sb=(mustPlay.has(b.name)?-1000:0)+(allowConsec3&&isConsec3(b.name)?500:0)+(sess[b.name]||0);
       return sa-sb||sorted.indexOf(a)-sorted.indexOf(b);
     });
   if(pool.length<4) return null;
@@ -4831,7 +4866,7 @@ function _genOneSameGender(type,roundPlayers,prevPlayers,prevPrevPlayers,prevMen
 // 생성+스케줄 통합 함수 ─ 한 경기씩 생성하면서 즉시 라운드 배정
 // 현재 라운드 상태(prevPlayers, prevMensPlayers 등)를 알면서 생성하므로
 // 구조적으로 3연속·남복연속 위반이 발생하지 않음
-function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds){
+function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,allowConsec3){
   const remaining={mixed:counts.mixed,mens:counts.mens,womens:counts.womens};
   const generated={mixed:0,mens:0,womens:0};
   const scheduled=[];
@@ -4863,13 +4898,13 @@ function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds){
         let match=null;
         if(type==='mixed'){
           match=_genOneMixed(roundPlayers,prevPlayers,prevPrevPlayers,
-            sortedM,sortedF,mSess,fSess,pairStats,usedCombos.mixed,mustPlay);
+            sortedM,sortedF,mSess,fSess,pairStats,usedCombos.mixed,mustPlay,allowConsec3);
         } else if(type==='mens'){
           match=_genOneSameGender('mens',roundPlayers,prevPlayers,prevPrevPlayers,
-            prevMensPlayers,sortedM,mensSess,pairStats,usedCombos.mens,mustPlay);
+            prevMensPlayers,sortedM,mensSess,pairStats,usedCombos.mens,mustPlay,allowConsec3);
         } else {
           match=_genOneSameGender('womens',roundPlayers,prevPlayers,prevPrevPlayers,
-            new Set(),sortedF,womensSess,pairStats,usedCombos.womens,mustPlay);
+            new Set(),sortedF,womensSess,pairStats,usedCombos.womens,mustPlay,allowConsec3);
         }
         if(match){
           remaining[type]--;
@@ -4956,8 +4991,9 @@ async function generateAutoDrawCards(){
     const hrsVal=parseInt(document.getElementById('auto-time-hrs')&&document.getElementById('auto-time-hrs').value)||4;
     const maxRounds=Math.floor(hrsVal*1.5); // 4시간→6라운드, 3시간→4라운드
     // 생성+스케줄 통합 — 현재 라운드 제약 인식하면서 한 경기씩 생성·배정
+    const allowConsec3=!!(document.getElementById('auto-allow-consec3')?.checked);
     const scheduled=_genAndSchedule(sortedM,sortedF,pairStats,
-      {mixed:mixedCnt,mens:mensCnt,womens:womensCnt},courtCount,maxRounds);
+      {mixed:mixedCnt,mens:mensCnt,womens:womensCnt},courtCount,maxRounds,allowConsec3);
     const totalMade=scheduled.length;
     if(totalMade===0){
       const w=document.getElementById('auto-draw-warn');
