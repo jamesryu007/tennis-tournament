@@ -469,10 +469,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 /* ── 자동대진 모달 ── */
 #auto-draw-modal .type-label { font-size:1.05rem; font-weight:800; flex:1; }
 #auto-draw-modal select { font-size:1rem; font-weight:700; padding:9px 10px; border:2px solid #e2e8f0; border-radius:12px; background:#f8fafc; color:#1e293b; font-family:inherit; cursor:pointer; width:115px; flex-shrink:0; }
-#auto-draw-modal .court-row { background:linear-gradient(135deg,rgba(13,148,136,0.07),rgba(16,185,129,0.05)); border-radius:14px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+#auto-draw-modal .court-row { background:linear-gradient(135deg,rgba(13,148,136,0.07),rgba(16,185,129,0.05)); border-radius:14px; padding:9px 14px; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
 #auto-draw-modal .court-row .type-label { font-size:1.1rem; }
-#auto-draw-modal .court-row select { width:130px; font-size:1.05rem; padding:10px 12px; border-color:#0d9488; }
-#auto-draw-modal .type-row { background:linear-gradient(135deg,rgba(13,148,136,0.07),rgba(16,185,129,0.05)); border-radius:14px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+#auto-draw-modal .court-row select { width:130px; font-size:1.05rem; padding:7px 10px; border-color:#0d9488; }
+#auto-draw-modal .type-row { background:linear-gradient(135deg,rgba(13,148,136,0.07),rgba(16,185,129,0.05)); border-radius:14px; padding:9px 14px; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
 
 
 /* ── PARTICIPANT CHECKBOXES ── */
@@ -1699,8 +1699,8 @@ const firebaseConfig = {
       <span class="modal-round">🎾 자동 대진 생성</span>
       <button class="modal-close" onclick="closeAutoDrawModal()">✕</button>
     </div>
-    <div id="auto-draw-scroll" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px 28px;overscroll-behavior:contain">
-      <div id="auto-draw-attendees" style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:0.93rem;font-weight:600;color:#166534;line-height:1.65"></div>
+    <div id="auto-draw-scroll" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 16px 16px;overscroll-behavior:contain">
+      <div id="auto-draw-attendees" style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:8px 12px;margin-bottom:10px;font-size:0.93rem;font-weight:600;color:#166534;line-height:1.55"></div>
       <div>
         <div class="court-row">
           <span class="type-label" style="color:#0f766e">🎾 코트 수</span>
@@ -1708,7 +1708,7 @@ const firebaseConfig = {
             <option value="1">1코트</option><option value="2" selected>2코트</option><option value="3">3코트</option><option value="4">4코트</option><option value="5">5코트</option>
           </select>
         </div>
-        <div class="court-row" style="margin-top:8px">
+        <div class="court-row" style="margin-top:6px">
           <span class="type-label" style="color:#0f766e">⏱ 경기 시간</span>
           <select id="auto-time-hrs" onchange="autoRecommendGames()">
             <option value="2">2시간</option><option value="3">3시간</option><option value="4" selected>4시간</option><option value="5">5시간</option><option value="6">6시간</option><option value="7">7시간</option><option value="8">8시간</option>
@@ -1737,7 +1737,7 @@ const firebaseConfig = {
           <span style="font-weight:700;color:#92400e">체력 부담 감수하고 전 경기 생성</span>
         </label>
       </div>
-      <button id="auto-draw-submit-btn" onclick="generateAutoDrawCards()" style="width:100%;margin-top:18px;padding:14px;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.3px">대진 생성</button>
+      <button id="auto-draw-submit-btn" onclick="generateAutoDrawCards()" style="width:100%;margin-top:12px;padding:12px;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.3px">대진 생성</button>
     </div>
   </div>
 </div>
@@ -2360,7 +2360,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v606';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v607';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
