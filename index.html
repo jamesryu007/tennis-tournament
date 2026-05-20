@@ -1693,13 +1693,13 @@ const firebaseConfig = {
 
 <!-- ══ AUTO DRAW MODAL ══ -->
 <div class="modal-overlay" id="auto-draw-modal">
-  <div class="modal" style="max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch">
+  <div class="modal" style="height:88vh;display:flex;flex-direction:column">
     <div class="modal-handle"></div>
-    <div class="modal-header">
+    <div class="modal-header" style="flex-shrink:0">
       <span class="modal-round">🎾 자동 대진 생성</span>
       <button class="modal-close" onclick="closeAutoDrawModal()">✕</button>
     </div>
-    <div style="padding:14px 16px 28px">
+    <div style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px 28px;overscroll-behavior:contain">
       <div id="auto-draw-attendees" style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:0.93rem;font-weight:600;color:#166534;line-height:1.65"></div>
       <div>
         <div class="court-row">
@@ -1744,7 +1744,7 @@ const firebaseConfig = {
 
 <!-- ══ DRAW ANALYSIS MODAL ══ -->
 <div class="modal-overlay" id="draw-analysis-modal">
-  <div class="modal" style="max-height:92vh;display:flex;flex-direction:column">
+  <div class="modal" style="height:88vh;display:flex;flex-direction:column">
     <div class="modal-handle"></div>
     <div class="modal-header" style="flex-shrink:0">
       <span class="modal-round">📊 대진 분석</span>
@@ -2360,7 +2360,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v595';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v596';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4531,6 +4531,7 @@ function openAutoDrawModal(){
   document.getElementById('auto-draw-warn').style.display='none';
   autoRecommendGames(); // 참석자/코트/시간 기준 경기수 자동 추천
   const modal=document.getElementById('auto-draw-modal');
+  document.body.style.overflow='hidden';
   modal.classList.add('open');
   // 오른쪽 스와이프 → 오른쪽으로 스르르 사라지며 닫기 (한 번만 등록)
   if(!modal._swipeAdded){
@@ -4574,6 +4575,7 @@ function openAutoDrawModal(){
 
 function closeAutoDrawModal(){
   document.getElementById('auto-draw-modal').classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 // ── 대진 분석 모달 ───────────────────────────────────────────────────
@@ -4582,6 +4584,7 @@ function openDrawAnalysisModal(){
   if(!data){alert('자동 대진이 생성되지 않았습니다.');return;}
   document.getElementById('draw-analysis-inner').innerHTML=_renderDrawAnalysis(data);
   const modal=document.getElementById('draw-analysis-modal');
+  document.body.style.overflow='hidden';
   modal.classList.add('open');
   // 오른쪽 스와이프 → 오른쪽으로 스르르 사라지며 닫기 (한 번만 등록)
   if(!modal._swipeAdded){
@@ -4625,6 +4628,7 @@ function openDrawAnalysisModal(){
 
 function closeDrawAnalysisModal(){
   document.getElementById('draw-analysis-modal').classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 async function shareDrawAnalysis(){
