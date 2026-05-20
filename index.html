@@ -2360,7 +2360,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v579';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v580';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4501,8 +4501,13 @@ function _checkAutoConsec3(){
     (parseInt(document.getElementById('auto-womens-cnt').value)||0);
   const notice=document.getElementById('auto-consec3-notice');
   if(!notice) return;
-  // courts*4 >= 참가자 수이면 매 라운드 전원 출전 → 2라운드 후 3연속 불가피
-  const unavoidable=attendees.length>0 && courts*4>=attendees.length && Math.ceil(totalGames/courts)>2;
+  // 3라운드에서 활용 가능한 "최소 1회 쉰" 선수 최대 = 2 × (N - courts×4)
+  // 이 값이 courts×4 미만이면 3연속 불가피: N < courts × 6
+  const playersPerRound=courts*4;
+  const unavoidable=attendees.length>0
+    && playersPerRound<=attendees.length        // 코트 채울 인원은 있음
+    && attendees.length<courts*6                // 3연속 회피 불가
+    && Math.ceil(totalGames/courts)>2;          // 3라운드 이상 필요
   notice.style.display=unavoidable?'':'none';
   if(!unavoidable){
     const cb=document.getElementById('auto-allow-consec3');
