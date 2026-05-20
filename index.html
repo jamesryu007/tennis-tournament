@@ -2350,7 +2350,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v566';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v567';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -16520,14 +16520,29 @@ async function bzMenuShare() {
     if (meta.mediaType === 'notice') {
       const bubbleEl = document.querySelector(`[data-bzkey="${key}"] [data-bzbubble="1"]`);
       if (bubbleEl && typeof html2canvas !== 'undefined') {
-        const canvas = await html2canvas(bubbleEl, { scale: 2, useCORS: true, backgroundColor: null, logging: false });
-        const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-        if (blob) {
-          const file = new File([blob], 'notice.png', { type: 'image/png' });
-          if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            await navigator.share({ files: [file] });
-            return;
+        // 클론을 오프스크린에 더 넓게 배치 — 폰트 렌더링 차이로 텍스트가 잘리는 문제 방지
+        const clone = bubbleEl.cloneNode(true);
+        clone.style.position = 'fixed';
+        clone.style.left = '-9999px';
+        clone.style.top = '0';
+        clone.style.width = '320px';
+        clone.style.overflow = 'visible';
+        clone.style.borderRadius = '14px';
+        clone.style.zIndex = '-1';
+        document.body.appendChild(clone);
+        try {
+          const canvas = await html2canvas(clone, { scale: 2, useCORS: true, backgroundColor: null, logging: false });
+          const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+          if (blob) {
+            const file = new File([blob], 'notice.png', { type: 'image/png' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+              await navigator.share({ files: [file] });
+              document.body.removeChild(clone);
+              return;
+            }
           }
+        } finally {
+          if (clone.parentNode) document.body.removeChild(clone);
         }
       }
       // fallback: 텍스트 공유
