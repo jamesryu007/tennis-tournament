@@ -469,10 +469,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 /* ── 자동대진 모달 ── */
 #auto-draw-modal .type-label { font-size:1.05rem; font-weight:800; flex:1; }
 #auto-draw-modal select { font-size:1rem; font-weight:700; padding:9px 10px; border:2px solid #e2e8f0; border-radius:12px; background:#f8fafc; color:#1e293b; font-family:inherit; cursor:pointer; width:115px; flex-shrink:0; }
-#auto-draw-modal .court-row { background:linear-gradient(135deg,rgba(13,148,136,0.07),rgba(16,185,129,0.05)); border-radius:14px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+#auto-draw-modal .court-row { background:linear-gradient(135deg,rgba(13,148,136,0.07),rgba(16,185,129,0.05)); border-radius:14px; padding:9px 14px; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
 #auto-draw-modal .court-row .type-label { font-size:1.1rem; }
-#auto-draw-modal .court-row select { width:130px; font-size:1.05rem; padding:10px 12px; border-color:#0d9488; }
-#auto-draw-modal .type-row { background:linear-gradient(135deg,rgba(13,148,136,0.07),rgba(16,185,129,0.05)); border-radius:14px; padding:14px 16px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+#auto-draw-modal .court-row select { width:130px; font-size:1.05rem; padding:7px 10px; border-color:#0d9488; }
+#auto-draw-modal .type-row { background:linear-gradient(135deg,rgba(13,148,136,0.07),rgba(16,185,129,0.05)); border-radius:14px; padding:9px 14px; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
 
 
 /* ── PARTICIPANT CHECKBOXES ── */
@@ -529,8 +529,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 #notice-content-editor:empty:before { content: attr(data-placeholder); color: #94a3b8; pointer-events: none; }
 
 /* ── MODALS ── */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 100; align-items: flex-end; justify-content: center; overscroll-behavior: none; }
-#participant-modal { z-index: 110; }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 300; align-items: flex-end; justify-content: center; overscroll-behavior: none; }
+#participant-modal { z-index: 310; }
 #photo-edit-modal { z-index: 10001; }
 .modal-overlay.open { display: flex; }
 .modal { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
@@ -1546,7 +1546,7 @@ const firebaseConfig = {
         <div id="bz-chat-empty" style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:30px 0">아직 대화가 없습니다.<br>가명을 선택하고 첫 메시지를 남겨보세요!</div>
       </div>
       <div id="bz-photo-grid" style="display:none;flex:1 1 auto;overflow-y:auto;background:#f0f4fb"></div>
-      <div id="bz-restaurant-tab" style="display:none;flex:1 1 auto;overflow-y:auto;background:#f8fafc;padding:12px"></div>
+      <div id="bz-restaurant-tab" style="display:none;flex:1 1 auto;overflow-y:auto;overflow-x:hidden;background:#f8fafc;padding:12px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y"></div>
 
       <!-- 메시지 컨텍스트 메뉴 -->
       <div id="bz-msg-menu" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9100;background:rgba(0,0,0,0.32)" onclick="bzCloseMsgMenu()">
@@ -1693,14 +1693,14 @@ const firebaseConfig = {
 
 <!-- ══ AUTO DRAW MODAL ══ -->
 <div class="modal-overlay" id="auto-draw-modal">
-  <div class="modal">
+  <div class="modal" style="height:88vh;display:flex;flex-direction:column">
     <div class="modal-handle"></div>
-    <div class="modal-header">
+    <div class="modal-header" style="flex-shrink:0">
       <span class="modal-round">🎾 자동 대진 생성</span>
       <button class="modal-close" onclick="closeAutoDrawModal()">✕</button>
     </div>
-    <div style="padding:14px 16px 28px">
-      <div id="auto-draw-attendees" style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:0.93rem;font-weight:600;color:#166534;line-height:1.65"></div>
+    <div id="auto-draw-scroll" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 16px 16px;overscroll-behavior:contain">
+      <div id="auto-draw-attendees" style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:8px 12px;margin-bottom:10px;font-size:0.93rem;font-weight:600;color:#166534;line-height:1.55"></div>
       <div>
         <div class="court-row">
           <span class="type-label" style="color:#0f766e">🎾 코트 수</span>
@@ -1708,7 +1708,7 @@ const firebaseConfig = {
             <option value="1">1코트</option><option value="2" selected>2코트</option><option value="3">3코트</option><option value="4">4코트</option><option value="5">5코트</option>
           </select>
         </div>
-        <div class="court-row" style="margin-top:8px">
+        <div class="court-row" style="margin-top:6px">
           <span class="type-label" style="color:#0f766e">⏱ 경기 시간</span>
           <select id="auto-time-hrs" onchange="autoRecommendGames()">
             <option value="2">2시간</option><option value="3">3시간</option><option value="4" selected>4시간</option><option value="5">5시간</option><option value="6">6시간</option><option value="7">7시간</option><option value="8">8시간</option>
@@ -1737,14 +1737,14 @@ const firebaseConfig = {
           <span style="font-weight:700;color:#92400e">체력 부담 감수하고 전 경기 생성</span>
         </label>
       </div>
-      <button id="auto-draw-submit-btn" onclick="generateAutoDrawCards()" style="width:100%;margin-top:18px;padding:14px;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.3px">대진 생성</button>
+      <button id="auto-draw-submit-btn" onclick="generateAutoDrawCards()" style="width:100%;margin-top:12px;padding:12px;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.3px">대진 생성</button>
     </div>
   </div>
 </div>
 
 <!-- ══ DRAW ANALYSIS MODAL ══ -->
 <div class="modal-overlay" id="draw-analysis-modal">
-  <div class="modal" style="max-height:92vh;display:flex;flex-direction:column">
+  <div class="modal" style="height:88vh;display:flex;flex-direction:column">
     <div class="modal-handle"></div>
     <div class="modal-header" style="flex-shrink:0">
       <span class="modal-round">📊 대진 분석</span>
@@ -1761,13 +1761,13 @@ const firebaseConfig = {
 
 <!-- ══ PHOTO UPLOAD MODAL ══ -->
 <div class="modal-overlay" id="photo-upload-modal">
-  <div class="modal" style="max-height:90vh;display:flex;flex-direction:column;overscroll-behavior:contain;">
+  <div class="modal" style="height:88vh;display:flex;flex-direction:column;overscroll-behavior:contain;">
     <div class="modal-handle"></div>
-    <div class="modal-header">
+    <div class="modal-header" style="flex-shrink:0">
       <span class="modal-round">📷 사진 올리기</span>
       <button class="modal-close" onclick="closePhotoUpload()">✕</button>
     </div>
-    <div style="overflow-y:auto;flex:1;padding:14px 16px 24px">
+    <div id="photo-upload-scroll" style="overflow-y:auto;flex:1;padding:14px 16px 24px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain">
       <!-- 파일 선택 -->
       <div id="photo-drop-area" onclick="document.getElementById('photo-file-input').click()" style="border:2px dashed #c7d2fe;border-radius:14px;padding:28px 16px;text-align:center;cursor:pointer;background:#f5f7ff;margin-bottom:14px;-webkit-tap-highlight-color:transparent">
         <div id="photo-preview-wrap" style="display:none;margin-bottom:10px">
@@ -2360,7 +2360,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v588';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v607';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -3490,16 +3490,59 @@ function openPhotoUpload() {
   chips.innerHTML = state.members.map(m =>
     `<div class="member-chip" id="pchip-${m.name}" onclick="_togglePhotoMemberChip('${m.name}')">${m.name}</div>`
   ).join('');
-  document.getElementById('photo-upload-modal').classList.add('open');
+  const modal = document.getElementById('photo-upload-modal');
+  document.body.style.overflow = 'hidden';
+  modal.classList.add('open');
+  // iOS 스크롤 freeze 해제
+  setTimeout(() => { const s = document.getElementById('photo-upload-scroll'); if (s) { s.scrollTop += 1; s.scrollTop -= 1; } }, 50);
   // iOS PWA 키보드 오픈 시 배경 비침 방지
   document.querySelectorAll('.page.active').forEach(p => {
     p.dataset.puHidden = '1';
     p.style.visibility = 'hidden';
   });
+  // 오른쪽 스와이프 → 오른쪽으로 스르르 사라지며 닫기 (한 번만 등록)
+  if (!modal._swipeAdded) {
+    modal._swipeAdded = true;
+    let _sx = 0, _sy = 0;
+    const inner = modal.querySelector('.modal');
+    modal.addEventListener('touchstart', e => {
+      _sx = e.touches[0].clientX; _sy = e.touches[0].clientY;
+      if (inner) inner.style.transition = 'none';
+    }, {passive: true});
+    modal.addEventListener('touchmove', e => {
+      const dx = e.touches[0].clientX - _sx;
+      const dy = Math.abs(e.touches[0].clientY - _sy);
+      if (dx > 0 && dy < 60 && inner) {
+        inner.style.transform = `translateX(${dx}px)`;
+        modal.style.background = `rgba(15,23,42,${Math.max(0, 0.75 * (1 - dx / window.innerWidth))})`;
+      }
+    }, {passive: true});
+    modal.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - _sx;
+      const dy = Math.abs(e.changedTouches[0].clientY - _sy);
+      if (dx > window.innerWidth * 0.3 && dy < 60 && inner) {
+        inner.style.transition = 'transform 0.25s cubic-bezier(0.4,0,1,1)';
+        modal.style.transition = 'background 0.25s';
+        inner.style.transform = `translateX(${window.innerWidth}px)`;
+        modal.style.background = 'rgba(15,23,42,0)';
+        setTimeout(() => {
+          closePhotoUpload();
+          inner.style.transition = ''; inner.style.transform = '';
+          modal.style.transition = ''; modal.style.background = '';
+        }, 250);
+      } else if (inner) {
+        inner.style.transition = 'transform 0.2s ease';
+        inner.style.transform = '';
+        modal.style.background = '';
+        setTimeout(() => { inner.style.transition = ''; }, 200);
+      }
+    }, {passive: true});
+  }
 }
 
 function closePhotoUpload() {
   document.getElementById('photo-upload-modal').classList.remove('open');
+  document.body.style.overflow = '';
   document.querySelectorAll('.page[data-pu-hidden]').forEach(p => {
     p.style.visibility = '';
     delete p.dataset.puHidden;
@@ -4530,11 +4573,66 @@ function openAutoDrawModal(){
   }
   document.getElementById('auto-draw-warn').style.display='none';
   autoRecommendGames(); // 참석자/코트/시간 기준 경기수 자동 추천
-  document.getElementById('auto-draw-modal').classList.add('open');
+  const modal=document.getElementById('auto-draw-modal');
+  document.body.style.overflow='hidden';
+  modal.classList.add('open');
+  // iOS 스크롤 freeze 해제 + rubber-band 차단
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const s=document.getElementById('auto-draw-scroll');
+    if(!s)return;
+    s.scrollTop+=1;s.scrollTop-=1;
+    if(s._bzBoundaryLocked)return;
+    s._bzBoundaryLocked=true;
+    let _ty=0;
+    s.addEventListener('touchstart',e=>{_ty=e.touches[0].clientY;},{passive:true});
+    s.addEventListener('touchmove',e=>{
+      const dy=e.touches[0].clientY-_ty;
+      if((s.scrollTop<=0&&dy>0)||(s.scrollTop+s.clientHeight>=s.scrollHeight-1&&dy<0))e.preventDefault();
+    },{passive:false});
+  }));
+  // 오른쪽 스와이프 → 오른쪽으로 스르르 사라지며 닫기 (한 번만 등록)
+  if(!modal._swipeAdded){
+    modal._swipeAdded=true;
+    let _sx=0,_sy=0;
+    const inner=modal.querySelector('.modal');
+    modal.addEventListener('touchstart',e=>{
+      _sx=e.touches[0].clientX;_sy=e.touches[0].clientY;
+      if(inner) inner.style.transition='none';
+    },{passive:true});
+    modal.addEventListener('touchmove',e=>{
+      const dx=e.touches[0].clientX-_sx;
+      const dy=Math.abs(e.touches[0].clientY-_sy);
+      if(dx>0&&dy<60&&inner){
+        inner.style.transform=`translateX(${dx}px)`;
+        modal.style.background=`rgba(15,23,42,${Math.max(0,0.75*(1-dx/window.innerWidth))})`;
+      }
+    },{passive:true});
+    modal.addEventListener('touchend',e=>{
+      const dx=e.changedTouches[0].clientX-_sx;
+      const dy=Math.abs(e.changedTouches[0].clientY-_sy);
+      if(dx>window.innerWidth*0.3&&dy<60&&inner){
+        inner.style.transition='transform 0.25s cubic-bezier(0.4,0,1,1)';
+        modal.style.transition='background 0.25s';
+        inner.style.transform=`translateX(${window.innerWidth}px)`;
+        modal.style.background='rgba(15,23,42,0)';
+        setTimeout(()=>{
+          closeAutoDrawModal();
+          inner.style.transition='';inner.style.transform='';
+          modal.style.transition='';modal.style.background='';
+        },250);
+      } else if(inner){
+        inner.style.transition='transform 0.2s ease';
+        inner.style.transform='';
+        modal.style.background='';
+        setTimeout(()=>{inner.style.transition='';},200);
+      }
+    },{passive:true});
+  }
 }
 
 function closeAutoDrawModal(){
   document.getElementById('auto-draw-modal').classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 // ── 대진 분석 모달 ───────────────────────────────────────────────────
@@ -4542,11 +4640,66 @@ function openDrawAnalysisModal(){
   const data=_computeDrawAnalysis();
   if(!data){alert('자동 대진이 생성되지 않았습니다.');return;}
   document.getElementById('draw-analysis-inner').innerHTML=_renderDrawAnalysis(data);
-  document.getElementById('draw-analysis-modal').classList.add('open');
+  const modal=document.getElementById('draw-analysis-modal');
+  document.body.style.overflow='hidden';
+  modal.classList.add('open');
+  // iOS 스크롤 freeze 해제 + rubber-band 차단
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const s=document.getElementById('draw-analysis-scroll');
+    if(!s)return;
+    s.scrollTop+=1;s.scrollTop-=1;
+    if(s._bzBoundaryLocked)return;
+    s._bzBoundaryLocked=true;
+    let _ty=0;
+    s.addEventListener('touchstart',e=>{_ty=e.touches[0].clientY;},{passive:true});
+    s.addEventListener('touchmove',e=>{
+      const dy=e.touches[0].clientY-_ty;
+      if((s.scrollTop<=0&&dy>0)||(s.scrollTop+s.clientHeight>=s.scrollHeight-1&&dy<0))e.preventDefault();
+    },{passive:false});
+  }));
+  // 오른쪽 스와이프 → 오른쪽으로 스르르 사라지며 닫기 (한 번만 등록)
+  if(!modal._swipeAdded){
+    modal._swipeAdded=true;
+    let _sx=0,_sy=0;
+    const inner=modal.querySelector('.modal');
+    modal.addEventListener('touchstart',e=>{
+      _sx=e.touches[0].clientX;_sy=e.touches[0].clientY;
+      if(inner) inner.style.transition='none';
+    },{passive:true});
+    modal.addEventListener('touchmove',e=>{
+      const dx=e.touches[0].clientX-_sx;
+      const dy=Math.abs(e.touches[0].clientY-_sy);
+      if(dx>0&&dy<60&&inner){
+        inner.style.transform=`translateX(${dx}px)`;
+        modal.style.background=`rgba(15,23,42,${Math.max(0,0.75*(1-dx/window.innerWidth))})`;
+      }
+    },{passive:true});
+    modal.addEventListener('touchend',e=>{
+      const dx=e.changedTouches[0].clientX-_sx;
+      const dy=Math.abs(e.changedTouches[0].clientY-_sy);
+      if(dx>window.innerWidth*0.3&&dy<60&&inner){
+        inner.style.transition='transform 0.25s cubic-bezier(0.4,0,1,1)';
+        modal.style.transition='background 0.25s';
+        inner.style.transform=`translateX(${window.innerWidth}px)`;
+        modal.style.background='rgba(15,23,42,0)';
+        setTimeout(()=>{
+          closeDrawAnalysisModal();
+          inner.style.transition='';inner.style.transform='';
+          modal.style.transition='';modal.style.background='';
+        },250);
+      } else if(inner){
+        inner.style.transition='transform 0.2s ease';
+        inner.style.transform='';
+        modal.style.background='';
+        setTimeout(()=>{inner.style.transition='';},200);
+      }
+    },{passive:true});
+  }
 }
 
 function closeDrawAnalysisModal(){
   document.getElementById('draw-analysis-modal').classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 async function shareDrawAnalysis(){
@@ -5197,6 +5350,15 @@ function addDailyMatchCard(){
   }).catch(()=>_doAdd());
 }
 
+// 경기카드 내 본인 이름 주황 pill 하이라이트
+function _hlMemberStr(players, myName) {
+  if (!players || players.length < 2) return '?-?';
+  const hl = n => n === myName
+    ? `<span style="background:#f59e0b;color:#fff;font-weight:800;border-radius:4px;padding:0 4px;font-size:inherit">${n}</span>`
+    : n;
+  return `${hl(players[0])}-${hl(players[1])}`;
+}
+
 function _renderDailyCard(id){
   const d=_dailyCards[id];
   const el=document.getElementById(`daily-card-${id}`);
@@ -5232,12 +5394,12 @@ function _renderDailyCard(id){
     const canStart=canManage||isParticipant;
     const left=`<div class="dc-team-left">
       <button class="dc-team-btn${t0f?' filled':''}${canManage?'':' readonly'}"${canManage?`onclick="openDailyPick('${id}',0)"`:' disabled'}>
-        ${t0f?`<div class="dc-tnick">${t0.nick}</div><div class="dc-tmembers">${t0.memberStr}</div>`:'팀 A'}
+        ${t0f?`<div class="dc-tnick">${t0.nick}</div><div class="dc-tmembers">${_hlMemberStr(d.team0,_curName)}</div>`:'팀 A'}
       </button>
     </div>`;
     const right=`<div class="dc-team-right">
       <button class="dc-team-btn${t1f?' filled':''}${canManage?'':' readonly'}"${canManage?`onclick="openDailyPick('${id}',1)"`:' disabled'}>
-        ${t1f?`<div class="dc-tnick">${t1.nick}</div><div class="dc-tmembers">${t1.memberStr}</div>`:'팀 B'}
+        ${t1f?`<div class="dc-tnick">${t1.nick}</div><div class="dc-tmembers">${_hlMemberStr(d.team1,_curName)}</div>`:'팀 B'}
       </button>
     </div>`;
     const mid=`<button class="dc-start-btn" onclick="startDailyMatch('${id}')"${t0f&&t1f&&canStart?'':' disabled'}>시작</button>`;
@@ -5247,11 +5409,11 @@ function _renderDailyCard(id){
     const t0=_getTeamDisplay(d.team0),t1=_getTeamDisplay(d.team1);
     const left=`<div class="dc-team-left">
       <div class="dc-tnick">${t0.nick}</div>
-      <div class="dc-tmembers">${t0.memberStr}</div>
+      <div class="dc-tmembers">${_hlMemberStr(d.team0,_curName)}</div>
     </div>`;
     const right=`<div class="dc-team-right">
       <div class="dc-tnick">${t1.nick}</div>
-      <div class="dc-tmembers">${t1.memberStr}</div>
+      <div class="dc-tmembers">${_hlMemberStr(d.team1,_curName)}</div>
     </div>`;
     const canScore=canEditDailyScore(d);
     const mid=`<button class="dc-score-reg-btn"${canScore?`onclick="openDailyScore('${id}')"`:' disabled'}>🎾<br>점수<br>등록</button>`;
@@ -5291,14 +5453,14 @@ function _renderDailyCard(id){
       ${l0Emoji}
       ${l0Bagel}
       <div class="dc-tnick">${t0.nick}</div>
-      <div class="dc-tmembers">${t0.memberStr}</div>
+      <div class="dc-tmembers">${_hlMemberStr(d.team0,_curName)}</div>
       ${l0Badge}
     </div>`;
     const right=`<div class="dc-team-right" onclick="openDailyScore('${id}')" style="cursor:pointer">
       ${r1Emoji}
       ${r1Bagel}
       <div class="dc-tnick">${t1.nick}</div>
-      <div class="dc-tmembers">${t1.memberStr}</div>
+      <div class="dc-tmembers">${_hlMemberStr(d.team1,_curName)}</div>
       ${r1Badge}
     </div>`;
     el.innerHTML=mkCard(`✅ ${d.label||`경기${d.num}`}`, left, mid, right, _winnerBg(d.winner, id));
@@ -14105,6 +14267,21 @@ function bzShowRoom() {
       if (_bzDragging) doSnapBack();
       _bzSX = _bzSY = null; _bzDragging = false; _bzIsHoriz = null;
     }, { passive: true });
+
+    // 스크롤 가능 서브탭 — 경계에서 iOS rubber-band 차단 (한 번만 등록)
+    ['bz-restaurant-tab', 'bz-chat-area', 'bz-photo-tab'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el || el._bzBoundaryLocked) return;
+      el._bzBoundaryLocked = true;
+      let _ty = 0;
+      el.addEventListener('touchstart', e => { _ty = e.touches[0].clientY; }, { passive: true });
+      el.addEventListener('touchmove', e => {
+        const dy = e.touches[0].clientY - _ty;
+        const atTop    = el.scrollTop <= 0;
+        const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+        if ((atTop && dy > 0) || (atBottom && dy < 0)) e.preventDefault();
+      }, { passive: false });
+    });
   }
 
   _bzFirstRender = true;
@@ -15182,7 +15359,49 @@ function bzOpenRestoModal(editId) {
   const delBtn = document.getElementById('bz-resto-delete-btn');
   if (delBtn) delBtn.style.display = editId ? 'block' : 'none';
   const modal = document.getElementById('bz-resto-modal');
-  if (modal) modal.style.display = 'flex';
+  if (!modal) return;
+  document.body.style.overflow = 'hidden';
+  modal.style.display = 'flex';
+  // iOS 스크롤 freeze 해제
+  setTimeout(() => { const s = modal.querySelector('div'); if (s) { s.scrollTop += 1; s.scrollTop -= 1; } }, 50);
+  // 오른쪽 스와이프 → 오른쪽으로 스르르 사라지며 닫기 (한 번만 등록)
+  if (!modal._swipeAdded) {
+    modal._swipeAdded = true;
+    let _sx = 0, _sy = 0;
+    const inner = modal.querySelector('div');
+    modal.addEventListener('touchstart', e => {
+      _sx = e.touches[0].clientX; _sy = e.touches[0].clientY;
+      if (inner) inner.style.transition = 'none';
+    }, {passive: true});
+    modal.addEventListener('touchmove', e => {
+      const dx = e.touches[0].clientX - _sx;
+      const dy = Math.abs(e.touches[0].clientY - _sy);
+      if (dx > 0 && dy < 60 && inner) {
+        inner.style.transform = `translateX(${dx}px)`;
+        modal.style.background = `rgba(0,0,0,${Math.max(0, 0.45 * (1 - dx / window.innerWidth))})`;
+      }
+    }, {passive: true});
+    modal.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - _sx;
+      const dy = Math.abs(e.changedTouches[0].clientY - _sy);
+      if (dx > window.innerWidth * 0.3 && dy < 60 && inner) {
+        inner.style.transition = 'transform 0.25s cubic-bezier(0.4,0,1,1)';
+        modal.style.transition = 'background 0.25s';
+        inner.style.transform = `translateX(${window.innerWidth}px)`;
+        modal.style.background = 'rgba(0,0,0,0)';
+        setTimeout(() => {
+          bzCloseRestoModal();
+          inner.style.transition = ''; inner.style.transform = '';
+          modal.style.transition = ''; modal.style.background = '';
+        }, 250);
+      } else if (inner) {
+        inner.style.transition = 'transform 0.2s ease';
+        inner.style.transform = '';
+        modal.style.background = '';
+        setTimeout(() => { inner.style.transition = ''; }, 200);
+      }
+    }, {passive: true});
+  }
   if (!editId) setTimeout(_restoCheckClipboard, 300);
 }
 // ══ 공지사항 관리 ═══════════════════════════════════════════════════
@@ -15383,6 +15602,7 @@ async function bzMigrateImageSizes() {
 function bzCloseRestoModal() {
   const modal = document.getElementById('bz-resto-modal');
   if (modal) modal.style.display = 'none';
+  document.body.style.overflow = '';
   _restoEditId = null;
 }
 function _restoUpdateThemeButtons() {
@@ -17366,7 +17586,46 @@ function openMpCreateModal() {
     _bindMpTypeRadios();
   }
   document.body.style.overflow = 'hidden';
-  document.getElementById('mp-create-modal').classList.add('open');
+  const modal = document.getElementById('mp-create-modal');
+  modal.classList.add('open');
+  // 오른쪽 스와이프 → 오른쪽으로 스르르 사라지며 닫기 (한 번만 등록)
+  if (!modal._swipeAdded) {
+    modal._swipeAdded = true;
+    let _sx = 0, _sy = 0;
+    const inner = modal.querySelector('.modal-sheet');
+    modal.addEventListener('touchstart', e => {
+      _sx = e.touches[0].clientX; _sy = e.touches[0].clientY;
+      if (inner) inner.style.transition = 'none';
+    }, {passive: true});
+    modal.addEventListener('touchmove', e => {
+      const dx = e.touches[0].clientX - _sx;
+      const dy = Math.abs(e.touches[0].clientY - _sy);
+      if (dx > 0 && dy < 60 && inner) {
+        inner.style.transform = `translateX(${dx}px)`;
+        modal.style.background = `rgba(15,23,42,${Math.max(0, 0.75 * (1 - dx / window.innerWidth))})`;
+      }
+    }, {passive: true});
+    modal.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - _sx;
+      const dy = Math.abs(e.changedTouches[0].clientY - _sy);
+      if (dx > window.innerWidth * 0.3 && dy < 60 && inner) {
+        inner.style.transition = 'transform 0.25s cubic-bezier(0.4,0,1,1)';
+        modal.style.transition = 'background 0.25s';
+        inner.style.transform = `translateX(${window.innerWidth}px)`;
+        modal.style.background = 'rgba(15,23,42,0)';
+        setTimeout(() => {
+          closeMpCreateModal();
+          inner.style.transition = ''; inner.style.transform = '';
+          modal.style.transition = ''; modal.style.background = '';
+        }, 250);
+      } else if (inner) {
+        inner.style.transition = 'transform 0.2s ease';
+        inner.style.transform = '';
+        modal.style.background = '';
+        setTimeout(() => { inner.style.transition = ''; }, 200);
+      }
+    }, {passive: true});
+  }
 }
 function closeMpCreateModal() {
   document.getElementById('mp-create-modal').classList.remove('open');
@@ -18870,6 +19129,8 @@ function saveMpComment(key) {
   document.addEventListener('touchstart', function(e) {
     if (ptrRefreshing || e.touches.length !== 1) return;
     if (window.scrollY > 4) return;
+    // 모달 열려있으면 PTR 비활성화
+    if (document.querySelector('.modal-overlay.open')) return;
     // 막무가내 톡방 활성 시 PTR 비활성화
     const _bzEl = document.getElementById('bet-screen-banzige');
     if (_bzEl && _bzEl.style.position === 'fixed') return;
@@ -18883,6 +19144,8 @@ function saveMpComment(key) {
 
   document.addEventListener('touchmove', function(e) {
     if (!ptrActive) return;
+    // 모달 열려있으면 PTR 즉시 중단
+    if (document.querySelector('.modal-overlay.open')) { ptrActive = false; return; }
     const dy = e.touches[0].clientY - startY;
     const dx = Math.abs(e.touches[0].clientX - startX);
     if (dy < 0 || dx > dy * 0.75) {
@@ -19150,7 +19413,7 @@ function saveMpComment(key) {
 </div>
 
 <div id="bz-resto-modal" style="display:none;position:fixed;inset:0;z-index:730;background:rgba(0,0,0,0.45);align-items:flex-end" onclick="bzCloseRestoModal()">
-  <div style="width:100%;background:#fff;border-radius:20px 20px 0 0;padding:20px 16px max(env(safe-area-inset-bottom,24px),24px);max-height:88vh;overflow-y:auto" onclick="event.stopPropagation()">
+  <div style="width:100%;background:#f8fafc;border-radius:20px 20px 0 0;border-top:1.5px solid #e2e8f0;border-left:1.5px solid #e2e8f0;border-right:1.5px solid #e2e8f0;box-shadow:0 -6px 24px rgba(0,0,0,0.13);padding:20px 16px max(env(safe-area-inset-bottom,24px),24px);max-height:88vh;overflow-y:auto" onclick="event.stopPropagation()">
     <div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div id="bz-resto-modal-title" style="font-size:1rem;font-weight:800;color:#1e293b">🍽️ 단골맛집 등록</div>
