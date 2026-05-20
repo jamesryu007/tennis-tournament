@@ -2352,7 +2352,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v571';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v574';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -3297,6 +3297,8 @@ async function updateMatchStats(team0,team1,winner,nick0,nick1){
 // ══ 오늘의 추억 (사진첩) ══════════════════════════════════════════
 let _photoAllItems = [];          // 로드된 사진 누적 배열 [{key,data}]
 let _photoPageSize = 20;
+let _photoInitSize = 6;           // 첫 진입 시 초기 로드 수 (빠른 첫 화면)
+let _photoFirstLoad = true;       // 앱 첫 진입 여부 플래그
 let _photoHasMore = true;         // DB에 더 가져올 항목 있는지
 let _photoOldestTs = null;        // 페이지네이션 커서 (가장 오래된 createdAt)
 let _photoLatestTs = null;        // PTR 최적화: 마지막으로 동기화된 최신 createdAt
@@ -3330,16 +3332,18 @@ async function loadPhotos(reset = true) {
     _photoHasMore = true;
   }
   try {
-    let q = db.ref('jmt/photos').orderByChild('createdAt').limitToLast(_photoPageSize);
+    const _curPageSize = (reset && _photoFirstLoad) ? _photoInitSize : _photoPageSize;
+    if (reset) _photoFirstLoad = false;
+    let q = db.ref('jmt/photos').orderByChild('createdAt').limitToLast(_curPageSize);
     if (_photoOldestTs !== null) {
-      q = db.ref('jmt/photos').orderByChild('createdAt').endAt(_photoOldestTs - 1).limitToLast(_photoPageSize);
+      q = db.ref('jmt/photos').orderByChild('createdAt').endAt(_photoOldestTs - 1).limitToLast(_curPageSize);
     }
     const snap = await q.once('value');
     const val = snap.val() || {};
     const newItems = Object.entries(val)
       .map(([key, data]) => ({ key, data }))
       .sort((a, b) => (b.data.createdAt || 0) - (a.data.createdAt || 0));
-    if (newItems.length < _photoPageSize) _photoHasMore = false;
+    if (newItems.length < _curPageSize) _photoHasMore = false;
     if (newItems.length) {
       _photoOldestTs = newItems[newItems.length - 1].data.createdAt || 0;
       _photoAllItems = _photoAllItems.concat(newItems);
@@ -3370,10 +3374,29 @@ function _initPhotoScrollObserver() {
   if (!_photoHasMore) return;
   const sentinel = document.getElementById('photo-load-sentinel');
   if (!sentinel) return;
-  _photoScrollObserver = new IntersectionObserver(entries => {
-    if (entries[0].isIntersecting && !_photoLoading) loadMorePhotos();
-  }, { rootMargin: '0px 0px 100px 0px', threshold: 0 });
-  _photoScrollObserver.observe(sentinel);
+
+  const _attach = () => {
+    if (_photoScrollObserver) _photoScrollObserver.disconnect();
+    _photoScrollObserver = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && !_photoLoading) loadMorePhotos();
+    }, { rootMargin: '0px 0px 100px 0px', threshold: 0 });
+    _photoScrollObserver.observe(sentinel);
+  };
+
+  // sentinel이 이미 뷰포트 안 → 스크롤 감지 후 observer 연결 (즉시 발화 방지)
+  const rect = sentinel.getBoundingClientRect();
+  if (rect.top < window.innerHeight + 100) {
+    let _attached = false;
+    const _onScroll = () => {
+      if (_attached || !_photoHasMore) return;
+      _attached = true;
+      _attach();
+    };
+    window.addEventListener('scroll', _onScroll, { once: true, passive: true, capture: true });
+    document.getElementById('page-matches')?.addEventListener('scroll', _onScroll, { once: true, passive: true });
+  } else {
+    _attach();
+  }
 }
 
 
@@ -16900,6 +16923,8 @@ function _bzRenderMessages(phase, forceBottom) {
           area.scrollTop = 999999;
         }
         requestAnimationFrame(() => {
+          // 공개 직전 스크롤 재확인 — 이미지 로드로 인한 레이아웃 변화 흡수
+          if (!document.getElementById('bz-unread-divider')) area.scrollTop = 999999;
           area.style.transition = 'opacity 0.15s';
           area.style.opacity = '1';
           setTimeout(() => { area.style.transition = ''; }, 200);
