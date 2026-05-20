@@ -1506,6 +1506,8 @@ const firebaseConfig = {
           <button onclick="bzNewGame()" style="padding:7px 14px;border-radius:10px;border:1.5px solid #fcd34d;background:#fff;color:#92400e;font-size:0.8rem;font-weight:700;cursor:pointer">🔄 새 게임</button>
           <!-- 관리자: 맞추기 참여 현황 (guessing phase에서만 표시) -->
           <div id="bz-guess-status" style="display:none;width:100%;margin-top:4px"></div>
+          <!-- 이미지 크기 마이그레이션 — 1회 실행 후 버튼 사라짐 -->
+          <button id="bz-migrate-imgsize-btn" onclick="bzMigrateImageSizes()" style="padding:7px 14px;border-radius:10px;border:1.5px solid #94a3b8;background:#f8fafc;color:#64748b;font-size:0.75rem;font-weight:700;cursor:pointer">🔧 이미지 크기 보정</button>
         </div>
 
         <!-- 멤버 맞추기 섹션 (guessing phase) -->
@@ -2350,7 +2352,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v569';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v570';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -14716,7 +14718,7 @@ function bzSendPhoto(e) {
           if (!(_bzState && _bzState.entrants && _bzState.entrants[myName])) {
             db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
           }
-          const msgData = { alias: senderAlias, realName: myName, imageUrl, ts };
+          const msgData = { alias: senderAlias, realName: myName, imageUrl, imgW: w, imgH: h, ts };
           if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '', msgKey: _bzReplyTo.msgKey || '' };
           db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
           _bzTrimMessages();
@@ -15249,6 +15251,45 @@ async function deleteNotice(noticeId) {
   if (!confirm('이 공지를 삭제할까요?')) return;
   await db.ref('jmt/notices/' + noticeId).remove().catch(fbErr);
   _renderNoticeList();
+}
+
+// ── 이미지 크기 마이그레이션 (1회 실행) ─────────────────────────────
+// imageUrl은 있으나 imgW/imgH가 없는 메시지에 실제 이미지 크기를 측정해서 저장
+async function bzMigrateImageSizes() {
+  const btn = document.getElementById('bz-migrate-imgsize-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 작업 중...'; }
+  const snap = await db.ref(`${BZ_REF}/messages`).once('value');
+  const msgs = snap.val() || {};
+  const targets = Object.entries(msgs).filter(([, m]) => m.imageUrl && !m.imgW);
+  if (!targets.length) {
+    alert('보정할 이미지가 없습니다.');
+    if (btn) { btn.disabled = false; btn.textContent = '🔧 이미지 크기 보정'; }
+    return;
+  }
+  let done = 0;
+  const _measure = (url) => new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+  for (const [key, m] of targets) {
+    const size = await _measure(m.imageUrl);
+    if (size && size.w && size.h) {
+      // 업로드 시 max 600 리사이즈 기준 재적용
+      let { w, h } = size;
+      const MAX = 600;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      await db.ref(`${BZ_REF}/messages/${key}`).update({ imgW: w, imgH: h }).catch(fbErr);
+      done++;
+    }
+    if (btn) btn.textContent = `⏳ ${done}/${targets.length} 완료...`;
+  }
+  alert(`완료! ${done}개 이미지 크기 보정됨.`);
+  if (btn) btn.remove(); // 1회 실행 후 버튼 제거
 }
 
 function bzCloseRestoModal() {
@@ -16756,7 +16797,7 @@ function _bzRenderMessages(phase, forceBottom) {
       ? `<div data-bzbubble="1" style="padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder};display:inline-block">${replyBox}${_bzPhotoBundleGrid(_photos, keyEsc)}</div>`
       : imgSrc
       ? `<div data-bzbubble="1" style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
-          ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
+          ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;${m.imgW&&m.imgH?`aspect-ratio:${m.imgW}/${m.imgH};width:220px;`:'min-height:80px;'}border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
       : m.type === 'notice'
       ? `<div data-bzbubble="1" onclick="bzNoticeTap('${keyEsc}')" style="width:240px;border-radius:14px;overflow:hidden;border:2px solid #fcd34d;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.08);cursor:pointer;-webkit-tap-highlight-color:transparent">
@@ -16994,7 +17035,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
       ? `<div data-bzbubble="1" style="padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder};display:inline-block">${replyBox}${_bzPhotoBundleGrid(_photos, keyEsc)}</div>`
       : imgSrc
       ? `<div data-bzbubble="1" style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
-          ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
+          ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;${m.imgW&&m.imgH?`aspect-ratio:${m.imgW}/${m.imgH};width:220px;`:'min-height:80px;'}border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
         </div>`
       : m.type === 'notice'
       ? `<div data-bzbubble="1" onclick="bzNoticeTap('${keyEsc}')" style="width:240px;border-radius:14px;overflow:hidden;border:2px solid #fcd34d;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.08);cursor:pointer;-webkit-tap-highlight-color:transparent">
