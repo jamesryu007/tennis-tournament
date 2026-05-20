@@ -2360,7 +2360,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v599';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v600';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4561,9 +4561,9 @@ function openAutoDrawModal(){
         inner.style.transform=`translateX(${window.innerWidth}px)`;
         modal.style.background='rgba(15,23,42,0)';
         setTimeout(()=>{
+          closeAutoDrawModal();
           inner.style.transition='';inner.style.transform='';
           modal.style.transition='';modal.style.background='';
-          closeAutoDrawModal();
         },250);
       } else if(inner){
         inner.style.transition='transform 0.2s ease';
@@ -4616,9 +4616,9 @@ function openDrawAnalysisModal(){
         inner.style.transform=`translateX(${window.innerWidth}px)`;
         modal.style.background='rgba(15,23,42,0)';
         setTimeout(()=>{
+          closeDrawAnalysisModal();
           inner.style.transition='';inner.style.transform='';
           modal.style.transition='';modal.style.background='';
-          closeDrawAnalysisModal();
         },250);
       } else if(inner){
         inner.style.transition='transform 0.2s ease';
@@ -15308,9 +15308,9 @@ function bzOpenRestoModal(editId) {
         inner.style.transform = `translateX(${window.innerWidth}px)`;
         modal.style.background = 'rgba(0,0,0,0)';
         setTimeout(() => {
+          bzCloseRestoModal();
           inner.style.transition = ''; inner.style.transform = '';
           modal.style.transition = ''; modal.style.background = '';
-          bzCloseRestoModal();
         }, 250);
       } else if (inner) {
         inner.style.transition = 'transform 0.2s ease';
@@ -17532,9 +17532,9 @@ function openMpCreateModal() {
         inner.style.transform = `translateX(${window.innerWidth}px)`;
         modal.style.background = 'rgba(15,23,42,0)';
         setTimeout(() => {
+          closeMpCreateModal();
           inner.style.transition = ''; inner.style.transform = '';
           modal.style.transition = ''; modal.style.background = '';
-          closeMpCreateModal();
         }, 250);
       } else if (inner) {
         inner.style.transition = 'transform 0.2s ease';
