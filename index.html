@@ -1491,7 +1491,7 @@ const firebaseConfig = {
           </select>
           <div id="bz-alias-chips" style="display:flex;flex-wrap:wrap;gap:4px;flex:1"></div>
           <button id="bz-jinsil-btn" onclick="bzToggleJinsil()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#64748b;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">진실톡 OFF</button>
-          <button id="bz-notice-btn" onclick="openNoticeModal()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #2563eb;background:#eff6ff;color:#2563eb;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">📢 공지사항</button>
+          <button id="bz-notice-btn" onclick="openNoticeModal()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #fcd34d;background:#fffbeb;color:#92400e;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">📢 공지</button>
         </div>
         <div id="bz-alias-limit-msg" style="display:none;font-size:0.72rem;color:#dc2626;margin-bottom:4px">⚠️ 최대 2개의 가명만 사용할 수 있습니다.</div>
         <!-- 채팅중인 멤버 -->
@@ -1506,6 +1506,8 @@ const firebaseConfig = {
           <button onclick="bzNewGame()" style="padding:7px 14px;border-radius:10px;border:1.5px solid #fcd34d;background:#fff;color:#92400e;font-size:0.8rem;font-weight:700;cursor:pointer">🔄 새 게임</button>
           <!-- 관리자: 맞추기 참여 현황 (guessing phase에서만 표시) -->
           <div id="bz-guess-status" style="display:none;width:100%;margin-top:4px"></div>
+          <!-- 이미지 크기 마이그레이션 — 1회 실행 후 버튼 사라짐 -->
+          <button id="bz-migrate-imgsize-btn" onclick="bzMigrateImageSizes()" style="padding:7px 14px;border-radius:10px;border:1.5px solid #94a3b8;background:#f8fafc;color:#64748b;font-size:0.75rem;font-weight:700;cursor:pointer">🔧 이미지 크기 보정</button>
         </div>
 
         <!-- 멤버 맞추기 섹션 (guessing phase) -->
@@ -1535,7 +1537,8 @@ const firebaseConfig = {
       <div id="bz-alias-strip" style="display:none;flex-shrink:0;align-items:center;gap:6px;padding:6px 12px;margin:6px 12px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;box-shadow:0 1px 6px rgba(245,158,11,0.1)">
         <span id="bz-jinsil-badge-strip" style="display:none;color:#00b341;font-size:1.1rem;line-height:1">●</span>
         <span style="font-size:0.73rem;font-weight:700;color:#92400e;white-space:nowrap">나의 가명:</span>
-        <div id="bz-alias-strip-chips" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+        <div id="bz-alias-strip-chips" style="display:flex;gap:5px;flex-wrap:wrap;flex:1"></div>
+        <button id="bz-notice-btn-strip" onclick="openNoticeModal()" style="padding:4px 10px;border-radius:8px;border:1.5px solid #fcd34d;background:#fffbeb;color:#92400e;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">📢 공지</button>
       </div>
 
       <!-- 채팅 영역 — 순백 계열로 대화 구역 명확히 구분 -->
@@ -1553,19 +1556,19 @@ const firebaseConfig = {
             <div id="bz-menu-preview-name" style="font-size:0.78rem;color:#d97706;font-weight:800;margin-bottom:3px"></div>
             <div id="bz-menu-preview-text" style="font-size:0.88rem;color:#1e293b;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
           </div>
-          <div id="bz-menu-copy" onclick="bzMenuCopy()" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent">
+          <div id="bz-menu-copy" onclick="bzMenuCopy()" ontouchstart="this.style.background='#f1f5f9'" ontouchend="this.style.background=''" ontouchcancel="this.style.background=''" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent;transition:background 0.1s">
             <span style="font-size:0.92rem;color:#1e293b;font-weight:600">복사</span>
             <span style="font-size:1.3rem;line-height:1">📋</span>
           </div>
-          <div id="bz-menu-share" onclick="bzMenuShare()" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent">
-            <span style="font-size:0.92rem;color:#1e293b;font-weight:600">공유</span>
+          <div id="bz-menu-share" onclick="bzMenuShare()" ontouchstart="this.style.background='#f1f5f9'" ontouchend="this.style.background=''" ontouchcancel="this.style.background=''" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent;transition:background 0.1s">
+            <span id="bz-menu-share-label" style="font-size:0.92rem;color:#1e293b;font-weight:600">공유</span>
             <span style="font-size:1.1rem">📤</span>
           </div>
-          <div onclick="bzMenuReply()" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent">
+          <div onclick="bzMenuReply()" ontouchstart="this.style.background='#f1f5f9'" ontouchend="this.style.background=''" ontouchcancel="this.style.background=''" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent;transition:background 0.1s">
             <span style="font-size:0.92rem;color:#1e293b;font-weight:600">답글</span>
             <span style="font-size:1.1rem;color:#64748b">↩</span>
           </div>
-          <div id="bz-menu-delete" onclick="bzMenuDelete()" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent">
+          <div id="bz-menu-delete" onclick="bzMenuDelete()" ontouchstart="this.style.background='#fff1f2'" ontouchend="this.style.background=''" ontouchcancel="this.style.background=''" style="display:flex;align-items:center;justify-content:space-between;padding:15px 20px;cursor:pointer;border-bottom:1px solid #f1f5f9;-webkit-tap-highlight-color:transparent;transition:background 0.1s">
             <span style="font-size:0.92rem;color:#ef4444;font-weight:600">삭제</span>
             <span style="font-size:1.1rem">🗑</span>
           </div>
@@ -2349,7 +2352,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v560';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v571';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13319,6 +13322,7 @@ let _bzSwipeMoved = false;
 let _bzMenuKey = null;
 let _bzShareBlobCache = null;        // 공유 메뉴 열릴 때 미리 fetch해둔 이미지 blob
 let _bzShareBundleBlobsCache = null; // 번들 사진 전체 미리 fetch blob 배열
+let _bzNoticeBlobCache = null;       // 공지 카드 미리 캡처해둔 이미지 blob
 window._bzMsgMeta = {}; // 메시지 메타 (터치 핸들러용)
 
 const BZ_REF = 'jmt/banzige/current';
@@ -13356,6 +13360,47 @@ let _bzUnreadCount = 0;            // 미읽음 메시지 수
 let _bzUnreadRef = null;           // 미읽음 리스너 쿼리 참조
 let _bzUnreadCb = null;            // 미읽음 리스너 콜백 참조
 let _bzModalOrigParent = null;    // body 이동 전 원래 부모 보관
+
+// HTML 태그 제거 → 순수 텍스트 (공지 복사/공유용)
+function _bzStripHtml(html) {
+  const d = document.createElement('div');
+  d.innerHTML = html;
+  return (d.textContent || d.innerText || '').trim();
+}
+
+// 공지 말풍선 탭 — 더블탭: 좋아요 / 싱글탭: 공지 팝업 열고 해당 공지로 스크롤
+function bzNoticeTap(msgKey) {
+  const now = Date.now();
+  if (!window._bzTapMap) window._bzTapMap = {};
+  if (window._bzTapMap[msgKey] && now - window._bzTapMap[msgKey] < 350) {
+    window._bzTapMap[msgKey] = 0;
+    bzToggleLike(msgKey);
+  } else {
+    window._bzTapMap[msgKey] = now;
+    setTimeout(() => {
+      if (window._bzTapMap[msgKey] !== now) return; // 더블탭 감지됨 — 스킵
+      const meta = window._bzMsgMeta && window._bzMsgMeta[msgKey];
+      if (meta && meta.noticeId) bzOpenNoticeFromChat(meta.noticeId);
+    }, 350);
+  }
+}
+
+// 공지 팝업 열기 + 해당 noticeId 항목으로 스크롤
+function bzOpenNoticeFromChat(noticeId) {
+  openNoticeModal();
+  // _renderNoticeList는 비동기(Firebase) — 렌더 완료 후 스크롤
+  const _try = (attempt) => {
+    const el = document.getElementById('notice-item-' + noticeId);
+    if (el) {
+      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      el.style.outline = '2px solid #f59e0b';
+      setTimeout(() => { el.style.outline = ''; }, 1500);
+    } else if (attempt < 10) {
+      setTimeout(() => _try(attempt + 1), 100);
+    }
+  };
+  setTimeout(() => _try(0), 200);
+}
 
 // 미읽음 구분선 스크롤 — _bzLastReadTs 기준 첫 미읽음 메시지로 이동
 function _bzScrollToFirstUnread() {
@@ -14243,13 +14288,13 @@ function _bzUpdateAliasStrip() {
   const strip = document.getElementById('bz-alias-strip');
   const chipsEl = document.getElementById('bz-alias-strip-chips');
   if (!strip || !chipsEl) return;
-  // 가명이 없거나 프레임이 펼쳐진 상태면 숨김
-  if (!_bzInfoCollapsed || _bzMyAliases.length < 1) {
+  // 프레임이 펼쳐진 상태면 숨김
+  if (!_bzInfoCollapsed) {
     strip.style.display = 'none';
     return;
   }
   const myName = (state.identity && state.identity.name) || '';
-  // 나 자신 + 가명 목록 — 나 자신은 _bzCurrentAlias === ''
+  // 나 자신 + 가명 목록 — 가명 없으면 나 자신 칩만 표시
   const items = [{ label: myName, value: '' }, ..._bzMyAliases.map(n => ({ label: n, value: n }))];
   strip.style.display = 'flex';
   strip.style.opacity = '';
@@ -14673,7 +14718,7 @@ function bzSendPhoto(e) {
           if (!(_bzState && _bzState.entrants && _bzState.entrants[myName])) {
             db.ref(`${BZ_REF}/entrants/${myName}`).set(true).catch(fbErr);
           }
-          const msgData = { alias: senderAlias, realName: myName, imageUrl, ts };
+          const msgData = { alias: senderAlias, realName: myName, imageUrl, imgW: w, imgH: h, ts };
           if (_bzReplyTo) msgData.replyTo = { alias: _bzReplyTo.alias, text: _bzReplyTo.text, realName: _bzReplyTo.realName || '', msgKey: _bzReplyTo.msgKey || '' };
           db.ref(`${BZ_REF}/messages`).push(msgData).catch(fbErr);
           _bzTrimMessages();
@@ -15072,6 +15117,48 @@ function openNoticeModal() {
   // 배경 스크롤 차단 (iOS PWA 호환)
   document.body.style.overflow = 'hidden';
   _renderNoticeList();
+  _noticeSetupSwipe();
+}
+
+function _noticeSetupSwipe() {
+  const panel = document.getElementById('notice-list-panel');
+  if (!panel || panel._noticeSwipeAdded) return;
+  panel._noticeSwipeAdded = true;
+  let _sx = null, _sy = null, _isHoriz = null;
+  panel.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) return;
+    _sx = e.touches[0].clientX;
+    _sy = e.touches[0].clientY;
+    _isHoriz = null;
+  }, { passive: true });
+  panel.addEventListener('touchmove', e => {
+    if (_sx === null) return;
+    const dx = e.touches[0].clientX - _sx;
+    const dy = e.touches[0].clientY - _sy;
+    if (_isHoriz === null) _isHoriz = Math.abs(dx) > Math.abs(dy);
+    if (!_isHoriz || dx <= 0) return;
+    panel.style.transition = 'none';
+    panel.style.transform = `translateX(${dx}px)`;
+  }, { passive: true });
+  panel.addEventListener('touchend', e => {
+    if (_sx === null) return;
+    const dx = e.changedTouches[0].clientX - _sx;
+    _sx = null; _sy = null; _isHoriz = null;
+    if (dx > 80) {
+      // 오른쪽으로 슬라이드 아웃 후 닫기
+      panel.style.transition = 'transform 0.25s ease';
+      panel.style.transform = 'translateX(110%)';
+      setTimeout(() => {
+        panel.style.transform = '';
+        panel.style.transition = '';
+        closeNoticeModal();
+      }, 260);
+    } else {
+      panel.style.transition = 'transform 0.2s ease';
+      panel.style.transform = '';
+      setTimeout(() => { panel.style.transition = ''; }, 220);
+    }
+  }, { passive: true });
 }
 function closeNoticeModal() {
   document.getElementById('notice-list-modal').style.display = 'none';
@@ -15120,7 +15207,7 @@ function _renderNoticeList() {
         <button onclick="sendNoticeToChat('${id}')" style="font-size:0.7rem;background:#2563eb;color:#fff;border:none;padding:3px 9px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">전송</button>
         <button onclick="openNoticeWriteModal('${id}')" style="font-size:0.7rem;background:none;color:#2563eb;border:1.5px solid #93c5fd;padding:2px 8px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">수정</button>
         <button onclick="deleteNotice('${id}')" style="font-size:0.7rem;background:none;color:#dc2626;border:1.5px solid #fecaca;padding:2px 8px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">삭제</button>` : '';
-      return `<div style="background:${p.bg};border-radius:12px;padding:12px 14px;border:1.5px solid ${p.border}">
+      return `<div id="notice-item-${id}" style="background:${p.bg};border-radius:12px;padding:12px 14px;border:1.5px solid ${p.border};transition:outline 0.3s">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px">
           <div style="font-size:0.88rem;font-weight:800;color:#1e293b;flex:1">${n.title || '(제목 없음)'}</div>
           <div style="font-size:0.71rem;color:#94a3b8;flex-shrink:0">${dateStr}</div>
@@ -15147,25 +15234,62 @@ async function saveNotice() {
   closeNoticeWriteModal();
   _renderNoticeList();
 }
-async function sendNoticeToChat(noticeId) {
+function sendNoticeToChat(noticeId) {
   const curName = (state.identity && state.identity.name) || '';
+  // 즉시 모달 닫기 + 채팅 복귀 — Function은 백그라운드 실행
+  closeNoticeModal();
+  const area = document.getElementById('bz-chat-area');
+  if (area) requestAnimationFrame(() => { area.scrollTop = 999999; });
+  const input = document.getElementById('bz-input');
+  if (input) setTimeout(() => input.focus(), 100);
   const fn = firebase.app().functions('asia-southeast1').httpsCallable('sendNoticeAsBot');
-  try {
-    await fn({ senderName: curName, noticeId });
-    // 전송 성공 → 공지 모달 닫기 + 채팅 최하단 스크롤 + 입력창 포커스
-    closeNoticeModal();
-    const area = document.getElementById('bz-chat-area');
-    if (area) requestAnimationFrame(() => { area.scrollTop = 999999; });
-    const input = document.getElementById('bz-input');
-    if (input) setTimeout(() => input.focus(), 100);
-  } catch (e) {
-    alert('전송 실패: ' + (e.message || e));
-  }
+  fn({ senderName: curName, noticeId }).catch(e => {
+    alert('공지 전송 실패: ' + (e.message || e));
+  });
 }
 async function deleteNotice(noticeId) {
   if (!confirm('이 공지를 삭제할까요?')) return;
   await db.ref('jmt/notices/' + noticeId).remove().catch(fbErr);
   _renderNoticeList();
+}
+
+// ── 이미지 크기 마이그레이션 (1회 실행) ─────────────────────────────
+// imageUrl은 있으나 imgW/imgH가 없는 메시지에 실제 이미지 크기를 측정해서 저장
+async function bzMigrateImageSizes() {
+  const btn = document.getElementById('bz-migrate-imgsize-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 작업 중...'; }
+  const snap = await db.ref(`${BZ_REF}/messages`).once('value');
+  const msgs = snap.val() || {};
+  const targets = Object.entries(msgs).filter(([, m]) => m.imageUrl && !m.imgW);
+  if (!targets.length) {
+    alert('보정할 이미지가 없습니다.');
+    if (btn) { btn.disabled = false; btn.textContent = '🔧 이미지 크기 보정'; }
+    return;
+  }
+  let done = 0;
+  const _measure = (url) => new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+  for (const [key, m] of targets) {
+    const size = await _measure(m.imageUrl);
+    if (size && size.w && size.h) {
+      // 업로드 시 max 600 리사이즈 기준 재적용
+      let { w, h } = size;
+      const MAX = 600;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      await db.ref(`${BZ_REF}/messages/${key}`).update({ imgW: w, imgH: h }).catch(fbErr);
+      done++;
+    }
+    if (btn) btn.textContent = `⏳ ${done}/${targets.length} 완료...`;
+  }
+  alert(`완료! ${done}개 이미지 크기 보정됨.`);
+  if (btn) btn.remove(); // 1회 실행 후 버튼 제거
 }
 
 function bzCloseRestoModal() {
@@ -16388,6 +16512,7 @@ function bzShowMsgMenu(key, tapX, tapY) {
   // 이미지/번들 메시지면 공유용 blob 미리 fetch (bzMenuShare 시 user gesture 유지)
   _bzShareBlobCache = null;
   _bzShareBundleBlobsCache = null;
+  _bzNoticeBlobCache = null;
   const _preRaw = _bzState && _bzState.messages && _bzState.messages[key];
   const _preImgSrc = _preRaw && (_preRaw.imageUrl || _preRaw.imageData);
   if (_preImgSrc && _preImgSrc.startsWith('http')) {
@@ -16395,6 +16520,19 @@ function bzShowMsgMenu(key, tapX, tapY) {
   } else if (_preRaw && _preRaw.photos && _preRaw.photos.length) {
     Promise.all(_preRaw.photos.map(url => fetch(url).then(r => r.blob())))
       .then(bs => { _bzShareBundleBlobsCache = bs; }).catch(() => {});
+  } else if (meta.mediaType === 'notice' && typeof html2canvas !== 'undefined') {
+    // 공지 카드 — 롱프레스 시점에 미리 캡처 시작 (공유 버튼 탭 시 즉시 공유 가능)
+    const _noticeEl = document.querySelector(`[data-bzkey="${key}"] [data-bzbubble="1"]`);
+    if (_noticeEl) {
+      const _clone = _noticeEl.cloneNode(true);
+      _clone.style.cssText = 'position:fixed;left:-9999px;top:0;width:320px;overflow:visible;border-radius:14px;z-index:-1';
+      document.body.appendChild(_clone);
+      html2canvas(_clone, { scale: 2, useCORS: true, backgroundColor: null, logging: false })
+        .then(canvas => new Promise(res => canvas.toBlob(res, 'image/png')))
+        .then(blob => { _bzNoticeBlobCache = blob; })
+        .catch(() => {})
+        .finally(() => { if (_clone.parentNode) document.body.removeChild(_clone); });
+    }
   }
   const overlay = document.getElementById('bz-msg-menu');
   const box = document.getElementById('bz-msg-menu-box');
@@ -16434,6 +16572,20 @@ async function bzMenuShare() {
   bzCloseMsgMenu();
   if (!meta || !navigator.share) return;
   try {
+    // 공지 카드 — 미리 캡처된 blob 있으면 이미지 공유, 없으면 텍스트로 즉시 공유
+    // (await html2canvas 중 user gesture 끊김 방지 — blob 없으면 await 없이 텍스트 공유)
+    if (meta.mediaType === 'notice') {
+      if (_bzNoticeBlobCache) {
+        const blob = _bzNoticeBlobCache; _bzNoticeBlobCache = null;
+        const file = new File([blob], 'notice.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file] }); return;
+        }
+      }
+      // blob 미준비(캡처 중) 또는 파일 공유 불가 → 텍스트로 즉시 공유
+      if (meta.text) { await navigator.share({ text: meta.text }); return; }
+      return;
+    }
     // 텍스트
     if (meta.text) { await navigator.share({ text: meta.text }); return; }
     // 이미지/영상 — _bzState 캐시에서 동기적으로 확보 (user gesture 유지, fetch 없음)
@@ -16645,7 +16797,18 @@ function _bzRenderMessages(phase, forceBottom) {
       ? `<div data-bzbubble="1" style="padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder};display:inline-block">${replyBox}${_bzPhotoBundleGrid(_photos, keyEsc)}</div>`
       : imgSrc
       ? `<div data-bzbubble="1" style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
-          ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
+          ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;${m.imgW&&m.imgH?`aspect-ratio:${m.imgW}/${m.imgH};width:220px;`:'min-height:80px;'}border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
+        </div>`
+      : m.type === 'notice'
+      ? `<div data-bzbubble="1" onclick="bzNoticeTap('${keyEsc}')" style="width:240px;border-radius:14px;overflow:hidden;border:2px solid #fcd34d;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.08);cursor:pointer;-webkit-tap-highlight-color:transparent">
+          ${replyBox}
+          <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:8px 12px;display:flex;align-items:center;gap:6px">
+            <span style="font-size:0.8rem;font-weight:800;color:#fff">📢 공지사항</span>
+          </div>
+          <div style="padding:10px 12px">
+            ${m.noticeTitle ? `<div style="font-size:0.93rem;font-weight:800;color:#1e293b;margin-bottom:6px">${m.noticeTitle}</div>` : ''}
+            <div style="font-size:0.82rem;color:#475569;line-height:1.6">${m.noticeContent || ''}</div>
+          </div>
         </div>`
       : m.type === 'restaurant'
       ? (() => {
@@ -16675,7 +16838,8 @@ function _bzRenderMessages(phase, forceBottom) {
           </div>`;
         })()
       : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.93rem;border:${bubbleBorder};word-break:break-word;white-space:pre-wrap;cursor:pointer;-webkit-tap-highlight-color:transparent">${replyBox}${_bzLinkify(m.text)}</div>`;
-    window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl, mediaType: m.videoUrl ? 'video' : _photos ? 'photos' : (m.imageUrl || m.imageData) ? 'image' : m.type === 'restaurant' ? 'restaurant' : '' };
+    const _noticeText = m.type === 'notice' ? ((m.noticeTitle ? m.noticeTitle + '\n' : '') + _bzStripHtml(m.noticeContent || '')) : '';
+    window._bzMsgMeta[m._key] = { alias: m.alias, text: _noticeText || m.text || '', realName: m.realName || '', isMine, hasUrl, mediaType: m.videoUrl ? 'video' : _photos ? 'photos' : (m.imageUrl || m.imageData) ? 'image' : m.type === 'restaurant' ? 'restaurant' : m.type === 'notice' ? 'notice' : '', noticeId: m.noticeId || '' };
     const dateSepHtml = _bzShowDateSep[i] ? `<div style="text-align:center;padding:10px 0 4px"><span style="background:#e2e8f0;color:#64748b;font-size:0.7rem;padding:3px 14px;border-radius:20px;font-weight:600">${_bzFormatDateLabel(m.ts)}</span></div>` : '';
     const timeHtml = _bzShowTime[i] ? `<span data-bztime="1" style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;align-self:flex-end;padding-bottom:2px">${_bzFormatTime(m.ts)}</span>` : '';
     const showName = _bzShowName[i];
@@ -16725,8 +16889,12 @@ function _bzRenderMessages(phase, forceBottom) {
     if (_bzIsFirstRender && area.style.opacity === '0') {
       // 첫 진입: 이미지 모두 로드 후 스크롤 + fadeIn (opacity:0 상태에서 위치 잡아 wobble 방지)
       const _show = () => {
-        if (_bzNeedsUnreadScroll && _bzLastReadTs > 0) {
-          // 미읽음 있으면: opacity:0 상태에서 구분선 위치로 스크롤 후 fadeIn (scrollIntoView rAF 충돌 없음)
+        const _existDiv = document.getElementById('bz-unread-divider');
+        if (_existDiv) {
+          // 이미 구분선 삽입됨(Firebase가 먼저 완료) — 구분선 위치 재확인 후 fadeIn
+          _existDiv.scrollIntoView({ block: 'start', behavior: 'instant' });
+        } else if (_bzNeedsUnreadScroll && _bzLastReadTs > 0) {
+          // Firebase 아직 미완료 — 직접 구분선 생성+스크롤
           _bzScrollToFirstUnread();
         } else {
           area.scrollTop = 999999;
@@ -16871,7 +17039,18 @@ function _bzIncrementalUpdateMessages(newMessages) {
       ? `<div data-bzbubble="1" style="padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder};display:inline-block">${replyBox}${_bzPhotoBundleGrid(_photos, keyEsc)}</div>`
       : imgSrc
       ? `<div data-bzbubble="1" style="max-width:75%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
-          ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
+          ${replyBox}<img src="${imgSrc}" style="max-width:220px;max-height:280px;${m.imgW&&m.imgH?`aspect-ratio:${m.imgW}/${m.imgH};width:220px;`:'min-height:80px;'}border-radius:10px;display:block;cursor:pointer;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false" onclick="bzImgTap('${keyEsc}',${m.ts})">
+        </div>`
+      : m.type === 'notice'
+      ? `<div data-bzbubble="1" onclick="bzNoticeTap('${keyEsc}')" style="width:240px;border-radius:14px;overflow:hidden;border:2px solid #fcd34d;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.08);cursor:pointer;-webkit-tap-highlight-color:transparent">
+          ${replyBox}
+          <div style="background:linear-gradient(135deg,#f59e0b,#d97706);padding:8px 12px;display:flex;align-items:center;gap:6px">
+            <span style="font-size:0.8rem;font-weight:800;color:#fff">📢 공지사항</span>
+          </div>
+          <div style="padding:10px 12px">
+            ${m.noticeTitle ? `<div style="font-size:0.93rem;font-weight:800;color:#1e293b;margin-bottom:6px">${m.noticeTitle}</div>` : ''}
+            <div style="font-size:0.82rem;color:#475569;line-height:1.6">${m.noticeContent || ''}</div>
+          </div>
         </div>`
       : m.type === 'restaurant'
       ? (() => {
@@ -16901,7 +17080,8 @@ function _bzIncrementalUpdateMessages(newMessages) {
           </div>`;
         })()
       : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.93rem;border:${bubbleBorder};word-break:break-word;white-space:pre-wrap;cursor:pointer;-webkit-tap-highlight-color:transparent">${replyBox}${_bzLinkify(m.text)}</div>`;
-    window._bzMsgMeta[m._key] = { alias: m.alias, text: m.text || '', realName: m.realName || '', isMine, hasUrl, mediaType: m.videoUrl ? 'video' : _photos ? 'photos' : (m.imageUrl || m.imageData) ? 'image' : m.type === 'restaurant' ? 'restaurant' : '' };
+    const _noticeText = m.type === 'notice' ? ((m.noticeTitle ? m.noticeTitle + '\n' : '') + _bzStripHtml(m.noticeContent || '')) : '';
+    window._bzMsgMeta[m._key] = { alias: m.alias, text: _noticeText || m.text || '', realName: m.realName || '', isMine, hasUrl, mediaType: m.videoUrl ? 'video' : _photos ? 'photos' : (m.imageUrl || m.imageData) ? 'image' : m.type === 'restaurant' ? 'restaurant' : m.type === 'notice' ? 'notice' : '', noticeId: m.noticeId || '' };
     const _msgMargin = _showName ? '10px' : '0';
     const _msgGap = _showName ? '2px' : '1px';
     const html = isMine
@@ -18797,7 +18977,7 @@ function saveMpComment(key) {
 <!-- ══ 자미터 단골집 — 등록/수정 모달 ══ -->
 <!-- ── 공지사항 리스트 모달 ─────────────────────────────────────── -->
 <div id="notice-list-modal" style="display:none;position:fixed;inset:0;z-index:730;background:rgba(0,0,0,0.45);align-items:flex-end" onclick="closeNoticeModal()">
-  <div style="width:100%;background:#fff;border-radius:20px 20px 0 0;padding:20px 16px max(env(safe-area-inset-bottom,24px),24px);max-height:88vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+  <div id="notice-list-panel" style="width:100%;background:#fff;border-radius:20px 20px 0 0;padding:20px 16px max(env(safe-area-inset-bottom,24px),24px);max-height:88vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
     <div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px;flex-shrink:0"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-shrink:0">
       <div style="font-size:1rem;font-weight:800;color:#1e293b">📢 공지사항</div>

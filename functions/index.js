@@ -1985,12 +1985,14 @@ exports.sendNoticeAsBot = onCall({ region: 'asia-southeast1' }, async (req) => {
   const snap = await db.ref(`jmt/notices/${noticeId}`).once('value');
   const notice = snap.val();
   if (!notice) throw new Error('공지 없음');
-  const titleLine = notice.title ? `[${notice.title}]\n` : '';
-  // 채팅 전송용: HTML 태그 제거 후 순수 텍스트
-  const plainContent = _htmlToPlainText(notice.content);
-  const botText = `📢 공지사항\n\n${titleLine}${plainContent}\n\n— ${notice.createdBy}`;
-  // 자미톡에 봇 메시지 게시
-  await _postBotMsg({ text: botText });
+  // 자미톡에 공지 카드 메시지 게시 (type:'notice' — 클라이언트에서 카드 렌더링)
+  await _postBotMsg({
+    type: 'notice',
+    noticeId:      noticeId,
+    noticeTitle:   notice.title   || '',
+    noticeContent: notice.content || '',
+    text: `📢 ${notice.title || '공지사항'}`, // 푸시 미리보기·검색용
+  });
   // 전체 멤버에게 FCM 푸시 (쿨다운 없이 항상 발송)
   const tokens = await getAllTokens();
   const pushTitle = `📢 공지사항${notice.title ? ` — ${notice.title}` : ''}`;
