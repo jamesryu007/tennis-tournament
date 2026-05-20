@@ -2349,7 +2349,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v563';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v564';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -15230,20 +15230,18 @@ async function saveNotice() {
   closeNoticeWriteModal();
   _renderNoticeList();
 }
-async function sendNoticeToChat(noticeId) {
+function sendNoticeToChat(noticeId) {
   const curName = (state.identity && state.identity.name) || '';
+  // 즉시 모달 닫기 + 채팅 복귀 — Function은 백그라운드 실행
+  closeNoticeModal();
+  const area = document.getElementById('bz-chat-area');
+  if (area) requestAnimationFrame(() => { area.scrollTop = 999999; });
+  const input = document.getElementById('bz-input');
+  if (input) setTimeout(() => input.focus(), 100);
   const fn = firebase.app().functions('asia-southeast1').httpsCallable('sendNoticeAsBot');
-  try {
-    await fn({ senderName: curName, noticeId });
-    // 전송 성공 → 공지 모달 닫기 + 채팅 최하단 스크롤 + 입력창 포커스
-    closeNoticeModal();
-    const area = document.getElementById('bz-chat-area');
-    if (area) requestAnimationFrame(() => { area.scrollTop = 999999; });
-    const input = document.getElementById('bz-input');
-    if (input) setTimeout(() => input.focus(), 100);
-  } catch (e) {
-    alert('전송 실패: ' + (e.message || e));
-  }
+  fn({ senderName: curName, noticeId }).catch(e => {
+    alert('공지 전송 실패: ' + (e.message || e));
+  });
 }
 async function deleteNotice(noticeId) {
   if (!confirm('이 공지를 삭제할까요?')) return;
