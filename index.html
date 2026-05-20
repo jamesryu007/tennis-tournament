@@ -2352,7 +2352,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v575';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v576';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -14999,7 +14999,13 @@ function _restoMyRating(id) {
 function _bzRenderRestoTab() {
   const el = document.getElementById('bz-restaurant-tab');
   if (!el || el.style.display === 'none') return;
-  const entries = Object.entries(_restoData).sort((a, b) => (b[1].visitCount || 0) - (a[1].visitCount || 0));
+  const entries = Object.entries(_restoData).sort((a, b) => {
+    const avgA = _restoAvgRating(a[0]) || 0;
+    const avgB = _restoAvgRating(b[0]) || 0;
+    if (avgB !== avgA) return avgB - avgA;                          // 1순위: 별점 높은 순
+    if ((b[1].visitCount||0) !== (a[1].visitCount||0)) return (b[1].visitCount||0) - (a[1].visitCount||0); // 2순위: 방문횟수
+    return (a[1].name||).localeCompare(b[1].name||, 'ko');   // 3순위: 가나다
+  });
   const filtered = _restoTabFilter === '전체' ? entries : entries.filter(([, r]) => r.theme === _restoTabFilter);
   let html = `<div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none;margin-bottom:8px">`;
   RESTO_THEMES.forEach(t => {
