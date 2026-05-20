@@ -2352,7 +2352,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v574';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v575';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -3299,6 +3299,7 @@ let _photoAllItems = [];          // 로드된 사진 누적 배열 [{key,data}]
 let _photoPageSize = 20;
 let _photoInitSize = 6;           // 첫 진입 시 초기 로드 수 (빠른 첫 화면)
 let _photoFirstLoad = true;       // 앱 첫 진입 여부 플래그
+let _photoRenderedCount = 0;      // 현재 DOM에 렌더된 항목 수 (추가 로드 시 append용)
 let _photoHasMore = true;         // DB에 더 가져올 항목 있는지
 let _photoOldestTs = null;        // 페이지네이션 커서 (가장 오래된 createdAt)
 let _photoLatestTs = null;        // PTR 최적화: 마지막으로 동기화된 최신 createdAt
@@ -3352,7 +3353,7 @@ async function loadPhotos(reset = true) {
     if (reset && _photoAllItems.length) {
       _photoLatestTs = _photoAllItems[0].data.createdAt || null;
     }
-    _renderPhotoGrid();
+    _renderPhotoGrid(!reset); // reset=false(추가 로드)면 append 모드
   } catch(e) { fbErr(e); }
   finally {
     _photoLoading = false;
@@ -3417,18 +3418,31 @@ function _filteredPhotos() {
   });
 }
 
-function _renderPhotoGrid() {
+function _renderPhotoGrid(appendOnly = false) {
   const grid = document.getElementById('photo-grid');
   const empty = document.getElementById('photo-empty');
   const list = _filteredPhotos();
   // 빈 상태: 필터 결과 없고 DB에서도 더 가져올 게 없을 때만 표시
   if (!list.length) {
     grid.innerHTML = '';
+    _photoRenderedCount = 0;
     empty.style.display = _photoHasMore ? 'none' : '';
     return;
   }
   empty.style.display = 'none';
-  grid.innerHTML = list.map((p, i) => _photoItemHtml(p, i)).join('');
+  if (appendOnly && _photoRenderedCount > 0 && list.length > _photoRenderedCount) {
+    // 새 항목만 DOM에 추가 — 기존 아이템 재렌더 없음
+    const newItems = list.slice(_photoRenderedCount);
+    newItems.forEach((p, i) => {
+      const tmp = document.createElement('div');
+      tmp.innerHTML = _photoItemHtml(p, _photoRenderedCount + i);
+      grid.appendChild(tmp.firstChild);
+    });
+    _photoRenderedCount = list.length;
+  } else {
+    grid.innerHTML = list.map((p, i) => _photoItemHtml(p, i)).join('');
+    _photoRenderedCount = list.length;
+  }
 }
 
 function _photoItemHtml(p, idx) {
