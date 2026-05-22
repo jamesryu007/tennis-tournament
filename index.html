@@ -2402,7 +2402,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v630';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v631';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5904,11 +5904,12 @@ function _renderDailyCard(id){
     el.style.display='';
     const aReady=d._teamAReady||false;
     const bReady=d._teamBReady||false;
-    // 팀 정보 공개: 내 팀 소속이면 항상 공개 / 상대팀은 ready 후 공개 / 유지원은 항상 전체 공개
+    // 팀 정보 공개: 내 팀 소속이면 항상 공개 / 상대팀은 양팀 모두 ready 후 공개 / 유지원은 항상 전체 공개
     const isTeamAMember=teamANames.includes(_curName);
     const isTeamBMember=teamBNames.includes(_curName);
-    const showA=aReady||isAdmin2||isTeamAMember;
-    const showB=bReady||isAdmin2||isTeamBMember;
+    const bothReady=aReady&&bReady;
+    const showA=bothReady||isAdmin2||isTeamAMember;
+    const showB=bothReady||isAdmin2||isTeamBMember;
     // 선수 이름 (교체 가능 시 ✎ 클릭 가능)
     const mkPlayers=(names,side,canEdit)=>{
       if(!names||names.length<2) return '?-?';
