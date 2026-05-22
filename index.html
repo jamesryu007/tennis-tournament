@@ -2381,7 +2381,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v616';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v617';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5714,54 +5714,49 @@ function _renderDailyCard(id){
     const bName=captainB?captainB+'팀':'B팀';
     const isCaptainA=_curName===captainA;
     const isCaptainB=_curName===captainB;
-    const isAdmin=isManager();
+    const isAdmin2=isManager();
     // 가시성: 관리자, 팀장 A, 팀장 B만 볼 수 있음
-    if(!isAdmin&&!isCaptainA&&!isCaptainB){ el.style.display='none'; return; }
+    if(!isAdmin2&&!isCaptainA&&!isCaptainB){ el.style.display='none'; return; }
     el.style.display='';
     const aReady=d._teamAReady||false;
     const bReady=d._teamBReady||false;
-    // 팀 선수 표시 헬퍼 (수정 가능 여부)
-    const mkTeamSlot=(side,names,canEdit,ready)=>{
-      const sideLabel=side==='A'?aName:bName;
-      const sideColor=side==='A'?'#1e40af':'#9d174d';
-      const sideBg=side==='A'?'#eff6ff':'#fdf2f8';
-      const sideBorder=side==='A'?'#3b82f6':'#ec4899';
-      const filled=names&&names.length===2;
-      let playerHtml='';
-      if(filled){
-        playerHtml=names.map((n,i)=>
-          canEdit
-            ? `<span onclick="_teamSwapPlayer('${id}','${side}',${i})" style="display:inline-block;background:#fff;border:1.5px solid ${sideBorder};border-radius:8px;padding:2px 8px;margin:2px;font-size:0.78rem;font-weight:700;color:${sideColor};cursor:pointer">${n} ✎</span>`
-            : `<span style="display:inline-block;padding:2px 5px;font-size:0.78rem;font-weight:700;color:${sideColor}">${n}</span>`
-        ).join('');
-      }
-      return `<div style="background:${sideBg};border:2px solid ${sideBorder};border-radius:10px;padding:7px 9px;text-align:center;flex:1">
-        <div style="font-size:0.7rem;font-weight:800;color:${sideColor};margin-bottom:4px">${sideLabel}${ready?' ✅':''}</div>
-        ${filled?playerHtml:`<div style="font-size:0.72rem;color:#94a3b8">미배정</div>`}
-      </div>`;
+    const showA=isAdmin2||isCaptainA;
+    const showB=isAdmin2||isCaptainB;
+    // 선수 이름 (교체 가능 시 ✎ 클릭 가능)
+    const mkPlayers=(names,side,canEdit)=>{
+      if(!names||names.length<2) return '?-?';
+      return names.map((n,i)=>
+        canEdit
+          ? `<span onclick="_teamSwapPlayer('${id}','${side}',${i})" style="cursor:pointer">${n}<span style="font-size:0.62rem;opacity:0.65"> ✎</span></span>`
+          : `<span>${n}</span>`
+      ).join('<span style="opacity:0.5"> · </span>');
     };
-    // 상대팀 숨김 (관리자 제외)
-    const showA=isAdmin||isCaptainA;
-    const showB=isAdmin||isCaptainB;
     const tIcon={mixed:'🟣 혼복',mens:'🔵 남복',womens:'🩷 여복'};
     const typeLabel=tIcon[d.matchType]||'';
-    const midContent=`<div style="display:flex;flex-direction:column;align-items:center;gap:4px">
-      <div style="font-size:0.72rem;font-weight:700;color:#7c3aed">${typeLabel}</div>
-      ${isCaptainA&&!aReady?`<button class="dc-start-btn" onclick="_teamCaptainStart('${id}','A')" style="font-size:0.72rem;padding:6px 8px">시작</button>`:''}
-      ${isCaptainB&&!bReady?`<button class="dc-start-btn" onclick="_teamCaptainStart('${id}','B')" style="font-size:0.72rem;padding:6px 8px">시작</button>`:''}
-      ${isAdmin?`<div style="font-size:0.65rem;color:#94a3b8">${aReady?'🔵준비':'🔵대기'} / ${bReady?'🔴준비':'🔴대기'}</div>`:''}
+    const left=showA
+      ?`<div class="dc-team-left">
+          <div class="dc-tnick">${aName}${aReady?' ✅':''}</div>
+          <div class="dc-tmembers">${mkPlayers(d.team0,'A',isCaptainA&&!aReady)}</div>
+        </div>`
+      :`<div class="dc-team-left" style="opacity:0.5;align-items:center;justify-content:center">
+          <div class="dc-tnick" style="font-size:0.8rem">준비 중...</div>
+        </div>`;
+    const right=showB
+      ?`<div class="dc-team-right">
+          <div class="dc-tnick">${bName}${bReady?' ✅':''}</div>
+          <div class="dc-tmembers">${mkPlayers(d.team1,'B',isCaptainB&&!bReady)}</div>
+        </div>`
+      :`<div class="dc-team-right" style="opacity:0.5;align-items:center;justify-content:center">
+          <div class="dc-tnick" style="font-size:0.8rem">준비 중...</div>
+        </div>`;
+    const mid=`<div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+      <div style="font-size:0.7rem;font-weight:700;color:#c4b5fd">${typeLabel}</div>
+      ${isCaptainA&&!aReady?`<button class="dc-start-btn" onclick="_teamCaptainStart('${id}','A')">시작</button>`:''}
+      ${isCaptainB&&!bReady?`<button class="dc-start-btn" onclick="_teamCaptainStart('${id}','B')">시작</button>`:''}
+      ${isAdmin2?`<div style="font-size:0.62rem;color:#94a3b8;text-align:center">${aReady?'🔵준비':'🔵대기'}<br>${bReady?'🔴준비':'🔴대기'}</div>`:''}
     </div>`;
-    const leftSlot=showA?mkTeamSlot('A',d.team0,isCaptainA,aReady):`<div style="flex:1;background:#f1f5f9;border:2px dashed #cbd5e1;border-radius:10px;padding:12px;text-align:center;font-size:0.72rem;color:#94a3b8">준비 중...</div>`;
-    const rightSlot=showB?mkTeamSlot('B',d.team1,isCaptainB,bReady):`<div style="flex:1;background:#f1f5f9;border:2px dashed #cbd5e1;border-radius:10px;padding:12px;text-align:center;font-size:0.72rem;color:#94a3b8">준비 중...</div>`;
-    const body=`<div class="dc-body" style="gap:6px">${leftSlot}<div class="dc-mid">${midContent}</div>${rightSlot}</div>`;
-    el.innerHTML=`<div class="dc-card">
-      <div class="dc-card-bg" style="background-image:url('${d.bgImage||'images/ca1.png'}');background-size:cover;background-position:center"></div>
-      <div class="dc-card-header">
-        <div style="flex:1;font-size:0.72rem">${d.courtLabel||''} <span style="opacity:0.7">${d.label||''}</span></div>
-        ${canManage?`<button class="dc-del-btn" onclick="adminRemoveDailyCard('${id}')">✕</button>`:''}
-      </div>
-      ${body}
-    </div>`;
+    const numLabel=`${d.label||`경기${d.num}`} <span style="font-size:0.68rem;color:#fbbf24;font-weight:600">(팀 대결 준비)</span>`;
+    el.innerHTML=mkCard(numLabel, left, mid, right);
     return;
   }
 
