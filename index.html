@@ -2401,7 +2401,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v623';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v624';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4222,6 +4222,7 @@ let _autoTeamA=[];  // A팀 멤버 이름 배열
 let _autoTeamB=[];  // B팀 멤버 이름 배열
 let _autoDrawSession=null;      // DB 세션 데이터 { owner, teamMode, teamA, teamB, ... }
 let _autoDrawSessionRef=null;   // Firebase 리스너 ref
+let _applyingSession=false;     // 세션 적용 중 플래그 (이중 저장 방지)
 let _dailyScoreCtx=null;
 let _dailyScoreSets=1;
 let _dscoreActive=null;
@@ -4574,9 +4575,9 @@ function autoRecommendGames(){
   const infoEl=document.getElementById('auto-recommend-info');
   if(infoEl) infoEl.textContent=`${courts}코트 × ${hrs}시간 × ${attendees.length}명 기준 ${maxGames}경기 | 🟣혼복 ${rec.mixed} · 🔵남복 ${rec.mens} · 🩷여복 ${rec.womens} 추천`;
   _checkAutoConsec3();
-  // 세션 오너이면 변경 내용 DB 저장
+  // 세션 오너가 직접 변경한 경우만 DB 저장 (리스너 내부 호출 시 제외)
   const curN=(state.identity&&state.identity.name)||'';
-  if(_autoDrawSession&&_autoDrawSession.owner===curN) _saveAutoDrawSession();
+  if(_autoDrawSession&&_autoDrawSession.owner===curN&&!_applyingSession) _saveAutoDrawSession();
 }
 
 // 3연속 출전 불가피 여부 감지 → 경고 notice 표시
@@ -4796,6 +4797,7 @@ function _saveAutoDrawSession(){
 
 function _applyAutoDrawSession(s){
   if(!s) return;
+  _applyingSession=true;
   _autoTeamMode=s.teamMode||false;
   _autoTeamA=s.teamA||[];
   _autoTeamB=s.teamB||[];
@@ -4809,6 +4811,7 @@ function _applyAutoDrawSession(s){
   if(s.mensCnt!==undefined){ const el=document.getElementById('auto-mens-cnt'); if(el) el.value=s.mensCnt; }
   if(s.womensCnt!==undefined){ const el=document.getElementById('auto-womens-cnt'); if(el) el.value=s.womensCnt; }
   if(_autoTeamMode) _renderTeamAssign();
+  _applyingSession=false;
 }
 
 function _lockAutoDrawUI(readOnly){
@@ -4871,6 +4874,8 @@ function openAutoDrawModal(){
       : '<span style="color:#dc2626">출첵 참석자 정보가 없습니다. 출첵 탭에서 참석자를 확인해주세요.</span>';
   }
   document.getElementById('auto-draw-warn').style.display='none';
+  // select 옵션 먼저 채우기 — 리스너가 동기 발화해도 옵션이 준비돼 있어야 함
+  autoRecommendGames();
   // DB 세션 리스너 연결 (기존 리스너 정리 후 재연결)
   if(_autoDrawSessionRef){
     db.ref('jmt/autoDrawSession').off('value',_autoDrawSessionRef);
@@ -4880,7 +4885,13 @@ function openAutoDrawModal(){
     const s=snap.val();
     _autoDrawSession=s;
     if(s){
-      _applyAutoDrawSession(s);
+      // 세션 있음 — 옵션 재확인 후 세션값으로 덮어씀
+      const el2=document.getElementById('auto-court-cnt');
+      if(el2&&s.courtCnt) el2.value=s.courtCnt;
+      const el3=document.getElementById('auto-time-hrs');
+      if(el3&&s.timeHrs) el3.value=s.timeHrs;
+      autoRecommendGames(); // 변경된 코트/시간 기준으로 옵션 재생성
+      _applyAutoDrawSession(s); // 세션값으로 최종 덮어씀
     } else {
       // 세션 없음 — 로컬 상태로 UI 복원
       const toggleEl2=document.getElementById('auto-team-toggle');
@@ -4888,11 +4899,11 @@ function openAutoDrawModal(){
       const assignEl2=document.getElementById('auto-team-assign');
       if(assignEl2) assignEl2.style.display=_autoTeamMode?'':'none';
       if(_autoTeamMode) _renderTeamAssign();
+      autoRecommendGames();
     }
     _updateSessionBanner();
   };
   db.ref('jmt/autoDrawSession').on('value',_autoDrawSessionRef);
-  autoRecommendGames(); // 참석자/코트/시간 기준 경기수 자동 추천
   const modal=document.getElementById('auto-draw-modal');
   document.body.style.overflow='hidden';
   modal.classList.add('open');
