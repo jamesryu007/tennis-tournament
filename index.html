@@ -2273,6 +2273,25 @@ const firebaseConfig = {
   </div>
 </div>
 
+<!-- ══ TEAM SWAP MODAL ══ -->
+<div class="modal-overlay" id="team-swap-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span id="team-swap-title" class="modal-round">선수 교체</span>
+      <button class="modal-close" onclick="closeTeamSwapModal()">✕</button>
+    </div>
+    <div style="padding:14px 16px">
+      <div id="team-swap-info" style="font-size:0.85rem;font-weight:600;margin-bottom:10px;color:#94a3b8"></div>
+      <div id="team-swap-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-warning btn-full" onclick="closeTeamSwapModal()">취소</button>
+        <button class="btn btn-primary btn-full" id="team-swap-confirm" onclick="confirmTeamSwap()" disabled>교체</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ DAILY SCORE MODAL ══ -->
 <div class="modal-overlay" id="daily-score-modal">
   <div class="modal">
@@ -2381,7 +2400,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v618';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v619';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4373,15 +4392,10 @@ function renderDailyTab(){
   const addBtn=document.getElementById('daily-add-btn');
   const autoBtn=document.getElementById('daily-auto-btn');
   const analysisBtn=document.getElementById('daily-analysis-btn');
-  if(isManager()){
-    if(addBtn){addBtn.style.flex='0 0 54px';addBtn.style.fontSize='1.9rem';}
-    if(autoBtn) autoBtn.style.display='flex';
-    if(analysisBtn) analysisBtn.style.display='flex';
-  } else {
-    if(addBtn){addBtn.style.flex='1';addBtn.style.fontSize='1.5rem';}
-    if(autoBtn) autoBtn.style.display='none';
-    if(analysisBtn) analysisBtn.style.display='none';
-  }
+  // 자동 대진 생성 + 분석: 모든 멤버에게 공개
+  if(addBtn){addBtn.style.flex='0 0 54px';addBtn.style.fontSize='1.9rem';}
+  if(autoBtn) autoBtn.style.display='flex';
+  if(analysisBtn) analysisBtn.style.display='flex';
   _setupDailyCardsListener();
 }
 
@@ -5398,10 +5412,10 @@ function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,a
 }
 
 async function generateAutoDrawCards(){
-  // 경기 진행 중(playing)인 카드가 있으면 재생성 차단 (done은 허용)
-  const hasPlaying=Object.values(_dailyCards).some(d=>d.phase==='playing');
-  if(hasPlaying){
-    alert('진행 중인 경기가 있어 자동 대진을 재생성할 수 없습니다.\n점수 입력을 완료한 후 다시 시도해주세요.');
+  // 진행 중(playing) 또는 팀 대결 준비중(teamSetup) 카드가 있으면 재생성 차단
+  const hasActive=Object.values(_dailyCards).some(d=>d.phase==='playing'||d.phase==='teamSetup');
+  if(hasActive){
+    alert('이미 진행 중인 대진이 있습니다.\n경기를 완료하거나 카드를 삭제한 후 다시 시도해주세요.');
     return;
   }
   const mixedCnt=parseInt(document.getElementById('auto-mixed-cnt').value)||0;
@@ -5714,12 +5728,12 @@ function _renderDailyCard(id){
     const bName=captainB?captainB+'팀':'B팀';
     const isCaptainA=_curName===captainA;
     const isCaptainB=_curName===captainB;
-    const isAdmin2=isManager();
+    const isAdmin2=isAdmin(); // 유지원만 전체 공개 (천지은/김승수는 팀장/멤버 역할로 처리)
     // 가시성: 모든 멤버에게 카드 표시 (팀원 공개 여부는 ready 상태로 제어)
     el.style.display='';
     const aReady=d._teamAReady||false;
     const bReady=d._teamBReady||false;
-    // 팀 정보 공개: ready 이후 또는 관리자/해당 팀장만 선수 이름 공개
+    // 팀 정보 공개: ready 이후 또는 최고관리자/해당 팀장만 선수 이름 공개
     const showA=aReady||isAdmin2||isCaptainA;
     const showB=bReady||isAdmin2||isCaptainB;
     // 선수 이름 (교체 가능 시 ✎ 클릭 가능)
@@ -5964,6 +5978,10 @@ function _teamCaptainStart(id, side){
 }
 
 // ── 팀 대결: 선수 교체 ────────────────────────────────────────────
+// ── 팀 대결: 선수 교체 팝업 ────────────────────────────────────────
+let _swapCtx=null;
+let _swapSel=null;
+
 function _teamSwapPlayer(id, side, playerIdx){
   const d=_dailyCards[id];
   if(!d||d.phase!=='teamSetup') return;
@@ -5983,28 +6001,82 @@ function _teamSwapPlayer(id, side, playerIdx){
       (c.team1||[]).forEach(n=>usedInRound.add(n));
     }
   });
-  // 현재 내 팀에서 교체 대상 이외 선수도 제외 (같은 카드 내 다른 슬롯)
+  // 같은 카드 내 다른 슬롯 선수 제외
   const myTeam=side==='A'?[...d.team0]:[...d.team1];
   const otherInCard=myTeam.filter((_,i)=>i!==playerIdx);
-  // 선택 가능 멤버: 내 팀 풀 - 사용 중 - 현재 카드 내 다른 슬롯
-  const pool=(side==='A'?teamANames:teamBNames)
-    .filter(n=>!usedInRound.has(n)&&!otherInCard.includes(n));
-  if(!pool.length){ alert('교체 가능한 선수가 없습니다.'); return; }
-  // 선택 UI — 간단한 prompt-style 팝업
   const current=myTeam[playerIdx];
-  const options=pool.filter(n=>n!==current);
-  if(!options.length){ alert('교체 가능한 선수가 없습니다.'); return; }
-  const choice=prompt(`교체할 선수를 선택하세요:\n${options.map((n,i)=>`${i+1}. ${n}`).join('\n')}\n\n현재: ${current}`, '');
-  if(!choice) return;
-  const idx=parseInt(choice)-1;
-  if(isNaN(idx)||idx<0||idx>=options.length) return;
-  const newName=options[idx];
-  const newTeam=[...myTeam];
-  newTeam[playerIdx]=newName;
-  if(side==='A') d.team0=newTeam;
-  else d.team1=newTeam;
-  db.ref(`jmt/dailyCards/${id}`).update({[side==='A'?'team0':'team1']:newTeam}).catch(fbErr);
+  // 선택 가능 풀: 내 팀 전체 멤버 - 다른 코트 사용중 - 같은 카드 다른 슬롯
+  const pool=(side==='A'?teamANames:teamBNames)
+    .filter(n=>n!==current&&!usedInRound.has(n)&&!otherInCard.includes(n));
+  if(!pool.length){ alert('교체 가능한 선수가 없습니다.'); return; }
+  _swapCtx={id, side, playerIdx, current};
+  _swapSel=null;
+  const sideLabel=side==='A'?(captainA?captainA+'팀':'A팀'):(captainB?captainB+'팀':'B팀');
+  document.getElementById('team-swap-title').textContent=`선수 교체 — ${sideLabel}`;
+  document.getElementById('team-swap-info').textContent=`교체할 선수: ${current}`;
+  _renderTeamSwapList(pool);
+  document.getElementById('team-swap-modal').classList.add('open');
+}
+
+function _renderTeamSwapList(pool){
+  if(!_swapCtx) return;
+  // pool이 전달되지 않으면 재계산
+  if(!pool){
+    const d=_dailyCards[_swapCtx.id];
+    if(!d) return;
+    const {side, playerIdx, current}=_swapCtx;
+    const thisRound=d._round||0;
+    const usedInRound=new Set();
+    Object.values(_dailyCards).forEach(c=>{
+      if(c._round===thisRound&&c!==d){
+        (c.team0||[]).forEach(n=>usedInRound.add(n));
+        (c.team1||[]).forEach(n=>usedInRound.add(n));
+      }
+    });
+    const myTeam=side==='A'?[...d.team0]:[...d.team1];
+    const otherInCard=myTeam.filter((_,i)=>i!==playerIdx);
+    const allTeam=side==='A'?(d._teamANames||[]):(d._teamBNames||[]);
+    pool=allTeam.filter(n=>n!==current&&!usedInRound.has(n)&&!otherInCard.includes(n));
+  }
+  const mkGroup=(group,label)=>{
+    if(!group.length) return '';
+    const btns=group.map(p=>{
+      const sel=_swapSel===p;
+      return `<button class="player-pick-btn${sel?' selected':''}" onclick="_swapSelectPlayer('${p}')">${p}</button>`;
+    }).join('');
+    return `<div style="margin-bottom:10px"><div class="pick-group-label">${label}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${btns}</div></div>`;
+  };
+  let html=mkGroup(pool.filter(p=>getGender(p)==='male'),'👨 남자');
+  html+=mkGroup(pool.filter(p=>getGender(p)==='female'),'👩 여자');
+  const etc=pool.filter(p=>!getGender(p));
+  if(etc.length) html+=mkGroup(etc,'👤 기타');
+  document.getElementById('team-swap-list').innerHTML=html||'<div style="color:#94a3b8;font-size:0.85rem">교체 가능한 선수가 없습니다.</div>';
+  document.getElementById('team-swap-confirm').disabled=!_swapSel;
+}
+
+function _swapSelectPlayer(name){
+  _swapSel=(_swapSel===name)?null:name;
+  _renderTeamSwapList();
+}
+
+function confirmTeamSwap(){
+  if(!_swapCtx||!_swapSel) return;
+  const {id,side,playerIdx}=_swapCtx;
+  const d=_dailyCards[id];
+  if(!d) return;
+  const teamKey=side==='A'?'team0':'team1';
+  const newTeam=[...(d[teamKey]||[])];
+  newTeam[playerIdx]=_swapSel;
+  d[teamKey]=newTeam;
+  db.ref(`jmt/dailyCards/${id}`).update({[teamKey]:newTeam}).catch(fbErr);
+  _swapCtx=null; _swapSel=null;
+  document.getElementById('team-swap-modal').classList.remove('open');
   _renderDailyCard(id);
+}
+
+function closeTeamSwapModal(){
+  _swapCtx=null; _swapSel=null;
+  document.getElementById('team-swap-modal').classList.remove('open');
 }
 
 function startDailyMatch(id){
