@@ -466,7 +466,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .dc-action-row { display:flex; gap:8px; margin-bottom:18px; }
 .dc-create-btn { flex:1; border:none; background:linear-gradient(135deg,#7c3aed,#2563eb); border-radius:16px; color:#fff; font-size:0.88rem; font-weight:800; padding:14px 10px; cursor:pointer; letter-spacing:0.2px; box-shadow:0 4px 14px rgba(37,99,235,0.32); transition:transform 0.1s; font-family:inherit; -webkit-tap-highlight-color:transparent; }
 .dc-create-btn:active { transform:scale(0.97); }
-.daily-analysis-btn { flex:0 0 74px; border:none; background:linear-gradient(135deg,#0f766e,#0d9488); border-radius:16px; color:#fff; font-size:0.75rem; font-weight:800; padding:14px 8px; cursor:pointer; letter-spacing:0.15px; transition:transform 0.1s,box-shadow 0.15s,opacity 0.2s; display:none; line-height:1; align-items:center; justify-content:center; text-align:center; box-shadow:0 4px 14px rgba(13,148,136,0.3); opacity:0.35; pointer-events:none; white-space:nowrap; }
+.daily-analysis-btn { flex:0 0 90px; border:none; background:linear-gradient(135deg,#0f766e,#0d9488); border-radius:16px; color:#fff; font-size:0.78rem; font-weight:800; padding:14px 8px; cursor:pointer; letter-spacing:0.1px; transition:transform 0.1s,box-shadow 0.15s,opacity 0.2s; display:none; line-height:1.25; align-items:center; justify-content:center; text-align:center; box-shadow:0 4px 14px rgba(13,148,136,0.3); opacity:0.35; pointer-events:none; white-space:nowrap; font-family:inherit; }
 .daily-analysis-btn.ready { opacity:1; pointer-events:auto; }
 .daily-analysis-btn:active { transform:scale(0.97); }
 /* ── 자동대진 모달 ── */
@@ -1679,7 +1679,7 @@ const firebaseConfig = {
       <!-- 액션 버튼 행 -->
       <div class="dc-action-row">
         <button class="dc-create-btn" id="daily-create-btn" onclick="executeDailyCreate()">경기 만들기</button>
-        <button class="daily-analysis-btn" id="daily-analysis-btn" onclick="openDrawAnalysisModal()">📊 대진분석</button>
+        <button class="daily-analysis-btn" id="daily-analysis-btn" onclick="openDrawAnalysisModal()">📊 대진표<br>보기</button>
         <button id="daily-auto-del-btn" onclick="deleteAllAutoDrawCards()" style="display:none;flex:0 0 auto;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);border-radius:16px;color:#fff;font-size:0.78rem;font-weight:800;padding:14px 10px;cursor:pointer;letter-spacing:0.1px;box-shadow:0 4px 14px rgba(220,38,38,0.32);white-space:nowrap;font-family:inherit">🗑️ 자동대진<br>전체삭제</button>
       </div>
       <div id="daily-match-cards"></div>
@@ -2408,7 +2408,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v635';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v636';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5251,17 +5251,13 @@ function _renderTeamFinalResult(){
     <div id="team-final-result" style="background:#fff;border:2px solid ${aWin?'#3b82f6':tie?'#94a3b8':'#ec4899'};border-radius:14px;padding:14px 16px;margin-top:12px">
       <div style="font-size:0.95rem;font-weight:800;color:#1e293b;margin-bottom:10px">🏆 팀 대결 결과 (${done.length}/${cards.length}경기 완료)</div>
       <div style="display:flex;gap:10px;margin-bottom:12px">
-        <div style="flex:1;background:#eff6ff;border:2px solid ${aWin?'#2563eb':'#bfdbfe'};border-radius:12px;padding:10px;text-align:center">
+        <div style="flex:1;background:#eff6ff;border-radius:12px;padding:10px;text-align:center;${aWin?'border:3px solid #2563eb;box-shadow:0 0 0 3px #bfdbfe,0 4px 18px rgba(37,99,235,0.28);':'border:2px solid #bfdbfe;'}">
           <div style="font-size:0.8rem;font-weight:700;color:#1e40af">🔵 ${aName}</div>
           <div style="font-size:2rem;font-weight:900;color:#1e40af">${aWins}</div>
-          <div style="font-size:0.72rem;color:#64748b">승</div>
-          ${aWin?'<div style="font-size:0.78rem;font-weight:800;color:#2563eb;margin-top:4px">🏆 승리!</div>':''}
         </div>
-        <div style="flex:1;background:#fdf2f8;border:2px solid ${!aWin&&!tie?'#ec4899':'#fbcfe8'};border-radius:12px;padding:10px;text-align:center">
+        <div style="flex:1;background:#fdf2f8;border-radius:12px;padding:10px;text-align:center;${!aWin&&!tie?'border:3px solid #ec4899;box-shadow:0 0 0 3px #fbcfe8,0 4px 18px rgba(236,72,153,0.28);':'border:2px solid #fbcfe8;'}">
           <div style="font-size:0.8rem;font-weight:700;color:#9d174d">🔴 ${bName}</div>
           <div style="font-size:2rem;font-weight:900;color:#9d174d">${bWins}</div>
-          <div style="font-size:0.72rem;color:#64748b">승</div>
-          ${!aWin&&!tie?'<div style="font-size:0.78rem;font-weight:800;color:#ec4899;margin-top:4px">🏆 승리!</div>':''}
         </div>
       </div>
       ${tie?'<div style="text-align:center;font-weight:800;color:#64748b;margin-bottom:10px">🤝 동점!</div>':''}
@@ -5354,24 +5350,24 @@ function _renderDrawAnalysis(d){
       const card=d.roundMap[r][c];
       const isLast=c===d.courtCount;
       if(card){
-        html+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
-          <div style="font-size:0.72rem;font-weight:700;color:#64748b;white-space:nowrap;min-width:58px">제${r}경기 ${c}코트</div>
-          <div style="font-size:0.78rem;font-weight:700;color:${tColor[card.matchType]};white-space:nowrap">${tIcon[card.matchType]}${tName[card.matchType]}</div>
-          <div style="font-size:0.78rem;font-weight:600;flex:1">
-            ${card._teamMode?`<span style="font-size:0.62rem;font-weight:800;color:#1e40af;background:#dbeafe;padding:1px 5px;border-radius:5px;margin-right:2px">${(card._teamANames||[])[0]?card._teamANames[0]+'팀':'A'}</span>`:''}${colorTeam(card.team0)} <span style="color:#94a3b8;font-weight:400">vs</span> ${card._teamMode?`<span style="font-size:0.62rem;font-weight:800;color:#9d174d;background:#fce7f3;padding:1px 5px;border-radius:5px;margin-right:2px">${(card._teamBNames||[])[0]?card._teamBNames[0]+'팀':'B'}</span>`:''}${colorTeam(card.team1)}
+        const aTeamBadge=card._teamMode?`<span style="font-size:0.62rem;font-weight:800;color:#1e40af;background:#dbeafe;padding:1px 5px;border-radius:5px;margin-right:3px">${(card._teamANames||[])[0]?card._teamANames[0]+'팀':'A'}</span>`:'';
+        const bTeamBadge=card._teamMode?`<span style="font-size:0.62rem;font-weight:800;color:#9d174d;background:#fce7f3;padding:1px 5px;border-radius:5px;margin-right:3px">${(card._teamBNames||[])[0]?card._teamBNames[0]+'팀':'B'}</span>`:'';
+        html+=`<div style="padding:7px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
+          <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:3px">제${r}경기 ${c}코트</div>
+          <div style="font-size:0.78rem;font-weight:600;line-height:1.5;word-break:keep-all">
+            <span style="font-weight:800;color:${tColor[card.matchType]};margin-right:4px">${tIcon[card.matchType]}${tName[card.matchType]}</span>${aTeamBadge}${colorTeam(card.team0)} <span style="color:#94a3b8;font-weight:400">vs</span> ${bTeamBadge}${colorTeam(card.team1)}
           </div>
         </div>`;
       } else {
-        // 빈 슬롯 추천 — 이 라운드에 쉬는 선수 중 출전 횟수 최소 순
         const _playing=new Set(Object.values(d.roundMap[r]).flatMap(card=>[...card.team0,...card.team1]));
         const _prevPlayed=r>1&&d.roundMap[r-1]?new Set(Object.values(d.roundMap[r-1]).flatMap(card=>[...card.team0,...card.team1])):new Set();
         const _resting=d.attendees.filter(p=>!_playing.has(p.name)).sort((a,b)=>(d.playerData[a.name]?.games||0)-(d.playerData[b.name]?.games||0));
         const _pref=_resting.filter(p=>!_prevPlayed.has(p.name));
         const _rec=(_pref.length?_pref:_resting).slice(0,4);
         const _recHtml=_rec.map(p=>`<span style="color:${_colorMap[p.name]||'#64748b'};font-weight:700">${p.name}</span><span style="color:#94a3b8;font-size:0.68rem">(${d.playerData[p.name]?.games||0})</span>`).join('<span style="color:#cbd5e1;margin:0 2px">·</span>');
-        html+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
-          <div style="font-size:0.72rem;font-weight:700;color:#64748b;white-space:nowrap;min-width:58px">제${r}경기 ${c}코트</div>
-          ${_rec.length?`<div style="font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><span style="color:#f59e0b;font-weight:800;margin-right:4px">추천</span>${_recHtml}</div>`:'<div style="font-size:0.68rem;color:#cbd5e1">—</div>'}
+        html+=`<div style="padding:7px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
+          <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:3px">제${r}경기 ${c}코트</div>
+          ${_rec.length?`<div style="font-size:0.72rem"><span style="color:#f59e0b;font-weight:800;margin-right:4px">추천</span>${_recHtml}</div>`:'<div style="font-size:0.68rem;color:#cbd5e1">—</div>'}
         </div>`;
       }
     }
@@ -5401,26 +5397,10 @@ function _renderDrawAnalysis(d){
     </tr>`;
   });
   html+=`</tbody></table></div>`;
-  // ── 종합 평가
-  const ok3=d.consec3.length===0,okM=d.mensConsecIssues.length===0,okS=d.emptySlots===0;
-  html+=`<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:13px 15px">
-    <div style="font-size:0.85rem;font-weight:800;color:#1e293b;margin-bottom:10px">✅ 종합 평가</div>
-    <div style="font-size:0.82rem;margin-bottom:7px;display:flex;align-items:flex-start;gap:6px">
-      <span>${ok3?'✅':'❌'}</span>
-      <span>3연속 출전 ${ok3?'<b style="color:#16a34a">없음</b>':d.consec3.map(v=>`<b style="color:#dc2626">${v.name}(${v.mx}연속)</b>`).join(', ')}</span>
-    </div>
-    <div style="font-size:0.82rem;margin-bottom:7px;display:flex;align-items:flex-start;gap:6px">
-      <span>${okM?'✅':'❌'}</span>
-      <span>남복 연속 ${okM?'<b style="color:#16a34a">없음</b>':d.mensConsecIssues.map(v=>`<b style="color:#dc2626">${v}</b>`).join(' / ')}</span>
-    </div>
-    <div style="font-size:0.82rem;margin-bottom:7px;display:flex;align-items:flex-start;gap:6px">
-      <span>${okS?'✅':'⚠️'}</span>
-      <span>빈 슬롯 <b style="color:${okS?'#16a34a':'#d97706'}">${d.emptySlots}개</b>${d.emptySlots>0?' — 관리자 수동 배정 권장':''}</span>
-    </div>
-    <div style="font-size:0.78rem;color:#64748b;margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9;font-weight:600">
-      총 ${d.autoCards.length}경기 배정 · ${d.roundNums.length}라운드 · ${d.courtCount}코트
-    </div>
-  </div>
+  // 총 경기 요약 (종합평가 대신 간략 표시)
+  html+=`<div style="text-align:center;font-size:0.75rem;color:#94a3b8;font-weight:600;padding:6px 0 2px">
+    총 ${d.autoCards.length}경기 · ${d.roundNums.length}라운드 · ${d.courtCount}코트
+  </div>`;
   ${d.teamMode?`<button onclick="_renderTeamFinalResult()" style="width:100%;margin-top:10px;padding:13px;background:linear-gradient(135deg,#1e40af,#9d174d);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit">🏆 최종 결과 보기</button>`:''}
   </div>`;
   return html;
