@@ -2402,7 +2402,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v626';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v627';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6573,6 +6573,8 @@ async function adminRemoveDailyCard(id){
     const groupEl=document.getElementById(`dc-round-group-${roundNum}`);
     if(groupEl&&groupEl.querySelectorAll('[id^="daily-card-"]').length===0) groupEl.remove();
   }
+  _saveLocalDailyCards(); // localStorage 동기화 (풀-투-리프레시 복원 방지)
+  _reGroupDailyCards(); // 삭제 버튼 재계산
 }
 
 // ── 자동대진 전체 삭제 (유지원 전용) ───────────────────────────────
@@ -6599,6 +6601,7 @@ async function deleteAllAutoDrawCards(){
   // 세션도 함께 초기화
   db.ref('jmt/autoDrawSession').remove().catch(fbErr);
   _autoDrawSession=null; _autoTeamMode=false; _autoTeamA=[]; _autoTeamB=[];
+  _saveLocalDailyCards(); // localStorage 동기화 (풀-투-리프레시 복원 방지)
   _reGroupDailyCards();
   if(document.getElementById('page-history')?.classList.contains('active')) renderRankingTab();
 }
