@@ -2408,7 +2408,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v646';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v647';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4778,15 +4778,14 @@ function _tapPillTeam(name){
 }
 
 // ── 팀 대결 전용 대진 생성 ───────────────────────────────────────────
-function _pickLeastInTeam(players,sess,roundPlayers,prevPlayers,allowConsec3){
+function _pickLeastInTeam(players,sess,roundPlayers,prevPlayers){
   let cands=players.filter(p=>!roundPlayers.has(p.name));
   if(!cands.length) return null;
+  // 직전 라운드 미출전자 우선 — 없으면 직전 출전자도 허용 (인원 부족 시 연속 불가피)
   const noPrev=cands.filter(p=>!prevPlayers.has(p.name));
   if(noPrev.length) cands=noPrev;
-  else if(!allowConsec3) return null;
   const minSess=Math.min(...cands.map(p=>sess[p.name]||0));
   const tied=cands.filter(p=>(sess[p.name]||0)===minSess);
-  // 동률 시 무작위 선택 — 고정 순서 편향 제거
   return tied[Math.floor(Math.random()*tied.length)].name;
 }
 
@@ -4820,29 +4819,29 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
         let match=null;
 
         if(type==='mixed'){
-          const am=_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound,allowConsec3);
-          const af=_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound,allowConsec3);
-          const bm=_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound,allowConsec3);
-          const bf=_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,allowConsec3);
+          const am=_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound);
+          const af=_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound);
+          const bm=_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound);
+          const bf=_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound);
           if(am&&af&&bm&&bf) match={type,team0:[am,af],team1:[bm,bf]};
         } else if(type==='mens'){
-          const am1=_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound,allowConsec3);
+          const am1=_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound);
           if(am1){roundPlayers.add(am1);}
-          const am2=am1?_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound,allowConsec3):null;
+          const am2=am1?_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound):null;
           if(am1){roundPlayers.delete(am1);}
-          const bm1=_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound,allowConsec3);
+          const bm1=_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound);
           if(bm1){roundPlayers.add(bm1);}
-          const bm2=bm1?_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound,allowConsec3):null;
+          const bm2=bm1?_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound):null;
           if(bm1){roundPlayers.delete(bm1);}
           if(am1&&am2&&bm1&&bm2) match={type,team0:[am1,am2],team1:[bm1,bm2]};
         } else {
-          const af1=_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound,allowConsec3);
+          const af1=_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound);
           if(af1){roundPlayers.add(af1);}
-          const af2=af1?_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound,allowConsec3):null;
+          const af2=af1?_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound):null;
           if(af1){roundPlayers.delete(af1);}
-          const bf1=_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,allowConsec3);
+          const bf1=_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound);
           if(bf1){roundPlayers.add(bf1);}
-          const bf2=bf1?_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,allowConsec3):null;
+          const bf2=bf1?_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound):null;
           if(bf1){roundPlayers.delete(bf1);}
           if(af1&&af2&&bf1&&bf2) match={type,team0:[af1,af2],team1:[bf1,bf2]};
         }
