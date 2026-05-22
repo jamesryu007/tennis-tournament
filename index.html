@@ -2408,7 +2408,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v644';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v645';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5914,13 +5914,19 @@ function addDailyMatchCard(){
     const cardData={phase:'setup',team0:[],team1:[],sets:[],winner:-1,bgImage,num,createdAt,label,createdBy,
       ...(_hasTeamSession?{_teamMode:true,_teamANames:[..._autoTeamA],_teamBNames:[..._autoTeamB],_team0Side:'A'}:{})
     };
-    // 개별 추가 카드 — 항상 독립 카드로 맨 위에 추가 (라운드 배정 없음)
+    // 개별 추가 카드 — 라운드 배정 없이 독립 카드로 추가
+    // 자동대진 카드가 있으면 맨 아래, 없으면 맨 위
+    const autoCards=Object.values(_dailyCards).filter(d=>d._round);
     _dailyCards[id]=cardData;
     const container=document.getElementById('daily-match-cards');
     const el=document.createElement('div');
     el.id=`daily-card-${id}`;
     el.dataset.createdAt=createdAt;
-    container.insertBefore(el,container.firstChild);
+    if(autoCards.length>0){
+      container.appendChild(el);
+    } else {
+      container.insertBefore(el,container.firstChild);
+    }
     _renderDailyCard(id);
     setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'nearest'}),50);
   };
