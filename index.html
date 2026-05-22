@@ -1711,6 +1711,7 @@ const firebaseConfig = {
       <button class="modal-close" onclick="closeAutoDrawModal()">✕</button>
     </div>
     <div id="auto-draw-scroll" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 16px 16px;overscroll-behavior:contain">
+      <div id="auto-draw-session-banner" style="display:none;border-radius:10px;padding:7px 12px;margin-bottom:8px;font-size:0.82rem;font-weight:700"></div>
       <div id="auto-draw-attendees" style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:8px 12px;margin-bottom:10px;font-size:0.93rem;font-weight:600;color:#166534;line-height:1.55"></div>
       <!-- 팀 대결 모드 토글 -->
       <div style="display:flex;align-items:center;justify-content:space-between;background:#f5f3ff;border:1.5px solid #ddd6fe;border-radius:12px;padding:9px 14px;margin-bottom:10px">
@@ -2400,7 +2401,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v622';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v623';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4219,6 +4220,8 @@ let _dailyPickSel=[];
 let _autoTeamMode=false;
 let _autoTeamA=[];  // A팀 멤버 이름 배열
 let _autoTeamB=[];  // B팀 멤버 이름 배열
+let _autoDrawSession=null;      // DB 세션 데이터 { owner, teamMode, teamA, teamB, ... }
+let _autoDrawSessionRef=null;   // Firebase 리스너 ref
 let _dailyScoreCtx=null;
 let _dailyScoreSets=1;
 let _dscoreActive=null;
@@ -4571,6 +4574,9 @@ function autoRecommendGames(){
   const infoEl=document.getElementById('auto-recommend-info');
   if(infoEl) infoEl.textContent=`${courts}코트 × ${hrs}시간 × ${attendees.length}명 기준 ${maxGames}경기 | 🟣혼복 ${rec.mixed} · 🔵남복 ${rec.mens} · 🩷여복 ${rec.womens} 추천`;
   _checkAutoConsec3();
+  // 세션 오너이면 변경 내용 DB 저장
+  const curN=(state.identity&&state.identity.name)||'';
+  if(_autoDrawSession&&_autoDrawSession.owner===curN) _saveAutoDrawSession();
 }
 
 // 3연속 출전 불가피 여부 감지 → 경고 notice 표시
@@ -4599,13 +4605,19 @@ function _checkAutoConsec3(){
 
 // ── 팀 대결 모드 함수들 ────────────────────────────────────────────
 function _onTeamModeToggle(){
+  const curName=(state.identity&&state.identity.name)||'';
+  if(_autoDrawSession&&_autoDrawSession.owner!==curName){
+    // 오너 아님 — 원래값 복원
+    document.getElementById('auto-team-toggle').checked=_autoDrawSession.teamMode||false;
+    return;
+  }
   const prev=_autoTeamMode;
   _autoTeamMode=document.getElementById('auto-team-toggle').checked;
-  // OFF 될 때만 팀 상태 리셋
   if(prev&&!_autoTeamMode){ _autoTeamA=[];_autoTeamB=[]; }
   const assignEl=document.getElementById('auto-team-assign');
   if(assignEl) assignEl.style.display=_autoTeamMode?'':'none';
   if(_autoTeamMode) _renderTeamAssign();
+  _saveAutoDrawSession();
 }
 
 function _getTeamAName(){ return _autoTeamA.length?_autoTeamA[0]+'팀':'A팀'; }
@@ -4620,12 +4632,16 @@ function _renderTeamAssign(){
   const allAssigned=new Set([..._autoTeamA,..._autoTeamB]);
   const unassigned=attendees.filter(p=>!allAssigned.has(p.name));
 
+  const curNameForPill=(state.identity&&state.identity.name)||'';
+  const isDrawOwner=!_autoDrawSession||_autoDrawSession.owner===curNameForPill;
   const pillHtml=p=>{
     const inA=_autoTeamA.includes(p.name);
     const inB=_autoTeamB.includes(p.name);
     const cls=inA?'team-a':inB?'team-b':'unassigned';
     const tag=inA?` [A]`:inB?` [B]`:'';
-    return `<span class="team-pill ${cls}" onclick="_tapPillTeam('${p.name}')">${p.name}${tag}</span>`;
+    return isDrawOwner
+      ? `<span class="team-pill ${cls}" onclick="_tapPillTeam('${p.name}')">${p.name}${tag}</span>`
+      : `<span class="team-pill ${cls}" style="cursor:default;opacity:0.88">${p.name}${tag}</span>`;
   };
   const aName=_getTeamAName(), bName=_getTeamBName();
   const aMales=attendees.filter(p=>_autoTeamA.includes(p.name)&&p.gender==='male');
@@ -4656,15 +4672,14 @@ function _renderTeamAssign(){
 }
 
 function _tapPillTeam(name){
+  const curName=(state.identity&&state.identity.name)||'';
+  if(_autoDrawSession&&_autoDrawSession.owner!==curName) return; // 보기 모드
   if(_autoTeamA.includes(name)){
-    // A팀 → B팀
     _autoTeamA=_autoTeamA.filter(n=>n!==name);
     _autoTeamB=[..._autoTeamB,name];
   } else if(_autoTeamB.includes(name)){
-    // B팀 → 미배정
     _autoTeamB=_autoTeamB.filter(n=>n!==name);
   } else {
-    // 미배정 → A팀 (A팀이 B팀보다 크면 B팀으로)
     if(_autoTeamA.length>_autoTeamB.length){
       _autoTeamB=[..._autoTeamB,name];
     } else {
@@ -4672,6 +4687,7 @@ function _tapPillTeam(name){
     }
   }
   _renderTeamAssign();
+  _saveAutoDrawSession();
 }
 
 // ── 팀 대결 전용 대진 생성 ───────────────────────────────────────────
@@ -4757,6 +4773,90 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
   return scheduled;
 }
 
+// ── 자동대진 세션 DB 동기화 ────────────────────────────────────────────
+function _saveAutoDrawSession(){
+  const curName=(state.identity&&state.identity.name)||'';
+  // 세션이 존재하고 내가 오너가 아니면 저장 안 함
+  if(_autoDrawSession&&_autoDrawSession.owner!==curName) return;
+  const session={
+    owner:_autoDrawSession?_autoDrawSession.owner:curName,
+    teamMode:_autoTeamMode,
+    teamA:[..._autoTeamA],
+    teamB:[..._autoTeamB],
+    courtCnt:parseInt(document.getElementById('auto-court-cnt')?.value)||2,
+    timeHrs:parseInt(document.getElementById('auto-time-hrs')?.value)||4,
+    mixedCnt:parseInt(document.getElementById('auto-mixed-cnt')?.value)||0,
+    mensCnt:parseInt(document.getElementById('auto-mens-cnt')?.value)||0,
+    womensCnt:parseInt(document.getElementById('auto-womens-cnt')?.value)||0,
+    updatedAt:Date.now()
+  };
+  _autoDrawSession=session;
+  db.ref('jmt/autoDrawSession').set(session).catch(fbErr);
+}
+
+function _applyAutoDrawSession(s){
+  if(!s) return;
+  _autoTeamMode=s.teamMode||false;
+  _autoTeamA=s.teamA||[];
+  _autoTeamB=s.teamB||[];
+  const toggleEl=document.getElementById('auto-team-toggle');
+  if(toggleEl) toggleEl.checked=_autoTeamMode;
+  const assignEl=document.getElementById('auto-team-assign');
+  if(assignEl) assignEl.style.display=_autoTeamMode?'':'none';
+  if(s.courtCnt){ const el=document.getElementById('auto-court-cnt'); if(el) el.value=s.courtCnt; }
+  if(s.timeHrs){ const el=document.getElementById('auto-time-hrs'); if(el) el.value=s.timeHrs; }
+  if(s.mixedCnt!==undefined){ const el=document.getElementById('auto-mixed-cnt'); if(el) el.value=s.mixedCnt; }
+  if(s.mensCnt!==undefined){ const el=document.getElementById('auto-mens-cnt'); if(el) el.value=s.mensCnt; }
+  if(s.womensCnt!==undefined){ const el=document.getElementById('auto-womens-cnt'); if(el) el.value=s.womensCnt; }
+  if(_autoTeamMode) _renderTeamAssign();
+}
+
+function _lockAutoDrawUI(readOnly){
+  ['auto-court-cnt','auto-time-hrs','auto-mixed-cnt','auto-mens-cnt','auto-womens-cnt','auto-team-toggle'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.disabled=readOnly;
+  });
+  const btn=document.getElementById('auto-draw-submit-btn');
+  if(btn){ btn.disabled=readOnly; btn.style.opacity=readOnly?'0.4':'1'; btn.style.cursor=readOnly?'not-allowed':'pointer'; }
+}
+
+function _updateSessionBanner(){
+  const banner=document.getElementById('auto-draw-session-banner');
+  if(!banner) return;
+  const curName=(state.identity&&state.identity.name)||'';
+  if(!_autoDrawSession){
+    banner.style.display='none';
+    _lockAutoDrawUI(false);
+    return;
+  }
+  const isOwner=_autoDrawSession.owner===curName;
+  banner.style.display='block';
+  if(isOwner){
+    banner.style.background='#f0fdf4'; banner.style.border='1.5px solid #bbf7d0'; banner.style.color='#166534';
+    banner.innerHTML=`✏️ 내가 설정 중 &nbsp;<button onclick="_clearAutoDrawSession()" style="background:#dc2626;color:#fff;border:none;border-radius:6px;padding:2px 10px;font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit">초기화</button>`;
+    _lockAutoDrawUI(false);
+  } else {
+    banner.style.background='#fffbeb'; banner.style.border='1.5px solid #fde68a'; banner.style.color='#92400e';
+    banner.innerHTML=`👁 보기 모드 — <b>${_autoDrawSession.owner}</b>이(가) 설정 중`;
+    _lockAutoDrawUI(true);
+  }
+}
+
+function _clearAutoDrawSession(){
+  const curName=(state.identity&&state.identity.name)||'';
+  if(_autoDrawSession&&_autoDrawSession.owner!==curName) return;
+  if(!confirm('팀 배정을 초기화하시겠습니까?')) return;
+  db.ref('jmt/autoDrawSession').remove().catch(fbErr);
+  _autoDrawSession=null;
+  _autoTeamMode=false; _autoTeamA=[]; _autoTeamB=[];
+  const toggleEl=document.getElementById('auto-team-toggle');
+  if(toggleEl) toggleEl.checked=false;
+  const assignEl=document.getElementById('auto-team-assign');
+  if(assignEl) assignEl.style.display='none';
+  autoRecommendGames();
+  _updateSessionBanner();
+}
+
 function openAutoDrawModal(){
   // 오늘 참석자 요약 표시
   const attendees=_getAutoDrawAttendees();
@@ -4771,12 +4871,27 @@ function openAutoDrawModal(){
       : '<span style="color:#dc2626">출첵 참석자 정보가 없습니다. 출첵 탭에서 참석자를 확인해주세요.</span>';
   }
   document.getElementById('auto-draw-warn').style.display='none';
-  // 팀 모드 UI 복원 (ON 상태 유지 — OFF 할 때만 리셋)
-  const toggleEl=document.getElementById('auto-team-toggle');
-  if(toggleEl) toggleEl.checked=_autoTeamMode;
-  const assignEl=document.getElementById('auto-team-assign');
-  if(assignEl) assignEl.style.display=_autoTeamMode?'':'none';
-  if(_autoTeamMode) _renderTeamAssign();
+  // DB 세션 리스너 연결 (기존 리스너 정리 후 재연결)
+  if(_autoDrawSessionRef){
+    db.ref('jmt/autoDrawSession').off('value',_autoDrawSessionRef);
+    _autoDrawSessionRef=null;
+  }
+  _autoDrawSessionRef=snap=>{
+    const s=snap.val();
+    _autoDrawSession=s;
+    if(s){
+      _applyAutoDrawSession(s);
+    } else {
+      // 세션 없음 — 로컬 상태로 UI 복원
+      const toggleEl2=document.getElementById('auto-team-toggle');
+      if(toggleEl2) toggleEl2.checked=_autoTeamMode;
+      const assignEl2=document.getElementById('auto-team-assign');
+      if(assignEl2) assignEl2.style.display=_autoTeamMode?'':'none';
+      if(_autoTeamMode) _renderTeamAssign();
+    }
+    _updateSessionBanner();
+  };
+  db.ref('jmt/autoDrawSession').on('value',_autoDrawSessionRef);
   autoRecommendGames(); // 참석자/코트/시간 기준 경기수 자동 추천
   const modal=document.getElementById('auto-draw-modal');
   document.body.style.overflow='hidden';
@@ -4836,8 +4951,12 @@ function openAutoDrawModal(){
 }
 
 function closeAutoDrawModal(){
+  if(_autoDrawSessionRef){
+    db.ref('jmt/autoDrawSession').off('value',_autoDrawSessionRef);
+    _autoDrawSessionRef=null;
+  }
   document.getElementById('auto-draw-modal').classList.remove('open');
-  document.body.style.overflow = '';
+  document.body.style.overflow='';
 }
 
 // ── 대진 분석 모달 ───────────────────────────────────────────────────
@@ -5520,6 +5639,9 @@ async function generateAutoDrawCards(){
     // 대진 분석 버튼 활성화
     const aBtn=document.getElementById('daily-analysis-btn');
     if(aBtn) aBtn.classList.add('ready');
+    // 세션 삭제 — 대진 생성 완료
+    db.ref('jmt/autoDrawSession').remove().catch(fbErr);
+    _autoDrawSession=null;
     closeAutoDrawModal();
     // 부족분 경고
     if(totalMade<mixedCnt+mensCnt+womensCnt){
