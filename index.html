@@ -466,7 +466,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .dc-action-row { display:flex; gap:8px; margin-bottom:18px; }
 .dc-create-btn { flex:1; border:none; background:linear-gradient(135deg,#7c3aed,#2563eb); border-radius:16px; color:#fff; font-size:0.88rem; font-weight:800; padding:14px 10px; cursor:pointer; letter-spacing:0.2px; box-shadow:0 4px 14px rgba(37,99,235,0.32); transition:transform 0.1s; font-family:inherit; -webkit-tap-highlight-color:transparent; }
 .dc-create-btn:active { transform:scale(0.97); }
-.daily-analysis-btn { flex:0 0 90px; border:none; background:linear-gradient(135deg,#0f766e,#0d9488); border-radius:16px; color:#fff; font-size:0.78rem; font-weight:800; padding:14px 8px; cursor:pointer; letter-spacing:0.1px; transition:transform 0.1s,box-shadow 0.15s,opacity 0.2s; display:none; line-height:1.25; align-items:center; justify-content:center; text-align:center; box-shadow:0 4px 14px rgba(13,148,136,0.3); opacity:0.35; pointer-events:none; white-space:nowrap; font-family:inherit; }
+.daily-analysis-btn { flex:0 0 auto; border:none; background:linear-gradient(135deg,#0f766e,#0d9488); border-radius:16px; color:#fff; font-size:0.85rem; font-weight:800; padding:14px 18px; cursor:pointer; letter-spacing:0.1px; transition:transform 0.1s,box-shadow 0.15s,opacity 0.2s; display:none; line-height:1.25; align-items:center; justify-content:center; text-align:center; box-shadow:0 4px 14px rgba(13,148,136,0.3); opacity:0.35; pointer-events:none; white-space:nowrap; font-family:inherit; }
 .daily-analysis-btn.ready { opacity:1; pointer-events:auto; }
 .daily-analysis-btn:active { transform:scale(0.97); }
 /* ── 자동대진 모달 ── */
@@ -1673,13 +1673,13 @@ const firebaseConfig = {
       <!-- 세그먼트 컨트롤: 경기 만들기 모드 선택 -->
       <div class="dc-seg-row">
         <button id="seg-individual" class="dc-seg-btn active" onclick="setDailyCreateMode('individual')">➕<br>개별 추가</button>
-        <button id="seg-team" class="dc-seg-btn" onclick="setDailyCreateMode('team')">👥<br>팀대결 자동</button>
-        <button id="seg-auto" class="dc-seg-btn" onclick="setDailyCreateMode('auto')">🎾<br>일반 자동</button>
+        <button id="seg-team" class="dc-seg-btn" onclick="setDailyCreateMode('team')">👥<br>팀대결</button>
+        <button id="seg-auto" class="dc-seg-btn" onclick="setDailyCreateMode('auto')">🎾<br>일반</button>
       </div>
       <!-- 액션 버튼 행 -->
       <div class="dc-action-row">
         <button class="dc-create-btn" id="daily-create-btn" onclick="executeDailyCreate()">경기 만들기</button>
-        <button class="daily-analysis-btn" id="daily-analysis-btn" onclick="openDrawAnalysisModal()">📊 대진표<br>보기</button>
+        <button class="daily-analysis-btn" id="daily-analysis-btn" onclick="openDrawAnalysisModal()">📊 대진표 보기</button>
         <button id="daily-auto-del-btn" onclick="deleteAllAutoDrawCards()" style="display:none;flex:0 0 auto;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);border-radius:16px;color:#fff;font-size:0.78rem;font-weight:800;padding:14px 10px;cursor:pointer;letter-spacing:0.1px;box-shadow:0 4px 14px rgba(220,38,38,0.32);white-space:nowrap;font-family:inherit">🗑️ 자동대진<br>전체삭제</button>
       </div>
       <div id="daily-match-cards"></div>
@@ -2408,7 +2408,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v638';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v639';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5168,6 +5168,10 @@ function _computeDrawAnalysis(){
     .filter(d=>d.matchType&&d._round)
     .sort((a,b)=>(a._round-b._round)||(a._court-b._court));
   if(autoCards.length===0) return null;
+  // 개별 추가 경기 (팀 지정 완료된 수동 카드)
+  const manualCards=Object.values(_dailyCards)
+    .filter(d=>!d._round&&d.team0&&d.team0.length===2&&d.team1&&d.team1.length===2)
+    .sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   const attendees=_getAutoDrawAttendees();
   const males=attendees.filter(p=>p.gender==='male');
   const females=attendees.filter(p=>p.gender!=='male');
@@ -5212,6 +5216,14 @@ function _computeDrawAnalysis(){
     const ov=[...pR].filter(p=>pN.has(p));
     if(ov.length) mensConsecIssues.push(`제${r}→${rn}: ${ov.join(', ')}`);
   }
+  // 개별 추가 카드 선수도 playerData에 반영
+  for(const c of manualCards){
+    [...c.team0,...c.team1].forEach(p=>{
+      if(!playerData[p]) playerData[p]={rounds:[],games:0,types:{}};
+      playerData[p].games++;
+      if(c.matchType) playerData[p].types[c.matchType]=(playerData[p].types[c.matchType]||0)+1;
+    });
+  }
   // 빈 슬롯
   let emptySlots=0;
   roundNums.forEach(r=>{emptySlots+=(courtCount-Object.keys(roundMap[r]).length);});
@@ -5221,17 +5233,18 @@ function _computeDrawAnalysis(){
   const hrsEl=document.getElementById('auto-time-hrs');
   const courtEl=document.getElementById('auto-court-cnt');
   const settingCourt=courtEl?parseInt(courtEl.value)||courtCount:courtCount;
-  // 팀 대결 모드 정보 (카드에서 읽기)
-  const tmCard=autoCards.find(c=>c._teamMode);
+  // 팀 대결 모드 정보 (카드에서 읽기, 개별카드도 포함)
+  const tmCard=autoCards.find(c=>c._teamMode)||manualCards.find(c=>c._teamMode);
   const teamMode=!!(tmCard);
   const teamANames=tmCard?tmCard._teamANames:[];
   const teamBNames=tmCard?tmCard._teamBNames:[];
-  return {attendees,males,females,autoCards,roundMap,roundNums,courtCount,maxRound,playerData,typeCounts,consec3,mensConsecIssues,emptySlots,teamMode,teamANames,teamBNames};
+  return {attendees,males,females,autoCards,manualCards,roundMap,roundNums,courtCount,maxRound,playerData,typeCounts,consec3,mensConsecIssues,emptySlots,teamMode,teamANames,teamBNames};
 }
 
 // 팀 대결 최종 결과 렌더링
 function _renderTeamFinalResult(){
-  const cards=Object.values(_dailyCards).filter(c=>c._teamMode&&c._round);
+  // 팀대결 카드: 자동생성(_round) + 개별추가(팀 지정 완료) 모두 포함
+  const cards=Object.values(_dailyCards).filter(c=>c._teamMode&&(c._round||(c.team0&&c.team0.length===2&&c.team1&&c.team1.length===2)));
   if(!cards.length){alert('팀 대결 경기 카드가 없습니다.');return;}
   const tmCard=cards[0];
   const teamANames=tmCard._teamANames||[];
@@ -5387,6 +5400,25 @@ function _renderDrawAnalysis(d){
     html+=`</div>`;
   }
   html+=`</div>`;
+  // ── 개별 추가 경기 (팀 지정 완료된 수동 카드)
+  if(d.manualCards&&d.manualCards.length>0){
+    html+=`<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:13px 15px;margin-bottom:12px">
+      <div style="font-size:0.85rem;font-weight:800;color:#1e293b;margin-bottom:10px">➕ 개별 추가 경기 (${d.manualCards.length}경기)</div>`;
+    d.manualCards.forEach((c,idx)=>{
+      const tIcon2={mixed:'🟣',mens:'🔵',womens:'🩷'};
+      const aTeamBadge=c._teamMode?`<span style="font-size:0.62rem;font-weight:800;color:#1e40af;background:#dbeafe;padding:1px 5px;border-radius:5px;margin-right:3px">${(c._teamANames||[])[0]?c._teamANames[0]+'팀':'A'}</span>`:'';
+      const bTeamBadge=c._teamMode?`<span style="font-size:0.62rem;font-weight:800;color:#9d174d;background:#fce7f3;padding:1px 5px;border-radius:5px;margin-right:3px">${(c._teamBNames||[])[0]?c._teamBNames[0]+'팀':'B'}</span>`:'';
+      const isLast=idx===d.manualCards.length-1;
+      const typeIcon=c.matchType?tIcon2[c.matchType]:'⚪';
+      const aCol=colorTeam(c.team0);
+      const bCol=colorTeam(c.team1);
+      html+=`<div style="padding:7px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
+        <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:3px">번외경기 ${idx+1}${c.label?` · ${c.label}`:''}</div>
+        <div style="font-size:0.78rem;font-weight:600;line-height:1.5">${typeIcon} ${aTeamBadge}${aCol} <span style="color:#94a3b8;font-weight:400">vs</span> ${bTeamBadge}${bCol}${c.winner>=0?`<span style="margin-left:6px;font-size:0.7rem;font-weight:800;color:${c.winner===0?'#2563eb':'#db2777'}"> ▶ ${c.winner===0?c.team0.join('-'):c.team1.join('-')} 승</span>`:''}</div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
   // ── 선수별 참여
   html+=`<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:13px 15px;margin-bottom:12px;overflow-x:auto">
     <div style="font-size:0.85rem;font-weight:800;color:#1e293b;margin-bottom:10px">📊 선수별 참여 현황</div>
@@ -5832,7 +5864,11 @@ function addDailyMatchCard(){
     const _dd=String(_today.getDate()).padStart(2,'0');
     const label=`경기${num} · ${_mm}/${_dd}`;
     const createdBy=(state.identity&&state.identity.name)||'';
-    const cardData={phase:'setup',team0:[],team1:[],sets:[],winner:-1,bgImage,num,createdAt,label,createdBy};
+    // 팀 대결 세션 활성 중이면 개별카드에도 팀정보 부여 (선수선택 시 팀별 필터링 + 최종결과 반영)
+    const _hasTeamSession=_autoTeamMode&&_autoTeamA.length>=2&&_autoTeamB.length>=2;
+    const cardData={phase:'setup',team0:[],team1:[],sets:[],winner:-1,bgImage,num,createdAt,label,createdBy,
+      ...(_hasTeamSession?{_teamMode:true,_teamANames:[..._autoTeamA],_teamBNames:[..._autoTeamB],_team0Side:'A'}:{})
+    };
     // 자동생성 카드가 있으면 빈 슬롯(경기 내 미배정 코트)에 먼저 채우고, 없으면 신규 라운드
     const autoCards=Object.values(_dailyCards).filter(d=>d._round);
     if(autoCards.length>0){
@@ -6005,14 +6041,17 @@ function _renderDailyCard(id){
     const t0f=d.team0.length===2,t1f=d.team1.length===2;
     const isParticipant=[...(d.team0||[]),...(d.team1||[])].includes(_curName);
     const canStart=canManage||isParticipant;
+    // 팀대결 세션이면 팀 라벨 표시
+    const _aLabel=d._teamMode?`🔵 ${(d._teamANames||[])[0]?(d._teamANames[0]+'팀'):'A팀'}`:'팀 A';
+    const _bLabel=d._teamMode?`🔴 ${(d._teamBNames||[])[0]?(d._teamBNames[0]+'팀'):'B팀'}`:'팀 B';
     const left=`<div class="dc-team-left">
       <button class="dc-team-btn${t0f?' filled':''}${canManage?'':' readonly'}"${canManage?`onclick="openDailyPick('${id}',0)"`:' disabled'}>
-        ${t0f?`<div class="dc-tnick">${t0.nick}</div><div class="dc-tmembers">${_hlMemberStr(d.team0,_curName)}</div>`:'팀 A'}
+        ${t0f?`<div class="dc-tnick">${t0.nick}</div><div class="dc-tmembers">${_hlMemberStr(d.team0,_curName)}</div>`:_aLabel}
       </button>
     </div>`;
     const right=`<div class="dc-team-right">
       <button class="dc-team-btn${t1f?' filled':''}${canManage?'':' readonly'}"${canManage?`onclick="openDailyPick('${id}',1)"`:' disabled'}>
-        ${t1f?`<div class="dc-tnick">${t1.nick}</div><div class="dc-tmembers">${_hlMemberStr(d.team1,_curName)}</div>`:'팀 B'}
+        ${t1f?`<div class="dc-tnick">${t1.nick}</div><div class="dc-tmembers">${_hlMemberStr(d.team1,_curName)}</div>`:_bLabel}
       </button>
     </div>`;
     const mid=`<button class="dc-start-btn" onclick="startDailyMatch('${id}')"${t0f&&t1f&&canStart?'':' disabled'}>시작</button>`;
@@ -6093,6 +6132,11 @@ function _renderDailyPickList(){
   const {id,side}=_dailyPickCtx;
   const other=_dailyCards[id][`team${1-side}`]||[];
   const otherSet=new Set(other);
+  // 팀대결 세션 카드: 이 팀에 속한 선수만 선택 가능
+  const _pickCard=_dailyCards[id];
+  const teamFilter=(_pickCard&&_pickCard._teamMode)
+    ?new Set(side===0?(_pickCard._teamANames||[]):(_pickCard._teamBNames||[]))
+    :null;
   const players=_allPlayers();
   const list=document.getElementById('daily-pick-list');
   let html='';
@@ -6116,11 +6160,12 @@ function _renderDailyPickList(){
     const btns=allPairs.map(([key,nick])=>{
       const [a,b]=key.split('_');
       const isSel=_dailyPickSel.length===2&&_dailyPickSel.includes(a)&&_dailyPickSel.includes(b);
-      // 비활성화: 상대팀 선수와 한 명이라도 겹치거나, 진행 중 경기 선수 포함, 참석자 외
+      // 비활성화: 상대팀 선수와 한 명이라도 겹치거나, 진행 중 경기 선수 포함, 참석자 외, 팀필터 밖
       const isOtherTeam=other.length>0&&(otherSet.has(a)||otherSet.has(b));
       const isPlaying=playingPlayers.has(a)||playingPlayers.has(b);
       const isNotAttendee=attendeeSet&&(!attendeeSet.has(a)||!attendeeSet.has(b));
-      const dis=isOtherTeam||isPlaying||isNotAttendee;
+      const isTeamFiltered=teamFilter&&(!teamFilter.has(a)||!teamFilter.has(b));
+      const dis=isOtherTeam||isPlaying||isNotAttendee||isTeamFiltered;
       const baseStyle=`font-size:0.7rem;padding:4px 7px;white-space:normal;word-break:keep-all;text-align:center;`;
       const style=dis?baseStyle+`background:#f1f5f9;border-color:#cbd5e1;color:#94a3b8;cursor:not-allowed;`
                     :isSel?baseStyle  // 선택됨: CSS .selected 클래스가 파란색 처리
@@ -6136,7 +6181,7 @@ function _renderDailyPickList(){
     if(!group.length) return '';
     const btns=group.map(p=>{
       const sel=_dailyPickSel.includes(p);
-      const dis=!sel&&(other.includes(p)||playingPlayers.has(p)||_dailyPickSel.length>=2||(attendeeSet&&!attendeeSet.has(p)));
+      const dis=!sel&&(other.includes(p)||playingPlayers.has(p)||_dailyPickSel.length>=2||(attendeeSet&&!attendeeSet.has(p))||(teamFilter&&!teamFilter.has(p)));
       return `<button class="player-pick-btn${sel?' selected':''}${dis?' pick-disabled':''}" onclick="toggleDailyPick('${p}')">${p}</button>`;
     }).join('');
     return `<div style="margin-bottom:10px"><div class="pick-group-label">${label}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${btns}</div></div>`;
