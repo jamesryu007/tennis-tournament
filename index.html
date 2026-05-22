@@ -2402,7 +2402,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v629';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v630';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4388,6 +4388,18 @@ function _setupDailyCardsListener(){
       _dailyCards[id]=_normCard(raw);
       _reGroupDailyCards();
       return;
+    }
+    // 두 팀 모두 ready인데 phase가 teamSetup이면 playing으로 전환
+    // (동시 버튼 클릭 레이스 컨디션 복구 — child_changed로 최신 상태 수신 시 처리)
+    const d=_dailyCards[id];
+    if(d.phase==='teamSetup'&&d._teamAReady&&d._teamBReady){
+      d.phase='playing';
+      db.ref(`jmt/dailyCards/${id}`).update({
+        phase:'playing',_teamAReady:true,_teamBReady:true,
+        team0:Array.isArray(d.team0)?[...d.team0]:d.team0,
+        team1:Array.isArray(d.team1)?[...d.team1]:d.team1,
+        sets:[],winner:-1
+      }).catch(fbErr);
     }
     _renderDailyCard(id);
   });
