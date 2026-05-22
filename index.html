@@ -2408,7 +2408,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v645';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v646';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4784,8 +4784,10 @@ function _pickLeastInTeam(players,sess,roundPlayers,prevPlayers,allowConsec3){
   const noPrev=cands.filter(p=>!prevPlayers.has(p.name));
   if(noPrev.length) cands=noPrev;
   else if(!allowConsec3) return null;
-  cands.sort((a,b)=>(sess[a.name]||0)-(sess[b.name]||0));
-  return cands[0].name;
+  const minSess=Math.min(...cands.map(p=>sess[p.name]||0));
+  const tied=cands.filter(p=>(sess[p.name]||0)===minSess);
+  // 동률 시 무작위 선택 — 고정 순서 편향 제거
+  return tied[Math.floor(Math.random()*tied.length)].name;
 }
 
 function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCount,maxRounds,allowConsec3){
@@ -5541,22 +5543,25 @@ function _pairPlayCount(a,b,pairStats){
 // 현재 라운드 제약(roundPlayers, prevPlayers, prevPrevPlayers 등)을 인식하면서
 // 1경기씩 생성 → 생성과 동시에 라운드 배정 (구조적 제약 위반 원천 차단)
 
+// 배열 Fisher-Yates 셔플 (동률 선수 무작위 선택용)
+function _shuffleArr(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
 // 혼복 1경기 온디맨드 생성
 // mustPlay: 직전 라운드 미배정 선수 → 우선 배정 (-1000점 보너스)
 function _genOneMixed(roundPlayers,prevPlayers,prevPrevPlayers,sortedM,sortedF,mSess,fSess,pairStats,usedCombos,mustPlay,allowConsec3){
   const isConsec3=p=>prevPrevPlayers.has(p)&&prevPlayers.has(p);
   const isBlocked=p=>roundPlayers.has(p)||(!allowConsec3&&isConsec3(p));
-  const poolM=[...sortedM].filter(p=>!isBlocked(p.name))
+  const poolM=_shuffleArr(sortedM).filter(p=>!isBlocked(p.name))
     .sort((a,b)=>{
       const sa=(mustPlay.has(a.name)?-1000:0)+(allowConsec3&&isConsec3(a.name)?500:0)+(mSess[a.name]||0);
       const sb=(mustPlay.has(b.name)?-1000:0)+(allowConsec3&&isConsec3(b.name)?500:0)+(mSess[b.name]||0);
-      return sa-sb||sortedM.indexOf(a)-sortedM.indexOf(b);
+      return sa-sb;
     });
-  const poolF=[...sortedF].filter(p=>!isBlocked(p.name))
+  const poolF=_shuffleArr(sortedF).filter(p=>!isBlocked(p.name))
     .sort((a,b)=>{
       const sa=(mustPlay.has(a.name)?-1000:0)+(allowConsec3&&isConsec3(a.name)?500:0)+(fSess[a.name]||0);
       const sb=(mustPlay.has(b.name)?-1000:0)+(allowConsec3&&isConsec3(b.name)?500:0)+(fSess[b.name]||0);
-      return sa-sb||sortedF.indexOf(a)-sortedF.indexOf(b);
+      return sa-sb;
     });
   if(poolM.length<2||poolF.length<2) return null;
   for(let mi=0;mi<poolM.length-1;mi++)
@@ -5583,11 +5588,11 @@ function _genOneSameGender(type,roundPlayers,prevPlayers,prevPrevPlayers,prevMen
   const isMens=type==='mens';
   const isConsec3=p=>prevPrevPlayers.has(p)&&prevPlayers.has(p);
   const isBlocked=p=>roundPlayers.has(p)||(!allowConsec3&&isConsec3(p))||(isMens&&prevMensPlayers.has(p));
-  const pool=[...sorted].filter(p=>!isBlocked(p.name))
+  const pool=_shuffleArr(sorted).filter(p=>!isBlocked(p.name))
     .sort((a,b)=>{
       const sa=(mustPlay.has(a.name)?-1000:0)+(allowConsec3&&isConsec3(a.name)?500:0)+(sess[a.name]||0);
       const sb=(mustPlay.has(b.name)?-1000:0)+(allowConsec3&&isConsec3(b.name)?500:0)+(sess[b.name]||0);
-      return sa-sb||sorted.indexOf(a)-sorted.indexOf(b);
+      return sa-sb;
     });
   if(pool.length<4) return null;
   for(let i=0;i<pool.length-3;i++)
