@@ -458,11 +458,14 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 @keyframes confettiFall { 0%{transform:translateY(-20px) rotate(0deg);opacity:1} 100%{transform:translateY(120px) rotate(720deg);opacity:0} }
 @keyframes bounce-celebrate { 0%,100%{transform:translateY(0) rotate(0deg)} 30%{transform:translateY(-8px) rotate(-6deg)} 60%{transform:translateY(-4px) rotate(4deg)} }
 @keyframes shake-sad { 0%,100%{transform:rotate(0deg) translateY(0)} 20%{transform:rotate(-5deg) translateY(2px)} 40%{transform:rotate(5deg) translateY(0)} 70%{transform:rotate(-2deg) translateY(1px)} }
-.daily-btn-row { display:flex; gap:8px; margin:6px 0 18px; }
-.daily-add-btn { flex:0 0 54px; border:none; background:linear-gradient(135deg,#7c3aed,#6d28d9); border-radius:16px; color:#fff; font-size:1.9rem; font-weight:400; padding:14px 8px; cursor:pointer; line-height:1; box-shadow:0 4px 14px rgba(124,58,237,0.38); transition:transform 0.15s,box-shadow 0.15s; }
-.daily-add-btn:active { transform:scale(0.96); box-shadow:0 1px 6px rgba(124,58,237,0.2); }
-.daily-auto-btn { flex:1; border:none; background:linear-gradient(135deg,#7c3aed,#2563eb); border-radius:16px; color:#fff; font-size:0.82rem; font-weight:800; padding:14px 10px; cursor:pointer; letter-spacing:0.2px; transition:transform 0.1s,box-shadow 0.15s; display:none; line-height:1; align-items:center; justify-content:center; text-align:center; box-shadow:0 4px 14px rgba(37,99,235,0.32); white-space:nowrap; }
-.daily-auto-btn:active { transform:scale(0.97); }
+/* ── 오늘의 경기 세그먼트 컨트롤 ── */
+.dc-seg-row { display:flex; background:#1e1b4b; border-radius:14px; padding:3px; margin:6px 0 8px; gap:2px; }
+.dc-seg-btn { flex:1; border:none; border-radius:11px; padding:10px 4px; font-size:0.78rem; font-weight:700; cursor:pointer; color:rgba(255,255,255,0.45); background:transparent; transition:all 0.18s; font-family:inherit; letter-spacing:0.1px; line-height:1.3; -webkit-tap-highlight-color:transparent; }
+.dc-seg-btn.active { background:linear-gradient(135deg,#7c3aed,#2563eb); color:#fff; box-shadow:0 2px 10px rgba(37,99,235,0.4); }
+.dc-seg-btn:active { opacity:0.8; }
+.dc-action-row { display:flex; gap:8px; margin-bottom:18px; }
+.dc-create-btn { flex:1; border:none; background:linear-gradient(135deg,#7c3aed,#2563eb); border-radius:16px; color:#fff; font-size:0.88rem; font-weight:800; padding:14px 10px; cursor:pointer; letter-spacing:0.2px; box-shadow:0 4px 14px rgba(37,99,235,0.32); transition:transform 0.1s; font-family:inherit; -webkit-tap-highlight-color:transparent; }
+.dc-create-btn:active { transform:scale(0.97); }
 .daily-analysis-btn { flex:0 0 74px; border:none; background:linear-gradient(135deg,#0f766e,#0d9488); border-radius:16px; color:#fff; font-size:0.75rem; font-weight:800; padding:14px 8px; cursor:pointer; letter-spacing:0.15px; transition:transform 0.1s,box-shadow 0.15s,opacity 0.2s; display:none; line-height:1; align-items:center; justify-content:center; text-align:center; box-shadow:0 4px 14px rgba(13,148,136,0.3); opacity:0.35; pointer-events:none; white-space:nowrap; }
 .daily-analysis-btn.ready { opacity:1; pointer-events:auto; }
 .daily-analysis-btn:active { transform:scale(0.97); }
@@ -1667,11 +1670,17 @@ const firebaseConfig = {
     <!-- 경기 안내 + 추가 -->
     <div id="match-panel-daily" style="padding:4px 12px 0">
       <div id="daily-guide-row" style="text-align:center;padding:10px 0 8px;color:#94a3b8;font-size:0.82rem;font-weight:600;letter-spacing:0.02em">🎾 오늘의 멋진 경기를 만드세요</div>
-      <div class="daily-btn-row">
-        <button class="daily-add-btn" id="daily-add-btn" onclick="addDailyMatchCard()">+</button>
-        <button class="daily-auto-btn" id="daily-auto-btn" onclick="openAutoDrawModal()">🎾 대진표 자동 생성</button>
+      <!-- 세그먼트 컨트롤: 경기 만들기 모드 선택 -->
+      <div class="dc-seg-row">
+        <button id="seg-individual" class="dc-seg-btn active" onclick="setDailyCreateMode('individual')">➕<br>개별 추가</button>
+        <button id="seg-team" class="dc-seg-btn" onclick="setDailyCreateMode('team')">👥<br>팀대결 자동</button>
+        <button id="seg-auto" class="dc-seg-btn" onclick="setDailyCreateMode('auto')">🎾<br>일반 자동</button>
+      </div>
+      <!-- 액션 버튼 행 -->
+      <div class="dc-action-row">
+        <button class="dc-create-btn" id="daily-create-btn" onclick="executeDailyCreate()">경기 만들기</button>
         <button class="daily-analysis-btn" id="daily-analysis-btn" onclick="openDrawAnalysisModal()">📊 대진분석</button>
-        <button id="daily-auto-del-btn" onclick="deleteAllAutoDrawCards()" style="display:none;flex:0 0 auto;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);border-radius:16px;color:#fff;font-size:0.78rem;font-weight:800;padding:14px 10px;cursor:pointer;letter-spacing:0.1px;box-shadow:0 4px 14px rgba(220,38,38,0.32);white-space:nowrap">🗑️ 자동대진<br>전체삭제</button>
+        <button id="daily-auto-del-btn" onclick="deleteAllAutoDrawCards()" style="display:none;flex:0 0 auto;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);border-radius:16px;color:#fff;font-size:0.78rem;font-weight:800;padding:14px 10px;cursor:pointer;letter-spacing:0.1px;box-shadow:0 4px 14px rgba(220,38,38,0.32);white-space:nowrap;font-family:inherit">🗑️ 자동대진<br>전체삭제</button>
       </div>
       <div id="daily-match-cards"></div>
     </div>
@@ -1714,14 +1723,11 @@ const firebaseConfig = {
     <div id="auto-draw-scroll" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 16px 16px;overscroll-behavior:contain">
       <div id="auto-draw-session-banner" style="display:none;border-radius:10px;padding:7px 12px;margin-bottom:8px;font-size:0.82rem;font-weight:700"></div>
       <div id="auto-draw-attendees" style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;padding:8px 12px;margin-bottom:10px;font-size:0.93rem;font-weight:600;color:#166534;line-height:1.55"></div>
-      <!-- 팀 대결 모드 토글 -->
-      <div style="display:flex;align-items:center;justify-content:space-between;background:#f5f3ff;border:1.5px solid #ddd6fe;border-radius:12px;padding:9px 14px;margin-bottom:10px">
-        <span style="font-size:0.9rem;font-weight:800;color:#5b21b6">🏆 팀 대결 모드</span>
-        <label class="team-toggle-switch">
-          <input type="checkbox" id="auto-team-toggle" onchange="_onTeamModeToggle()">
-          <span class="team-toggle-slider"></span>
-        </label>
+      <!-- 팀 대결 모드 표시 (세그먼트 컨트롤로 제어 — 토글 숨김) -->
+      <div id="auto-draw-mode-badge" style="display:none;align-items:center;gap:8px;background:#f5f3ff;border:1.5px solid #ddd6fe;border-radius:12px;padding:9px 14px;margin-bottom:10px">
+        <span id="auto-draw-mode-label" style="font-size:0.9rem;font-weight:800;color:#5b21b6"></span>
       </div>
+      <input type="checkbox" id="auto-team-toggle" style="display:none" onchange="_onTeamModeToggle()">
       <!-- 팀 배정 영역 (팀 대결 모드 ON시 표시) -->
       <div id="auto-team-assign" style="display:none;margin-bottom:10px"></div>
       <div>
@@ -2402,7 +2408,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v634';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v635';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4217,6 +4223,29 @@ const _dailyCards={};
 let _dailyCardCounter=0;
 let _dailyPickCtx=null;
 let _dailyPickSel=[];
+// ── 경기 만들기 세그먼트 모드 ─────────────────────────────────────
+let _dailyCreateMode='individual'; // 'individual' | 'team' | 'auto'
+
+function setDailyCreateMode(mode){
+  _dailyCreateMode=mode;
+  ['individual','team','auto'].forEach(m=>{
+    const el=document.getElementById('seg-'+m);
+    if(el) el.classList.toggle('active',m===mode);
+  });
+}
+
+function executeDailyCreate(){
+  if(_dailyCreateMode==='individual'){
+    addDailyMatchCard();
+  } else {
+    // 팀대결/일반 자동 → _autoTeamMode 세팅 후 모달 오픈
+    _autoTeamMode=(_dailyCreateMode==='team');
+    const toggle=document.getElementById('auto-team-toggle');
+    if(toggle) toggle.checked=_autoTeamMode;
+    openAutoDrawModal();
+  }
+}
+
 // ── 팀 대결 모드 상태 ──────────────────────────────────────────────
 let _autoTeamMode=false;
 let _autoTeamA=[];  // A팀 멤버 이름 배열
@@ -4439,14 +4468,11 @@ function renderDailyTab(){
   const days=['일','월','화','수','목','금','토'];
   const dateEl=document.getElementById('daily-today-date');
   if(dateEl) dateEl.textContent=`${now.getMonth()+1}월 ${now.getDate()}일(${days[now.getDay()]})`;
-  // 관리자: 좁은 +버튼 + 자동생성 + 분석 / 일반: 전체 너비 +버튼
-  const addBtn=document.getElementById('daily-add-btn');
-  const autoBtn=document.getElementById('daily-auto-btn');
+  // 분석 버튼 표시
   const analysisBtn=document.getElementById('daily-analysis-btn');
-  // 자동 대진 생성 + 분석: 모든 멤버에게 공개
-  if(addBtn){addBtn.style.flex='0 0 54px';addBtn.style.fontSize='1.9rem';}
-  if(autoBtn) autoBtn.style.display='flex';
   if(analysisBtn) analysisBtn.style.display='flex';
+  // 세그먼트 초기 상태 — 기본 개별 선택
+  setDailyCreateMode(_dailyCreateMode||'individual');
   _setupDailyCardsListener();
 }
 
@@ -4908,6 +4934,20 @@ function _clearAutoDrawSession(){
 }
 
 function openAutoDrawModal(){
+  // 모달 상단 모드 배지 표시
+  const modeBadge=document.getElementById('auto-draw-mode-badge');
+  const modeLabel=document.getElementById('auto-draw-mode-label');
+  if(modeBadge&&modeLabel){
+    if(_autoTeamMode){
+      modeLabel.textContent='👥 팀대결 모드'; modeBadge.style.display='flex';
+    } else {
+      modeLabel.textContent='🎾 일반 자동 모드'; modeBadge.style.display='flex';
+    }
+  }
+  // 팀배정 영역 표시/숨김
+  const assignEl=document.getElementById('auto-team-assign');
+  if(assignEl) assignEl.style.display=_autoTeamMode?'':'none';
+  if(_autoTeamMode) _renderTeamAssign();
   // 오늘 참석자 요약 표시
   const attendees=_getAutoDrawAttendees();
   const males=attendees.filter(p=>p.gender==='male');
