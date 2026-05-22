@@ -1671,6 +1671,7 @@ const firebaseConfig = {
         <button class="daily-add-btn" id="daily-add-btn" onclick="addDailyMatchCard()">+</button>
         <button class="daily-auto-btn" id="daily-auto-btn" onclick="openAutoDrawModal()">🎾 대진표 자동 생성</button>
         <button class="daily-analysis-btn" id="daily-analysis-btn" onclick="openDrawAnalysisModal()">📊 대진분석</button>
+        <button id="daily-auto-del-btn" onclick="deleteAllAutoDrawCards()" style="display:none;flex:0 0 auto;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);border-radius:16px;color:#fff;font-size:0.78rem;font-weight:800;padding:14px 10px;cursor:pointer;letter-spacing:0.1px;box-shadow:0 4px 14px rgba(220,38,38,0.32);white-space:nowrap">🗑️ 자동대진<br>전체삭제</button>
       </div>
       <div id="daily-match-cards"></div>
     </div>
@@ -2401,7 +2402,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v625';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v626';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4799,8 +4800,8 @@ function _applyAutoDrawSession(s){
   if(!s) return;
   _applyingSession=true;
   _autoTeamMode=s.teamMode||false;
-  _autoTeamA=s.teamA||[];
-  _autoTeamB=s.teamB||[];
+  _autoTeamA=Array.isArray(s.teamA)?s.teamA:(s.teamA?Object.values(s.teamA):[]);
+  _autoTeamB=Array.isArray(s.teamB)?s.teamB:(s.teamB?Object.values(s.teamB):[]);
   const toggleEl=document.getElementById('auto-team-toggle');
   if(toggleEl) toggleEl.checked=_autoTeamMode;
   const assignEl=document.getElementById('auto-team-assign');
@@ -5651,9 +5652,7 @@ async function generateAutoDrawCards(){
     // 대진 분석 버튼 활성화
     const aBtn=document.getElementById('daily-analysis-btn');
     if(aBtn) aBtn.classList.add('ready');
-    // 세션 삭제 — 대진 생성 완료
-    db.ref('jmt/autoDrawSession').remove().catch(fbErr);
-    _autoDrawSession=null;
+    // 세션 유지 — 카드 생성 후에도 팀 배정 정보 보존 (오너가 초기화 버튼으로만 삭제)
     closeAutoDrawModal();
     // 부족분 경고
     if(totalMade<mixedCnt+mensCnt+womensCnt){
@@ -5718,6 +5717,9 @@ function _reGroupDailyCards(){
       else aBtn.classList.remove('ready');
     }
   }
+  // 자동대진 전체삭제 버튼 — 유지원만 노출, 자동대진 카드 있을 때만
+  const delAllBtn=document.getElementById('daily-auto-del-btn');
+  if(delAllBtn) delAllBtn.style.display=(isAdmin()&&autoEntries.length>0)?'flex':'none';
 }
 
 function _allPlayers(){
@@ -6571,6 +6573,34 @@ async function adminRemoveDailyCard(id){
     const groupEl=document.getElementById(`dc-round-group-${roundNum}`);
     if(groupEl&&groupEl.querySelectorAll('[id^="daily-card-"]').length===0) groupEl.remove();
   }
+}
+
+// ── 자동대진 전체 삭제 (유지원 전용) ───────────────────────────────
+async function deleteAllAutoDrawCards(){
+  if(!isAdmin()) return;
+  const autoIds=Object.keys(_dailyCards).filter(id=>_dailyCards[id]&&_dailyCards[id]._round);
+  if(!autoIds.length){ alert('삭제할 자동대진 카드가 없습니다.'); return; }
+  if(!confirm(`자동 생성된 경기카드 ${autoIds.length}장을 모두 삭제하시겠습니까?
+(진행 중인 경기가 있으면 기록이 사라집니다)`)) return;
+  for(const id of autoIds){
+    const d=_dailyCards[id];
+    if(!d) continue;
+    // done 단계 카드는 랭킹 역산
+    if(d.phase==='done'&&d.team0&&d.team1&&d.team0.length===2&&d.team1.length===2){
+      await reverseMatchStats(d.team0,d.team1,d.winner);
+    }
+    db.ref(`jmt/dailyCards/${id}`).remove().catch(fbErr);
+    if(d.matchKey) db.ref(`jmt/matches/${d.matchKey}`).remove().catch(fbErr);
+    delete _dailyCards[id];
+  }
+  // 랭킹 캐시 무효화
+  delete _rankStatsCache[`player_${_selectedRankYear}`];
+  delete _rankStatsCache[`pair_${_selectedRankYear}`];
+  // 세션도 함께 초기화
+  db.ref('jmt/autoDrawSession').remove().catch(fbErr);
+  _autoDrawSession=null; _autoTeamMode=false; _autoTeamA=[]; _autoTeamB=[];
+  _reGroupDailyCards();
+  if(document.getElementById('page-history')?.classList.contains('active')) renderRankingTab();
 }
 
 // ══ 최근 경기 요약 캐러셀 ══════════════════════════════════════════
