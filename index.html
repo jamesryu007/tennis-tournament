@@ -2400,7 +2400,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v619';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v620';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5489,11 +5489,13 @@ async function generateAutoDrawCards(){
       const createdAt=baseTs+si;
       numBase++;
       const courtLabel=`${match._court}번코트`;
+      const _drawCreator=(state.identity&&state.identity.name)||'';
       const cardData={
         phase:'setup',team0:match.team0,team1:match.team1,
         sets:[],winner:-1,bgImage,num:numBase,createdAt,label,
         matchType:match.type,courtLabel,
         _round:match._round,_court:match._court,
+        createdBy:_drawCreator,
         ...(_autoTeamMode&&_autoTeamA.length&&_autoTeamB.length?{
           _teamMode:true,
           _teamANames:[..._autoTeamA],_teamBNames:[..._autoTeamB],
