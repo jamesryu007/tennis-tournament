@@ -2408,7 +2408,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v642';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v643';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4931,19 +4931,41 @@ function _updateSessionBanner(){
   }
 }
 
-function _clearAutoDrawSession(){
+async function _clearAutoDrawSession(){
   const curName=(state.identity&&state.identity.name)||'';
   if(_autoDrawSession&&_autoDrawSession.owner!==curName) return;
-  if(!confirm('팀 배정을 초기화하시겠습니까?')) return;
+  if(!confirm('팀 배정과 생성된 경기 카드를 모두 초기화하시겠습니까?')) return;
+  // 모든 경기 카드 삭제 (자동대진 + 개별추가)
+  const allIds=Object.keys(_dailyCards);
+  for(const id of allIds){
+    const d=_dailyCards[id];
+    if(!d) continue;
+    if(d.phase==='done'&&d.team0&&d.team1&&d.team0.length===2&&d.team1.length===2){
+      await reverseMatchStats(d.team0,d.team1,d.winner);
+    }
+    db.ref(`jmt/dailyCards/${id}`).remove().catch(fbErr);
+    if(d.matchKey) db.ref(`jmt/matches/${d.matchKey}`).remove().catch(fbErr);
+    delete _dailyCards[id];
+  }
+  // 랭킹 캐시 무효화
+  delete _rankStatsCache[`player_${_selectedRankYear}`];
+  delete _rankStatsCache[`pair_${_selectedRankYear}`];
+  // 세션·락·로컬 초기화
   db.ref('jmt/autoDrawSession').remove().catch(fbErr);
-  _autoDrawSession=null;
+  db.ref('jmt/autoDrawLock').remove().catch(fbErr);
+  _autoDrawSession=null; _autoDrawLock=null;
   _autoTeamMode=false; _autoTeamA=[]; _autoTeamB=[];
+  localStorage.removeItem(_LS_LOCAL_DAILY);
   const toggleEl=document.getElementById('auto-team-toggle');
   if(toggleEl) toggleEl.checked=false;
   const assignEl=document.getElementById('auto-team-assign');
   if(assignEl) assignEl.style.display='none';
+  // DOM 초기화
+  const container=document.getElementById('daily-match-cards');
+  if(container) container.innerHTML='';
   autoRecommendGames();
   _updateSessionBanner();
+  if(document.getElementById('page-history')?.classList.contains('active')) renderRankingTab();
 }
 
 function openAutoDrawModal(){
@@ -5879,40 +5901,7 @@ function addDailyMatchCard(){
     const cardData={phase:'setup',team0:[],team1:[],sets:[],winner:-1,bgImage,num,createdAt,label,createdBy,
       ...(_hasTeamSession?{_teamMode:true,_teamANames:[..._autoTeamA],_teamBNames:[..._autoTeamB],_team0Side:'A'}:{})
     };
-    // 자동생성 카드가 있으면 빈 슬롯(경기 내 미배정 코트)에 먼저 채우고, 없으면 신규 라운드
-    const autoCards=Object.values(_dailyCards).filter(d=>d._round);
-    if(autoCards.length>0){
-      const courtCount=parseInt(document.getElementById('auto-court-cnt')?.value)||2;
-      // 라운드별 사용 코트 집계
-      const roundCourts={};
-      autoCards.forEach(d=>{
-        if(!roundCourts[d._round]) roundCourts[d._round]=new Set();
-        roundCourts[d._round].add(d._court);
-      });
-      // 첫 번째 빈 슬롯 탐색 (라운드↑, 코트↑ 순)
-      let targetRound=null,targetCourt=null;
-      const sortedRounds=Object.keys(roundCourts).map(Number).sort((a,b)=>a-b);
-      outer:for(const r of sortedRounds){
-        for(let c=1;c<=courtCount;c++){
-          if(!roundCourts[r].has(c)){targetRound=r;targetCourt=c;break outer;}
-        }
-      }
-      // 빈 슬롯 없으면 마지막 라운드 다음 신규 라운드
-      if(targetRound===null){
-        targetRound=Math.max(...sortedRounds)+1;
-        targetCourt=1;
-      }
-      cardData._round=targetRound;
-      cardData._court=targetCourt;
-      cardData.courtLabel=`${targetCourt}번코트`;
-      _dailyCards[id]=cardData;
-      _reGroupDailyCards();
-      setTimeout(()=>{
-        const el2=document.getElementById(`daily-card-${id}`);
-        if(el2) el2.scrollIntoView({behavior:'smooth',block:'nearest'});
-      },80);
-      return;
-    }
+    // 개별 추가 카드 — 항상 독립 카드로 맨 위에 추가 (라운드 배정 없음)
     _dailyCards[id]=cardData;
     const container=document.getElementById('daily-match-cards');
     const el=document.createElement('div');
