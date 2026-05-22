@@ -2402,7 +2402,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v633';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v634';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4422,7 +4422,15 @@ function _clearDailyCards(){
     if(el) el.remove();
     delete _dailyCards[id];
   }
-  if(db) db.ref('jmt/dailyCards').remove().catch(()=>{});
+  if(db){
+    db.ref('jmt/dailyCards').remove().catch(()=>{});
+    // 자동대진 락·세션도 함께 초기화 (다음 주 대진 생성 가능하도록)
+    db.ref('jmt/autoDrawLock').remove().catch(()=>{});
+    db.ref('jmt/autoDrawSession').remove().catch(()=>{});
+  }
+  // 로컬 상태 초기화
+  _autoDrawLock=null; _autoDrawSession=null; _autoTeamMode=false; _autoTeamA=[]; _autoTeamB=[];
+  localStorage.removeItem(_LS_LOCAL_DAILY);
 }
 
 function renderDailyTab(){
