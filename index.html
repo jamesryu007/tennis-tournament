@@ -2381,7 +2381,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v615';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v616';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5999,11 +5999,7 @@ function _teamSwapPlayer(id, side, playerIdx){
   const current=myTeam[playerIdx];
   const options=pool.filter(n=>n!==current);
   if(!options.length){ alert('교체 가능한 선수가 없습니다.'); return; }
-  const choice=prompt(`교체할 선수를 선택하세요:
-${options.map((n,i)=>`${i+1}. ${n}`).join('
-')}
-
-현재: ${current}`, '');
+  const choice=prompt(`교체할 선수를 선택하세요:\n${options.map((n,i)=>`${i+1}. ${n}`).join('\n')}\n\n현재: ${current}`, '');
   if(!choice) return;
   const idx=parseInt(choice)-1;
   if(isNaN(idx)||idx<0||idx>=options.length) return;
