@@ -2402,7 +2402,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v628';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v629';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4376,6 +4376,29 @@ function _setupDailyCardsListener(){
     _restoreLocalDailyCards(); // 로컬 전용 카드 병합
     _reGroupDailyCards(); // 라운드 그룹 프레임으로 DOM 구성
   });
+  // 실시간 카드 상태 변경 감지 — phase 전환(teamSetup→playing 등) 즉시 반영
+  db.ref('jmt/dailyCards').on('child_changed', snap=>{
+    const id=snap.key;
+    const raw=snap.val();
+    if(!raw||!id) return;
+    if(_dailyCards[id]){
+      // 기존 카드 업데이트 (로컬전용 상태 보존)
+      _dailyCards[id]=Object.assign({},_dailyCards[id],_normCard(raw));
+    } else {
+      _dailyCards[id]=_normCard(raw);
+      _reGroupDailyCards();
+      return;
+    }
+    _renderDailyCard(id);
+  });
+  db.ref('jmt/dailyCards').on('child_removed', snap=>{
+    const id=snap.key;
+    if(!id||!_dailyCards[id]) return;
+    delete _dailyCards[id];
+    const el=document.getElementById(`daily-card-${id}`);
+    if(el) el.remove();
+    _reGroupDailyCards();
+  });
 }
 
 function _clearDailyCards(){
@@ -6098,12 +6121,20 @@ function closeDailyPickModal(){
 }
 
 // ── 팀 대결: 팀장 시작 처리 ────────────────────────────────────────
-function _teamCaptainStart(id, side){
+async function _teamCaptainStart(id, side){
   const d=_dailyCards[id];
   if(!d||d.phase!=='teamSetup') return;
   const field=side==='A'?'_teamAReady':'_teamBReady';
   d[field]=true;
-  db.ref(`jmt/dailyCards/${id}`).update({[field]:true}).catch(fbErr);
+  // Firebase에 현재 팀 ready 업데이트
+  await db.ref(`jmt/dailyCards/${id}`).update({[field]:true}).catch(fbErr);
+  // 최신 상태 재조회 — 상대 캡틴이 이미 눌렀을 수 있으므로 로컬 캐시 대신 DB 직접 확인
+  const snap=await db.ref(`jmt/dailyCards/${id}`).once('value');
+  const latest=snap.val();
+  if(latest){
+    d._teamAReady=latest._teamAReady||false;
+    d._teamBReady=latest._teamBReady||false;
+  }
   // 양 팀 모두 준비 완료 → playing으로 전환
   if(d._teamAReady&&d._teamBReady){
     d.phase='playing';
