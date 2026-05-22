@@ -2408,7 +2408,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v637';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v638';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5413,7 +5413,7 @@ function _renderDrawAnalysis(d){
   // 총 경기 요약 (종합평가 대신 간략 표시)
   html+=`<div style="text-align:center;font-size:0.75rem;color:#94a3b8;font-weight:600;padding:6px 0 2px">
     총 ${d.autoCards.length}경기 · ${d.roundNums.length}라운드 · ${d.courtCount}코트
-  </div>`;
+  </div>
   ${d.teamMode?`<button onclick="_renderTeamFinalResult()" style="width:100%;margin-top:10px;padding:13px;background:linear-gradient(135deg,#1e40af,#9d174d);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit">🏆 최종 결과 보기</button>`:''}
   </div>`;
   return html;
