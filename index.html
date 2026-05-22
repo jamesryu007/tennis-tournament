@@ -2400,7 +2400,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v621';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v622';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5996,7 +5996,10 @@ function _teamSwapPlayer(id, side, playerIdx){
   const captainB=teamBNames[0]||'';
   if(side==='A'&&_curName!==captainA) return;
   if(side==='B'&&_curName!==captainB) return;
-  // 이번 라운드에서 다른 코트에 이미 배정된 선수 제외
+  const myTeam=side==='A'?[...d.team0]:[...d.team1];
+  const current=myTeam[playerIdx];
+  const otherInCard=myTeam.filter((_,i)=>i!==playerIdx); // 같은 카드 팀동료 제외
+  // 이번 라운드 다른 코트 배정 현황 (표시용 — 선택은 가능)
   const thisRound=d._round||0;
   const usedInRound=new Set();
   Object.values(_dailyCards).forEach(c=>{
@@ -6005,48 +6008,35 @@ function _teamSwapPlayer(id, side, playerIdx){
       (c.team1||[]).forEach(n=>usedInRound.add(n));
     }
   });
-  // 같은 카드 내 다른 슬롯 선수 제외
-  const myTeam=side==='A'?[...d.team0]:[...d.team1];
-  const otherInCard=myTeam.filter((_,i)=>i!==playerIdx);
-  const current=myTeam[playerIdx];
-  // 선택 가능 풀: 내 팀 전체 멤버 - 다른 코트 사용중 - 같은 카드 다른 슬롯
+  // 풀: 내 팀 전체 - 현재 선수 - 같은 카드 팀동료 (중복 선수도 표시)
   const pool=(side==='A'?teamANames:teamBNames)
-    .filter(n=>n!==current&&!usedInRound.has(n)&&!otherInCard.includes(n));
+    .filter(n=>n!==current&&!otherInCard.includes(n));
   if(!pool.length){ alert('교체 가능한 선수가 없습니다.'); return; }
-  _swapCtx={id, side, playerIdx, current};
+  _swapCtx={id, side, playerIdx, current, usedInRound};
   _swapSel=null;
   const sideLabel=side==='A'?(captainA?captainA+'팀':'A팀'):(captainB?captainB+'팀':'B팀');
   document.getElementById('team-swap-title').textContent=`선수 교체 — ${sideLabel}`;
   document.getElementById('team-swap-info').textContent=`교체할 선수: ${current}`;
-  _renderTeamSwapList(pool);
+  _renderTeamSwapList();
   document.getElementById('team-swap-modal').classList.add('open');
 }
 
-function _renderTeamSwapList(pool){
+function _renderTeamSwapList(){
   if(!_swapCtx) return;
-  // pool이 전달되지 않으면 재계산
-  if(!pool){
-    const d=_dailyCards[_swapCtx.id];
-    if(!d) return;
-    const {side, playerIdx, current}=_swapCtx;
-    const thisRound=d._round||0;
-    const usedInRound=new Set();
-    Object.values(_dailyCards).forEach(c=>{
-      if(c._round===thisRound&&c!==d){
-        (c.team0||[]).forEach(n=>usedInRound.add(n));
-        (c.team1||[]).forEach(n=>usedInRound.add(n));
-      }
-    });
-    const myTeam=side==='A'?[...d.team0]:[...d.team1];
-    const otherInCard=myTeam.filter((_,i)=>i!==playerIdx);
-    const allTeam=side==='A'?(d._teamANames||[]):(d._teamBNames||[]);
-    pool=allTeam.filter(n=>n!==current&&!usedInRound.has(n)&&!otherInCard.includes(n));
-  }
+  const {id, side, playerIdx, current, usedInRound}=_swapCtx;
+  const d=_dailyCards[id];
+  if(!d) return;
+  const myTeam=side==='A'?[...d.team0]:[...d.team1];
+  const otherInCard=myTeam.filter((_,i)=>i!==playerIdx);
+  const allTeam=side==='A'?(d._teamANames||[]):(d._teamBNames||[]);
+  const pool=allTeam.filter(n=>n!==current&&!otherInCard.includes(n));
   const mkGroup=(group,label)=>{
     if(!group.length) return '';
     const btns=group.map(p=>{
       const sel=_swapSel===p;
-      return `<button class="player-pick-btn${sel?' selected':''}" onclick="_swapSelectPlayer('${p}')">${p}</button>`;
+      const dup=usedInRound&&usedInRound.has(p);
+      const dupBadge=dup?`<span style="font-size:0.6rem;background:#f59e0b;color:#fff;border-radius:4px;padding:0 3px;margin-left:3px;font-weight:700">중복</span>`:'';
+      return `<button class="player-pick-btn${sel?' selected':''}" onclick="_swapSelectPlayer('${p}')">${p}${dupBadge}</button>`;
     }).join('');
     return `<div style="margin-bottom:10px"><div class="pick-group-label">${label}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${btns}</div></div>`;
   };
