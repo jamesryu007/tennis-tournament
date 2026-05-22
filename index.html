@@ -2402,7 +2402,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v632';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v633';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4317,6 +4317,7 @@ function numpadInput(val){
 }
 let _dailyCardsListenerSet=false;
 let _pendingScrollKey=null;
+let _autoDrawLock=null; // { createdBy, createdAt } — jmt/autoDrawLock 구독값
 
 // ── 로컬 자동생성 카드 localStorage 보관 (pull-to-refresh/앱재시작 복원용) ──
 const _LS_LOCAL_DAILY='jmt_local_daily_cards';
@@ -4362,6 +4363,8 @@ function _normCard(data){
 function _setupDailyCardsListener(){
   if(_dailyCardsListenerSet||!db) return;
   _dailyCardsListenerSet=true;
+  // 자동대진 락 구독 — 다른 멤버가 대진 생성 중인지 감지
+  db.ref('jmt/autoDrawLock').on('value', snap=>{ _autoDrawLock=snap.val()||null; });
   db.ref('jmt/dailyCards').once('value').then(snap=>{
     const all=snap.val()||{};
     if(Object.keys(all).length===0){
@@ -5585,12 +5588,10 @@ async function generateAutoDrawCards(){
     alert('이미 진행 중인 대진이 있습니다.\n경기를 완료하거나 카드를 삭제한 후 다시 시도해주세요.');
     return;
   }
-  // 다른 멤버가 이미 자동대진을 생성한 경우 차단 (Firebase에 올라간 _round 카드 기준)
+  // 다른 멤버가 이미 자동대진을 생성한 경우 차단 (Firebase autoDrawLock 기준)
   const myName=(state.identity&&state.identity.name)||'';
-  const othersRound=Object.values(_dailyCards).filter(d=>d._round&&String(d.createdBy||'')&&d.createdBy!==myName);
-  if(othersRound.length>0&&!isAdmin()){
-    const creator=othersRound[0].createdBy||'다른 멤버';
-    alert(`${creator}님이 이미 대진을 생성했습니다.\n기존 대진을 삭제한 후 다시 시도해주세요.`);
+  if(_autoDrawLock&&_autoDrawLock.createdBy&&_autoDrawLock.createdBy!==myName&&!isAdmin()){
+    alert(`${_autoDrawLock.createdBy}님이 이미 대진을 생성했습니다.\n기존 대진을 삭제한 후 다시 시도해주세요.`);
     return;
   }
   const mixedCnt=parseInt(document.getElementById('auto-mixed-cnt').value)||0;
@@ -5695,6 +5696,8 @@ async function generateAutoDrawCards(){
     // 대진 분석 버튼 활성화
     const aBtn=document.getElementById('daily-analysis-btn');
     if(aBtn) aBtn.classList.add('ready');
+    // 대진 생성 락 저장 — 다른 멤버 중복 생성 방지
+    db.ref('jmt/autoDrawLock').set({createdBy:myName,createdAt:Date.now()}).catch(fbErr);
     // 세션 유지 — 카드 생성 후에도 팀 배정 정보 보존 (오너가 초기화 버튼으로만 삭제)
     closeAutoDrawModal();
     // 부족분 경고
@@ -6625,6 +6628,9 @@ async function adminRemoveDailyCard(id){
   }
   _saveLocalDailyCards(); // localStorage 동기화 (풀-투-리프레시 복원 방지)
   _reGroupDailyCards(); // 삭제 버튼 재계산
+  // 모든 _round 카드가 삭제됐으면 락 해제
+  const remainRound=Object.values(_dailyCards).some(d=>d._round);
+  if(!remainRound) db.ref('jmt/autoDrawLock').remove().catch(fbErr);
 }
 
 // ── 자동대진 전체 삭제 (유지원 전용) ───────────────────────────────
@@ -6648,8 +6654,9 @@ async function deleteAllAutoDrawCards(){
   // 랭킹 캐시 무효화
   delete _rankStatsCache[`player_${_selectedRankYear}`];
   delete _rankStatsCache[`pair_${_selectedRankYear}`];
-  // 세션도 함께 초기화
+  // 세션 + 락 초기화
   db.ref('jmt/autoDrawSession').remove().catch(fbErr);
+  db.ref('jmt/autoDrawLock').remove().catch(fbErr);
   _autoDrawSession=null; _autoTeamMode=false; _autoTeamA=[]; _autoTeamB=[];
   _saveLocalDailyCards(); // localStorage 동기화 (풀-투-리프레시 복원 방지)
   _reGroupDailyCards();
