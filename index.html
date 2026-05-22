@@ -2408,7 +2408,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v636';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v637';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4238,10 +4238,21 @@ function executeDailyCreate(){
   if(_dailyCreateMode==='individual'){
     addDailyMatchCard();
   } else {
+    // 접속자 미선택 시 먼저 선택 유도
+    if(!state.identity){
+      alert('먼저 접속자를 선택해주세요.');
+      openIdentityModal();
+      return;
+    }
     // 팀대결/일반 자동 → _autoTeamMode 세팅 후 모달 오픈
     _autoTeamMode=(_dailyCreateMode==='team');
     const toggle=document.getElementById('auto-team-toggle');
-    if(toggle) toggle.checked=_autoTeamMode;
+    if(toggle){
+      // onchange 사이드이펙트 방지: 모달 오픈 전 toggle 값만 동기화
+      toggle.removeAttribute('onchange');
+      toggle.checked=_autoTeamMode;
+      toggle.setAttribute('onchange','_onTeamModeToggle()');
+    }
     openAutoDrawModal();
   }
 }
@@ -4679,6 +4690,8 @@ function _checkAutoConsec3(){
 
 // ── 팀 대결 모드 함수들 ────────────────────────────────────────────
 function _onTeamModeToggle(){
+  // 모달이 닫혀있으면 무시 (executeDailyCreate toggle 설정 시 사이드이펙트 방지)
+  if(!document.getElementById('auto-draw-modal')?.classList.contains('open')) return;
   const curName=(state.identity&&state.identity.name)||'';
   if(_autoDrawSession&&_autoDrawSession.owner!==curName){
     // 오너 아님 — 원래값 복원
