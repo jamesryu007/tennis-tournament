@@ -2361,7 +2361,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v611';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v612';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4823,7 +4823,15 @@ function _renderDrawAnalysis(d){
   const roundPastels=['#eff6ff','#fdf4ff','#fff7ed','#f0fdf4','#fef2f2','#f0f9ff','#fefce8','#fdf2f8'];
   const genderMap={};
   d.attendees.forEach(p=>genderMap[p.name]=p.gender);
-  const colorName=name=>`<span style="color:${genderMap[name]==='male'?'#1d4ed8':'#db2777'};font-weight:700">${name}</span>`;
+  // 남자: 파랑 계통, 여자: 핑크 계통 — 멤버별 고유 색상
+  const _maleColors=['#1d4ed8','#0369a1','#4f46e5','#0891b2','#1e40af','#6366f1','#0284c7','#3b82f6'];
+  const _femColors=['#be185d','#c026d3','#e11d48','#9d174d','#a21caf','#ec4899','#f43f5e','#db2777'];
+  const _colorMap={};
+  let _mi=0,_fi=0;
+  d.attendees.forEach(p=>{
+    _colorMap[p.name]=p.gender==='male'?_maleColors[_mi++%_maleColors.length]:_femColors[_fi++%_femColors.length];
+  });
+  const colorName=name=>`<span style="color:${_colorMap[name]||'#64748b'};font-weight:700">${name}</span>`;
   const colorTeam=team=>team.map(colorName).join('<span style="color:#94a3b8;font-weight:400">-</span>');
   html+=`<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:13px 15px;margin-bottom:12px">
     <div style="font-size:0.85rem;font-weight:800;color:#1e293b;margin-bottom:10px">🎾 경기별 배정 현황</div>`;
@@ -4846,7 +4854,7 @@ function _renderDrawAnalysis(d){
         const _resting=d.attendees.filter(p=>!_playing.has(p.name)).sort((a,b)=>(d.playerData[a.name]?.games||0)-(d.playerData[b.name]?.games||0));
         const _pref=_resting.filter(p=>!_prevPlayed.has(p.name));
         const _rec=(_pref.length?_pref:_resting).slice(0,4);
-        const _recHtml=_rec.map(p=>`<span style="color:${genderMap[p.name]==='male'?'#1d4ed8':'#db2777'};font-weight:700">${p.name}</span><span style="color:#94a3b8;font-size:0.68rem">(${d.playerData[p.name]?.games||0})</span>`).join('<span style="color:#cbd5e1;margin:0 2px">·</span>');
+        const _recHtml=_rec.map(p=>`<span style="color:${_colorMap[p.name]||'#64748b'};font-weight:700">${p.name}</span><span style="color:#94a3b8;font-size:0.68rem">(${d.playerData[p.name]?.games||0})</span>`).join('<span style="color:#cbd5e1;margin:0 2px">·</span>');
         html+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
           <div style="font-size:0.72rem;font-weight:700;color:#64748b;white-space:nowrap;min-width:58px">제${r}경기 ${c}코트</div>
           ${_rec.length?`<div style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">추천 ${_recHtml}</div>`:'<div style="font-size:0.68rem;color:#cbd5e1">—</div>'}
