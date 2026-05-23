@@ -715,16 +715,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2408,7 +2408,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v648';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v649';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4778,14 +4778,18 @@ function _tapPillTeam(name){
 }
 
 // ── 팀 대결 전용 대진 생성 ───────────────────────────────────────────
-function _pickLeastInTeam(players,sess,roundPlayers,prevPlayers,prevPrevPlayers){
+function _pickLeastInTeam(players,sess,roundPlayers,prevPlayers,prevPrevPlayers,prevPrevPrevPlayers){
   let cands=players.filter(p=>!roundPlayers.has(p.name));
   if(!cands.length) return null;
-  // 우선순위: ① 직전 미출전 → ② 직전 출전(1연속) → ③ 2연속(3연속은 최후 수단)
+  // 3연속 도달 시 하드 제외 — 4번째 연속 완전 차단, 불가능하면 null 반환(코트 건너뜀)
+  const isStreak3=p=>prevPrevPrevPlayers.has(p.name)&&prevPrevPlayers.has(p.name)&&prevPlayers.has(p.name);
+  const nonStreak3=cands.filter(p=>!isStreak3(p));
+  if(!nonStreak3.length) return null;
+  // 우선순위: ① 직전 미출전 → ② 1연속 → ③ 2연속
   const isStreak2=p=>prevPrevPlayers.has(p.name)&&prevPlayers.has(p.name);
-  const noPrev=cands.filter(p=>!prevPlayers.has(p.name));
-  const prevOnly=cands.filter(p=>prevPlayers.has(p.name)&&!isStreak2(p));
-  const streak2=cands.filter(p=>isStreak2(p));
+  const noPrev=nonStreak3.filter(p=>!prevPlayers.has(p.name));
+  const prevOnly=nonStreak3.filter(p=>prevPlayers.has(p.name)&&!isStreak2(p));
+  const streak2=nonStreak3.filter(p=>isStreak2(p));
   const pool=noPrev.length?noPrev:(prevOnly.length?prevOnly:streak2);
   const minSess=Math.min(...pool.map(p=>sess[p.name]||0));
   const tied=pool.filter(p=>(sess[p.name]||0)===minSess);
@@ -4807,10 +4811,15 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
   const scheduled=[];
   let prevRound=new Set();
   let prevPrevRound=new Set();
+  let prevPrevPrevRound=new Set();
+  let activeRound=0; // 실제 경기가 생성된 라운드 번호 (연속 보장)
+  const maxAttempts=maxRounds*2; // 빈 라운드(3연속 휴식) 여유분 포함
 
-  for(let rnd=1;rnd<=maxRounds;rnd++){
+  for(let attempt=1;attempt<=maxAttempts;attempt++){
     if(remaining.mixed+remaining.mens+remaining.womens===0) break;
+    if(activeRound>=maxRounds) break;
     const roundPlayers=new Set();
+    const roundMatches=[];
     let courtIdx=0;
     const typeOrder=['mixed','mens','womens']
       .filter(t=>remaining[t]>0)
@@ -4823,43 +4832,50 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
         let match=null;
 
         if(type==='mixed'){
-          const am=_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound,prevPrevRound);
-          const af=_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound,prevPrevRound);
-          const bm=_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound,prevPrevRound);
-          const bf=_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,prevPrevRound);
+          const am=_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          const af=_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          const bm=_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          const bf=_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           if(am&&af&&bm&&bf) match={type,team0:[am,af],team1:[bm,bf]};
         } else if(type==='mens'){
-          const am1=_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound,prevPrevRound);
+          const am1=_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           if(am1){roundPlayers.add(am1);}
-          const am2=am1?_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound,prevPrevRound):null;
+          const am2=am1?_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
           if(am1){roundPlayers.delete(am1);}
-          const bm1=_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound,prevPrevRound);
+          const bm1=_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           if(bm1){roundPlayers.add(bm1);}
-          const bm2=bm1?_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound,prevPrevRound):null;
+          const bm2=bm1?_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
           if(bm1){roundPlayers.delete(bm1);}
           if(am1&&am2&&bm1&&bm2) match={type,team0:[am1,am2],team1:[bm1,bm2]};
         } else {
-          const af1=_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound,prevPrevRound);
+          const af1=_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           if(af1){roundPlayers.add(af1);}
-          const af2=af1?_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound,prevPrevRound):null;
+          const af2=af1?_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
           if(af1){roundPlayers.delete(af1);}
-          const bf1=_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,prevPrevRound);
+          const bf1=_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           if(bf1){roundPlayers.add(bf1);}
-          const bf2=bf1?_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,prevPrevRound):null;
+          const bf2=bf1?_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
           if(bf1){roundPlayers.delete(bf1);}
           if(af1&&af2&&bf1&&bf2) match={type,team0:[af1,af2],team1:[bf1,bf2]};
         }
 
         if(match){
           remaining[type]--;generated[type]++;typeIdx[type]++;
-          match.typeIdx=typeIdx[type];match._round=rnd;match._court=++courtIdx;
+          match.typeIdx=typeIdx[type];match._court=++courtIdx;
           match._team0Side='A'; // team0 = A팀
-          scheduled.push(match);
+          roundMatches.push(match);
           [...match.team0,...match.team1].forEach(p=>{roundPlayers.add(p);if(p in sess)sess[p]++;});
           break;
         }
       }
     }
+    // 실제 경기가 생성된 라운드만 번호 부여 — 빈 라운드는 prev 상태만 갱신
+    if(roundMatches.length>0){
+      activeRound++;
+      roundMatches.forEach(m=>{m._round=activeRound;});
+      scheduled.push(...roundMatches);
+    }
+    prevPrevPrevRound=prevPrevRound;
     prevPrevRound=prevRound;
     prevRound=new Set(roundPlayers);
   }
