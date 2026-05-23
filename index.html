@@ -1673,8 +1673,8 @@ const firebaseConfig = {
       <!-- 세그먼트 컨트롤: 경기 만들기 모드 선택 -->
       <div class="dc-seg-row">
         <button id="seg-individual" class="dc-seg-btn active" onclick="setDailyCreateMode('individual')">➕<br>개별 추가</button>
+        <button id="seg-auto" class="dc-seg-btn" onclick="setDailyCreateMode('auto')">🎾<br>자동배정</button>
         <button id="seg-team" class="dc-seg-btn" onclick="setDailyCreateMode('team')">👥<br>팀대결</button>
-        <button id="seg-auto" class="dc-seg-btn" onclick="setDailyCreateMode('auto')">🎾<br>일반</button>
       </div>
       <!-- 액션 버튼 행 -->
       <div class="dc-action-row">
@@ -2409,7 +2409,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v657';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v658';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4746,15 +4746,13 @@ function _renderTeamAssign(){
       <div style="display:flex;flex-wrap:wrap;max-width:100%">${females.map(pillHtml).join('')}</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <div style="background:#eff6ff;border:2px solid #3b82f6;border-radius:12px;padding:9px 11px;min-height:64px">
+      <div style="background:#eff6ff;border:2px solid #3b82f6;border-radius:12px;padding:9px 11px">
         <div style="font-size:0.75rem;font-weight:800;color:#1e40af;margin-bottom:5px">🔵 ${aName} (${_autoTeamA.length}명)</div>
-        <div style="font-size:0.78rem;font-weight:700;color:#1d4ed8;line-height:1.7">${joinRows(aMales.map(p=>p.name),3)||'—'}</div>
-        <div style="font-size:0.78rem;font-weight:700;color:#be185d;line-height:1.7">${joinRows(aFemales.map(p=>p.name),3)}</div>
+        <div style="font-size:0.78rem;font-weight:700;color:#1d4ed8;line-height:1.7">${joinRows([...aMales,...aFemales].map(p=>p.name),3)||'—'}</div>
       </div>
-      <div style="background:#fdf2f8;border:2px solid #ec4899;border-radius:12px;padding:9px 11px;min-height:64px">
+      <div style="background:#fdf2f8;border:2px solid #ec4899;border-radius:12px;padding:9px 11px">
         <div style="font-size:0.75rem;font-weight:800;color:#9d174d;margin-bottom:5px">🔴 ${bName} (${_autoTeamB.length}명)</div>
-        <div style="font-size:0.78rem;font-weight:700;color:#1d4ed8;line-height:1.7">${joinRows(bMales.map(p=>p.name),3)||'—'}</div>
-        <div style="font-size:0.78rem;font-weight:700;color:#be185d;line-height:1.7">${joinRows(bFemales.map(p=>p.name),3)}</div>
+        <div style="font-size:0.78rem;font-weight:700;color:#1d4ed8;line-height:1.7">${joinRows([...bMales,...bFemales].map(p=>p.name),3)||'—'}</div>
       </div>
     </div>
     ${unassigned.length?`<div style="font-size:0.72rem;color:#94a3b8;margin-top:6px;font-weight:600">미배정: ${unassigned.map(p=>p.name).join(', ')}</div>`:''}
@@ -5508,17 +5506,15 @@ function _renderDrawAnalysis(d){
     const bM=d.attendees.filter(p=>d.teamBNames.includes(p.name)&&p.gender==='male');
     const bF=d.attendees.filter(p=>d.teamBNames.includes(p.name)&&p.gender!=='male');
     const _rows3=(arr,sep=' · ')=>arr.reduce((rows,name,i)=>{if(i%3===0)rows.push([]);rows[rows.length-1].push(name);return rows;},[]).map(r=>r.join(sep)).join('<br>');
-    html+=`<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:12px">
+    html+=`<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:stretch;margin-bottom:12px">
       <div style="background:#eff6ff;border:2px solid #3b82f6;border-radius:12px;padding:9px 11px">
         <div style="font-size:0.8rem;font-weight:800;color:#1e40af;margin-bottom:4px">🔵 ${aN}</div>
-        <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;line-height:1.7">${_rows3(aM.map(p=>p.name))||'—'}</div>
-        <div style="font-size:0.75rem;font-weight:700;color:#be185d;line-height:1.7">${_rows3(aF.map(p=>p.name))}</div>
+        <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;line-height:1.7">${_rows3([...aM,...aF].map(p=>p.name))||'—'}</div>
       </div>
-      <div style="font-size:1.2rem;font-weight:900;color:#64748b;text-align:center">vs</div>
+      <div style="font-size:1.2rem;font-weight:900;color:#64748b;text-align:center;display:flex;align-items:center">vs</div>
       <div style="background:#fdf2f8;border:2px solid #ec4899;border-radius:12px;padding:9px 11px">
         <div style="font-size:0.8rem;font-weight:800;color:#9d174d;margin-bottom:4px">🔴 ${bN}</div>
-        <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;line-height:1.7">${_rows3(bM.map(p=>p.name))||'—'}</div>
-        <div style="font-size:0.75rem;font-weight:700;color:#be185d;line-height:1.7">${_rows3(bF.map(p=>p.name))}</div>
+        <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;line-height:1.7">${_rows3([...bM,...bF].map(p=>p.name))||'—'}</div>
       </div>
     </div>`;
   }
