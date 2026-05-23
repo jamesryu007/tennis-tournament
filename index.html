@@ -2408,7 +2408,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v650';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v651';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4779,20 +4779,31 @@ function _tapPillTeam(name){
 
 // ── 팀 대결 전용 대진 생성 ───────────────────────────────────────────
 function _pickLeastInTeam(players,sess,roundPlayers,prevPlayers,prevPrevPlayers,prevPrevPrevPlayers){
+  const MIN_GAMES=3; // 최소 경기 보장 횟수
   let cands=players.filter(p=>!roundPlayers.has(p.name));
   if(!cands.length) return null;
-  // 3연속 도달 시 하드 제외 — 4번째 연속 완전 차단, 불가능하면 null 반환(코트 건너뜀)
   const isStreak3=p=>prevPrevPrevPlayers.has(p.name)&&prevPrevPlayers.has(p.name)&&prevPlayers.has(p.name);
-  const nonStreak3=cands.filter(p=>!isStreak3(p));
-  if(!nonStreak3.length) return null;
+  // 최소 경기 미달 선수: streak3 제약 무시하고 우선 배정 (최소 참여 보장)
+  const belowMin=cands.filter(p=>(sess[p.name]||0)<MIN_GAMES);
+  let pool;
+  if(belowMin.length){
+    // 최소 미달자 중 streak3 아닌 선수 우선, 없으면 streak3도 허용
+    const belowMinOk=belowMin.filter(p=>!isStreak3(p));
+    pool=belowMinOk.length?belowMinOk:belowMin;
+  } else {
+    // 일반: 3연속 하드 제외
+    const nonStreak3=cands.filter(p=>!isStreak3(p));
+    if(!nonStreak3.length) return null;
+    pool=nonStreak3;
+  }
   // 우선순위: ① 직전 미출전 → ② 1연속 → ③ 2연속
   const isStreak2=p=>prevPrevPlayers.has(p.name)&&prevPlayers.has(p.name);
-  const noPrev=nonStreak3.filter(p=>!prevPlayers.has(p.name));
-  const prevOnly=nonStreak3.filter(p=>prevPlayers.has(p.name)&&!isStreak2(p));
-  const streak2=nonStreak3.filter(p=>isStreak2(p));
-  const pool=noPrev.length?noPrev:(prevOnly.length?prevOnly:streak2);
-  const minSess=Math.min(...pool.map(p=>sess[p.name]||0));
-  const tied=pool.filter(p=>(sess[p.name]||0)===minSess);
+  const noPrev=pool.filter(p=>!prevPlayers.has(p.name));
+  const prevOnly=pool.filter(p=>prevPlayers.has(p.name)&&!isStreak2(p));
+  const streak2=pool.filter(p=>isStreak2(p));
+  const finalPool=noPrev.length?noPrev:(prevOnly.length?prevOnly:streak2);
+  const minSess=Math.min(...finalPool.map(p=>sess[p.name]||0));
+  const tied=finalPool.filter(p=>(sess[p.name]||0)===minSess);
   return tied[Math.floor(Math.random()*tied.length)].name;
 }
 
