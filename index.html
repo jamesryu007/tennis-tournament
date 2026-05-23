@@ -2409,7 +2409,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v654';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v655';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4849,9 +4849,17 @@ function _genTeamDrawOnce(attendees,teamANames,teamBNames,counts,courtCount,maxR
         return (generated[a]/(counts[a]||1))-(generated[b]/(counts[b]||1));
       });
 
+    const usedTypeThisRound=new Set(); // 이번 라운드 코트별 종목 다양화 추적
     for(let c=0;c<courtCount;c++){
       if(remaining.mixed+remaining.mens+remaining.womens===0) break;
-      for(const type of typeOrder){
+      // 코트 2 이상: 전원 혼복 경험 완료 시 이번 라운드 미사용 종목 우선 배정
+      const courtTypeOrder=(c>0&&allHaveMixed)
+        ?typeOrder.slice().sort((a,b)=>{
+            const aN=!usedTypeThisRound.has(a),bN=!usedTypeThisRound.has(b);
+            if(aN&&!bN)return -1;if(!aN&&bN)return 1;return 0;
+          })
+        :typeOrder;
+      for(const type of courtTypeOrder){
         if(remaining[type]<=0) continue;
         let match=null;
 
@@ -4911,6 +4919,7 @@ function _genTeamDrawOnce(attendees,teamANames,teamBNames,counts,courtCount,maxR
           remaining[type]--;generated[type]++;typeIdx[type]++;
           match.typeIdx=typeIdx[type];match._court=++courtIdx;
           match._team0Side='A';
+          usedTypeThisRound.add(type); // 이번 라운드 사용 종목 등록
           roundMatches.push(match);
           // 남복/여복 페어 등록
           if(type==='mens'||type==='womens'){
