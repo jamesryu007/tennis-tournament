@@ -2409,7 +2409,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v653';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v654';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4856,23 +4856,24 @@ function _genTeamDrawOnce(attendees,teamANames,teamBNames,counts,courtCount,maxR
         let match=null;
 
         if(type==='mixed'){
-          // 혼복 미경험자 우선 — streak3 블록 시 전체 풀로 재시도
-          const noMixedAM=teamAM.filter(p=>mixedSess[p.name]===0);
-          const noMixedAF=teamAF.filter(p=>mixedSess[p.name]===0);
-          const noMixedBM=teamBM.filter(p=>mixedSess[p.name]===0);
-          const noMixedBF=teamBF.filter(p=>mixedSess[p.name]===0);
-          const pAM=noMixedAM.length?noMixedAM:teamAM;
-          const pAF=noMixedAF.length?noMixedAF:teamAF;
-          const pBM=noMixedBM.length?noMixedBM:teamBM;
-          const pBF=noMixedBF.length?noMixedBF:teamBF;
+          // 혼복 풀: noMixed ∪ belowMin — 미경험자 + 게임 부족자 모두 후보에 포함
+          const MIN_G=3;
+          const mixedPool=arr=>{
+            const noMix=arr.filter(p=>mixedSess[p.name]===0);
+            const low=arr.filter(p=>(sess[p.name]||0)<MIN_G);
+            const names=new Set([...noMix,...low].map(p=>p.name));
+            return names.size?arr.filter(p=>names.has(p.name)):arr;
+          };
+          const pAM=mixedPool(teamAM),pAF=mixedPool(teamAF);
+          const pBM=mixedPool(teamBM),pBF=mixedPool(teamBF);
           let am=_pickLeastInTeam(pAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
-          if(!am&&pAM!==teamAM) am=_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          if(!am) am=_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           let af=_pickLeastInTeam(pAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
-          if(!af&&pAF!==teamAF) af=_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          if(!af) af=_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           let bm=_pickLeastInTeam(pBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
-          if(!bm&&pBM!==teamBM) bm=_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          if(!bm) bm=_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           let bf=_pickLeastInTeam(pBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
-          if(!bf&&pBF!==teamBF) bf=_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          if(!bf) bf=_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           if(am&&af&&bm&&bf) match={type,team0:[am,af],team1:[bm,bf]};
         } else if(type==='mens'){
           // 남복 최대 2회 제한 + 중복 페어 방지
@@ -4942,7 +4943,7 @@ function _genTeamDrawOnce(attendees,teamANames,teamBNames,counts,courtCount,maxR
 // 팀 대결 대진 생성 — 최대 5회 재시도해 게임수 편차 최소 결과 선택
 function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCount,maxRounds,allowConsec3){
   const allMembers=attendees.filter(p=>teamANames.includes(p.name)||teamBNames.includes(p.name));
-  const MAX_RETRIES=5;
+  const MAX_RETRIES=10;
   let bestResult=null;
   let bestSpread=Infinity;
   for(let i=0;i<MAX_RETRIES;i++){
