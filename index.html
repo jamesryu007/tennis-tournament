@@ -1778,6 +1778,7 @@ const firebaseConfig = {
     <div class="modal-header" style="flex-shrink:0">
       <span class="modal-round">📊 대진 분석</span>
       <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="refreshDrawAnalysis()" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:10px;padding:6px 13px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit">🔄 새로고침</button>
         <button onclick="shareDrawAnalysis()" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;border-radius:10px;padding:6px 13px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit">📤 공유</button>
         <button class="modal-close" onclick="closeDrawAnalysisModal()">✕</button>
       </div>
@@ -2408,7 +2409,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v651';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v652';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5237,6 +5238,17 @@ function openDrawAnalysisModal(){
 function closeDrawAnalysisModal(){
   document.getElementById('draw-analysis-modal').classList.remove('open');
   document.body.style.overflow = '';
+}
+
+function refreshDrawAnalysis(){
+  const data=_computeDrawAnalysis();
+  if(!data){alert('대진 데이터가 없습니다.');return;}
+  const inner=document.getElementById('draw-analysis-inner');
+  const scroll=document.getElementById('draw-analysis-scroll');
+  const prevScrollTop=scroll?scroll.scrollTop:0;
+  inner.innerHTML=_renderDrawAnalysis(data);
+  // 스크롤 위치 복원
+  if(scroll) requestAnimationFrame(()=>{scroll.scrollTop=prevScrollTop;});
 }
 
 async function shareDrawAnalysis(){
