@@ -2408,7 +2408,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v649';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v650';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4804,7 +4804,10 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
   const teamBM=teamB.filter(p=>p.gender==='male');
   const teamBF=teamB.filter(p=>p.gender!=='male');
   const sess={};
-  [...teamA,...teamB].forEach(p=>{sess[p.name]=0;});
+  const mixedSess={};  // 혼복 경기 횟수 (전원 1회 이상 보장용)
+  const mensSess={};   // 남복 경기 횟수 (최대 2회 제한)
+  const womensSess={}; // 여복 경기 횟수 (최대 2회 제한)
+  [...teamA,...teamB].forEach(p=>{sess[p.name]=0;mixedSess[p.name]=0;mensSess[p.name]=0;womensSess[p.name]=0;});
   const remaining={mixed:counts.mixed,mens:counts.mens,womens:counts.womens};
   const generated={mixed:0,mens:0,womens:0};
   const typeIdx={mixed:0,mens:0,womens:0};
@@ -4821,9 +4824,14 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
     const roundPlayers=new Set();
     const roundMatches=[];
     let courtIdx=0;
+    // 혼복 미경험자가 있으면 혼복 먼저 배정
+    const allHaveMixed=[...teamA,...teamB].every(p=>mixedSess[p.name]>0);
     const typeOrder=['mixed','mens','womens']
       .filter(t=>remaining[t]>0)
-      .sort((a,b)=>(generated[a]/(counts[a]||1))-(generated[b]/(counts[b]||1)));
+      .sort((a,b)=>{
+        if(!allHaveMixed){if(a==='mixed')return -1;if(b==='mixed')return 1;}
+        return (generated[a]/(counts[a]||1))-(generated[b]/(counts[b]||1));
+      });
 
     for(let c=0;c<courtCount;c++){
       if(remaining.mixed+remaining.mens+remaining.womens===0) break;
@@ -4832,29 +4840,48 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
         let match=null;
 
         if(type==='mixed'){
-          const am=_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
-          const af=_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
-          const bm=_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
-          const bf=_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          // 혼복 미경험자 우선 — streak3 블록 시 전체 풀로 재시도
+          const noMixedAM=teamAM.filter(p=>mixedSess[p.name]===0);
+          const noMixedAF=teamAF.filter(p=>mixedSess[p.name]===0);
+          const noMixedBM=teamBM.filter(p=>mixedSess[p.name]===0);
+          const noMixedBF=teamBF.filter(p=>mixedSess[p.name]===0);
+          const pAM=noMixedAM.length?noMixedAM:teamAM;
+          const pAF=noMixedAF.length?noMixedAF:teamAF;
+          const pBM=noMixedBM.length?noMixedBM:teamBM;
+          const pBF=noMixedBF.length?noMixedBF:teamBF;
+          let am=_pickLeastInTeam(pAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          if(!am&&pAM!==teamAM) am=_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          let af=_pickLeastInTeam(pAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          if(!af&&pAF!==teamAF) af=_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          let bm=_pickLeastInTeam(pBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          if(!bm&&pBM!==teamBM) bm=_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          let bf=_pickLeastInTeam(pBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          if(!bf&&pBF!==teamBF) bf=_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           if(am&&af&&bm&&bf) match={type,team0:[am,af],team1:[bm,bf]};
         } else if(type==='mens'){
-          const am1=_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          // 남복 최대 2회 제한
+          const eligAM=teamAM.filter(p=>(mensSess[p.name]||0)<2);
+          const eligBM=teamBM.filter(p=>(mensSess[p.name]||0)<2);
+          const am1=_pickLeastInTeam(eligAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           if(am1){roundPlayers.add(am1);}
-          const am2=am1?_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
+          const am2=am1?_pickLeastInTeam(eligAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
           if(am1){roundPlayers.delete(am1);}
-          const bm1=_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          const bm1=_pickLeastInTeam(eligBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           if(bm1){roundPlayers.add(bm1);}
-          const bm2=bm1?_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
+          const bm2=bm1?_pickLeastInTeam(eligBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
           if(bm1){roundPlayers.delete(bm1);}
           if(am1&&am2&&bm1&&bm2) match={type,team0:[am1,am2],team1:[bm1,bm2]};
         } else {
-          const af1=_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          // 여복 최대 2회 제한
+          const eligAF=teamAF.filter(p=>(womensSess[p.name]||0)<2);
+          const eligBF=teamBF.filter(p=>(womensSess[p.name]||0)<2);
+          const af1=_pickLeastInTeam(eligAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           if(af1){roundPlayers.add(af1);}
-          const af2=af1?_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
+          const af2=af1?_pickLeastInTeam(eligAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
           if(af1){roundPlayers.delete(af1);}
-          const bf1=_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          const bf1=_pickLeastInTeam(eligBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           if(bf1){roundPlayers.add(bf1);}
-          const bf2=bf1?_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
+          const bf2=bf1?_pickLeastInTeam(eligBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
           if(bf1){roundPlayers.delete(bf1);}
           if(af1&&af2&&bf1&&bf2) match={type,team0:[af1,af2],team1:[bf1,bf2]};
         }
@@ -4864,7 +4891,13 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
           match.typeIdx=typeIdx[type];match._court=++courtIdx;
           match._team0Side='A'; // team0 = A팀
           roundMatches.push(match);
-          [...match.team0,...match.team1].forEach(p=>{roundPlayers.add(p);if(p in sess)sess[p]++;});
+          [...match.team0,...match.team1].forEach(p=>{
+            roundPlayers.add(p);
+            if(p in sess) sess[p]++;
+            if(type==='mixed'&&p in mixedSess) mixedSess[p]++;
+            else if(type==='mens'&&p in mensSess) mensSess[p]++;
+            else if(type==='womens'&&p in womensSess) womensSess[p]++;
+          });
           break;
         }
       }
