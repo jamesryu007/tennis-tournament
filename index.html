@@ -2409,7 +2409,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v658';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v659';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5541,14 +5541,34 @@ function _renderDrawAnalysis(d){
       const card=d.roundMap[r][c];
       const isLast=c===d.courtCount;
       if(card){
-        const aTeamBadge=card._teamMode?`<span style="font-size:0.62rem;font-weight:800;color:#1e40af;background:#dbeafe;padding:1px 5px;border-radius:5px;margin-right:3px">${(card._teamANames||[])[0]?card._teamANames[0]+'팀':'A'}</span>`:'';
-        const bTeamBadge=card._teamMode?`<span style="font-size:0.62rem;font-weight:800;color:#9d174d;background:#fce7f3;padding:1px 5px;border-radius:5px;margin-right:3px">${(card._teamBNames||[])[0]?card._teamBNames[0]+'팀':'B'}</span>`:'';
-        html+=`<div style="padding:9px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
-          <div style="font-size:0.82rem;font-weight:800;color:#475569;margin-bottom:6px">제${r}경기 ${c}코트</div>
-          <div style="font-size:0.82rem;font-weight:600;line-height:1.6;word-break:keep-all;padding-left:2px">
-            <span style="font-weight:800;color:${tColor[card.matchType]};margin-right:5px">${tIcon[card.matchType]}${tName[card.matchType]}</span>${aTeamBadge}${colorTeam(card.team0)} <span style="color:#94a3b8;font-weight:400">vs</span> ${bTeamBadge}${colorTeam(card.team1)}
-          </div>
-        </div>`;
+        const aLabel=(card._teamANames||[])[0]?card._teamANames[0]+'팀':'A팀';
+        const bLabel=(card._teamBNames||[])[0]?card._teamBNames[0]+'팀':'B팀';
+        if(card._teamMode){
+          // 팀 대결: 헤더에 팀명 한 번만, 경기 줄에는 팀배지 제거
+          html+=`<div style="padding:9px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <div style="font-size:0.82rem;font-weight:800;color:#475569">제${r}경기 ${c}코트</div>
+              <div style="font-size:0.72rem;font-weight:700;white-space:nowrap">
+                <span style="color:#1e40af">🔵${aLabel}</span>
+                <span style="color:#94a3b8;margin:0 3px">vs</span>
+                <span style="color:#9d174d">🔴${bLabel}</span>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;word-break:keep-all">
+              <span style="font-size:0.82rem;font-weight:800;color:${tColor[card.matchType]};flex-shrink:0;margin-right:6px">${tIcon[card.matchType]}${tName[card.matchType]}</span>
+              <span style="font-size:0.82rem;font-weight:600">${colorTeam(card.team0)} <span style="color:#94a3b8;font-weight:400">vs</span> ${colorTeam(card.team1)}</span>
+            </div>
+          </div>`;
+        } else {
+          // 자동배정(일반): 종목 왼쪽, 선수 오른쪽 flex 배치
+          html+=`<div style="padding:9px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
+            <div style="font-size:0.82rem;font-weight:800;color:#475569;margin-bottom:6px">제${r}경기 ${c}코트</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;word-break:keep-all">
+              <span style="font-size:0.82rem;font-weight:800;color:${tColor[card.matchType]};flex-shrink:0;margin-right:8px">${tIcon[card.matchType]}${tName[card.matchType]}</span>
+              <span style="font-size:0.82rem;font-weight:600;text-align:right">${colorTeam(card.team0)} <span style="color:#94a3b8;font-weight:400">vs</span> ${colorTeam(card.team1)}</span>
+            </div>
+          </div>`;
+        }
       } else {
         const _playing=new Set(Object.values(d.roundMap[r]).flatMap(card=>[...card.team0,...card.team1]));
         const _prevPlayed=r>1&&d.roundMap[r-1]?new Set(Object.values(d.roundMap[r-1]).flatMap(card=>[...card.team0,...card.team1])):new Set();
