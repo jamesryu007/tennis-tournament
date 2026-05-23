@@ -2409,7 +2409,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v652';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v653';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4808,7 +4808,8 @@ function _pickLeastInTeam(players,sess,roundPlayers,prevPlayers,prevPrevPlayers,
   return tied[Math.floor(Math.random()*tied.length)].name;
 }
 
-function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCount,maxRounds,allowConsec3){
+// 팀 대결 단일 생성 시도 — _genTeamDraw 가 여러 번 호출해 최선 결과 선택
+function _genTeamDrawOnce(attendees,teamANames,teamBNames,counts,courtCount,maxRounds){
   const teamA=attendees.filter(p=>teamANames.includes(p.name));
   const teamB=attendees.filter(p=>teamBNames.includes(p.name));
   const teamAM=teamA.filter(p=>p.gender==='male');
@@ -4819,6 +4820,7 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
   const mixedSess={};  // 혼복 경기 횟수 (전원 1회 이상 보장용)
   const mensSess={};   // 남복 경기 횟수 (최대 2회 제한)
   const womensSess={}; // 여복 경기 횟수 (최대 2회 제한)
+  const usedPairs=new Set(); // 남복/여복 중복 페어 방지 (key: '이름A|이름B' 정렬)
   [...teamA,...teamB].forEach(p=>{sess[p.name]=0;mixedSess[p.name]=0;mensSess[p.name]=0;womensSess[p.name]=0;});
   const remaining={mixed:counts.mixed,mens:counts.mens,womens:counts.womens};
   const generated={mixed:0,mens:0,womens:0};
@@ -4827,8 +4829,10 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
   let prevRound=new Set();
   let prevPrevRound=new Set();
   let prevPrevPrevRound=new Set();
-  let activeRound=0; // 실제 경기가 생성된 라운드 번호 (연속 보장)
-  const maxAttempts=maxRounds*2; // 빈 라운드(3연속 휴식) 여유분 포함
+  let activeRound=0;
+  const maxAttempts=maxRounds*2;
+
+  const pairKey=(a,b)=>[a,b].sort().join('|');
 
   for(let attempt=1;attempt<=maxAttempts;attempt++){
     if(remaining.mixed+remaining.mens+remaining.womens===0) break;
@@ -4871,29 +4875,33 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
           if(!bf&&pBF!==teamBF) bf=_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           if(am&&af&&bm&&bf) match={type,team0:[am,af],team1:[bm,bf]};
         } else if(type==='mens'){
-          // 남복 최대 2회 제한
+          // 남복 최대 2회 제한 + 중복 페어 방지
           const eligAM=teamAM.filter(p=>(mensSess[p.name]||0)<2);
           const eligBM=teamBM.filter(p=>(mensSess[p.name]||0)<2);
           const am1=_pickLeastInTeam(eligAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           if(am1){roundPlayers.add(am1);}
-          const am2=am1?_pickLeastInTeam(eligAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
+          const am2NoDup=am1?eligAM.filter(p=>!usedPairs.has(pairKey(am1,p.name))):eligAM;
+          const am2=am1?(_pickLeastInTeam(am2NoDup.length?am2NoDup:eligAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound)):null;
           if(am1){roundPlayers.delete(am1);}
           const bm1=_pickLeastInTeam(eligBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           if(bm1){roundPlayers.add(bm1);}
-          const bm2=bm1?_pickLeastInTeam(eligBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
+          const bm2NoDup=bm1?eligBM.filter(p=>!usedPairs.has(pairKey(bm1,p.name))):eligBM;
+          const bm2=bm1?(_pickLeastInTeam(bm2NoDup.length?bm2NoDup:eligBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound)):null;
           if(bm1){roundPlayers.delete(bm1);}
           if(am1&&am2&&bm1&&bm2) match={type,team0:[am1,am2],team1:[bm1,bm2]};
         } else {
-          // 여복 최대 2회 제한
+          // 여복 최대 2회 제한 + 중복 페어 방지
           const eligAF=teamAF.filter(p=>(womensSess[p.name]||0)<2);
           const eligBF=teamBF.filter(p=>(womensSess[p.name]||0)<2);
           const af1=_pickLeastInTeam(eligAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           if(af1){roundPlayers.add(af1);}
-          const af2=af1?_pickLeastInTeam(eligAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
+          const af2NoDup=af1?eligAF.filter(p=>!usedPairs.has(pairKey(af1,p.name))):eligAF;
+          const af2=af1?(_pickLeastInTeam(af2NoDup.length?af2NoDup:eligAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound)):null;
           if(af1){roundPlayers.delete(af1);}
           const bf1=_pickLeastInTeam(eligBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
           if(bf1){roundPlayers.add(bf1);}
-          const bf2=bf1?_pickLeastInTeam(eligBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
+          const bf2NoDup=bf1?eligBF.filter(p=>!usedPairs.has(pairKey(bf1,p.name))):eligBF;
+          const bf2=bf1?(_pickLeastInTeam(bf2NoDup.length?bf2NoDup:eligBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound)):null;
           if(bf1){roundPlayers.delete(bf1);}
           if(af1&&af2&&bf1&&bf2) match={type,team0:[af1,af2],team1:[bf1,bf2]};
         }
@@ -4901,8 +4909,13 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
         if(match){
           remaining[type]--;generated[type]++;typeIdx[type]++;
           match.typeIdx=typeIdx[type];match._court=++courtIdx;
-          match._team0Side='A'; // team0 = A팀
+          match._team0Side='A';
           roundMatches.push(match);
+          // 남복/여복 페어 등록
+          if(type==='mens'||type==='womens'){
+            usedPairs.add(pairKey(match.team0[0],match.team0[1]));
+            usedPairs.add(pairKey(match.team1[0],match.team1[1]));
+          }
           [...match.team0,...match.team1].forEach(p=>{
             roundPlayers.add(p);
             if(p in sess) sess[p]++;
@@ -4914,7 +4927,6 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
         }
       }
     }
-    // 실제 경기가 생성된 라운드만 번호 부여 — 빈 라운드는 prev 상태만 갱신
     if(roundMatches.length>0){
       activeRound++;
       roundMatches.forEach(m=>{m._round=activeRound;});
@@ -4925,6 +4937,25 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
     prevRound=new Set(roundPlayers);
   }
   return scheduled;
+}
+
+// 팀 대결 대진 생성 — 최대 5회 재시도해 게임수 편차 최소 결과 선택
+function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCount,maxRounds,allowConsec3){
+  const allMembers=attendees.filter(p=>teamANames.includes(p.name)||teamBNames.includes(p.name));
+  const MAX_RETRIES=5;
+  let bestResult=null;
+  let bestSpread=Infinity;
+  for(let i=0;i<MAX_RETRIES;i++){
+    const result=_genTeamDrawOnce(attendees,teamANames,teamBNames,counts,courtCount,maxRounds);
+    const cnt={};
+    allMembers.forEach(p=>{cnt[p.name]=0;});
+    result.forEach(m=>[...m.team0,...m.team1].forEach(p=>{if(p in cnt)cnt[p]++;}));
+    const vals=Object.values(cnt);
+    const spread=Math.max(...vals)-Math.min(...vals);
+    if(spread<bestSpread){bestSpread=spread;bestResult=result;}
+    if(spread<=1) break; // 충분히 균형잡힌 결과
+  }
+  return bestResult||[];
 }
 
 // ── 자동대진 세션 DB 동기화 ────────────────────────────────────────────
