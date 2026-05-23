@@ -482,7 +482,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .team-toggle-slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
 .team-toggle-switch input:checked+.team-toggle-slider{background:#7c3aed}
 .team-toggle-switch input:checked+.team-toggle-slider:before{transform:translateX(20px)}
-.team-pill{display:inline-flex;align-items:center;padding:5px 11px;border-radius:20px;font-size:0.8rem;font-weight:700;cursor:pointer;margin:3px;border:2px solid transparent;transition:all 0.15s;-webkit-tap-highlight-color:transparent;user-select:none}
+.team-pill{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;width:calc(25% - 6px);min-width:64px;padding:5px 4px;border-radius:20px;font-size:0.8rem;font-weight:700;cursor:pointer;margin:3px;border:2px solid transparent;transition:background 0.15s,color 0.15s,border-color 0.15s;-webkit-tap-highlight-color:transparent;user-select:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .team-pill.unassigned{background:#f1f5f9;color:#64748b;border-color:#e2e8f0}
 .team-pill.team-a{background:#dbeafe;color:#1e40af;border-color:#3b82f6}
 .team-pill.team-b{background:#fce7f3;color:#9d174d;border-color:#ec4899}
@@ -1673,8 +1673,8 @@ const firebaseConfig = {
       <!-- 세그먼트 컨트롤: 경기 만들기 모드 선택 -->
       <div class="dc-seg-row">
         <button id="seg-individual" class="dc-seg-btn active" onclick="setDailyCreateMode('individual')">➕<br>개별 추가</button>
+        <button id="seg-auto" class="dc-seg-btn" onclick="setDailyCreateMode('auto')">🎾<br>자동배정</button>
         <button id="seg-team" class="dc-seg-btn" onclick="setDailyCreateMode('team')">👥<br>팀대결</button>
-        <button id="seg-auto" class="dc-seg-btn" onclick="setDailyCreateMode('auto')">🎾<br>일반</button>
       </div>
       <!-- 액션 버튼 행 -->
       <div class="dc-action-row">
@@ -1778,6 +1778,7 @@ const firebaseConfig = {
     <div class="modal-header" style="flex-shrink:0">
       <span class="modal-round">📊 대진 분석</span>
       <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="refreshDrawAnalysis()" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:10px;padding:6px 13px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit">🔄 새로고침</button>
         <button onclick="shareDrawAnalysis()" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;border-radius:10px;padding:6px 13px;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit">📤 공유</button>
         <button class="modal-close" onclick="closeDrawAnalysisModal()">✕</button>
       </div>
@@ -2408,7 +2409,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v650';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v663';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4736,22 +4737,22 @@ function _renderTeamAssign(){
   const bMales=attendees.filter(p=>_autoTeamB.includes(p.name)&&p.gender==='male');
   const bFemales=attendees.filter(p=>_autoTeamB.includes(p.name)&&p.gender!=='male');
 
+  // 이름 배열을 n개씩 줄바꿈하는 헬퍼
+  const joinRows=(arr,n,sep=' · ')=>arr.reduce((rows,name,i)=>{if(i%n===0)rows.push([]);rows[rows.length-1].push(name);return rows;},[]).map(r=>r.join(sep)).join('<br>');
   el.innerHTML=`
     <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:8px">
       <div style="font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:6px">참석자 — 탭하여 팀 배정 (미배정→A팀→B팀→미배정)</div>
-      <div style="margin-bottom:4px">${males.map(pillHtml).join('')}</div>
-      <div>${females.map(pillHtml).join('')}</div>
+      <div style="display:flex;flex-wrap:wrap;max-width:100%">${males.map(pillHtml).join('')}</div>
+      <div style="display:flex;flex-wrap:wrap;max-width:100%">${females.map(pillHtml).join('')}</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-      <div style="background:#eff6ff;border:2px solid #3b82f6;border-radius:12px;padding:9px 11px;min-height:64px">
+      <div style="background:#eff6ff;border:2px solid #3b82f6;border-radius:12px;padding:9px 11px">
         <div style="font-size:0.75rem;font-weight:800;color:#1e40af;margin-bottom:5px">🔵 ${aName} (${_autoTeamA.length}명)</div>
-        <div style="font-size:0.78rem;font-weight:700;color:#1d4ed8">${aMales.map(p=>p.name).join(' · ')||'—'}</div>
-        <div style="font-size:0.78rem;font-weight:700;color:#be185d">${aFemales.map(p=>p.name).join(' · ')||''}</div>
+        <div style="font-size:0.78rem;font-weight:700;color:#1d4ed8;line-height:1.7">${joinRows([...aMales,...aFemales].map(p=>p.name),3)||'—'}</div>
       </div>
-      <div style="background:#fdf2f8;border:2px solid #ec4899;border-radius:12px;padding:9px 11px;min-height:64px">
+      <div style="background:#fdf2f8;border:2px solid #ec4899;border-radius:12px;padding:9px 11px">
         <div style="font-size:0.75rem;font-weight:800;color:#9d174d;margin-bottom:5px">🔴 ${bName} (${_autoTeamB.length}명)</div>
-        <div style="font-size:0.78rem;font-weight:700;color:#1d4ed8">${bMales.map(p=>p.name).join(' · ')||'—'}</div>
-        <div style="font-size:0.78rem;font-weight:700;color:#be185d">${bFemales.map(p=>p.name).join(' · ')||''}</div>
+        <div style="font-size:0.78rem;font-weight:700;color:#1d4ed8;line-height:1.7">${joinRows([...bMales,...bFemales].map(p=>p.name),3)||'—'}</div>
       </div>
     </div>
     ${unassigned.length?`<div style="font-size:0.72rem;color:#94a3b8;margin-top:6px;font-weight:600">미배정: ${unassigned.map(p=>p.name).join(', ')}</div>`:''}
@@ -4778,25 +4779,41 @@ function _tapPillTeam(name){
 }
 
 // ── 팀 대결 전용 대진 생성 ───────────────────────────────────────────
-function _pickLeastInTeam(players,sess,roundPlayers,prevPlayers,prevPrevPlayers,prevPrevPrevPlayers){
+function _pickLeastInTeam(players,sess,roundPlayers,prevPlayers,prevPrevPlayers,prevPrevPrevPlayers,turnOrder){
+  const MIN_GAMES=3; // 최소 경기 보장 횟수
   let cands=players.filter(p=>!roundPlayers.has(p.name));
   if(!cands.length) return null;
-  // 3연속 도달 시 하드 제외 — 4번째 연속 완전 차단, 불가능하면 null 반환(코트 건너뜀)
   const isStreak3=p=>prevPrevPrevPlayers.has(p.name)&&prevPrevPlayers.has(p.name)&&prevPlayers.has(p.name);
-  const nonStreak3=cands.filter(p=>!isStreak3(p));
-  if(!nonStreak3.length) return null;
+  // 최소 경기 미달 선수: streak3 제약 무시하고 우선 배정 (최소 참여 보장)
+  const belowMin=cands.filter(p=>(sess[p.name]||0)<MIN_GAMES);
+  let pool;
+  if(belowMin.length){
+    // 최소 미달자 중 streak3 아닌 선수 우선, 없으면 streak3도 허용
+    const belowMinOk=belowMin.filter(p=>!isStreak3(p));
+    pool=belowMinOk.length?belowMinOk:belowMin;
+  } else {
+    // 일반: 3연속 하드 제외
+    const nonStreak3=cands.filter(p=>!isStreak3(p));
+    if(!nonStreak3.length) return null;
+    pool=nonStreak3;
+  }
   // 우선순위: ① 직전 미출전 → ② 1연속 → ③ 2연속
   const isStreak2=p=>prevPrevPlayers.has(p.name)&&prevPlayers.has(p.name);
-  const noPrev=nonStreak3.filter(p=>!prevPlayers.has(p.name));
-  const prevOnly=nonStreak3.filter(p=>prevPlayers.has(p.name)&&!isStreak2(p));
-  const streak2=nonStreak3.filter(p=>isStreak2(p));
-  const pool=noPrev.length?noPrev:(prevOnly.length?prevOnly:streak2);
-  const minSess=Math.min(...pool.map(p=>sess[p.name]||0));
-  const tied=pool.filter(p=>(sess[p.name]||0)===minSess);
-  return tied[Math.floor(Math.random()*tied.length)].name;
+  const noPrev=pool.filter(p=>!prevPlayers.has(p.name));
+  const prevOnly=pool.filter(p=>prevPlayers.has(p.name)&&!isStreak2(p));
+  const streak2=pool.filter(p=>isStreak2(p));
+  const finalPool=noPrev.length?noPrev:(prevOnly.length?prevOnly:streak2);
+  const minSess=Math.min(...finalPool.map(p=>sess[p.name]||0));
+  const tied=finalPool.filter(p=>(sess[p.name]||0)===minSess);
+  // turnOrder 기반 공정 순환 선택 — 동일 게임수 선수 간 round-robin 보장 (랜덤 치우침 방지)
+  tied.sort((a,b)=>(turnOrder[a.name]||0)-(turnOrder[b.name]||0));
+  const chosen=tied[0].name;
+  turnOrder[chosen]=(turnOrder[chosen]||0)+1;
+  return chosen;
 }
 
-function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCount,maxRounds,allowConsec3){
+// 팀 대결 단일 생성 시도 — _genTeamDraw 가 여러 번 호출해 최선 결과 선택
+function _genTeamDrawOnce(attendees,teamANames,teamBNames,counts,courtCount,maxRounds){
   const teamA=attendees.filter(p=>teamANames.includes(p.name));
   const teamB=attendees.filter(p=>teamBNames.includes(p.name));
   const teamAM=teamA.filter(p=>p.gender==='male');
@@ -4807,7 +4824,9 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
   const mixedSess={};  // 혼복 경기 횟수 (전원 1회 이상 보장용)
   const mensSess={};   // 남복 경기 횟수 (최대 2회 제한)
   const womensSess={}; // 여복 경기 횟수 (최대 2회 제한)
-  [...teamA,...teamB].forEach(p=>{sess[p.name]=0;mixedSess[p.name]=0;mensSess[p.name]=0;womensSess[p.name]=0;});
+  const usedPairs=new Set(); // 남복/여복 중복 페어 방지 (key: '이름A|이름B' 정렬)
+  const turnOrder={}; // 동점 선수 간 공정 순환 선택 카운터
+  [...teamA,...teamB].forEach(p=>{sess[p.name]=0;mixedSess[p.name]=0;mensSess[p.name]=0;womensSess[p.name]=0;turnOrder[p.name]=0;});
   const remaining={mixed:counts.mixed,mens:counts.mens,womens:counts.womens};
   const generated={mixed:0,mens:0,womens:0};
   const typeIdx={mixed:0,mens:0,womens:0};
@@ -4815,8 +4834,10 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
   let prevRound=new Set();
   let prevPrevRound=new Set();
   let prevPrevPrevRound=new Set();
-  let activeRound=0; // 실제 경기가 생성된 라운드 번호 (연속 보장)
-  const maxAttempts=maxRounds*2; // 빈 라운드(3연속 휴식) 여유분 포함
+  let activeRound=0;
+  const maxAttempts=maxRounds*2;
+
+  const pairKey=(a,b)=>[a,b].sort().join('|');
 
   for(let attempt=1;attempt<=maxAttempts;attempt++){
     if(remaining.mixed+remaining.mens+remaining.womens===0) break;
@@ -4833,55 +4854,68 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
         return (generated[a]/(counts[a]||1))-(generated[b]/(counts[b]||1));
       });
 
+    const usedTypeThisRound=new Set(); // 이번 라운드 코트별 종목 다양화 추적
     for(let c=0;c<courtCount;c++){
       if(remaining.mixed+remaining.mens+remaining.womens===0) break;
-      for(const type of typeOrder){
+      // 코트 2 이상: 전원 혼복 경험 완료 시 이번 라운드 미사용 종목 우선 배정
+      const courtTypeOrder=(c>0&&allHaveMixed)
+        ?typeOrder.slice().sort((a,b)=>{
+            const aN=!usedTypeThisRound.has(a),bN=!usedTypeThisRound.has(b);
+            if(aN&&!bN)return -1;if(!aN&&bN)return 1;return 0;
+          })
+        :typeOrder;
+      for(const type of courtTypeOrder){
         if(remaining[type]<=0) continue;
         let match=null;
 
         if(type==='mixed'){
-          // 혼복 미경험자 우선 — streak3 블록 시 전체 풀로 재시도
-          const noMixedAM=teamAM.filter(p=>mixedSess[p.name]===0);
-          const noMixedAF=teamAF.filter(p=>mixedSess[p.name]===0);
-          const noMixedBM=teamBM.filter(p=>mixedSess[p.name]===0);
-          const noMixedBF=teamBF.filter(p=>mixedSess[p.name]===0);
-          const pAM=noMixedAM.length?noMixedAM:teamAM;
-          const pAF=noMixedAF.length?noMixedAF:teamAF;
-          const pBM=noMixedBM.length?noMixedBM:teamBM;
-          const pBF=noMixedBF.length?noMixedBF:teamBF;
-          let am=_pickLeastInTeam(pAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
-          if(!am&&pAM!==teamAM) am=_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
-          let af=_pickLeastInTeam(pAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
-          if(!af&&pAF!==teamAF) af=_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
-          let bm=_pickLeastInTeam(pBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
-          if(!bm&&pBM!==teamBM) bm=_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
-          let bf=_pickLeastInTeam(pBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
-          if(!bf&&pBF!==teamBF) bf=_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          // 혼복 풀: noMixed ∪ belowMin — 미경험자 + 게임 부족자 모두 후보에 포함
+          const MIN_G=3;
+          const mixedPool=arr=>{
+            const noMix=arr.filter(p=>mixedSess[p.name]===0);
+            const low=arr.filter(p=>(sess[p.name]||0)<MIN_G);
+            const names=new Set([...noMix,...low].map(p=>p.name));
+            return names.size?arr.filter(p=>names.has(p.name)):arr;
+          };
+          const pAM=mixedPool(teamAM),pAF=mixedPool(teamAF);
+          const pBM=mixedPool(teamBM),pBF=mixedPool(teamBF);
+          let am=_pickLeastInTeam(pAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound,turnOrder);
+          if(!am) am=_pickLeastInTeam(teamAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound,turnOrder);
+          let af=_pickLeastInTeam(pAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound,turnOrder);
+          if(!af) af=_pickLeastInTeam(teamAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound,turnOrder);
+          let bm=_pickLeastInTeam(pBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound,turnOrder);
+          if(!bm) bm=_pickLeastInTeam(teamBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound,turnOrder);
+          let bf=_pickLeastInTeam(pBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound,turnOrder);
+          if(!bf) bf=_pickLeastInTeam(teamBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound,turnOrder);
           if(am&&af&&bm&&bf) match={type,team0:[am,af],team1:[bm,bf]};
         } else if(type==='mens'){
-          // 남복 최대 2회 제한
+          // 남복 최대 2회 제한 + 중복 페어 방지
           const eligAM=teamAM.filter(p=>(mensSess[p.name]||0)<2);
           const eligBM=teamBM.filter(p=>(mensSess[p.name]||0)<2);
-          const am1=_pickLeastInTeam(eligAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          const am1=_pickLeastInTeam(eligAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound,turnOrder);
           if(am1){roundPlayers.add(am1);}
-          const am2=am1?_pickLeastInTeam(eligAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
+          const am2NoDup=am1?eligAM.filter(p=>!usedPairs.has(pairKey(am1,p.name))):eligAM;
+          const am2=am1?(_pickLeastInTeam(am2NoDup.length?am2NoDup:eligAM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound,turnOrder)):null;
           if(am1){roundPlayers.delete(am1);}
-          const bm1=_pickLeastInTeam(eligBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          const bm1=_pickLeastInTeam(eligBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound,turnOrder);
           if(bm1){roundPlayers.add(bm1);}
-          const bm2=bm1?_pickLeastInTeam(eligBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
+          const bm2NoDup=bm1?eligBM.filter(p=>!usedPairs.has(pairKey(bm1,p.name))):eligBM;
+          const bm2=bm1?(_pickLeastInTeam(bm2NoDup.length?bm2NoDup:eligBM,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound,turnOrder)):null;
           if(bm1){roundPlayers.delete(bm1);}
           if(am1&&am2&&bm1&&bm2) match={type,team0:[am1,am2],team1:[bm1,bm2]};
         } else {
-          // 여복 최대 2회 제한
+          // 여복 최대 2회 제한 + 중복 페어 방지
           const eligAF=teamAF.filter(p=>(womensSess[p.name]||0)<2);
           const eligBF=teamBF.filter(p=>(womensSess[p.name]||0)<2);
-          const af1=_pickLeastInTeam(eligAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          const af1=_pickLeastInTeam(eligAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound,turnOrder);
           if(af1){roundPlayers.add(af1);}
-          const af2=af1?_pickLeastInTeam(eligAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
+          const af2NoDup=af1?eligAF.filter(p=>!usedPairs.has(pairKey(af1,p.name))):eligAF;
+          const af2=af1?(_pickLeastInTeam(af2NoDup.length?af2NoDup:eligAF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound,turnOrder)):null;
           if(af1){roundPlayers.delete(af1);}
-          const bf1=_pickLeastInTeam(eligBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound);
+          const bf1=_pickLeastInTeam(eligBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound,turnOrder);
           if(bf1){roundPlayers.add(bf1);}
-          const bf2=bf1?_pickLeastInTeam(eligBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound):null;
+          const bf2NoDup=bf1?eligBF.filter(p=>!usedPairs.has(pairKey(bf1,p.name))):eligBF;
+          const bf2=bf1?(_pickLeastInTeam(bf2NoDup.length?bf2NoDup:eligBF,sess,roundPlayers,prevRound,prevPrevRound,prevPrevPrevRound,turnOrder)):null;
           if(bf1){roundPlayers.delete(bf1);}
           if(af1&&af2&&bf1&&bf2) match={type,team0:[af1,af2],team1:[bf1,bf2]};
         }
@@ -4889,8 +4923,14 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
         if(match){
           remaining[type]--;generated[type]++;typeIdx[type]++;
           match.typeIdx=typeIdx[type];match._court=++courtIdx;
-          match._team0Side='A'; // team0 = A팀
+          match._team0Side='A';
+          usedTypeThisRound.add(type); // 이번 라운드 사용 종목 등록
           roundMatches.push(match);
+          // 남복/여복 페어 등록
+          if(type==='mens'||type==='womens'){
+            usedPairs.add(pairKey(match.team0[0],match.team0[1]));
+            usedPairs.add(pairKey(match.team1[0],match.team1[1]));
+          }
           [...match.team0,...match.team1].forEach(p=>{
             roundPlayers.add(p);
             if(p in sess) sess[p]++;
@@ -4902,7 +4942,6 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
         }
       }
     }
-    // 실제 경기가 생성된 라운드만 번호 부여 — 빈 라운드는 prev 상태만 갱신
     if(roundMatches.length>0){
       activeRound++;
       roundMatches.forEach(m=>{m._round=activeRound;});
@@ -4913,6 +4952,32 @@ function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCoun
     prevRound=new Set(roundPlayers);
   }
   return scheduled;
+}
+
+// 팀 대결 대진 생성 — 최대 20회 재시도해 게임수 편차 최소 결과 선택
+function _genTeamDraw(attendees,teamANames,teamBNames,pairStats,counts,courtCount,maxRounds,allowConsec3){
+  const allMembers=attendees.filter(p=>teamANames.includes(p.name)||teamBNames.includes(p.name));
+  const MAX_RETRIES=20;
+  let bestResult=null;
+  let bestSpread=Infinity;
+  let bestMaxSess=Infinity;
+  for(let i=0;i<MAX_RETRIES;i++){
+    // 매 시도마다 attendees 셔플 → turnOrder 초기 정렬 다양화 → 진짜 다른 결과 탐색
+    const shuffled=i===0?attendees:[...attendees].sort(()=>Math.random()-0.5);
+    const result=_genTeamDrawOnce(shuffled,teamANames,teamBNames,counts,courtCount,maxRounds);
+    const cnt={};
+    allMembers.forEach(p=>{cnt[p.name]=0;});
+    result.forEach(m=>[...m.team0,...m.team1].forEach(p=>{if(p in cnt)cnt[p]++;}));
+    const vals=Object.values(cnt);
+    const spread=Math.max(...vals)-Math.min(...vals);
+    const maxSess=Math.max(...vals);
+    // spread 우선, 동률 시 최대 게임수 낮은 쪽 선택
+    if(spread<bestSpread||(spread===bestSpread&&maxSess<bestMaxSess)){
+      bestSpread=spread;bestMaxSess=maxSess;bestResult=result;
+    }
+    if(spread<=1) break; // 충분히 균형잡힌 결과
+  }
+  return bestResult||[];
 }
 
 // ── 자동대진 세션 DB 동기화 ────────────────────────────────────────────
@@ -5184,48 +5249,22 @@ function openDrawAnalysisModal(){
     },{passive:false});
   }));
   // 오른쪽 스와이프 → 오른쪽으로 스르르 사라지며 닫기 (한 번만 등록)
-  if(!modal._swipeAdded){
-    modal._swipeAdded=true;
-    let _sx=0,_sy=0;
-    const inner=modal.querySelector('.modal');
-    modal.addEventListener('touchstart',e=>{
-      _sx=e.touches[0].clientX;_sy=e.touches[0].clientY;
-      if(inner) inner.style.transition='none';
-    },{passive:true});
-    modal.addEventListener('touchmove',e=>{
-      const dx=e.touches[0].clientX-_sx;
-      const dy=Math.abs(e.touches[0].clientY-_sy);
-      if(dx>0&&dy<60&&inner){
-        inner.style.transform=`translateX(${dx}px)`;
-        modal.style.background=`rgba(15,23,42,${Math.max(0,0.75*(1-dx/window.innerWidth))})`;
-      }
-    },{passive:true});
-    modal.addEventListener('touchend',e=>{
-      const dx=e.changedTouches[0].clientX-_sx;
-      const dy=Math.abs(e.changedTouches[0].clientY-_sy);
-      if(dx>window.innerWidth*0.3&&dy<60&&inner){
-        inner.style.transition='transform 0.25s cubic-bezier(0.4,0,1,1)';
-        modal.style.transition='background 0.25s';
-        inner.style.transform=`translateX(${window.innerWidth}px)`;
-        modal.style.background='rgba(15,23,42,0)';
-        setTimeout(()=>{
-          closeDrawAnalysisModal();
-          inner.style.transition='';inner.style.transform='';
-          modal.style.transition='';modal.style.background='';
-        },250);
-      } else if(inner){
-        inner.style.transition='transform 0.2s ease';
-        inner.style.transform='';
-        modal.style.background='';
-        setTimeout(()=>{inner.style.transition='';},200);
-      }
-    },{passive:true});
-  }
 }
 
 function closeDrawAnalysisModal(){
   document.getElementById('draw-analysis-modal').classList.remove('open');
   document.body.style.overflow = '';
+}
+
+function refreshDrawAnalysis(){
+  const data=_computeDrawAnalysis();
+  if(!data){alert('대진 데이터가 없습니다.');return;}
+  const inner=document.getElementById('draw-analysis-inner');
+  const scroll=document.getElementById('draw-analysis-scroll');
+  const prevScrollTop=scroll?scroll.scrollTop:0;
+  inner.innerHTML=_renderDrawAnalysis(data);
+  // 스크롤 위치 복원
+  if(scroll) requestAnimationFrame(()=>{scroll.scrollTop=prevScrollTop;});
 }
 
 async function shareDrawAnalysis(){
@@ -5415,6 +5454,12 @@ function _renderDrawAnalysis(d){
       <span style="background:#fce7f3;color:#be185d;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.womens}여복 ${d.typeCounts.womens}</span>
     </div>
   </div>`;
+  // ── 참석자
+  html+=`<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:14px;padding:13px 15px;margin-bottom:12px">
+    <div style="font-size:0.85rem;font-weight:800;color:#166534;margin-bottom:7px">👥 참석자 ${d.attendees.length}명 — 남 ${d.males.length} / 여 ${d.females.length}</div>
+    <div style="font-size:0.8rem;color:#1d4ed8;font-weight:700">♂ ${d.males.map(p=>p.name).join(' · ')}</div>
+    <div style="font-size:0.8rem;color:#be185d;font-weight:700;margin-top:4px">♀ ${d.females.map(p=>p.name).join(' · ')}</div>
+  </div>`;
   // ── 팀 대결 배너
   if(d.teamMode){
     const aN=d.teamANames[0]?d.teamANames[0]+'팀':'A팀';
@@ -5423,26 +5468,19 @@ function _renderDrawAnalysis(d){
     const aF=d.attendees.filter(p=>d.teamANames.includes(p.name)&&p.gender!=='male');
     const bM=d.attendees.filter(p=>d.teamBNames.includes(p.name)&&p.gender==='male');
     const bF=d.attendees.filter(p=>d.teamBNames.includes(p.name)&&p.gender!=='male');
-    html+=`<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:12px">
+    const _rows3=(arr,sep=' · ')=>arr.reduce((rows,name,i)=>{if(i%3===0)rows.push([]);rows[rows.length-1].push(name);return rows;},[]).map(r=>r.join(sep)).join('<br>');
+    html+=`<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:stretch;margin-bottom:12px">
       <div style="background:#eff6ff;border:2px solid #3b82f6;border-radius:12px;padding:9px 11px">
         <div style="font-size:0.8rem;font-weight:800;color:#1e40af;margin-bottom:4px">🔵 ${aN}</div>
-        <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8">${aM.map(p=>p.name).join(' · ')||'—'}</div>
-        <div style="font-size:0.75rem;font-weight:700;color:#be185d">${aF.map(p=>p.name).join(' · ')||''}</div>
+        <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;line-height:1.7">${_rows3([...aM,...aF].map(p=>p.name))||'—'}</div>
       </div>
-      <div style="font-size:1.2rem;font-weight:900;color:#64748b;text-align:center">vs</div>
+      <div style="font-size:1.2rem;font-weight:900;color:#64748b;text-align:center;display:flex;align-items:center">vs</div>
       <div style="background:#fdf2f8;border:2px solid #ec4899;border-radius:12px;padding:9px 11px">
         <div style="font-size:0.8rem;font-weight:800;color:#9d174d;margin-bottom:4px">🔴 ${bN}</div>
-        <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8">${bM.map(p=>p.name).join(' · ')||'—'}</div>
-        <div style="font-size:0.75rem;font-weight:700;color:#be185d">${bF.map(p=>p.name).join(' · ')||''}</div>
+        <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;line-height:1.7">${_rows3([...bM,...bF].map(p=>p.name))||'—'}</div>
       </div>
     </div>`;
   }
-  // ── 참석자
-  html+=`<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:14px;padding:13px 15px;margin-bottom:12px">
-    <div style="font-size:0.85rem;font-weight:800;color:#166534;margin-bottom:7px">👥 참석자 ${d.attendees.length}명 — 남 ${d.males.length} / 여 ${d.females.length}</div>
-    <div style="font-size:0.8rem;color:#1d4ed8;font-weight:700">♂ ${d.males.map(p=>p.name).join(' · ')}</div>
-    <div style="font-size:0.8rem;color:#be185d;font-weight:700;margin-top:4px">♀ ${d.females.map(p=>p.name).join(' · ')}</div>
-  </div>`;
   // ── 경기별 배정
   const roundPastels=['#eff6ff','#fdf4ff','#fff7ed','#f0fdf4','#fef2f2','#f0f9ff','#fefce8','#fdf2f8'];
   const genderMap={};
@@ -5457,8 +5495,21 @@ function _renderDrawAnalysis(d){
   });
   const colorName=name=>`<span style="color:${_colorMap[name]||'#64748b'};font-weight:700">${name}</span>`;
   const colorTeam=team=>team.map(colorName).join('<span style="color:#94a3b8;font-weight:400">-</span>');
+  // 팀 대결 모드면 섹션 헤더에 팀명 한 번만 표시
+  const _tmAN=d.teamMode&&d.teamANames[0]?d.teamANames[0]+'팀':'A팀';
+  const _tmBN=d.teamMode&&d.teamBNames[0]?d.teamBNames[0]+'팀':'B팀';
+  // 좌컬럼 고정폭 — 코트라벨+종목 / 헤더타이틀이 같은 너비를 공유 → vs 수직 정렬
+  const _LC='flex-shrink:0;min-width:130px;max-width:130px';
+  const _vsSpan='<span style="flex-shrink:0;color:#94a3b8;font-weight:400;margin:0 7px;font-size:0.82rem">vs</span>';
   html+=`<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:13px 15px;margin-bottom:12px">
-    <div style="font-size:0.85rem;font-weight:800;color:#1e293b;margin-bottom:10px">🎾 경기별 배정 현황</div>`;
+    <div style="display:flex;align-items:center;padding-bottom:${d.teamMode?'8px':'10px'};${d.teamMode?'border-bottom:1.5px solid #e2e8f0;margin-bottom:8px':''}">
+      <div style="font-size:0.85rem;font-weight:800;color:#1e293b;${_LC}">🎾 경기별 배정 현황</div>
+      ${d.teamMode?`<div style="flex:1;display:flex;align-items:center;min-width:0">
+        <span style="flex:1;font-size:0.78rem;font-weight:800;color:#1e40af;text-align:right;white-space:nowrap">🔵${_tmAN}</span>
+        ${_vsSpan}
+        <span style="flex:1;font-size:0.78rem;font-weight:800;color:#9d174d;white-space:nowrap">🔴${_tmBN}</span>
+      </div>`:''}
+    </div>`;
   for(const r of d.roundNums){
     const bg=roundPastels[(parseInt(r)-1)%roundPastels.length];
     html+=`<div style="background:${bg};border-radius:10px;margin-bottom:6px;padding:2px 8px">`;
@@ -5466,12 +5517,18 @@ function _renderDrawAnalysis(d){
       const card=d.roundMap[r][c];
       const isLast=c===d.courtCount;
       if(card){
-        const aTeamBadge=card._teamMode?`<span style="font-size:0.62rem;font-weight:800;color:#1e40af;background:#dbeafe;padding:1px 5px;border-radius:5px;margin-right:3px">${(card._teamANames||[])[0]?card._teamANames[0]+'팀':'A'}</span>`:'';
-        const bTeamBadge=card._teamMode?`<span style="font-size:0.62rem;font-weight:800;color:#9d174d;background:#fce7f3;padding:1px 5px;border-radius:5px;margin-right:3px">${(card._teamBNames||[])[0]?card._teamBNames[0]+'팀':'B'}</span>`:'';
-        html+=`<div style="padding:7px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
-          <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:3px">제${r}경기 ${c}코트</div>
-          <div style="font-size:0.78rem;font-weight:600;line-height:1.5;word-break:keep-all">
-            <span style="font-weight:800;color:${tColor[card.matchType]};margin-right:4px">${tIcon[card.matchType]}${tName[card.matchType]}</span>${aTeamBadge}${colorTeam(card.team0)} <span style="color:#94a3b8;font-weight:400">vs</span> ${bTeamBadge}${colorTeam(card.team1)}
+        // 좌컬럼: 코트라벨 + 종목(여백 12px)  우컬럼: 팀0 우정렬 vs 팀1
+        html+=`<div style="padding:8px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
+          <div style="display:flex;align-items:center">
+            <div style="${_LC};display:flex;align-items:center;gap:5px">
+              <span style="font-size:0.78rem;font-weight:800;color:#475569;white-space:nowrap">제${r}경기 ${c}코트</span>
+              <span style="font-size:0.8rem;font-weight:800;color:${tColor[card.matchType]};white-space:nowrap">${tIcon[card.matchType]}${tName[card.matchType]}</span>
+            </div>
+            <div style="flex:1;display:flex;align-items:center;min-width:0">
+              <span style="flex:1;font-size:0.82rem;font-weight:600;text-align:right">${colorTeam(card.team0)}</span>
+              ${_vsSpan}
+              <span style="flex:1;font-size:0.82rem;font-weight:600">${colorTeam(card.team1)}</span>
+            </div>
           </div>
         </div>`;
       } else {
@@ -5480,10 +5537,12 @@ function _renderDrawAnalysis(d){
         const _resting=d.attendees.filter(p=>!_playing.has(p.name)).sort((a,b)=>(d.playerData[a.name]?.games||0)-(d.playerData[b.name]?.games||0));
         const _pref=_resting.filter(p=>!_prevPlayed.has(p.name));
         const _rec=(_pref.length?_pref:_resting).slice(0,4);
-        const _recHtml=_rec.map(p=>`<span style="color:${_colorMap[p.name]||'#64748b'};font-weight:700">${p.name}</span><span style="color:#94a3b8;font-size:0.68rem">(${d.playerData[p.name]?.games||0})</span>`).join('<span style="color:#cbd5e1;margin:0 2px">·</span>');
-        html+=`<div style="padding:7px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
-          <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:3px">제${r}경기 ${c}코트</div>
-          ${_rec.length?`<div style="font-size:0.72rem"><span style="color:#f59e0b;font-weight:800;margin-right:4px">추천</span>${_recHtml}</div>`:'<div style="font-size:0.68rem;color:#cbd5e1">—</div>'}
+        const _recHtml=_rec.map(p=>`<span style="color:${_colorMap[p.name]||'#64748b'};font-weight:700">${p.name}</span><span style="color:#94a3b8;font-size:0.68rem">(${d.playerData[p.name]?.games||0})</span>`).join('<span style="color:#cbd5e1;margin:0 3px">·</span>');
+        html+=`<div style="padding:8px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:0.78rem;font-weight:800;color:#475569;white-space:nowrap">제${r}경기 ${c}코트</span>
+            ${_rec.length?`<span style="font-size:0.75rem"><span style="color:#f59e0b;font-weight:800;margin-right:3px">추천</span>${_recHtml}</span>`:'<span style="font-size:0.68rem;color:#cbd5e1">—</span>'}
+          </div>
         </div>`;
       }
     }
@@ -5986,7 +6045,12 @@ function addDailyMatchCard(){
       container.insertBefore(el,container.firstChild);
     }
     _renderDailyCard(id);
-    setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'nearest'}),50);
+    // 개별 추가 카드 생성 후 page-matches 맨 아래로 스크롤
+    setTimeout(()=>{
+      const page=document.getElementById('page-matches');
+      if(page) page.scrollTo({top:page.scrollHeight,behavior:'smooth'});
+      else el.scrollIntoView({behavior:'smooth',block:'end'});
+    },80);
   };
   if(!db){ _doAdd(); return; }
   // + 버튼 클릭 시 DB 최신 상태 한 번 조회 → 다른 멤버가 추가한 카드 동기화
