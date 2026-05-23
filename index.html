@@ -482,7 +482,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .team-toggle-slider:before{position:absolute;content:"";height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.25s;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
 .team-toggle-switch input:checked+.team-toggle-slider{background:#7c3aed}
 .team-toggle-switch input:checked+.team-toggle-slider:before{transform:translateX(20px)}
-.team-pill{display:inline-flex;align-items:center;padding:5px 11px;border-radius:20px;font-size:0.8rem;font-weight:700;cursor:pointer;margin:3px;border:2px solid transparent;transition:all 0.15s;-webkit-tap-highlight-color:transparent;user-select:none}
+.team-pill{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;width:calc(25% - 6px);min-width:64px;padding:5px 4px;border-radius:20px;font-size:0.8rem;font-weight:700;cursor:pointer;margin:3px;border:2px solid transparent;transition:background 0.15s,color 0.15s,border-color 0.15s;-webkit-tap-highlight-color:transparent;user-select:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .team-pill.unassigned{background:#f1f5f9;color:#64748b;border-color:#e2e8f0}
 .team-pill.team-a{background:#dbeafe;color:#1e40af;border-color:#3b82f6}
 .team-pill.team-b{background:#fce7f3;color:#9d174d;border-color:#ec4899}
@@ -2409,7 +2409,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v656';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v657';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4737,22 +4737,24 @@ function _renderTeamAssign(){
   const bMales=attendees.filter(p=>_autoTeamB.includes(p.name)&&p.gender==='male');
   const bFemales=attendees.filter(p=>_autoTeamB.includes(p.name)&&p.gender!=='male');
 
+  // 이름 배열을 n개씩 줄바꿈하는 헬퍼
+  const joinRows=(arr,n,sep=' · ')=>arr.reduce((rows,name,i)=>{if(i%n===0)rows.push([]);rows[rows.length-1].push(name);return rows;},[]).map(r=>r.join(sep)).join('<br>');
   el.innerHTML=`
     <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:8px">
       <div style="font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:6px">참석자 — 탭하여 팀 배정 (미배정→A팀→B팀→미배정)</div>
-      <div style="margin-bottom:4px">${males.map(pillHtml).join('')}</div>
-      <div>${females.map(pillHtml).join('')}</div>
+      <div style="display:flex;flex-wrap:wrap;max-width:100%">${males.map(pillHtml).join('')}</div>
+      <div style="display:flex;flex-wrap:wrap;max-width:100%">${females.map(pillHtml).join('')}</div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div style="background:#eff6ff;border:2px solid #3b82f6;border-radius:12px;padding:9px 11px;min-height:64px">
         <div style="font-size:0.75rem;font-weight:800;color:#1e40af;margin-bottom:5px">🔵 ${aName} (${_autoTeamA.length}명)</div>
-        <div style="font-size:0.78rem;font-weight:700;color:#1d4ed8">${aMales.map(p=>p.name).join(' · ')||'—'}</div>
-        <div style="font-size:0.78rem;font-weight:700;color:#be185d">${aFemales.map(p=>p.name).join(' · ')||''}</div>
+        <div style="font-size:0.78rem;font-weight:700;color:#1d4ed8;line-height:1.7">${joinRows(aMales.map(p=>p.name),3)||'—'}</div>
+        <div style="font-size:0.78rem;font-weight:700;color:#be185d;line-height:1.7">${joinRows(aFemales.map(p=>p.name),3)}</div>
       </div>
       <div style="background:#fdf2f8;border:2px solid #ec4899;border-radius:12px;padding:9px 11px;min-height:64px">
         <div style="font-size:0.75rem;font-weight:800;color:#9d174d;margin-bottom:5px">🔴 ${bName} (${_autoTeamB.length}명)</div>
-        <div style="font-size:0.78rem;font-weight:700;color:#1d4ed8">${bMales.map(p=>p.name).join(' · ')||'—'}</div>
-        <div style="font-size:0.78rem;font-weight:700;color:#be185d">${bFemales.map(p=>p.name).join(' · ')||''}</div>
+        <div style="font-size:0.78rem;font-weight:700;color:#1d4ed8;line-height:1.7">${joinRows(bMales.map(p=>p.name),3)||'—'}</div>
+        <div style="font-size:0.78rem;font-weight:700;color:#be185d;line-height:1.7">${joinRows(bFemales.map(p=>p.name),3)}</div>
       </div>
     </div>
     ${unassigned.length?`<div style="font-size:0.72rem;color:#94a3b8;margin-top:6px;font-weight:600">미배정: ${unassigned.map(p=>p.name).join(', ')}</div>`:''}
@@ -5491,6 +5493,12 @@ function _renderDrawAnalysis(d){
       <span style="background:#fce7f3;color:#be185d;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.womens}여복 ${d.typeCounts.womens}</span>
     </div>
   </div>`;
+  // ── 참석자
+  html+=`<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:14px;padding:13px 15px;margin-bottom:12px">
+    <div style="font-size:0.85rem;font-weight:800;color:#166534;margin-bottom:7px">👥 참석자 ${d.attendees.length}명 — 남 ${d.males.length} / 여 ${d.females.length}</div>
+    <div style="font-size:0.8rem;color:#1d4ed8;font-weight:700">♂ ${d.males.map(p=>p.name).join(' · ')}</div>
+    <div style="font-size:0.8rem;color:#be185d;font-weight:700;margin-top:4px">♀ ${d.females.map(p=>p.name).join(' · ')}</div>
+  </div>`;
   // ── 팀 대결 배너
   if(d.teamMode){
     const aN=d.teamANames[0]?d.teamANames[0]+'팀':'A팀';
@@ -5499,26 +5507,21 @@ function _renderDrawAnalysis(d){
     const aF=d.attendees.filter(p=>d.teamANames.includes(p.name)&&p.gender!=='male');
     const bM=d.attendees.filter(p=>d.teamBNames.includes(p.name)&&p.gender==='male');
     const bF=d.attendees.filter(p=>d.teamBNames.includes(p.name)&&p.gender!=='male');
+    const _rows3=(arr,sep=' · ')=>arr.reduce((rows,name,i)=>{if(i%3===0)rows.push([]);rows[rows.length-1].push(name);return rows;},[]).map(r=>r.join(sep)).join('<br>');
     html+=`<div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:12px">
       <div style="background:#eff6ff;border:2px solid #3b82f6;border-radius:12px;padding:9px 11px">
         <div style="font-size:0.8rem;font-weight:800;color:#1e40af;margin-bottom:4px">🔵 ${aN}</div>
-        <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8">${aM.map(p=>p.name).join(' · ')||'—'}</div>
-        <div style="font-size:0.75rem;font-weight:700;color:#be185d">${aF.map(p=>p.name).join(' · ')||''}</div>
+        <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;line-height:1.7">${_rows3(aM.map(p=>p.name))||'—'}</div>
+        <div style="font-size:0.75rem;font-weight:700;color:#be185d;line-height:1.7">${_rows3(aF.map(p=>p.name))}</div>
       </div>
       <div style="font-size:1.2rem;font-weight:900;color:#64748b;text-align:center">vs</div>
       <div style="background:#fdf2f8;border:2px solid #ec4899;border-radius:12px;padding:9px 11px">
         <div style="font-size:0.8rem;font-weight:800;color:#9d174d;margin-bottom:4px">🔴 ${bN}</div>
-        <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8">${bM.map(p=>p.name).join(' · ')||'—'}</div>
-        <div style="font-size:0.75rem;font-weight:700;color:#be185d">${bF.map(p=>p.name).join(' · ')||''}</div>
+        <div style="font-size:0.75rem;font-weight:700;color:#1d4ed8;line-height:1.7">${_rows3(bM.map(p=>p.name))||'—'}</div>
+        <div style="font-size:0.75rem;font-weight:700;color:#be185d;line-height:1.7">${_rows3(bF.map(p=>p.name))}</div>
       </div>
     </div>`;
   }
-  // ── 참석자
-  html+=`<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:14px;padding:13px 15px;margin-bottom:12px">
-    <div style="font-size:0.85rem;font-weight:800;color:#166534;margin-bottom:7px">👥 참석자 ${d.attendees.length}명 — 남 ${d.males.length} / 여 ${d.females.length}</div>
-    <div style="font-size:0.8rem;color:#1d4ed8;font-weight:700">♂ ${d.males.map(p=>p.name).join(' · ')}</div>
-    <div style="font-size:0.8rem;color:#be185d;font-weight:700;margin-top:4px">♀ ${d.females.map(p=>p.name).join(' · ')}</div>
-  </div>`;
   // ── 경기별 배정
   const roundPastels=['#eff6ff','#fdf4ff','#fff7ed','#f0fdf4','#fef2f2','#f0f9ff','#fefce8','#fdf2f8'];
   const genderMap={};
@@ -5544,10 +5547,10 @@ function _renderDrawAnalysis(d){
       if(card){
         const aTeamBadge=card._teamMode?`<span style="font-size:0.62rem;font-weight:800;color:#1e40af;background:#dbeafe;padding:1px 5px;border-radius:5px;margin-right:3px">${(card._teamANames||[])[0]?card._teamANames[0]+'팀':'A'}</span>`:'';
         const bTeamBadge=card._teamMode?`<span style="font-size:0.62rem;font-weight:800;color:#9d174d;background:#fce7f3;padding:1px 5px;border-radius:5px;margin-right:3px">${(card._teamBNames||[])[0]?card._teamBNames[0]+'팀':'B'}</span>`:'';
-        html+=`<div style="padding:7px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
-          <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:3px">제${r}경기 ${c}코트</div>
-          <div style="font-size:0.78rem;font-weight:600;line-height:1.5;word-break:keep-all">
-            <span style="font-weight:800;color:${tColor[card.matchType]};margin-right:4px">${tIcon[card.matchType]}${tName[card.matchType]}</span>${aTeamBadge}${colorTeam(card.team0)} <span style="color:#94a3b8;font-weight:400">vs</span> ${bTeamBadge}${colorTeam(card.team1)}
+        html+=`<div style="padding:9px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
+          <div style="font-size:0.82rem;font-weight:800;color:#475569;margin-bottom:6px">제${r}경기 ${c}코트</div>
+          <div style="font-size:0.82rem;font-weight:600;line-height:1.6;word-break:keep-all;padding-left:2px">
+            <span style="font-weight:800;color:${tColor[card.matchType]};margin-right:5px">${tIcon[card.matchType]}${tName[card.matchType]}</span>${aTeamBadge}${colorTeam(card.team0)} <span style="color:#94a3b8;font-weight:400">vs</span> ${bTeamBadge}${colorTeam(card.team1)}
           </div>
         </div>`;
       } else {
@@ -5557,9 +5560,9 @@ function _renderDrawAnalysis(d){
         const _pref=_resting.filter(p=>!_prevPlayed.has(p.name));
         const _rec=(_pref.length?_pref:_resting).slice(0,4);
         const _recHtml=_rec.map(p=>`<span style="color:${_colorMap[p.name]||'#64748b'};font-weight:700">${p.name}</span><span style="color:#94a3b8;font-size:0.68rem">(${d.playerData[p.name]?.games||0})</span>`).join('<span style="color:#cbd5e1;margin:0 2px">·</span>');
-        html+=`<div style="padding:7px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
-          <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:3px">제${r}경기 ${c}코트</div>
-          ${_rec.length?`<div style="font-size:0.72rem"><span style="color:#f59e0b;font-weight:800;margin-right:4px">추천</span>${_recHtml}</div>`:'<div style="font-size:0.68rem;color:#cbd5e1">—</div>'}
+        html+=`<div style="padding:9px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
+          <div style="font-size:0.82rem;font-weight:800;color:#475569;margin-bottom:6px">제${r}경기 ${c}코트</div>
+          ${_rec.length?`<div style="font-size:0.75rem;padding-left:2px"><span style="color:#f59e0b;font-weight:800;margin-right:4px">추천</span>${_recHtml}</div>`:'<div style="font-size:0.68rem;color:#cbd5e1">—</div>'}
         </div>`;
       }
     }
