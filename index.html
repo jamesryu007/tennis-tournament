@@ -2409,7 +2409,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v659';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v660';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5532,8 +5532,14 @@ function _renderDrawAnalysis(d){
   });
   const colorName=name=>`<span style="color:${_colorMap[name]||'#64748b'};font-weight:700">${name}</span>`;
   const colorTeam=team=>team.map(colorName).join('<span style="color:#94a3b8;font-weight:400">-</span>');
+  // 팀 대결 모드면 섹션 헤더에 팀명 한 번만 표시
+  const _tmAN=d.teamMode&&d.teamANames[0]?d.teamANames[0]+'팀':'A팀';
+  const _tmBN=d.teamMode&&d.teamBNames[0]?d.teamBNames[0]+'팀':'B팀';
   html+=`<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:13px 15px;margin-bottom:12px">
-    <div style="font-size:0.85rem;font-weight:800;color:#1e293b;margin-bottom:10px">🎾 경기별 배정 현황</div>`;
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-size:0.85rem;font-weight:800;color:#1e293b">🎾 경기별 배정 현황</div>
+      ${d.teamMode?`<div style="font-size:0.75rem;font-weight:700;white-space:nowrap"><span style="color:#1e40af">🔵${_tmAN}</span><span style="color:#94a3b8;margin:0 4px">vs</span><span style="color:#9d174d">🔴${_tmBN}</span></div>`:''}
+    </div>`;
   for(const r of d.roundNums){
     const bg=roundPastels[(parseInt(r)-1)%roundPastels.length];
     html+=`<div style="background:${bg};border-radius:10px;margin-bottom:6px;padding:2px 8px">`;
@@ -5541,34 +5547,14 @@ function _renderDrawAnalysis(d){
       const card=d.roundMap[r][c];
       const isLast=c===d.courtCount;
       if(card){
-        const aLabel=(card._teamANames||[])[0]?card._teamANames[0]+'팀':'A팀';
-        const bLabel=(card._teamBNames||[])[0]?card._teamBNames[0]+'팀':'B팀';
-        if(card._teamMode){
-          // 팀 대결: 헤더에 팀명 한 번만, 경기 줄에는 팀배지 제거
-          html+=`<div style="padding:9px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-              <div style="font-size:0.82rem;font-weight:800;color:#475569">제${r}경기 ${c}코트</div>
-              <div style="font-size:0.72rem;font-weight:700;white-space:nowrap">
-                <span style="color:#1e40af">🔵${aLabel}</span>
-                <span style="color:#94a3b8;margin:0 3px">vs</span>
-                <span style="color:#9d174d">🔴${bLabel}</span>
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;justify-content:space-between;word-break:keep-all">
-              <span style="font-size:0.82rem;font-weight:800;color:${tColor[card.matchType]};flex-shrink:0;margin-right:6px">${tIcon[card.matchType]}${tName[card.matchType]}</span>
-              <span style="font-size:0.82rem;font-weight:600">${colorTeam(card.team0)} <span style="color:#94a3b8;font-weight:400">vs</span> ${colorTeam(card.team1)}</span>
-            </div>
-          </div>`;
-        } else {
-          // 자동배정(일반): 종목 왼쪽, 선수 오른쪽 flex 배치
-          html+=`<div style="padding:9px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
-            <div style="font-size:0.82rem;font-weight:800;color:#475569;margin-bottom:6px">제${r}경기 ${c}코트</div>
-            <div style="display:flex;align-items:center;justify-content:space-between;word-break:keep-all">
-              <span style="font-size:0.82rem;font-weight:800;color:${tColor[card.matchType]};flex-shrink:0;margin-right:8px">${tIcon[card.matchType]}${tName[card.matchType]}</span>
-              <span style="font-size:0.82rem;font-weight:600;text-align:right">${colorTeam(card.team0)} <span style="color:#94a3b8;font-weight:400">vs</span> ${colorTeam(card.team1)}</span>
-            </div>
-          </div>`;
-        }
+        // 자동배정·팀대결 공통 — 한 줄: 제N경기 N코트 이모지종목 팀0 vs 팀1
+        html+=`<div style="padding:7px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;line-height:1.6">
+            <span style="font-size:0.8rem;font-weight:800;color:#475569;white-space:nowrap">제${r}경기 ${c}코트</span>
+            <span style="font-size:0.82rem;font-weight:800;color:${tColor[card.matchType]};white-space:nowrap">${tIcon[card.matchType]}${tName[card.matchType]}</span>
+            <span style="font-size:0.82rem;font-weight:600">${colorTeam(card.team0)}<span style="color:#94a3b8;font-weight:400;margin:0 4px">vs</span>${colorTeam(card.team1)}</span>
+          </div>
+        </div>`;
       } else {
         const _playing=new Set(Object.values(d.roundMap[r]).flatMap(card=>[...card.team0,...card.team1]));
         const _prevPlayed=r>1&&d.roundMap[r-1]?new Set(Object.values(d.roundMap[r-1]).flatMap(card=>[...card.team0,...card.team1])):new Set();
@@ -5576,9 +5562,11 @@ function _renderDrawAnalysis(d){
         const _pref=_resting.filter(p=>!_prevPlayed.has(p.name));
         const _rec=(_pref.length?_pref:_resting).slice(0,4);
         const _recHtml=_rec.map(p=>`<span style="color:${_colorMap[p.name]||'#64748b'};font-weight:700">${p.name}</span><span style="color:#94a3b8;font-size:0.68rem">(${d.playerData[p.name]?.games||0})</span>`).join('<span style="color:#cbd5e1;margin:0 2px">·</span>');
-        html+=`<div style="padding:9px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
-          <div style="font-size:0.82rem;font-weight:800;color:#475569;margin-bottom:6px">제${r}경기 ${c}코트</div>
-          ${_rec.length?`<div style="font-size:0.75rem;padding-left:2px"><span style="color:#f59e0b;font-weight:800;margin-right:4px">추천</span>${_recHtml}</div>`:'<div style="font-size:0.68rem;color:#cbd5e1">—</div>'}
+        html+=`<div style="padding:7px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+            <span style="font-size:0.8rem;font-weight:800;color:#475569;white-space:nowrap">제${r}경기 ${c}코트</span>
+            ${_rec.length?`<span style="font-size:0.75rem"><span style="color:#f59e0b;font-weight:800;margin-right:3px">추천</span>${_recHtml}</span>`:'<span style="font-size:0.68rem;color:#cbd5e1">—</span>'}
+          </div>
         </div>`;
       }
     }
