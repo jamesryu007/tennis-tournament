@@ -1669,19 +1669,23 @@ async function _botAI(question, senderName) {
 
   // 컨텍스트 데이터 수집
   const year = new Date().getFullYear();
-  const [playerSnap, pairSnap, memberSnap, checkinSnap, recentMatchSnap] = await Promise.all([
+  const [playerSnap, pairSnap, memberSnap, pollStateSnap, recentMatchSnap, restoSnap, ratingSnap] = await Promise.all([
     db.ref(`jmt/playerStats/${year}`).once('value'),
     db.ref(`jmt/pairStats/${year}`).once('value'),
     db.ref('jmt/members').once('value'),
-    db.ref('jmt/checkin').once('value'),
+    db.ref('jmt/pollState').once('value'),
     db.ref('jmt/matches').orderByChild('date').limitToLast(30).once('value'),
+    db.ref('jmt/restaurants').once('value'),
+    db.ref('jmt/restaurantRatings').once('value'),
   ]);
 
   const playerStats = playerSnap.val() || {};
   const pairStats   = pairSnap.val()   || {};
   const members     = memberSnap.val() || {};
-  const checkin     = checkinSnap.val() || {};
+  const pollState   = pollStateSnap.val() || {};
   const recentRaw   = recentMatchSnap.val() || {};
+  const restaurants = restoSnap.val() || {};
+  const ratings     = ratingSnap.val() || {};
 
   // 개인 랭킹 요약 — 앱과 동일한 유효승률 알고리즘
   const effWr = (w, d, l) => { const t = w+(d||0)+l; return t ? ((w+(d||0)*0.5)/t*100) : 0; };
@@ -1726,10 +1730,42 @@ async function _botAI(question, senderName) {
       return `${m.date} ${t0} vs ${t1} (${score}) → ${result}`;
     }).join('\n');
 
-  // 오늘 체크인
-  const checkinNames = Object.values(checkin)
-    .filter(c => c.status === 'in')
-    .map(c => c.name).join(', ') || '없음';
+  // 출첵 현황 — jmt/pollState → weekId → jmt/poll/{weekId}/votes
+  let checkinCtx = '출첵 정보 없음';
+  try {
+    const weekId = pollState.weekId;
+    const satDate = pollState.satDate || '';
+    const pollStatus = pollState.status || '';
+    if (weekId) {
+      const votesSnap = await db.ref(`jmt/poll/${weekId}/votes`).once('value');
+      const votesRaw = votesSnap.val() || {};
+      const votes = Object.values(votesRaw);
+      const memberMap = {};
+      Object.values(members).forEach(m => { if (m.name) memberMap[m.name] = m.gender; });
+      const attendList = votes.filter(v => v.vote === 'attend').map(v => v.name);
+      const lateList   = votes.filter(v => v.vote === 'late').map(v => v.name);
+      const absentList = votes.filter(v => v.vote === 'absent').map(v => v.name);
+      const undecidedList = votes.filter(v => v.vote === 'undecided' || !v.vote).map(v => v.name);
+      checkinCtx = `[${satDate} 출첵 현황 (${pollStatus === 'open' ? '진행중' : '마감'})]
+참석(${attendList.length}명): ${attendList.join(', ') || '없음'}
+늦참(${lateList.length}명): ${lateList.join(', ') || '없음'}
+불참(${absentList.length}명): ${absentList.join(', ') || '없음'}
+미투표(${undecidedList.length}명): ${undecidedList.join(', ') || '없음'}`;
+    }
+  } catch(_) {}
+
+  // 단골맛집
+  let restaurantCtx = '등록된 맛집 없음';
+  try {
+    const restoList = Object.entries(restaurants).map(([id, r]) => {
+      const ratingVals = Object.values(ratings[id] || {});
+      const avgScore = ratingVals.length
+        ? (ratingVals.reduce((s, v) => s + (v.score || 0), 0) / ratingVals.length).toFixed(1)
+        : '별점없음';
+      return `- ${r.name} (${r.theme || '기타'}): 방문 ${r.visitCount || 0}회, 별점 ${avgScore}${r.memo ? ', ' + r.memo : ''}`;
+    });
+    if (restoList.length) restaurantCtx = restoList.join('\n');
+  } catch(_) {}
 
   // 멤버 목록 (성별 포함)
   const memberList = Object.values(members);
@@ -1800,8 +1836,10 @@ ${pairSummary || '데이터 없음'}
 [최근 경기 30건]
 ${recentMatches || '데이터 없음'}
 
-[오늘 체크인 멤버]
-${checkinNames}
+${checkinCtx}
+
+[단골맛집]
+${restaurantCtx}
 ${weatherCtx}${airCtx}
 현재 질문자: ${senderName}`;
 
