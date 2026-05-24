@@ -1773,9 +1773,9 @@ async function _botAI(question, senderName, history = []) {
   // 이름에서 성 제거 (3자 이상 → 앞 1자 성 제외, 2자 이하 → 그대로)
   const firstName = name => name && name.length >= 3 ? name.slice(1) : name;
   const memberList = Object.values(members);
-  const males   = memberList.filter(m => m.gender === 'male').map(m => `${firstName(m.name)}(${m.name})`);
-  const females = memberList.filter(m => m.gender === 'female').map(m => `${firstName(m.name)}(${m.name})`);
-  const memberSummary = `남자 오빠들 (이름→전체이름): ${males.join(', ')||'없음'}\n여자 언니들 (이름→전체이름): ${females.join(', ')||'없음'}`;
+  const males   = memberList.filter(m => m.gender === 'male').map(m => `${firstName(m.name)} 오빠`);
+  const females = memberList.filter(m => m.gender === 'female').map(m => `${firstName(m.name)} 언니`);
+  const memberSummary = `[호칭 목록 — 이름만으로 성별 추측 절대 금지, 반드시 이 목록만 따를 것]\n${[...males, ...females].join(', ')}`;
 
   // 날씨/미세먼지 — 질문에 관련 키워드 있을 때만 호출
   let weatherCtx = '';
@@ -1823,7 +1823,7 @@ async function _botAI(question, senderName, history = []) {
 
 [말투 규칙]
 - 항상 존댓말로 답변해 (반말 금지)
-- 멤버 이름을 부를 때: 성을 제외한 이름만 사용 + 남자는 "오빠", 여자는 "언니" 호칭 (예: 유지원 → 지원 오빠, 천지은 → 지은 언니)
+- 멤버 호칭은 반드시 아래 [호칭 목록]만 참고 (이름으로 성별 추측 절대 금지 — 예: 형경은 남자 오빠)
 - 이모지를 풍부하게 사용해서 생동감 있게 답변
 - 데이터 기반 질문엔 실제 데이터를 빠짐없이 인용해서 자세하게 답변 (멤버 이름, 점수, 순위 등 구체적으로)
 - 데이터가 없는 질문엔 AI답게 풍부하게 답변
