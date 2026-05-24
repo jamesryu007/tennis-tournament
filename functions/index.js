@@ -2648,6 +2648,9 @@ exports.handleBotTriggers = onValueCreated(
     try {
       const msg = event.data.val();
       if (!msg || msg.realName === _BOT_NAME) return;
+      // LLM OFF 상태면 무응답
+      const llmConfigSnap = await db.ref('jmt/botConfig/llmDisabled').once('value');
+      if (llmConfigSnap.val()) return;
       // 제이 말풍선 reply + 사진만 첨부(텍스트 없음)도 허용
       const hasImage = !!(msg.imageUrl || (msg.photos && msg.photos[0]));
       const isReplyToBot = !!(msg.replyTo && msg.replyTo.realName === _BOT_NAME);

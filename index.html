@@ -721,16 +721,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -1510,6 +1510,8 @@ const firebaseConfig = {
           </select>
           <div id="bz-alias-chips" style="display:flex;flex-wrap:wrap;gap:4px;flex:1"></div>
           <button id="bz-jinsil-btn" onclick="bzToggleJinsil()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#64748b;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">진실톡 OFF</button>
+          <span id="bz-bot-usage" style="display:none;font-size:0.68rem;color:#7c3aed;font-weight:700;white-space:nowrap;flex-shrink:0;padding:0 2px"></span>
+          <button id="bz-llm-btn" onclick="bzToggleLlm()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #c4b5fd;background:#f5f3ff;color:#7c3aed;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">🤖 ON</button>
           <button id="bz-notice-btn" onclick="openNoticeModal()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #fcd34d;background:#fffbeb;color:#92400e;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">📢 공지</button>
         </div>
         <div id="bz-alias-limit-msg" style="display:none;font-size:0.72rem;color:#dc2626;margin-bottom:4px">⚠️ 최대 2개의 가명만 사용할 수 있습니다.</div>
@@ -2415,7 +2417,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v673';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v674';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -14471,6 +14473,7 @@ function _bombCleanup() {
 let _bzMyAliases = [];        // 내가 사용한 가명 목록 (max 2)
 let _bzCurrentAlias = null;  // null=미초기화, ''=나자신, 'name'=가명
 let _bzListener = null;      // Firebase 리스너
+let _bzLlmDisabled = false;  // 제이 LLM ON/OFF 상태 (jmt/botConfig/llmDisabled)
 let _bzState = null;         // 현재 게임 상태
 let _bzFirstRender = false;  // 진입 후 첫 렌더 여부 (초기 스크롤 보장)
 let _bzLastReadTs = 0;       // 미읽음 기준 타임스탬프 (여기까지 읽음 안내선용)
@@ -15369,6 +15372,18 @@ function _bzSetupListener() {
   _bzLastRenderKey = null;
   _bzLastNonMsgKey = null;
   _bzRenderedMsgKeys = new Set();
+  // 제이 LLM ON/OFF 실시간 구독
+  db.ref('jmt/botConfig/llmDisabled').on('value', s => {
+    _bzLlmDisabled = !!s.val();
+    // 버튼 즉시 반영 (관리자 전용)
+    const llmBtn = document.getElementById('bz-llm-btn');
+    if (llmBtn && isAdmin()) {
+      llmBtn.textContent = _bzLlmDisabled ? '제이 OFF' : '제이 ON';
+      llmBtn.style.background = _bzLlmDisabled ? '#f1f5f9' : 'linear-gradient(135deg,#f5f3ff,#ede9fe)';
+      llmBtn.style.color = _bzLlmDisabled ? '#94a3b8' : '#7c3aed';
+      llmBtn.style.border = _bzLlmDisabled ? '1.5px solid #e2e8f0' : '1.5px solid #c4b5fd';
+    }
+  });
   _bzListener = db.ref(BZ_REF).on('value', snap => {
     const newState = snap.val() || {};
     // 메시지 제외 상태 해시 — 이게 바뀌면 전체 재렌더 필요
@@ -17614,6 +17629,30 @@ function _bzRender() {
       jinsilBtn.style.border = jinsilOn ? '1.5px solid #22c55e' : '1.5px solid #e2e8f0';
     }
 
+    // 제이 사용량 + LLM 토글 — 유지원(isAdmin)만 표시
+    const botUsageEl = document.getElementById('bz-bot-usage');
+    const llmBtn = document.getElementById('bz-llm-btn');
+    if (botUsageEl && llmBtn) {
+      botUsageEl.style.display = 'inline';
+      llmBtn.style.display = 'inline-block';
+      // 사용량은 DB에서 직접 읽기 (1분 캐시)
+      if (!window._bzBotUsageTs || Date.now() - window._bzBotUsageTs > 60000) {
+        db.ref('jmt/botUsage/total').once('value').then(s => {
+          window._bzBotUsageVal = s.val() || 0;
+          window._bzBotUsageTs = Date.now();
+          botUsageEl.textContent = `🤖 ${window._bzBotUsageVal}/600`;
+        });
+      } else {
+        botUsageEl.textContent = `🤖 ${window._bzBotUsageVal || 0}/600`;
+      }
+      // LLM ON/OFF 상태
+      const llmOn = !_bzLlmDisabled;
+      llmBtn.textContent = llmOn ? '제이 ON' : '제이 OFF';
+      llmBtn.style.background = llmOn ? 'linear-gradient(135deg,#f5f3ff,#ede9fe)' : '#f1f5f9';
+      llmBtn.style.color = llmOn ? '#7c3aed' : '#94a3b8';
+      llmBtn.style.border = llmOn ? '1.5px solid #c4b5fd' : '1.5px solid #e2e8f0';
+    }
+
     // 맞추기 참여 현황 (guessing 단계에서만)
     const guessStatusEl = document.getElementById('bz-guess-status');
     if (guessStatusEl) {
@@ -17730,6 +17769,12 @@ function bzToggleJinsil() {
   if (!isAdmin()) return;
   const cur = !!(_bzState && _bzState.jinsilTok);
   db.ref(BZ_REF + '/jinsilTok').set(cur ? null : true).catch(fbErr);
+}
+
+function bzToggleLlm() {
+  if (!isAdmin()) return;
+  const curDisabled = !!(_bzState && _bzState.llmDisabled);
+  db.ref('jmt/botConfig/llmDisabled').set(curDisabled ? null : true).catch(fbErr);
 }
 
 
