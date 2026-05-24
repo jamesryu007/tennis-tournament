@@ -1853,7 +1853,7 @@ ${weatherCtx}${airCtx}
     .filter(m => m.role === 'assistant' && /띠 운세/.test(m.content))
     .map(m => m.content).join('\n---\n');
   const fortuneCtx = fortuneData
-    ? `\n\n[⚠️ 아래 운세 데이터가 채팅에 이미 있음 — 반드시 이 내용만 그대로 인용, 절대 새로 만들지 말 것]\n${fortuneData}`
+    ? `\n\n[⚠️ 아래 운세 데이터가 채팅에 이미 있음 — 이 내용을 그대로 인용한 뒤, 제이 본인의 짧은 의견이나 응원 한마디만 덧붙일 것. 운세 내용 자체는 절대 새로 만들지 말 것]\n${fortuneData}`
     : '';
 
   const apiKey = process.env.OPENAI_API_KEY;
