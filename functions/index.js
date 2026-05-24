@@ -1656,6 +1656,124 @@ async function _postBotMsg(msgData) {
   });
 }
 
+// ── AI 응답 (@자미봇 멘션) ─────────────────────────────────────────
+const _BOT_AI_LIMIT = 600; // 월 총 사용 한도
+
+async function _botAI(question, senderName) {
+  // 사용량 체크
+  const usageSnap = await db.ref('jmt/botUsage/total').once('value');
+  const usageCount = usageSnap.val() || 0;
+  if (usageCount >= _BOT_AI_LIMIT) {
+    return { text: `🤖 자미봇 이번 달 사용 한도(${_BOT_AI_LIMIT}건)를 모두 사용했어요 😅 다음 달에 다시 만나요!` };
+  }
+
+  // 컨텍스트 데이터 수집
+  const year = new Date().getFullYear();
+  const [playerSnap, pairSnap, memberSnap, checkinSnap, recentMatchSnap] = await Promise.all([
+    db.ref(`jmt/playerStats/${year}`).once('value'),
+    db.ref(`jmt/pairStats/${year}`).once('value'),
+    db.ref('jmt/members').once('value'),
+    db.ref('jmt/checkin').once('value'),
+    db.ref('jmt/matches').orderByChild('date').limitToLast(30).once('value'),
+  ]);
+
+  const playerStats = playerSnap.val() || {};
+  const pairStats   = pairSnap.val()   || {};
+  const members     = memberSnap.val() || {};
+  const checkin     = checkinSnap.val() || {};
+  const recentRaw   = recentMatchSnap.val() || {};
+
+  // 개인 랭킹 요약
+  const playerList = Object.entries(playerStats)
+    .map(([name, s]) => ({ name, wins: s.wins||0, losses: s.losses||0, draws: s.draws||0 }))
+    .sort((a, b) => b.wins - a.wins)
+    .slice(0, 15);
+  const playerSummary = playerList.map((p, i) =>
+    `${i+1}위 ${p.name}: ${p.wins}승 ${p.losses}패${p.draws ? ` ${p.draws}무` : ''}`
+  ).join('\n');
+
+  // 페어 랭킹 요약
+  const pairList = Object.entries(pairStats)
+    .map(([key, s]) => ({ key, wins: s.wins||0, losses: s.losses||0, players: s.players||[] }))
+    .sort((a, b) => b.wins - a.wins)
+    .slice(0, 10);
+  const pairSummary = pairList.map((p, i) =>
+    `${i+1}위 ${p.players.join('+')||p.key}: ${p.wins}승 ${p.losses}패`
+  ).join('\n');
+
+  // 최근 경기 30건
+  const recentMatches = Object.values(recentRaw)
+    .filter(m => m.source === 'daily' && m.sets && m.winner !== undefined)
+    .sort((a, b) => (b.date||'').localeCompare(a.date||''))
+    .slice(0, 30)
+    .map(m => {
+      const t0 = (m.team0||[]).join('+'), t1 = (m.team1||[]).join('+');
+      const score = (m.sets||[]).map(s => `${s.s0}-${s.s1}`).join(', ');
+      const result = m.winner === 0 ? `${t0} 승` : m.winner === 1 ? `${t1} 승` : '무승부';
+      return `${m.date} ${t0} vs ${t1} (${score}) → ${result}`;
+    }).join('\n');
+
+  // 오늘 체크인
+  const checkinNames = Object.values(checkin)
+    .filter(c => c.status === 'in')
+    .map(c => c.name).join(', ') || '없음';
+
+  // 멤버 목록
+  const memberNames = Object.values(members).map(m => m.name).join(', ');
+
+  const systemPrompt = `너는 자미터 테니스 동호회의 AI 어시스턴트 "자미봇"이야.
+친근하고 유머 있는 말투로 짧고 재미있게 답변해줘. 이모지를 적절히 사용해.
+답변은 3~5문장 이내로 간결하게. 모르는 건 솔직하게 모른다고 해.
+
+[멤버 목록]
+${memberNames}
+
+[${year}년 개인 랭킹 (승수 기준)]
+${playerSummary || '데이터 없음'}
+
+[${year}년 페어 랭킹]
+${pairSummary || '데이터 없음'}
+
+[최근 경기 30건]
+${recentMatches || '데이터 없음'}
+
+[오늘 체크인 멤버]
+${checkinNames}
+
+현재 질문자: ${senderName}`;
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return { text: '🤖 자미봇 API 키가 설정되지 않았어요.' };
+
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: question },
+      ],
+      max_tokens: 300,
+      temperature: 0.8,
+    }),
+  });
+
+  if (!resp.ok) {
+    console.error('OpenAI API error:', resp.status, await resp.text());
+    return { text: '🤖 자미봇이 잠시 쉬는 중이에요. 잠시 후 다시 시도해주세요 😅' };
+  }
+
+  const data = await resp.json();
+  const answer = data.choices?.[0]?.message?.content?.trim();
+  if (!answer) return { text: '🤖 답변을 가져오지 못했어요. 다시 시도해주세요.' };
+
+  // 사용량 증가
+  await db.ref('jmt/botUsage/total').transaction(n => (n || 0) + 1);
+
+  return { text: answer, isBot: true };
+}
+
 // ── ATP 경기 결과/예고 자미봇 리포팅 ──────────────────────────────
 async function _botReportAtpResults(matches, tournamentInfo) {
   if (!matches || !matches.length || !tournamentInfo) return;
@@ -2336,6 +2454,15 @@ exports.handleBotTriggers = onValueCreated(
       if (!msg || !msg.text || msg.realName === _BOT_NAME) return;
       const text = (msg.text || '').trim();
       const senderName = msg.realName || '';
+
+      // @자미봇 멘션 → AI 응답 우선 처리
+      const aiMentionMatch = text.match(/@자미봇\s*(.*)/s);
+      if (aiMentionMatch) {
+        const question = aiMentionMatch[1].trim() || '안녕!';
+        const result = await _botAI(question, senderName);
+        if (result) await _postBotMsg(result);
+        return;
+      }
 
       let trigger = null;
       for (const { key, pattern } of _BOT_TRIGGERS) {
