@@ -2415,7 +2415,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v672';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v673';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -17956,7 +17956,10 @@ function _bzLinkify(text) {
     .replace(/https?:\/\/[^\s<>"'&]+/g, url =>
       `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline;word-break:break-all" onclick="event.stopPropagation()">${url}</a>`)
     .replace(/@([^\s@<&]+)/g, (m, name) =>
-      memberNames.has(name) ? `<span style="color:#3b82f6;font-weight:700">@${name}</span>` : m);
+      memberNames.has(name) ? `<span style="color:#3b82f6;font-weight:700">@${name}</span>` : m)
+    // "제이" 콜 — 보라색 강조 (봇 이모지 컬러)
+    .replace(/^(제이)([,!. ]*)/,
+      (_, bot, sep) => `<span style="color:#7c3aed;font-weight:800">${bot}</span>${sep}`);
 }
 
 // ── 멤버 컬러 맵 (전역 공유) ────────────────────────────────────────

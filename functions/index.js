@@ -1659,7 +1659,7 @@ async function _postBotMsg(msgData) {
 // ── AI 응답 (@자미봇 멘션) ─────────────────────────────────────────
 const _BOT_AI_LIMIT = 600; // 월 총 사용 한도
 
-async function _botAI(question, senderName, history = []) {
+async function _botAI(question, senderName, history = [], imageUrl = null) {
   // 사용량 체크
   const usageSnap = await db.ref('jmt/botUsage/total').once('value');
   const usageCount = usageSnap.val() || 0;
@@ -1674,7 +1674,7 @@ async function _botAI(question, senderName, history = []) {
     db.ref(`jmt/pairStats/${year}`).once('value'),
     db.ref('jmt/members').once('value'),
     db.ref('jmt/pollState').once('value'),
-    db.ref('jmt/matches').orderByChild('date').limitToLast(30).once('value'),
+    db.ref('jmt/matches').orderByChild('date').limitToLast(200).once('value'),
     db.ref('jmt/restaurants').once('value'),
     db.ref('jmt/restaurantRatings').once('value'),
   ]);
@@ -1712,24 +1712,79 @@ async function _botAI(question, senderName, history = []) {
     .sort((a,b) => effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
   const prU = prRaw.filter(p => p.wins+p.draws+p.losses < prTh)
     .sort((a,b) => { const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses; return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins; });
-  const pairList = [...prQ, ...prU].slice(0, 10);
+  const pairList = [...prQ, ...prU].slice(0, 20);
   const pairSummary = pairList.map((p, i) => {
     const wr = Math.round(effWr(p.wins, p.draws, p.losses));
     return `${i+1}위 ${p.players.join('+')||p.key}: ${p.wins}승 ${p.losses}패 (승률 ${wr}%)`;
   }).join('\n');
 
   // 최근 경기 — 경기/랭킹 관련 질문일 때만 포함 (토큰 절약)
-  const hasMatchQuery = /경기|승|패|랭킹|순위|점수|결과|대결|복식|누가.*이겼|이긴/.test(question);
-  const recentMatches = hasMatchQuery ? Object.values(recentRaw)
-    .filter(m => m.source === 'daily' && m.sets && m.winner !== undefined)
-    .sort((a, b) => (b.date||'').localeCompare(a.date||''))
-    .slice(0, 20)
-    .map(m => {
-      const t0 = (m.team0||[]).join('+'), t1 = (m.team1||[]).join('+');
-      const score = (m.sets||[]).map(s => `${s.s0}-${s.s1}`).join(', ');
+  const hasMatchQuery = /경기|승|패|랭킹|순위|점수|결과|대결|복식|파트너|이겼|이긴|싸워|상대|전적|누구.*이겼|몇번|몇승|몇패/.test(question);
+  let recentMatches = null;
+  let matchMentionedNames = [];
+  if (hasMatchQuery) {
+    // Firebase Admin SDK 배열 방어 변환
+    const toArr = v => Array.isArray(v) ? v : Object.values(v || {});
+
+    // 질문에서 언급된 멤버 추출 (풀네임 직접 매칭 + 호칭 패턴)
+    const memberObjs = Object.values(members).filter(m => m.name && !m.isGuest);
+    const _fn = n => n && n.length >= 3 ? n.slice(1) : n;
+    const directMatches = memberObjs.filter(m => question.includes(m.name)).map(m => m.name);
+    const honorificMatches = [];
+    const honorPat = /([가-힣]{1,4})(오빠|형님|형|언니|누나)/g;
+    let hm;
+    while ((hm = honorPat.exec(question)) !== null) {
+      const namePart = hm[1], hon = hm[2];
+      const isMale = ['오빠','형','형님'].includes(hon);
+      const found = memberObjs.find(m =>
+        _fn(m.name) === namePart &&
+        (isMale ? m.gender === 'male' : m.gender === 'female') &&
+        !directMatches.includes(m.name)
+      );
+      if (found && !honorificMatches.includes(found.name)) honorificMatches.push(found.name);
+    }
+    matchMentionedNames = [...new Set([...directMatches, ...honorificMatches])];
+
+    // 최근 30일 이내, source=daily 매치만 사용
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const allMatches = Object.values(recentRaw)
+      .filter(m => m.source === 'daily' && m.sets && m.winner !== undefined && (m.date || '') >= cutoff)
+      .sort((a, b) => (b.date||'').localeCompare(a.date||''));
+
+    // 2명 감지 → 같은 팀 경기만 / 1명 → 그 선수 포함 / 0명 → 전체
+    const filtered = matchMentionedNames.length >= 2
+      ? allMatches.filter(m => {
+          const t0 = toArr(m.team0), t1 = toArr(m.team1);
+          return matchMentionedNames.every(n => t0.includes(n)) || matchMentionedNames.every(n => t1.includes(n));
+        })
+      : matchMentionedNames.length === 1
+        ? allMatches.filter(m => {
+            const t0 = toArr(m.team0), t1 = toArr(m.team1);
+            return t0.includes(matchMentionedNames[0]) || t1.includes(matchMentionedNames[0]);
+          })
+        : allMatches;
+
+    // 포맷: "날짜 A+B vs C+D → 승/패 (스코어)"
+    // 특정 선수 언급 시 해당 선수 팀이 항상 왼쪽, 상대가 오른쪽
+    recentMatches = filtered.slice(0, 20).map(m => {
+      const t0Arr = toArr(m.team0), t1Arr = toArr(m.team1);
+      const sets = toArr(m.sets);
+      const score = sets.map(s => `${s.s0}-${s.s1}`).join(', ');
+      if (matchMentionedNames.length >= 1) {
+        const myInT0 = matchMentionedNames.some(n => t0Arr.includes(n));
+        const myArr = myInT0 ? t0Arr : t1Arr;
+        const oppArr = myInT0 ? t1Arr : t0Arr;
+        const myWon = myInT0 ? m.winner === 0 : m.winner === 1;
+        const wonStr = m.winner === -1 ? '무승부' : myWon ? '승' : '패';
+        const myScore = sets.map(s => myInT0 ? s.s0 : s.s1).join('-');
+        const oppScore = sets.map(s => myInT0 ? s.s1 : s.s0).join('-');
+        return `${m.date} ${myArr.join('+')} vs ${oppArr.join('+')} → ${wonStr} (${myScore}:${oppScore})`;
+      }
+      const t0 = t0Arr.join('+'), t1 = t1Arr.join('+');
       const result = m.winner === 0 ? `${t0} 승` : m.winner === 1 ? `${t1} 승` : '무승부';
-      return `${m.date} ${t0} vs ${t1} (${score}) → ${result}`;
-    }).join('\n') : null;
+      return `${m.date} ${t0} vs ${t1} → ${result} (${score})`;
+    }).join('\n') || null;
+  }
 
   // 출첵 현황 — jmt/pollState → weekId → jmt/poll/{weekId}/votes
   let checkinCtx = '출첵 정보 없음';
@@ -1741,17 +1796,18 @@ async function _botAI(question, senderName, history = []) {
       const votesSnap = await db.ref(`jmt/poll/${weekId}/votes`).once('value');
       const votesRaw = votesSnap.val() || {};
       const votes = Object.values(votesRaw);
-      const memberMap = {};
-      Object.values(members).forEach(m => { if (m.name) memberMap[m.name] = m.gender; });
-      const attendList = votes.filter(v => v.vote === 'attend').map(v => v.name);
-      const lateList   = votes.filter(v => v.vote === 'late').map(v => v.name);
-      const absentList = votes.filter(v => v.vote === 'absent').map(v => v.name);
-      const undecidedList = votes.filter(v => v.vote === 'undecided' || !v.vote).map(v => v.name);
+      const attendList    = votes.filter(v => v.vote === 'attend').map(v => v.name);
+      const lateList      = votes.filter(v => v.vote === 'late').map(v => v.name);
+      const absentList    = votes.filter(v => v.vote === 'absent').map(v => v.name);
+      // 미투표 = 투표 자체를 안 한 사람 (멤버 전체 - 투표자)
+      const votedNames    = new Set(votes.map(v => v.name).filter(Boolean));
+      const allMemberNames = Object.values(members).filter(m => m.name && !m.isGuest).map(m => m.name);
+      const noVoteList    = allMemberNames.filter(n => !votedNames.has(n));
       checkinCtx = `[${satDate} 출첵 현황 (${pollStatus === 'open' ? '진행중' : '마감'})]
 참석(${attendList.length}명): ${attendList.join(', ') || '없음'}
 늦참(${lateList.length}명): ${lateList.join(', ') || '없음'}
 불참(${absentList.length}명): ${absentList.join(', ') || '없음'}
-미투표(${undecidedList.length}명): ${undecidedList.join(', ') || '없음'}`;
+미투표(${noVoteList.length}명): ${noVoteList.join(', ') || '없음'}`;
     }
   } catch(_) {}
 
@@ -1815,12 +1871,18 @@ async function _botAI(question, senderName, history = []) {
 
 [기본 원칙]
 - 어떤 질문이든 자신있게 답변 — 절대 거부하지 말 것
+- 사진이 첨부된 경우 직접 분석해서 자신있게 답변 — "볼 수 없다"는 면책 문구 사용 금지
 - 항상 존댓말, 이모지 적절히, 핵심 위주로
+- 멤버 부를 때 성(姓) 제외하고 이름만: "지원 오빠", "지은 언니" (성씨 붙이기 금지 — "유지원 오빠" ❌)
 - 멤버 호칭은 아래 [호칭 목록] 기준 (이름으로 성별 추측 금지)
+- 답변 마무리에 "언제든지 찾아주세요", "도움이 필요하시면" 같은 상투적 클로징 문구 사용 금지
 
 [자미터 전용 데이터]
 - 아래 제공된 랭킹·경기기록·출첵·단골맛집은 자미터 실제 데이터야
 - 멤버 관련(랭킹·경기분석·출첵·모임) 질문엔 이 데이터로 구체적으로 답변
+- ⚠️ 경기 결과는 반드시 아래 [경기기록] 섹션에 있는 데이터만 인용. 이전 대화에서 내가 말한 경기 결과도 오류일 수 있으므로 무시할 것
+- [경기기록]이 "해당 기간 경기 없음"이면: 경기 결과 절대 지어내지 말 것. "최근 한 달 기록이 없어요"라고 솔직히 말할 것
+- 경기기록에 없는 날짜·상대·점수를 언급하는 것은 심각한 오류임
 - 단골맛집은 서울/강남권 위주 — 다른 지역(가평·제주·부산 등) 맛집 질문엔 DB 무시하고 LLM 자유 추천
 - 날씨·운세는 [⚠️] 블록의 실제 데이터 기반으로 답변
 
@@ -1833,7 +1895,7 @@ ${playerSummary || '데이터 없음'}
 [${year}년 페어 랭킹]
 ${pairSummary || '데이터 없음'}
 
-${recentMatches != null ? `[최근 경기 20건]\n${recentMatches || '데이터 없음'}` : ''}
+${hasMatchQuery ? `[최근 30일 경기기록${matchMentionedNames.length ? ` (${matchMentionedNames.join('+')} 관련)` : ''}]\n${recentMatches || '해당 기간 경기 없음 — 추측 금지'}` : ''}
 
 ${checkinCtx}
 
@@ -1849,14 +1911,33 @@ ${weatherCtx}${airCtx}
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4.1-mini',
       messages: [
         { role: 'system', content: systemPrompt },
         ...history,
-        { role: 'user', content: `${senderName}: ${question}` },
+        {
+          role: 'user',
+          content: imageUrl
+            ? await (async () => {
+                try {
+                  // Firebase Storage URL → base64 변환 (OpenAI 직접 다운로드 타임아웃 방지)
+                  const imgRes = await fetch(imageUrl);
+                  const arrBuf = await imgRes.arrayBuffer();
+                  const b64 = Buffer.from(arrBuf).toString('base64');
+                  const mime = imgRes.headers.get('content-type') || 'image/jpeg';
+                  return [
+                    { type: 'text', text: `${senderName}: [📷 사진 첨부 — 직접 분석할 것] ${question}` },
+                    { type: 'image_url', image_url: { url: `data:${mime};base64,${b64}`, detail: 'auto' } },
+                  ];
+                } catch(_) {
+                  return `${senderName}: ${question}`;
+                }
+              })()
+            : `${senderName}: ${question}`,
+        },
       ],
       max_tokens: 500,
-      temperature: 0.8,
+      temperature: 0.5,
     }),
   });
 
@@ -2580,6 +2661,19 @@ exports.handleBotTriggers = onValueCreated(
           if (result) await _postBotMsg(result);
           return;
         }
+        // reply된 이미지 URL 추출 (vision 기능용)
+        let replyImageUrl = null;
+        if (msg.replyTo && msg.replyTo.msgKey) {
+          try {
+            const origSnap = await db.ref(`${_BOT_BZ_REF}/messages/${msg.replyTo.msgKey}`).once('value');
+            const origMsg = origSnap.val();
+            if (origMsg) {
+              replyImageUrl = origMsg.imageUrl
+                || (origMsg.photos && origMsg.photos[0])
+                || null;
+            }
+          } catch(_) {}
+        }
         // 타이핑 인디케이터 먼저 표시 (최소 0.5초 노출)
         const typingRef = db.ref(`${_BOT_BZ_REF}/messages`).push();
         const typingShownAt = Date.now();
@@ -2606,7 +2700,7 @@ exports.handleBotTriggers = onValueCreated(
             ? `${m.realName || '멤버'}: ${m.text.replace(/^제이[,!. ]*/i, '').trim()}`
             : m.text,
         }));
-        const result = await _botAI(question, senderName, history);
+        const result = await _botAI(question, senderName, history, replyImageUrl);
         // 타이핑 인디케이터 최소 0.5초 노출 후 제거
         const elapsed = Date.now() - typingShownAt;
         if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
