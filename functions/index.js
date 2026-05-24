@@ -1683,23 +1683,36 @@ async function _botAI(question, senderName) {
   const checkin     = checkinSnap.val() || {};
   const recentRaw   = recentMatchSnap.val() || {};
 
-  // 개인 랭킹 요약
-  const playerList = Object.entries(playerStats)
-    .map(([name, s]) => ({ name, wins: s.wins||0, losses: s.losses||0, draws: s.draws||0 }))
-    .sort((a, b) => b.wins - a.wins)
-    .slice(0, 15);
-  const playerSummary = playerList.map((p, i) =>
-    `${i+1}위 ${p.name}: ${p.wins}승 ${p.losses}패${p.draws ? ` ${p.draws}무` : ''}`
-  ).join('\n');
+  // 개인 랭킹 요약 — 앱과 동일한 유효승률 알고리즘
+  const effWr = (w, d, l) => { const t = w+(d||0)+l; return t ? ((w+(d||0)*0.5)/t*100) : 0; };
+  const plRaw = Object.entries(playerStats)
+    .map(([name, s]) => ({ name, wins: s.wins||0, losses: s.losses||0, draws: s.draws||0 }));
+  const plAvg = plRaw.reduce((sum, p) => sum + p.wins+p.draws+p.losses, 0) / (plRaw.length||1);
+  const plTh = plAvg * 0.5;
+  const plQ = plRaw.filter(p => p.wins+p.draws+p.losses >= plTh)
+    .sort((a,b) => effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses) || b.wins-a.wins);
+  const plU = plRaw.filter(p => p.wins+p.draws+p.losses < plTh)
+    .sort((a,b) => { const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses; return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins; });
+  const playerList = [...plQ, ...plU].slice(0, 15);
+  const playerSummary = playerList.map((p, i) => {
+    const wr = Math.round(effWr(p.wins, p.draws, p.losses));
+    return `${i+1}위 ${p.name}: ${p.wins}승 ${p.losses}패${p.draws ? ` ${p.draws}무` : ''} (승률 ${wr}%)`;
+  }).join('\n');
 
-  // 페어 랭킹 요약
-  const pairList = Object.entries(pairStats)
-    .map(([key, s]) => ({ key, wins: s.wins||0, losses: s.losses||0, players: s.players||[] }))
-    .sort((a, b) => b.wins - a.wins)
-    .slice(0, 10);
-  const pairSummary = pairList.map((p, i) =>
-    `${i+1}위 ${p.players.join('+')||p.key}: ${p.wins}승 ${p.losses}패`
-  ).join('\n');
+  // 페어 랭킹 요약 — 유효승률 기준
+  const prRaw = Object.entries(pairStats)
+    .map(([key, s]) => ({ key, wins: s.wins||0, losses: s.losses||0, draws: s.draws||0, players: s.players||[] }));
+  const prAvg = prRaw.reduce((sum, p) => sum + p.wins+p.draws+p.losses, 0) / (prRaw.length||1);
+  const prTh = prAvg * 0.5;
+  const prQ = prRaw.filter(p => p.wins+p.draws+p.losses >= prTh)
+    .sort((a,b) => effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+  const prU = prRaw.filter(p => p.wins+p.draws+p.losses < prTh)
+    .sort((a,b) => { const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses; return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins; });
+  const pairList = [...prQ, ...prU].slice(0, 10);
+  const pairSummary = pairList.map((p, i) => {
+    const wr = Math.round(effWr(p.wins, p.draws, p.losses));
+    return `${i+1}위 ${p.players.join('+')||p.key}: ${p.wins}승 ${p.losses}패 (승률 ${wr}%)`;
+  }).join('\n');
 
   // 최근 경기 30건
   const recentMatches = Object.values(recentRaw)
