@@ -2568,18 +2568,22 @@ exports.handleBotTriggers = onValueCreated(
         const histSnap = await db.ref(`${_BOT_BZ_REF}/messages`)
           .orderByChild('ts').limitToLast(60).once('value');
         const histRaw = histSnap.val() || {};
-        // 제이와의 대화만 히스토리로 — 제이에게 한 질문 + 제이 답변만 포함
-        const history = Object.values(histRaw)
+        // 제이와의 대화만 추출 (질문 + 제이 답변)
+        const botExchanges = Object.values(histRaw)
           .filter(m => m.ts < msg.ts && m.text && m.type !== 'restaurant'
             && (m.realName === _BOT_NAME || /^제이[,!. ]/i.test(m.text || '')))
-          .sort((a, b) => a.ts - b.ts)
-          .slice(-10)
-          .map(m => ({
-            role: m.realName === _BOT_NAME ? 'assistant' : 'user',
-            content: m.realName !== _BOT_NAME
-              ? `${m.realName || '멤버'}: ${m.text.replace(/^제이[,!. ]*/i, '').trim()}`
-              : m.text,
-          }));
+          .sort((a, b) => a.ts - b.ts);
+        // 마지막 제이 답변 시간 확인 — 5분 쿨타임
+        const lastBotMsg = [...botExchanges].reverse().find(m => m.realName === _BOT_NAME);
+        const isActiveSession = lastBotMsg && (msg.ts - lastBotMsg.ts) < 5 * 60 * 1000;
+        // 활성 세션: 최근 10개 / 신규 세션: 마지막 1쌍(질문+답변)만
+        const histSlice = isActiveSession ? botExchanges.slice(-10) : botExchanges.slice(-2);
+        const history = histSlice.map(m => ({
+          role: m.realName === _BOT_NAME ? 'assistant' : 'user',
+          content: m.realName !== _BOT_NAME
+            ? `${m.realName || '멤버'}: ${m.text.replace(/^제이[,!. ]*/i, '').trim()}`
+            : m.text,
+        }));
         const result = await _botAI(question, senderName, history);
         if (result) await _postBotMsg(result);
         return;
