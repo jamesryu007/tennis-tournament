@@ -1773,8 +1773,15 @@ async function _botAI(question, senderName, history = []) {
   // 이름에서 성 제거 (3자 이상 → 앞 1자 성 제외, 2자 이하 → 그대로)
   const firstName = name => name && name.length >= 3 ? name.slice(1) : name;
   const memberList = Object.values(members);
-  const males   = memberList.filter(m => m.gender === 'male').map(m => `${firstName(m.name)} 오빠`);
-  const females = memberList.filter(m => m.gender === 'female').map(m => `${firstName(m.name)} 언니`);
+  const fmtMember = m => {
+    const fn = firstName(m.name);
+    const honorific = m.gender === 'male' ? '오빠' : '언니';
+    const bday = m.birthday ? `, 생일:${m.birthday}` : '';
+    const ntrp = m.ntrp ? `, NTRP:${m.ntrp}` : '';
+    return `${fn} ${honorific}(${m.name}${bday}${ntrp})`;
+  };
+  const males   = memberList.filter(m => m.gender === 'male').map(fmtMember);
+  const females = memberList.filter(m => m.gender === 'female').map(fmtMember);
   const memberSummary = `남성 멤버(→ 오빠): ${males.join(', ')}\n여성 멤버(→ 언니): ${females.join(', ')}\n⚠️ 멤버 호칭 규칙: 위 목록 기준으로만 호칭. "님" 절대 금지. 예) 지은 언니, 지원 오빠`;
 
   // 날씨/미세먼지 — 히스토리에 이미 있으면 인용, 없으면 룰베이스 함수 직접 호출
