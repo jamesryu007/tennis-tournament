@@ -1846,7 +1846,15 @@ ${checkinCtx}
 [단골맛집]
 ${restaurantCtx}
 ${weatherCtx}${airCtx}
-현재 질문자: ${senderName}`;
+현재 질문자: ${senderName}${fortuneCtx}`;
+
+  // 히스토리에서 운세 결과 추출 — 있으면 시스템 프롬프트에 명시 주입
+  const fortuneData = history
+    .filter(m => m.role === 'assistant' && /띠 운세/.test(m.content))
+    .map(m => m.content).join('\n---\n');
+  const fortuneCtx = fortuneData
+    ? `\n\n[⚠️ 아래 운세 데이터가 채팅에 이미 있음 — 반드시 이 내용만 그대로 인용, 절대 새로 만들지 말 것]\n${fortuneData}`
+    : '';
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return { text: '🤖 제이 API 키가 설정되지 않았어요.' };
