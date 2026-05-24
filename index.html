@@ -2409,7 +2409,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v668';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v669';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -18122,7 +18122,7 @@ function _bzRenderMessages(phase, forceBottom) {
       : `<div data-bzkey="${m._key}" data-bzts="${m.ts}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:${msgGap};margin-top:${msgMargin}">
           <div style="display:flex;gap:4px;align-items:flex-start;width:100%">
             ${showName
-              ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzIsBot?'linear-gradient(135deg,#7c3aed,#5b21b6)':_bzNameColor};color:#fff;font-size:${_bzIsBot?'0.75':'0.85'}rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${_bzIsBot?'🤖':m.alias[0]}</span>`
+              ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzIsBot?'linear-gradient(135deg,#7c3aed,#5b21b6)':_bzNameColor};color:#fff;font-size:${_bzIsBot?'0.75':'0.85'}rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${_bzIsBot?'🎾':m.alias[0]}</span>`
               : `<span style="width:22px;flex-shrink:0"></span>`}
             <div style="flex:1;min-width:0">
               ${showName ? `<div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>` : ''}
@@ -18367,7 +18367,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
       : `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:${_msgGap};margin-top:${_msgMargin}">
           <div style="display:flex;gap:4px;align-items:flex-start;width:100%">
             ${_showName
-              ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzIsBot?'linear-gradient(135deg,#7c3aed,#5b21b6)':_bzNameColor};color:#fff;font-size:${_bzIsBot?'0.75':'0.85'}rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${_bzIsBot?'🤖':m.alias[0]}</span>`
+              ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzIsBot?'linear-gradient(135deg,#7c3aed,#5b21b6)':_bzNameColor};color:#fff;font-size:${_bzIsBot?'0.75':'0.85'}rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${_bzIsBot?'🎾':m.alias[0]}</span>`
               : `<span style="width:22px;flex-shrink:0"></span>`}
             <div style="flex:1;min-width:0">
               ${_showName ? `<div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>` : ''}

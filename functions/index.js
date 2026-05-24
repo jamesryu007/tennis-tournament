@@ -1731,17 +1731,67 @@ async function _botAI(question, senderName) {
     .filter(c => c.status === 'in')
     .map(c => c.name).join(', ') || '없음';
 
-  // 멤버 목록
-  const memberNames = Object.values(members).map(m => m.name).join(', ');
+  // 멤버 목록 (성별 포함)
+  const memberList = Object.values(members);
+  const males   = memberList.filter(m => m.gender === 'male').map(m => m.name);
+  const females = memberList.filter(m => m.gender === 'female').map(m => m.name);
+  const memberSummary = `남자 오빠들: ${males.join(', ')||'없음'}\n여자 언니들: ${females.join(', ')||'없음'}`;
 
-  const systemPrompt = `너는 자미터 테니스 동호회의 AI 어시스턴트 "제이"이야.
-친근하고 유머 있는 말투로 짧고 재미있게 답변해줘. 이모지를 적절히 사용해.
-답변은 3~5문장 이내로 간결하게. 모르는 건 솔직하게 모른다고 해.
+  // 날씨/미세먼지 — 질문에 관련 키워드 있을 때만 호출
+  let weatherCtx = '';
+  let airCtx = '';
+  const hasWeather = /날씨|기온|온도|비|눈|바람|테니스.*치|치기.*좋/.test(question);
+  const hasAir     = /미세먼지|공기|하늘|마스크/.test(question);
+  if (hasWeather) {
+    try {
+      const wKey = process.env.OPENWEATHER_API_KEY;
+      if (wKey) {
+        const wRes = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=37.5665&lon=126.9780&appid=${wKey}&units=metric&lang=kr`);
+        const wd = await wRes.json();
+        if (wd.main) {
+          const wId = wd.weather?.[0]?.id || 800;
+          const desc = wd.weather?.[0]?.description || '';
+          const temp = Math.round(wd.main.temp);
+          const feels = Math.round(wd.main.feels_like);
+          const wind = Math.round((wd.wind?.speed||0)*3.6);
+          const humid = wd.main.humidity;
+          let score = 100;
+          if(wId<700)score-=70; else if(wId<800)score-=20;
+          if(temp<5)score-=30; else if(temp<10)score-=15; else if(temp>33)score-=25; else if(temp>28)score-=10;
+          if(wind>40)score-=25; else if(wind>25)score-=10;
+          if(humid>85)score-=10;
+          score=Math.max(0,Math.min(100,score));
+          weatherCtx = `\n[현재 서울 날씨]\n기온 ${temp}°C (체감 ${feels}°C), 습도 ${humid}%, 바람 ${wind}km/h, ${desc}\n테니스 추천지수: ${score}점/100`;
+        }
+      }
+    } catch(_) {}
+  }
+  if (hasAir) {
+    try {
+      const aKey = process.env.AIRKOREA_API_KEY;
+      if (aKey) {
+        const aRes = await fetch(`https://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getMsrstnAcctoRltmMesureDnsty?stationName=${encodeURIComponent('서초구')}&dataTerm=daily&pageNo=1&numOfRows=1&returnType=json&serviceKey=${aKey}&ver=1.3`);
+        const aj = await aRes.json();
+        const item = aj?.response?.body?.items?.[0];
+        if (item) airCtx = `\n[현재 서울 공기질]\n미세먼지(PM10): ${item.pm10Value}㎍/㎥, 초미세먼지(PM2.5): ${item.pm25Value}㎍/㎥`;
+      }
+    } catch(_) {}
+  }
 
-[멤버 목록]
-${memberNames}
+  const systemPrompt = `너는 자미터 테니스 동호회 전용 AI 도우미 "제이"야.
+올해 30살이 된 천재 여자야. 모르는 게 없고, 유머도 넘쳐!
 
-[${year}년 개인 랭킹 (승수 기준)]
+[말투 규칙]
+- 항상 존댓말로 답변해 (반말 금지)
+- 멤버 이름을 부를 때: 남자 멤버는 "오빠", 여자 멤버는 "언니" 호칭 사용
+- 이모지를 풍부하게 사용해서 생동감 있게 답변
+- 답변은 5~7문장 이내로 간결하게
+- 데이터 기반 질문엔 실제 데이터를 인용해서 답변
+
+[자미터 멤버]
+${memberSummary}
+
+[${year}년 개인 랭킹 (유효승률 기준)]
 ${playerSummary || '데이터 없음'}
 
 [${year}년 페어 랭킹]
@@ -1752,7 +1802,7 @@ ${recentMatches || '데이터 없음'}
 
 [오늘 체크인 멤버]
 ${checkinNames}
-
+${weatherCtx}${airCtx}
 현재 질문자: ${senderName}`;
 
   const apiKey = process.env.OPENAI_API_KEY;
