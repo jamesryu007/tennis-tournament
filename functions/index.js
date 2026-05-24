@@ -1777,34 +1777,25 @@ async function _botAI(question, senderName, history = []) {
   const females = memberList.filter(m => m.gender === 'female').map(m => `${firstName(m.name)} 언니`);
   const memberSummary = `[호칭 목록 — 이름만으로 성별 추측 절대 금지, 반드시 이 목록만 따를 것]\n${[...males, ...females].join(', ')}`;
 
-  // 날씨/미세먼지 — 질문에 관련 키워드 있을 때만 호출
+  // 날씨/미세먼지 — 히스토리에 이미 있으면 인용, 없으면 룰베이스 함수 직접 호출
   let weatherCtx = '';
   let airCtx = '';
   const hasWeather = /날씨|기온|온도|비|눈|바람|테니스.*치|치기.*좋/.test(question);
   const hasAir     = /미세먼지|공기|하늘|마스크/.test(question);
   if (hasWeather) {
-    try {
-      const wKey = process.env.OPENWEATHER_API_KEY;
-      if (wKey) {
-        const wRes = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=37.5665&lon=126.9780&appid=${wKey}&units=metric&lang=kr`);
-        const wd = await wRes.json();
-        if (wd.main) {
-          const wId = wd.weather?.[0]?.id || 800;
-          const desc = wd.weather?.[0]?.description || '';
-          const temp = Math.round(wd.main.temp);
-          const feels = Math.round(wd.main.feels_like);
-          const wind = Math.round((wd.wind?.speed||0)*3.6);
-          const humid = wd.main.humidity;
-          let score = 100;
-          if(wId<700)score-=70; else if(wId<800)score-=20;
-          if(temp<5)score-=30; else if(temp<10)score-=15; else if(temp>33)score-=25; else if(temp>28)score-=10;
-          if(wind>40)score-=25; else if(wind>25)score-=10;
-          if(humid>85)score-=10;
-          score=Math.max(0,Math.min(100,score));
-          weatherCtx = `\n[현재 서울 날씨]\n기온 ${temp}°C (체감 ${feels}°C), 습도 ${humid}%, 바람 ${wind}km/h, ${desc}\n테니스 추천지수: ${score}점/100`;
-        }
-      }
-    } catch(_) {}
+    // 히스토리에서 날씨 결과 추출 시도
+    const weatherInHistory = history
+      .filter(m => m.role === 'assistant' && /현재 날씨|°C|테니스 추천지수/.test(m.content))
+      .map(m => m.content).join('\n---\n');
+    if (weatherInHistory) {
+      weatherCtx = `\n\n[⚠️ 채팅에 이미 있는 날씨 데이터 — 반드시 이 내용만 인용, 새로 만들지 말 것]\n${weatherInHistory}`;
+    } else {
+      // 룰베이스 날씨 함수 직접 호출 (지역 파싱 포함)
+      try {
+        const wResult = await _botWeather(question);
+        if (wResult && wResult.text) weatherCtx = `\n\n[현재 날씨 데이터]\n${wResult.text}`;
+      } catch(_) {}
+    }
   }
   if (hasAir) {
     try {
