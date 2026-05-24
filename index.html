@@ -2409,7 +2409,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v669';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v670';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -16279,9 +16279,10 @@ function bzOpenRestoModal(editId) {
   _restoEditId = editId;
   const r = editId ? (_restoData[editId] || {}) : {};
   document.getElementById('bz-resto-modal-title').textContent = editId ? '✏️ 맛집 수정' : '🍽️ 단골맛집 등록';
-  document.getElementById('bz-resto-name-input').value = r.name || '';
-  document.getElementById('bz-resto-url-input').value  = r.url  || '';
-  document.getElementById('bz-resto-memo-input').value = r.memo || '';
+  document.getElementById('bz-resto-name-input').value    = r.name    || '';
+  document.getElementById('bz-resto-url-input').value     = r.url     || '';
+  document.getElementById('bz-resto-address-input').value = r.address || '';
+  document.getElementById('bz-resto-memo-input').value    = r.memo    || '';
   _restoModalTheme = r.theme || '한식';
   // 공유타겟 pending 데이터 자동입력 (등록 모드)
   if (!editId && window._restoPendingShare) {
@@ -16554,15 +16555,40 @@ function restoSelectTheme(t) { _restoModalTheme = t; _restoUpdateThemeButtons();
 function restoUrlAutoFill(raw) {
   if (!raw) return;
   const nameInput = document.getElementById('bz-resto-name-input');
-  if (!nameInput || nameInput.value.trim()) return;
-  // 카카오맵: "[카카오맵] 맛집명 https://kko.to/xxx"
-  const kakao = raw.match(/\[카카오맵\]\s*(.+?)\s+https?:\/\//);
-  // 네이버지도: "[네이버지도] 맛집명 서울 강남구... https://naver.me/xxx" (한 줄)
-  // 이름과 주소는 시/도명(서울|경기 등)으로 구분, 없으면 URL 직전까지
-  const naver = raw.match(/\[네이버지도\]\s*(.+?)\s+(?:서울|부산|인천|대구|대전|광주|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|https?:\/\/)/) ||
-                raw.match(/\[네이버지도\]\s*(.+?)(\n|\s{2,})/);
-  const name = kakao ? kakao[1].trim() : naver ? naver[1].trim() : '';
-  if (name) nameInput.value = name;
+  const addrInput = document.getElementById('bz-resto-address-input');
+  const CITY_PAT = /서울|부산|인천|대구|대전|광주|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주/;
+
+  let name = '', addr = '';
+
+  if (raw.includes('[네이버지도]')) {
+    // 멀티라인: "[네이버지도] 이름\n주소\nhttps://..."
+    const mMulti = raw.match(/\[네이버지도\]\s*(.+?)[\n\r]+(.+?)(?:[\n\r]|$)/);
+    if (mMulti && CITY_PAT.test(mMulti[2])) {
+      name = mMulti[1].trim();
+      addr = mMulti[2].replace(/https?:\/\/\S+/g, '').trim();
+    } else {
+      // 싱글라인: "[네이버지도] 이름 서울... https://..."
+      const mAddr = raw.match(/\[네이버지도\]\s*(.+?)\s+((?:서울|부산|인천|대구|대전|광주|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)[^(\nhttps?)]+?)(?:\s+https?:\/\/|$)/);
+      if (mAddr) { name = mAddr[1].trim(); addr = mAddr[2].trim(); }
+      else {
+        const mName = raw.match(/\[네이버지도\]\s*(.+?)\s+https?:\/\//);
+        if (mName) name = mName[1].trim();
+      }
+    }
+  } else if (raw.includes('[카카오맵]')) {
+    // 멀티라인: "[카카오맵] 이름\n주소\nhttps://..."
+    const mMulti = raw.match(/\[카카오맵\]\s*(.+?)[\n\r]+(.+?)(?:[\n\r]|$)/);
+    if (mMulti && CITY_PAT.test(mMulti[2])) {
+      name = mMulti[1].trim();
+      addr = mMulti[2].replace(/https?:\/\/\S+/g, '').trim();
+    } else {
+      const mSingle = raw.match(/\[카카오맵\]\s*(.+?)\s+https?:\/\//);
+      if (mSingle) name = mSingle[1].trim();
+    }
+  }
+
+  if (name && nameInput && !nameInput.value.trim()) nameInput.value = name;
+  if (addr && addrInput && !addrInput.value.trim()) addrInput.value = addr;
 }
 
 async function bzSaveResto() {
@@ -16585,8 +16611,9 @@ async function bzSaveResto() {
   }
   const name = (nameInput.value || '').trim();
   if (!name) { alert('맛집 이름을 입력해주세요.'); return; }
+  const address = (document.getElementById('bz-resto-address-input').value || '').trim();
   const memo = (document.getElementById('bz-resto-memo-input').value || '').trim();
-  const data = { name, theme: _restoModalTheme, url, memo, updatedBy: myName, updatedAt: Date.now() };
+  const data = { name, theme: _restoModalTheme, url, address, memo, updatedBy: myName, updatedAt: Date.now() };
   if (_restoEditId) {
     await db.ref(`jmt/restaurants/${_restoEditId}`).update(data).catch(fbErr);
   } else {
@@ -18122,7 +18149,7 @@ function _bzRenderMessages(phase, forceBottom) {
       : `<div data-bzkey="${m._key}" data-bzts="${m.ts}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:${msgGap};margin-top:${msgMargin}">
           <div style="display:flex;gap:4px;align-items:flex-start;width:100%">
             ${showName
-              ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzIsBot?'linear-gradient(135deg,#7c3aed,#5b21b6)':_bzNameColor};color:#fff;font-size:${_bzIsBot?'0.75':'0.85'}rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${_bzIsBot?'🎾':m.alias[0]}</span>`
+              ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzIsBot?'linear-gradient(135deg,#7c3aed,#5b21b6)':_bzNameColor};color:#fff;font-size:${_bzIsBot?'0.75':'0.85'}rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${_bzIsBot?'🤖':m.alias[0]}</span>`
               : `<span style="width:22px;flex-shrink:0"></span>`}
             <div style="flex:1;min-width:0">
               ${showName ? `<div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>` : ''}
@@ -18367,7 +18394,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
       : `<div data-bzkey="${m._key}" ontouchstart="bzBubbleTouchStart(event,'${keyEsc}')" ontouchmove="bzBubbleTouchMove(event,'${keyEsc}')" ontouchend="bzBubbleTouchEnd(event,'${keyEsc}')" style="display:flex;flex-direction:column;align-items:flex-start;gap:${_msgGap};margin-top:${_msgMargin}">
           <div style="display:flex;gap:4px;align-items:flex-start;width:100%">
             ${_showName
-              ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzIsBot?'linear-gradient(135deg,#7c3aed,#5b21b6)':_bzNameColor};color:#fff;font-size:${_bzIsBot?'0.75':'0.85'}rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${_bzIsBot?'🎾':m.alias[0]}</span>`
+              ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzIsBot?'linear-gradient(135deg,#7c3aed,#5b21b6)':_bzNameColor};color:#fff;font-size:${_bzIsBot?'0.75':'0.85'}rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${_bzIsBot?'🤖':m.alias[0]}</span>`
               : `<span style="width:22px;flex-shrink:0"></span>`}
             <div style="flex:1;min-width:0">
               ${_showName ? `<div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>` : ''}
@@ -20365,6 +20392,10 @@ function saveMpComment(key) {
     <div style="margin-bottom:12px">
       <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:5px">맛집 이름 *</div>
       <input id="bz-resto-name-input" type="text" placeholder="예: 스시하루" maxlength="30" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.9rem;background:#f8fafc;outline:none;font-family:inherit">
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:5px">주소 <span style="font-weight:400;color:#94a3b8">(링크 붙여넣으면 자동 입력)</span></div>
+      <input id="bz-resto-address-input" type="text" placeholder="예: 서울 송파구 방이동 123" maxlength="80" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.85rem;background:#f8fafc;outline:none;font-family:inherit">
     </div>
     <div style="margin-bottom:12px">
       <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:7px">음식 테마</div>

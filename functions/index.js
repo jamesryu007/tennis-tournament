@@ -1762,16 +1762,19 @@ async function _botAI(question, senderName) {
       const avgScore = ratingVals.length
         ? (ratingVals.reduce((s, v) => s + (v.score || 0), 0) / ratingVals.length).toFixed(1)
         : '별점없음';
-      return `- ${r.name} (${r.theme || '기타'}): 방문 ${r.visitCount || 0}회, 별점 ${avgScore}${r.memo ? ', ' + r.memo : ''}`;
+      const addrPart = r.address ? `, 주소: ${r.address}` : '';
+      return `- ${r.name} (${r.theme || '기타'}): 방문 ${r.visitCount || 0}회, 별점 ${avgScore}${addrPart}${r.memo ? ', ' + r.memo : ''}`;
     });
     if (restoList.length) restaurantCtx = restoList.join('\n');
   } catch(_) {}
 
   // 멤버 목록 (성별 포함)
+  // 이름에서 성 제거 (3자 이상 → 앞 1자 성 제외, 2자 이하 → 그대로)
+  const firstName = name => name && name.length >= 3 ? name.slice(1) : name;
   const memberList = Object.values(members);
-  const males   = memberList.filter(m => m.gender === 'male').map(m => m.name);
-  const females = memberList.filter(m => m.gender === 'female').map(m => m.name);
-  const memberSummary = `남자 오빠들: ${males.join(', ')||'없음'}\n여자 언니들: ${females.join(', ')||'없음'}`;
+  const males   = memberList.filter(m => m.gender === 'male').map(m => `${firstName(m.name)}(${m.name})`);
+  const females = memberList.filter(m => m.gender === 'female').map(m => `${firstName(m.name)}(${m.name})`);
+  const memberSummary = `남자 오빠들 (이름→전체이름): ${males.join(', ')||'없음'}\n여자 언니들 (이름→전체이름): ${females.join(', ')||'없음'}`;
 
   // 날씨/미세먼지 — 질문에 관련 키워드 있을 때만 호출
   let weatherCtx = '';
@@ -1819,10 +1822,10 @@ async function _botAI(question, senderName) {
 
 [말투 규칙]
 - 항상 존댓말로 답변해 (반말 금지)
-- 멤버 이름을 부를 때: 남자 멤버는 "오빠", 여자 멤버는 "언니" 호칭 사용
+- 멤버 이름을 부를 때: 성을 제외한 이름만 사용 + 남자는 "오빠", 여자는 "언니" 호칭 (예: 유지원 → 지원 오빠, 천지은 → 지은 언니)
 - 이모지를 풍부하게 사용해서 생동감 있게 답변
-- 답변은 5~7문장 이내로 간결하게
-- 데이터 기반 질문엔 실제 데이터를 인용해서 답변
+- 데이터 기반 질문엔 실제 데이터를 빠짐없이 인용해서 자세하게 답변 (멤버 이름, 점수, 순위 등 구체적으로)
+- 데이터가 없는 질문엔 AI답게 풍부하게 답변
 
 [자미터 멤버]
 ${memberSummary}
@@ -1855,7 +1858,7 @@ ${weatherCtx}${airCtx}
         { role: 'system', content: systemPrompt },
         { role: 'user', content: question },
       ],
-      max_tokens: 300,
+      max_tokens: 500,
       temperature: 0.8,
     }),
   });
