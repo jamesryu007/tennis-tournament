@@ -2415,7 +2415,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v671';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v673';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -17956,7 +17956,10 @@ function _bzLinkify(text) {
     .replace(/https?:\/\/[^\s<>"'&]+/g, url =>
       `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline;word-break:break-all" onclick="event.stopPropagation()">${url}</a>`)
     .replace(/@([^\s@<&]+)/g, (m, name) =>
-      memberNames.has(name) ? `<span style="color:#3b82f6;font-weight:700">@${name}</span>` : m);
+      memberNames.has(name) ? `<span style="color:#3b82f6;font-weight:700">@${name}</span>` : m)
+    // "제이" 콜 — 보라색 강조 (봇 이모지 컬러)
+    .replace(/^(제이)([,!. ]*)/,
+      (_, bot, sep) => `<span style="color:#7c3aed;font-weight:800">${bot}</span>${sep}`);
 }
 
 // ── 멤버 컬러 맵 (전역 공유) ────────────────────────────────────────
@@ -18314,9 +18317,11 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const _bzIsBot = m.realName === '제이';
     const _bzNameColor = _bzIsBot ? '#7c3aed' : _getMemberColor(m.alias);
     const isMine = m.realName === myName;
-    // 타이핑 인디케이터
+    // 타이핑 인디케이터 — forEach 안이므로 DOM에 직접 append
     if (_bzIsBot && m.typing) {
-      return `<div style="display:flex;align-items:flex-end;gap:8px;margin-bottom:10px">
+      const _td = document.createElement('div');
+      _td.setAttribute('data-bzkey', m._key);
+      _td.innerHTML = `<div style="display:flex;align-items:flex-end;gap:8px;margin-bottom:10px">
         <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;font-size:0.75rem;font-weight:900;flex-shrink:0;margin-top:2px">🤖</span>
         <div>
           <div style="font-size:0.7rem;font-weight:700;color:#7c3aed;margin-bottom:3px">제이</div>
@@ -18325,6 +18330,10 @@ function _bzIncrementalUpdateMessages(newMessages) {
           </div>
         </div>
       </div>`;
+      area.appendChild(_td);
+      _bzRenderedMsgKeys.add(m._key);
+      added = true;
+      return;
     }
     const keyEsc      = m._key.replace(/'/g, "\'");
     const aliasEsc    = m.alias.replace(/'/g, "\'");
