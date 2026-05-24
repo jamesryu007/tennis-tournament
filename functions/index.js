@@ -1783,19 +1783,11 @@ async function _botAI(question, senderName, history = []) {
   const hasWeather = /날씨|기온|온도|비|눈|바람|테니스.*치|치기.*좋/.test(question);
   const hasAir     = /미세먼지|공기|하늘|마스크/.test(question);
   if (hasWeather) {
-    // 히스토리에서 날씨 결과 추출 시도
-    const weatherInHistory = history
-      .filter(m => m.role === 'assistant' && /현재 날씨|°C|테니스 추천지수/.test(m.content))
-      .map(m => m.content).join('\n---\n');
-    if (weatherInHistory) {
-      weatherCtx = `\n\n[⚠️ 채팅에 이미 있는 날씨 데이터 — 반드시 이 내용만 인용, 새로 만들지 말 것]\n${weatherInHistory}`;
-    } else {
-      // 룰베이스 날씨 함수 직접 호출 (지역 파싱 포함)
-      try {
-        const wResult = await _botWeather(question);
-        if (wResult && wResult.text) weatherCtx = `\n\n[현재 날씨 데이터]\n${wResult.text}`;
-      } catch(_) {}
-    }
+    // 날씨는 항상 최신 데이터로 — 룰베이스 함수 직접 호출 (지역 파싱 포함)
+    try {
+      const wResult = await _botWeather(question);
+      if (wResult && wResult.text) weatherCtx = `\n\n[현재 날씨 데이터 — 반드시 이 내용만 인용]\n${wResult.text}`;
+    } catch(_) {}
   }
   if (hasAir) {
     try {
@@ -2336,8 +2328,21 @@ async function _botWeather(msgText) {
     let lon = process.env.BOT_WEATHER_LON || '126.9780';
     let locationName = null;
     if (msgText) {
-      const locMatch = msgText.replace(/날씨.*/, '').replace(/.*에서/, '').replace(/.*의/, '').trim();
-      if (locMatch && locMatch.length >= 2 && locMatch.length <= 10) {
+      // 지역명 추출 — 날씨 키워드 앞뒤 단어, 장소 조사(에서/에/의/나가/가려) 앞 단어 등 다양하게 시도
+      const cleaned = msgText
+        .replace(/오늘|내일|지금|현재|지역|기온|온도|좀|알려줘|알려주세요|어때|어떤가요|날씨가|날씨는|날씨$/g, '')
+        .trim();
+      const patterns = [
+        /([가-힣]{2,6})(?:\s*(?:날씨|기온|온도|바람))/, // "한강 날씨", "제주시 기온"
+        /([가-힣]{2,6})(?:\s*(?:에서|에|로|까지|나가|가려|나오려))/, // "한강에서", "여의도로"
+        /([가-힣]{2,6})\s*날씨/,
+      ];
+      let locMatch = '';
+      for (const pat of patterns) {
+        const m = cleaned.match(pat);
+        if (m && m[1] && m[1].length >= 2) { locMatch = m[1]; break; }
+      }
+      if (locMatch) {
         // OpenWeatherMap Geocoding API로 한국 지명 → 좌표 변환
         const geoRes = await fetch(`http://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(locMatch)},KR&limit=1&appid=${apiKey}`);
         const geoData = await geoRes.json();
