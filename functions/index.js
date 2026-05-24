@@ -1659,7 +1659,7 @@ async function _postBotMsg(msgData) {
 // ── AI 응답 (@자미봇 멘션) ─────────────────────────────────────────
 const _BOT_AI_LIMIT = 600; // 월 총 사용 한도
 
-async function _botAI(question, senderName) {
+async function _botAI(question, senderName, history = []) {
   // 사용량 체크
   const usageSnap = await db.ref('jmt/botUsage/total').once('value');
   const usageCount = usageSnap.val() || 0;
@@ -1856,7 +1856,8 @@ ${weatherCtx}${airCtx}
       model: 'gpt-4o-mini',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: question },
+        ...history,
+        { role: 'user', content: `${senderName}: ${question}` },
       ],
       max_tokens: 500,
       temperature: 0.8,
@@ -2563,7 +2564,19 @@ exports.handleBotTriggers = onValueCreated(
       const aiMentionMatch = text.match(/^제이[,!. ]*(.*)/s);
       if (aiMentionMatch) {
         const question = aiMentionMatch[1].trim() || '안녕!';
-        const result = await _botAI(question, senderName);
+        // 최근 채팅 히스토리 (현재 메시지 이전 최대 20개)
+        const histSnap = await db.ref(`${_BOT_BZ_REF}/messages`)
+          .orderByChild('ts').limitToLast(22).once('value');
+        const histRaw = histSnap.val() || {};
+        const history = Object.values(histRaw)
+          .filter(m => m.ts < msg.ts && m.text && m.type !== 'restaurant')
+          .sort((a, b) => a.ts - b.ts)
+          .slice(-10)
+          .map(m => ({
+            role: m.realName === _BOT_NAME ? 'assistant' : 'user',
+            content: m.realName !== _BOT_NAME ? `${m.realName || '멤버'}: ${m.text}` : m.text,
+          }));
+        const result = await _botAI(question, senderName, history);
         if (result) await _postBotMsg(result);
         return;
       }
