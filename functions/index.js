@@ -1809,6 +1809,14 @@ async function _botAI(question, senderName, history = []) {
     } catch(_) {}
   }
 
+  // 히스토리에서 운세 결과 추출 — systemPrompt 전에 선언해야 함
+  const fortuneData = history
+    .filter(m => m.role === 'assistant' && /띠 운세/.test(m.content))
+    .map(m => m.content).join('\n---\n');
+  const fortuneCtx = fortuneData
+    ? `\n\n[⚠️ 아래 운세 데이터가 채팅에 이미 있음 — 이 내용을 그대로 인용한 뒤, 제이 본인의 짧은 의견이나 응원 한마디만 덧붙일 것. 운세 내용 자체는 절대 새로 만들지 말 것]\n${fortuneData}`
+    : '';
+
   const systemPrompt = `너는 자미터 테니스 동호회 전용 AI 도우미 "제이"야.
 올해 30살이 된 천재 여자야. 모르는 게 없고, 유머도 넘쳐!
 
@@ -1838,14 +1846,6 @@ ${checkinCtx}
 ${restaurantCtx}
 ${weatherCtx}${airCtx}
 현재 질문자: ${senderName}${fortuneCtx}`;
-
-  // 히스토리에서 운세 결과 추출 — 있으면 시스템 프롬프트에 명시 주입
-  const fortuneData = history
-    .filter(m => m.role === 'assistant' && /띠 운세/.test(m.content))
-    .map(m => m.content).join('\n---\n');
-  const fortuneCtx = fortuneData
-    ? `\n\n[⚠️ 아래 운세 데이터가 채팅에 이미 있음 — 이 내용을 그대로 인용한 뒤, 제이 본인의 짧은 의견이나 응원 한마디만 덧붙일 것. 운세 내용 자체는 절대 새로 만들지 말 것]\n${fortuneData}`
-    : '';
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return { text: '🤖 제이 API 키가 설정되지 않았어요.' };
