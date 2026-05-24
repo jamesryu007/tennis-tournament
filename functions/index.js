@@ -1571,7 +1571,7 @@ exports.fetchAtpNews = onSchedule(
 
 // ══ 자미봇 — 채팅 트리거 자동 응답 ══════════════════════════════════
 
-const _BOT_NAME = '자미봇';
+const _BOT_NAME = '제이';
 
 // ATP 랭킹 폴백 (jmt/atpRankings 미갱신 시 사용 — index.html ATP_TOP_PLAYERS와 동기화)
 const _ATP_FALLBACK_RANKINGS = [
@@ -1664,7 +1664,7 @@ async function _botAI(question, senderName) {
   const usageSnap = await db.ref('jmt/botUsage/total').once('value');
   const usageCount = usageSnap.val() || 0;
   if (usageCount >= _BOT_AI_LIMIT) {
-    return { text: `🤖 자미봇 이번 달 사용 한도(${_BOT_AI_LIMIT}건)를 모두 사용했어요 😅 다음 달에 다시 만나요!` };
+    return { text: `🤖 제이 이번 달 사용 한도(${_BOT_AI_LIMIT}건)를 모두 사용했어요 😅 다음 달에 다시 만나요!` };
   }
 
   // 컨텍스트 데이터 수집
@@ -1721,7 +1721,7 @@ async function _botAI(question, senderName) {
   // 멤버 목록
   const memberNames = Object.values(members).map(m => m.name).join(', ');
 
-  const systemPrompt = `너는 자미터 테니스 동호회의 AI 어시스턴트 "자미봇"이야.
+  const systemPrompt = `너는 자미터 테니스 동호회의 AI 어시스턴트 "제이"이야.
 친근하고 유머 있는 말투로 짧고 재미있게 답변해줘. 이모지를 적절히 사용해.
 답변은 3~5문장 이내로 간결하게. 모르는 건 솔직하게 모른다고 해.
 
@@ -1743,7 +1743,7 @@ ${checkinNames}
 현재 질문자: ${senderName}`;
 
   const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return { text: '🤖 자미봇 API 키가 설정되지 않았어요.' };
+  if (!apiKey) return { text: '🤖 제이 API 키가 설정되지 않았어요.' };
 
   const resp = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -1761,7 +1761,7 @@ ${checkinNames}
 
   if (!resp.ok) {
     console.error('OpenAI API error:', resp.status, await resp.text());
-    return { text: '🤖 자미봇이 잠시 쉬는 중이에요. 잠시 후 다시 시도해주세요 😅' };
+    return { text: '🤖 제이가 잠시 쉬는 중이에요. 잠시 후 다시 시도해주세요 😅' };
   }
 
   const data = await resp.json();
@@ -2455,8 +2455,8 @@ exports.handleBotTriggers = onValueCreated(
       const text = (msg.text || '').trim();
       const senderName = msg.realName || '';
 
-      // @자미봇 멘션 → AI 응답 우선 처리
-      const aiMentionMatch = text.match(/@자미봇\s*(.*)/s);
+      // 제이 호칭 → AI 응답 우선 처리
+      const aiMentionMatch = text.match(/^제이[,!. ]*(.*)/s);
       if (aiMentionMatch) {
         const question = aiMentionMatch[1].trim() || '안녕!';
         const result = await _botAI(question, senderName);
