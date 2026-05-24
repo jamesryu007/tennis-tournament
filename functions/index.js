@@ -2647,30 +2647,37 @@ exports.handleBotTriggers = onValueCreated(
   async (event) => {
     try {
       const msg = event.data.val();
-      if (!msg || !msg.text || msg.realName === _BOT_NAME) return;
+      if (!msg || msg.realName === _BOT_NAME) return;
+      // 제이 말풍선 reply + 사진만 첨부(텍스트 없음)도 허용
+      const hasImage = !!(msg.imageUrl || (msg.photos && msg.photos[0]));
+      const isReplyToBot = !!(msg.replyTo && msg.replyTo.realName === _BOT_NAME);
+      // 텍스트 없어도 제이 말풍선 reply + 사진 첨부면 허용
+      if (!msg.text && !(hasImage && isReplyToBot)) return;
       const text = (msg.text || '').trim();
       const senderName = msg.realName || '';
 
-      // 제이 호칭 → AI 응답 우선 처리
+      // 제이 호칭 또는 제이 말풍선 reply → AI 응답 우선 처리
       const aiMentionMatch = text.match(/^제이[,!. ]*(.*)/s);
-      if (aiMentionMatch) {
-        const question = aiMentionMatch[1].trim() || '안녕!';
+      if (aiMentionMatch || isReplyToBot) {
+        const question = aiMentionMatch ? (aiMentionMatch[1].trim() || '안녕!') : text;
         // 운세 키워드 → LLM 우회, 룰베이스 직접 처리
         if (/운세|띠/.test(question)) {
           const result = await _botFortune(question);
           if (result) await _postBotMsg(result);
           return;
         }
-        // reply된 이미지 URL 추출 (vision 기능용)
-        let replyImageUrl = null;
+        // 이미지 소스 우선순위: ① 현재 메시지에 직접 첨부한 사진 ② reply한 원본 메시지의 사진
+        let replyImageUrl = msg.imageUrl || (msg.photos && msg.photos[0]) || null;
+        let replyBotText = null; // 제이 말풍선에 reply한 경우 원본 봇 답변
         if (msg.replyTo && msg.replyTo.msgKey) {
           try {
             const origSnap = await db.ref(`${_BOT_BZ_REF}/messages/${msg.replyTo.msgKey}`).once('value');
             const origMsg = origSnap.val();
             if (origMsg) {
-              replyImageUrl = origMsg.imageUrl
-                || (origMsg.photos && origMsg.photos[0])
-                || null;
+              // 현재 메시지에 첨부 사진 없을 때만 원본 메시지 이미지 사용
+              if (!replyImageUrl) replyImageUrl = origMsg.imageUrl || (origMsg.photos && origMsg.photos[0]) || null;
+              // 제이 말풍선에 reply한 경우 → 원본 답변 텍스트 보관
+              if (origMsg.realName === _BOT_NAME && origMsg.text) replyBotText = origMsg.text;
             }
           } catch(_) {}
         }
@@ -2684,10 +2691,10 @@ exports.handleBotTriggers = onValueCreated(
         const histSnap = await db.ref(`${_BOT_BZ_REF}/messages`)
           .orderByChild('ts').limitToLast(60).once('value');
         const histRaw = histSnap.val() || {};
-        // 제이와의 대화만 추출 (질문 + 제이 답변)
+        // 제이와의 대화만 추출 (질문 + 제이 답변) — "제이" 호칭 또는 제이에게 reply한 메시지 포함
         const botExchanges = Object.values(histRaw)
           .filter(m => m.ts < msg.ts && m.text && m.type !== 'restaurant'
-            && (m.realName === _BOT_NAME || /^제이[,!. ]/i.test(m.text || '')))
+            && (m.realName === _BOT_NAME || /^제이[,!. ]/i.test(m.text || '') || (m.replyTo && m.replyTo.realName === _BOT_NAME)))
           .sort((a, b) => a.ts - b.ts);
         // 마지막 제이 답변 시간 확인 — 5분 쿨타임
         const lastBotMsg = [...botExchanges].reverse().find(m => m.realName === _BOT_NAME);
@@ -2700,6 +2707,11 @@ exports.handleBotTriggers = onValueCreated(
             ? `${m.realName || '멤버'}: ${m.text.replace(/^제이[,!. ]*/i, '').trim()}`
             : m.text,
         }));
+        // 제이 말풍선 reply이고 해당 봇 답변이 히스토리에 없으면 맨 끝에 추가
+        if (replyBotText) {
+          const alreadyInHistory = history.some(h => h.role === 'assistant' && h.content === replyBotText);
+          if (!alreadyInHistory) history.push({ role: 'assistant', content: replyBotText });
+        }
         const result = await _botAI(question, senderName, history, replyImageUrl);
         // 타이핑 인디케이터 최소 0.5초 노출 후 제거
         const elapsed = Date.now() - typingShownAt;
