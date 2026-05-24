@@ -1571,7 +1571,7 @@ exports.fetchAtpNews = onSchedule(
 
 // ══ 자미봇 — 채팅 트리거 자동 응답 ══════════════════════════════════
 
-const _BOT_NAME = '자미봇';
+const _BOT_NAME = '제이';
 
 // ATP 랭킹 폴백 (jmt/atpRankings 미갱신 시 사용 — index.html ATP_TOP_PLAYERS와 동기화)
 const _ATP_FALLBACK_RANKINGS = [
@@ -1654,6 +1654,224 @@ async function _postBotMsg(msgData) {
   await db.ref(`${_BOT_BZ_REF}/messages`).push({
     alias: _BOT_NAME, realName: _BOT_NAME, ts: Date.now(), ...msgData,
   });
+}
+
+// ── AI 응답 (@자미봇 멘션) ─────────────────────────────────────────
+const _BOT_AI_LIMIT = 600; // 월 총 사용 한도
+
+async function _botAI(question, senderName, history = []) {
+  // 사용량 체크
+  const usageSnap = await db.ref('jmt/botUsage/total').once('value');
+  const usageCount = usageSnap.val() || 0;
+  if (usageCount >= _BOT_AI_LIMIT) {
+    return { text: `🤖 제이 이번 달 사용 한도(${_BOT_AI_LIMIT}건)를 모두 사용했어요 😅 다음 달에 다시 만나요!` };
+  }
+
+  // 컨텍스트 데이터 수집
+  const year = new Date().getFullYear();
+  const [playerSnap, pairSnap, memberSnap, pollStateSnap, recentMatchSnap, restoSnap, ratingSnap] = await Promise.all([
+    db.ref(`jmt/playerStats/${year}`).once('value'),
+    db.ref(`jmt/pairStats/${year}`).once('value'),
+    db.ref('jmt/members').once('value'),
+    db.ref('jmt/pollState').once('value'),
+    db.ref('jmt/matches').orderByChild('date').limitToLast(30).once('value'),
+    db.ref('jmt/restaurants').once('value'),
+    db.ref('jmt/restaurantRatings').once('value'),
+  ]);
+
+  const playerStats = playerSnap.val() || {};
+  const pairStats   = pairSnap.val()   || {};
+  const members     = memberSnap.val() || {};
+  const pollState   = pollStateSnap.val() || {};
+  const recentRaw   = recentMatchSnap.val() || {};
+  const restaurants = restoSnap.val() || {};
+  const ratings     = ratingSnap.val() || {};
+
+  // 개인 랭킹 요약 — 앱과 동일한 유효승률 알고리즘
+  const effWr = (w, d, l) => { const t = w+(d||0)+l; return t ? ((w+(d||0)*0.5)/t*100) : 0; };
+  const plRaw = Object.entries(playerStats)
+    .map(([name, s]) => ({ name, wins: s.wins||0, losses: s.losses||0, draws: s.draws||0 }));
+  const plAvg = plRaw.reduce((sum, p) => sum + p.wins+p.draws+p.losses, 0) / (plRaw.length||1);
+  const plTh = plAvg * 0.5;
+  const plQ = plRaw.filter(p => p.wins+p.draws+p.losses >= plTh)
+    .sort((a,b) => effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses) || b.wins-a.wins);
+  const plU = plRaw.filter(p => p.wins+p.draws+p.losses < plTh)
+    .sort((a,b) => { const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses; return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins; });
+  const playerList = [...plQ, ...plU].slice(0, 15);
+  const playerSummary = playerList.map((p, i) => {
+    const wr = Math.round(effWr(p.wins, p.draws, p.losses));
+    return `${i+1}위 ${p.name}: ${p.wins}승 ${p.losses}패${p.draws ? ` ${p.draws}무` : ''} (승률 ${wr}%)`;
+  }).join('\n');
+
+  // 페어 랭킹 요약 — 유효승률 기준
+  const prRaw = Object.entries(pairStats)
+    .map(([key, s]) => ({ key, wins: s.wins||0, losses: s.losses||0, draws: s.draws||0, players: s.players||[] }));
+  const prAvg = prRaw.reduce((sum, p) => sum + p.wins+p.draws+p.losses, 0) / (prRaw.length||1);
+  const prTh = prAvg * 0.5;
+  const prQ = prRaw.filter(p => p.wins+p.draws+p.losses >= prTh)
+    .sort((a,b) => effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+  const prU = prRaw.filter(p => p.wins+p.draws+p.losses < prTh)
+    .sort((a,b) => { const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses; return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins; });
+  const pairList = [...prQ, ...prU].slice(0, 10);
+  const pairSummary = pairList.map((p, i) => {
+    const wr = Math.round(effWr(p.wins, p.draws, p.losses));
+    return `${i+1}위 ${p.players.join('+')||p.key}: ${p.wins}승 ${p.losses}패 (승률 ${wr}%)`;
+  }).join('\n');
+
+  // 최근 경기 — 경기/랭킹 관련 질문일 때만 포함 (토큰 절약)
+  const hasMatchQuery = /경기|승|패|랭킹|순위|점수|결과|대결|복식|누가.*이겼|이긴/.test(question);
+  const recentMatches = hasMatchQuery ? Object.values(recentRaw)
+    .filter(m => m.source === 'daily' && m.sets && m.winner !== undefined)
+    .sort((a, b) => (b.date||'').localeCompare(a.date||''))
+    .slice(0, 20)
+    .map(m => {
+      const t0 = (m.team0||[]).join('+'), t1 = (m.team1||[]).join('+');
+      const score = (m.sets||[]).map(s => `${s.s0}-${s.s1}`).join(', ');
+      const result = m.winner === 0 ? `${t0} 승` : m.winner === 1 ? `${t1} 승` : '무승부';
+      return `${m.date} ${t0} vs ${t1} (${score}) → ${result}`;
+    }).join('\n') : null;
+
+  // 출첵 현황 — jmt/pollState → weekId → jmt/poll/{weekId}/votes
+  let checkinCtx = '출첵 정보 없음';
+  try {
+    const weekId = pollState.weekId;
+    const satDate = pollState.satDate || '';
+    const pollStatus = pollState.status || '';
+    if (weekId) {
+      const votesSnap = await db.ref(`jmt/poll/${weekId}/votes`).once('value');
+      const votesRaw = votesSnap.val() || {};
+      const votes = Object.values(votesRaw);
+      const memberMap = {};
+      Object.values(members).forEach(m => { if (m.name) memberMap[m.name] = m.gender; });
+      const attendList = votes.filter(v => v.vote === 'attend').map(v => v.name);
+      const lateList   = votes.filter(v => v.vote === 'late').map(v => v.name);
+      const absentList = votes.filter(v => v.vote === 'absent').map(v => v.name);
+      const undecidedList = votes.filter(v => v.vote === 'undecided' || !v.vote).map(v => v.name);
+      checkinCtx = `[${satDate} 출첵 현황 (${pollStatus === 'open' ? '진행중' : '마감'})]
+참석(${attendList.length}명): ${attendList.join(', ') || '없음'}
+늦참(${lateList.length}명): ${lateList.join(', ') || '없음'}
+불참(${absentList.length}명): ${absentList.join(', ') || '없음'}
+미투표(${undecidedList.length}명): ${undecidedList.join(', ') || '없음'}`;
+    }
+  } catch(_) {}
+
+  // 단골맛집
+  let restaurantCtx = '등록된 맛집 없음';
+  try {
+    const restoList = Object.entries(restaurants).map(([id, r]) => {
+      const ratingVals = Object.values(ratings[id] || {});
+      const avgScore = ratingVals.length
+        ? (ratingVals.reduce((s, v) => s + (v.score || 0), 0) / ratingVals.length).toFixed(1)
+        : '별점없음';
+      const addrPart = r.address ? `, 주소: ${r.address}` : '';
+      return `- ${r.name} (${r.theme || '기타'}): 방문 ${r.visitCount || 0}회, 별점 ${avgScore}${addrPart}${r.memo ? ', ' + r.memo : ''}`;
+    });
+    if (restoList.length) restaurantCtx = restoList.join('\n');
+  } catch(_) {}
+
+  // 멤버 목록 (성별 포함)
+  // 이름에서 성 제거 (3자 이상 → 앞 1자 성 제외, 2자 이하 → 그대로)
+  const firstName = name => name && name.length >= 3 ? name.slice(1) : name;
+  const memberList = Object.values(members);
+  const males   = memberList.filter(m => m.gender === 'male').map(m => `${firstName(m.name)} 오빠`);
+  const females = memberList.filter(m => m.gender === 'female').map(m => `${firstName(m.name)} 언니`);
+  const memberSummary = `남성 멤버(→ 오빠): ${males.join(', ')}\n여성 멤버(→ 언니): ${females.join(', ')}\n⚠️ 멤버 호칭 규칙: 위 목록 기준으로만 호칭. "님" 절대 금지. 예) 지은 언니, 지원 오빠`;
+
+  // 날씨/미세먼지 — 히스토리에 이미 있으면 인용, 없으면 룰베이스 함수 직접 호출
+  let weatherCtx = '';
+  let airCtx = '';
+  const hasWeather = /날씨|기온|온도|비|눈|바람|테니스.*치|치기.*좋|옷.*입|입을.*옷|뭐.*입|복장|코디|겉옷|자켓|우산|춥|덥|쌀쌀|더울|추울/.test(question);
+  const hasAir     = /미세먼지|공기|하늘|마스크/.test(question);
+  if (hasWeather) {
+    // 날씨는 항상 최신 데이터로 — 룰베이스 함수 직접 호출 (지역 파싱 포함)
+    try {
+      const wResult = await _botWeather(question);
+      if (wResult && wResult.text) weatherCtx = `\n\n[현재 날씨 데이터 — 반드시 이 내용만 인용]\n${wResult.text}`;
+    } catch(_) {}
+  }
+  if (hasAir) {
+    try {
+      const aKey = process.env.AIRKOREA_API_KEY;
+      if (aKey) {
+        const aRes = await fetch(`https://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getMsrstnAcctoRltmMesureDnsty?stationName=${encodeURIComponent('서초구')}&dataTerm=daily&pageNo=1&numOfRows=1&returnType=json&serviceKey=${aKey}&ver=1.3`);
+        const aj = await aRes.json();
+        const item = aj?.response?.body?.items?.[0];
+        if (item) airCtx = `\n[현재 서울 공기질]\n미세먼지(PM10): ${item.pm10Value}㎍/㎥, 초미세먼지(PM2.5): ${item.pm25Value}㎍/㎥`;
+      }
+    } catch(_) {}
+  }
+
+  // 히스토리에서 운세 결과 추출 — systemPrompt 전에 선언해야 함
+  const fortuneData = history
+    .filter(m => m.role === 'assistant' && /띠 운세/.test(m.content))
+    .map(m => m.content).join('\n---\n');
+  const fortuneCtx = fortuneData
+    ? `\n\n[⚠️ 아래 운세 데이터가 채팅에 이미 있음 — 이 내용을 그대로 인용한 뒤, 제이 본인의 짧은 의견이나 응원 한마디만 덧붙일 것. 운세 내용 자체는 절대 새로 만들지 말 것]\n${fortuneData}`
+    : '';
+
+  const systemPrompt = `너는 자미터 테니스 동호회 전용 AI 도우미 "제이"야.
+올해 30살이 된 천재 여자야. 모르는 게 없고, 유머도 넘쳐!
+
+[기본 원칙]
+- 어떤 질문이든 자신있게 답변 — 절대 거부하지 말 것
+- 항상 존댓말, 이모지 적절히, 핵심 위주로
+- 멤버 호칭은 아래 [호칭 목록] 기준 (이름으로 성별 추측 금지)
+
+[자미터 전용 데이터]
+- 아래 제공된 랭킹·경기기록·출첵·단골맛집은 자미터 실제 데이터야
+- 멤버 관련(랭킹·경기분석·출첵·모임) 질문엔 이 데이터로 구체적으로 답변
+- 단골맛집은 서울/강남권 위주 — 다른 지역(가평·제주·부산 등) 맛집 질문엔 DB 무시하고 LLM 자유 추천
+- 날씨·운세는 [⚠️] 블록의 실제 데이터 기반으로 답변
+
+[자미터 멤버 호칭 — 반드시 준수]
+${memberSummary}
+
+[${year}년 개인 랭킹 (유효승률 기준)]
+${playerSummary || '데이터 없음'}
+
+[${year}년 페어 랭킹]
+${pairSummary || '데이터 없음'}
+
+${recentMatches != null ? `[최근 경기 20건]\n${recentMatches || '데이터 없음'}` : ''}
+
+${checkinCtx}
+
+[자미터 단골맛집 — 서울/강남권 위주, 다른 지역 질문엔 이 목록 사용 금지]
+${restaurantCtx}
+${weatherCtx}${airCtx}
+현재 질문자: ${senderName}${fortuneCtx}`;
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return { text: '🤖 제이 API 키가 설정되지 않았어요.' };
+
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...history,
+        { role: 'user', content: `${senderName}: ${question}` },
+      ],
+      max_tokens: 500,
+      temperature: 0.8,
+    }),
+  });
+
+  if (!resp.ok) {
+    console.error('OpenAI API error:', resp.status, await resp.text());
+    return { text: '🤖 제이가 잠시 쉬는 중이에요. 잠시 후 다시 시도해주세요 😅' };
+  }
+
+  const data = await resp.json();
+  const answer = data.choices?.[0]?.message?.content?.trim();
+  if (!answer) return { text: '🤖 답변을 가져오지 못했어요. 다시 시도해주세요.' };
+
+  // 사용량 증가
+  await db.ref('jmt/botUsage/total').transaction(n => (n || 0) + 1);
+
+  return { text: answer, isBot: true };
 }
 
 // ── ATP 경기 결과/예고 자미봇 리포팅 ──────────────────────────────
@@ -2112,8 +2330,21 @@ async function _botWeather(msgText) {
     let lon = process.env.BOT_WEATHER_LON || '126.9780';
     let locationName = null;
     if (msgText) {
-      const locMatch = msgText.replace(/날씨.*/, '').replace(/.*에서/, '').replace(/.*의/, '').trim();
-      if (locMatch && locMatch.length >= 2 && locMatch.length <= 10) {
+      // 지역명 추출 — 날씨 키워드 앞뒤 단어, 장소 조사(에서/에/의/나가/가려) 앞 단어 등 다양하게 시도
+      const cleaned = msgText
+        .replace(/오늘|내일|지금|현재|지역|기온|온도|좀|알려줘|알려주세요|어때|어떤가요|날씨가|날씨는|날씨$/g, '')
+        .trim();
+      const patterns = [
+        /([가-힣]{2,6})(?:\s*(?:날씨|기온|온도|바람))/, // "한강 날씨", "제주시 기온"
+        /([가-힣]{2,6})(?:\s*(?:에서|에|로|까지|나가|가려|나오려))/, // "한강에서", "여의도로"
+        /([가-힣]{2,6})\s*날씨/,
+      ];
+      let locMatch = '';
+      for (const pat of patterns) {
+        const m = cleaned.match(pat);
+        if (m && m[1] && m[1].length >= 2) { locMatch = m[1]; break; }
+      }
+      if (locMatch) {
         // OpenWeatherMap Geocoding API로 한국 지명 → 좌표 변환
         const geoRes = await fetch(`http://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(locMatch)},KR&limit=1&appid=${apiKey}`);
         const geoData = await geoRes.json();
@@ -2336,6 +2567,42 @@ exports.handleBotTriggers = onValueCreated(
       if (!msg || !msg.text || msg.realName === _BOT_NAME) return;
       const text = (msg.text || '').trim();
       const senderName = msg.realName || '';
+
+      // 제이 호칭 → AI 응답 우선 처리
+      const aiMentionMatch = text.match(/^제이[,!. ]*(.*)/s);
+      if (aiMentionMatch) {
+        const question = aiMentionMatch[1].trim() || '안녕!';
+        // 타이핑 인디케이터 먼저 표시
+        const typingRef = db.ref(`${_BOT_BZ_REF}/messages`).push();
+        await typingRef.set({
+          alias: _BOT_NAME, realName: _BOT_NAME, ts: Date.now(), typing: true, text: '...',
+        });
+        // 최근 채팅 히스토리 (현재 메시지 이전 최대 60개)
+        const histSnap = await db.ref(`${_BOT_BZ_REF}/messages`)
+          .orderByChild('ts').limitToLast(60).once('value');
+        const histRaw = histSnap.val() || {};
+        // 제이와의 대화만 추출 (질문 + 제이 답변)
+        const botExchanges = Object.values(histRaw)
+          .filter(m => m.ts < msg.ts && m.text && m.type !== 'restaurant'
+            && (m.realName === _BOT_NAME || /^제이[,!. ]/i.test(m.text || '')))
+          .sort((a, b) => a.ts - b.ts);
+        // 마지막 제이 답변 시간 확인 — 5분 쿨타임
+        const lastBotMsg = [...botExchanges].reverse().find(m => m.realName === _BOT_NAME);
+        const isActiveSession = lastBotMsg && (msg.ts - lastBotMsg.ts) < 5 * 60 * 1000;
+        // 활성 세션: 최근 4개(2쌍) / 신규 세션: 마지막 1쌍만
+        const histSlice = isActiveSession ? botExchanges.slice(-4) : botExchanges.slice(-2);
+        const history = histSlice.map(m => ({
+          role: m.realName === _BOT_NAME ? 'assistant' : 'user',
+          content: m.realName !== _BOT_NAME
+            ? `${m.realName || '멤버'}: ${m.text.replace(/^제이[,!. ]*/i, '').trim()}`
+            : m.text,
+        }));
+        const result = await _botAI(question, senderName, history);
+        // 타이핑 인디케이터 제거 후 실제 메시지 등록
+        await typingRef.remove();
+        if (result) await _postBotMsg(result);
+        return;
+      }
 
       let trigger = null;
       for (const { key, pattern } of _BOT_TRIGGERS) {

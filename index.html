@@ -699,6 +699,12 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .bet-loser-count-btn{width:40px;height:40px;border-radius:50%;border:2px solid #e2e8f0;background:#f8fafc;font-size:1.2rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#1d4ed8;transition:transform 0.08s, box-shadow 0.08s, background 0.1s;box-shadow:0 4px 0 #bfdbfe;}
 .bet-loser-count-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #bfdbfe;background:#dbeafe;}
 .bet-history-item{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;margin-bottom:10px}
+/* ── 제이 타이핑 인디케이터 ── */
+.bz-typing-dots{display:inline-flex;align-items:center;gap:4px;padding:4px 2px}
+.bz-typing-dots span{display:inline-block;width:7px;height:7px;border-radius:50%;background:#7c3aed;animation:bz-dot-bounce 1.1s ease-in-out 40}
+.bz-typing-dots span:nth-child(2){animation-delay:0.18s}
+.bz-typing-dots span:nth-child(3){animation-delay:0.36s}
+@keyframes bz-dot-bounce{0%,80%,100%{transform:translateY(0);opacity:0.35}40%{transform:translateY(-6px);opacity:1}}
 /* ── 단골맛집 ── */
 .bz-resto-card{background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px}
 .bz-theme-chip{display:inline-flex;align-items:center;padding:4px 10px;border-radius:12px;font-size:0.72rem;font-weight:700;cursor:pointer;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#64748b;white-space:nowrap;transition:all 0.12s;-webkit-tap-highlight-color:transparent}
@@ -2409,7 +2415,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v665';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v671';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -16279,9 +16285,10 @@ function bzOpenRestoModal(editId) {
   _restoEditId = editId;
   const r = editId ? (_restoData[editId] || {}) : {};
   document.getElementById('bz-resto-modal-title').textContent = editId ? '✏️ 맛집 수정' : '🍽️ 단골맛집 등록';
-  document.getElementById('bz-resto-name-input').value = r.name || '';
-  document.getElementById('bz-resto-url-input').value  = r.url  || '';
-  document.getElementById('bz-resto-memo-input').value = r.memo || '';
+  document.getElementById('bz-resto-name-input').value    = r.name    || '';
+  document.getElementById('bz-resto-url-input').value     = r.url     || '';
+  document.getElementById('bz-resto-address-input').value = r.address || '';
+  document.getElementById('bz-resto-memo-input').value    = r.memo    || '';
   _restoModalTheme = r.theme || '한식';
   // 공유타겟 pending 데이터 자동입력 (등록 모드)
   if (!editId && window._restoPendingShare) {
@@ -16554,15 +16561,40 @@ function restoSelectTheme(t) { _restoModalTheme = t; _restoUpdateThemeButtons();
 function restoUrlAutoFill(raw) {
   if (!raw) return;
   const nameInput = document.getElementById('bz-resto-name-input');
-  if (!nameInput || nameInput.value.trim()) return;
-  // 카카오맵: "[카카오맵] 맛집명 https://kko.to/xxx"
-  const kakao = raw.match(/\[카카오맵\]\s*(.+?)\s+https?:\/\//);
-  // 네이버지도: "[네이버지도] 맛집명 서울 강남구... https://naver.me/xxx" (한 줄)
-  // 이름과 주소는 시/도명(서울|경기 등)으로 구분, 없으면 URL 직전까지
-  const naver = raw.match(/\[네이버지도\]\s*(.+?)\s+(?:서울|부산|인천|대구|대전|광주|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|https?:\/\/)/) ||
-                raw.match(/\[네이버지도\]\s*(.+?)(\n|\s{2,})/);
-  const name = kakao ? kakao[1].trim() : naver ? naver[1].trim() : '';
-  if (name) nameInput.value = name;
+  const addrInput = document.getElementById('bz-resto-address-input');
+  const CITY_PAT = /서울|부산|인천|대구|대전|광주|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주/;
+
+  let name = '', addr = '';
+
+  if (raw.includes('[네이버지도]')) {
+    // 멀티라인: "[네이버지도] 이름\n주소\nhttps://..."
+    const mMulti = raw.match(/\[네이버지도\]\s*(.+?)[\n\r]+(.+?)(?:[\n\r]|$)/);
+    if (mMulti && CITY_PAT.test(mMulti[2])) {
+      name = mMulti[1].trim();
+      addr = mMulti[2].replace(/https?:\/\/\S+/g, '').trim();
+    } else {
+      // 싱글라인: "[네이버지도] 이름 서울... https://..."
+      const mAddr = raw.match(/\[네이버지도\]\s*(.+?)\s+((?:서울|부산|인천|대구|대전|광주|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)[^(\nhttps?)]+?)(?:\s+https?:\/\/|$)/);
+      if (mAddr) { name = mAddr[1].trim(); addr = mAddr[2].trim(); }
+      else {
+        const mName = raw.match(/\[네이버지도\]\s*(.+?)\s+https?:\/\//);
+        if (mName) name = mName[1].trim();
+      }
+    }
+  } else if (raw.includes('[카카오맵]')) {
+    // 멀티라인: "[카카오맵] 이름\n주소\nhttps://..."
+    const mMulti = raw.match(/\[카카오맵\]\s*(.+?)[\n\r]+(.+?)(?:[\n\r]|$)/);
+    if (mMulti && CITY_PAT.test(mMulti[2])) {
+      name = mMulti[1].trim();
+      addr = mMulti[2].replace(/https?:\/\/\S+/g, '').trim();
+    } else {
+      const mSingle = raw.match(/\[카카오맵\]\s*(.+?)\s+https?:\/\//);
+      if (mSingle) name = mSingle[1].trim();
+    }
+  }
+
+  if (name && nameInput && !nameInput.value.trim()) nameInput.value = name;
+  if (addr && addrInput && !addrInput.value.trim()) addrInput.value = addr;
 }
 
 async function bzSaveResto() {
@@ -16585,8 +16617,9 @@ async function bzSaveResto() {
   }
   const name = (nameInput.value || '').trim();
   if (!name) { alert('맛집 이름을 입력해주세요.'); return; }
+  const address = (document.getElementById('bz-resto-address-input').value || '').trim();
   const memo = (document.getElementById('bz-resto-memo-input').value || '').trim();
-  const data = { name, theme: _restoModalTheme, url, memo, updatedBy: myName, updatedAt: Date.now() };
+  const data = { name, theme: _restoModalTheme, url, address, memo, updatedBy: myName, updatedAt: Date.now() };
   if (_restoEditId) {
     await db.ref(`jmt/restaurants/${_restoEditId}`).update(data).catch(fbErr);
   } else {
@@ -17543,7 +17576,7 @@ function _bzRender() {
 
   // 채팅중인 멤버 (메시지에 등장한 가명 목록, 자미봇 제외)
   const msgs = _bzState.messages ? Object.values(_bzState.messages) : [];
-  const activeAliases = [...new Set(msgs.map(m => m.alias))].filter(a => a !== '자미봇');
+  const activeAliases = [...new Set(msgs.map(m => m.alias))].filter(a => a !== '제이');
   const activeMembersEl = document.getElementById('bz-active-members');
   if (activeMembersEl) {
     activeMembersEl.textContent = activeAliases.length > 0
@@ -18016,9 +18049,21 @@ function _bzRenderMessages(phase, forceBottom) {
     const senderLabel = showRealNames
       ? `${m.alias} <span style="color:#94a3b8;font-size:0.7rem">(${realOfAlias})</span>`
       : m.alias;
-    const _bzIsBot = m.realName === '자미봇';
+    const _bzIsBot = m.realName === '제이';
     const _bzNameColor = _bzIsBot ? '#7c3aed' : _getMemberColor(m.alias);
     const isMine = m.realName === myName;
+    // 타이핑 인디케이터 — 제이가 답변 준비 중
+    if (_bzIsBot && m.typing) {
+      return `<div style="display:flex;align-items:flex-end;gap:8px;margin-bottom:10px">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;font-size:0.75rem;font-weight:900;flex-shrink:0;margin-top:2px">🤖</span>
+        <div>
+          <div style="font-size:0.7rem;font-weight:700;color:#7c3aed;margin-bottom:3px">제이</div>
+          <div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1px solid #c4b5fd;border-radius:16px 16px 16px 4px;padding:10px 14px">
+            <div class="bz-typing-dots"><span></span><span></span><span></span></div>
+          </div>
+        </div>
+      </div>`;
+    }
     const keyEsc      = m._key.replace(/'/g, "\\'");
     const aliasEsc    = m.alias.replace(/'/g, "\\'");
     const realNameEsc = (m.realName || '').replace(/'/g, "\\'");
@@ -18049,8 +18094,8 @@ function _bzRenderMessages(phase, forceBottom) {
     const imgSrc = m.imageUrl || m.imageData || '';
     const _photos = m.photos && m.photos.length ? m.photos : null;
     const bubbleRadius = `${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}`;
-    const bubbleBg = isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : _bzIsBot ? '#f5f3ff' : '#fff';
-    const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#e2e8f0'}`;
+    const bubbleBg = isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : _bzIsBot ? 'linear-gradient(135deg,#f5f3ff,#ede9fe)' : '#fff';
+    const bubbleBorder = `1px solid ${isMine ? 'transparent' : _bzIsBot ? '#c4b5fd' : '#e2e8f0'}`;
     const bubble = m.videoUrl
       ? `<div data-bzbubble="1" style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
           ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" ${m.thumbUrl ? `poster="${m.thumbUrl}"` : ''} style="max-width:240px;width:100%;border-radius:10px;display:block;background:#000;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false"></video>
@@ -18266,9 +18311,21 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const senderLabel = showRealNames
       ? `${m.alias} <span style="color:#94a3b8;font-size:0.7rem">(${realOfAlias})</span>`
       : m.alias;
-    const _bzIsBot = m.realName === '자미봇';
+    const _bzIsBot = m.realName === '제이';
     const _bzNameColor = _bzIsBot ? '#7c3aed' : _getMemberColor(m.alias);
     const isMine = m.realName === myName;
+    // 타이핑 인디케이터
+    if (_bzIsBot && m.typing) {
+      return `<div style="display:flex;align-items:flex-end;gap:8px;margin-bottom:10px">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;font-size:0.75rem;font-weight:900;flex-shrink:0;margin-top:2px">🤖</span>
+        <div>
+          <div style="font-size:0.7rem;font-weight:700;color:#7c3aed;margin-bottom:3px">제이</div>
+          <div style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1px solid #c4b5fd;border-radius:16px 16px 16px 4px;padding:10px 14px">
+            <div class="bz-typing-dots"><span></span><span></span><span></span></div>
+          </div>
+        </div>
+      </div>`;
+    }
     const keyEsc      = m._key.replace(/'/g, "\'");
     const aliasEsc    = m.alias.replace(/'/g, "\'");
     const realNameEsc = (m.realName || '').replace(/'/g, "\'");
@@ -18297,8 +18354,8 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const imgSrc = m.imageUrl || m.imageData || '';
     const _photos = m.photos && m.photos.length ? m.photos : null;
     const bubbleRadius = `${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}`;
-    const bubbleBg = isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : _bzIsBot ? '#f5f3ff' : '#fff';
-    const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#e2e8f0'}`;
+    const bubbleBg = isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : _bzIsBot ? 'linear-gradient(135deg,#f5f3ff,#ede9fe)' : '#fff';
+    const bubbleBorder = `1px solid ${isMine ? 'transparent' : _bzIsBot ? '#c4b5fd' : '#e2e8f0'}`;
     const bubble = m.videoUrl
       ? `<div data-bzbubble="1" style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
           ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" ${m.thumbUrl ? `poster="${m.thumbUrl}"` : ''} style="max-width:240px;width:100%;border-radius:10px;display:block;background:#000;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false"></video>
@@ -20365,6 +20422,10 @@ function saveMpComment(key) {
     <div style="margin-bottom:12px">
       <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:5px">맛집 이름 *</div>
       <input id="bz-resto-name-input" type="text" placeholder="예: 스시하루" maxlength="30" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.9rem;background:#f8fafc;outline:none;font-family:inherit">
+    </div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:5px">주소 <span style="font-weight:400;color:#94a3b8">(링크 붙여넣으면 자동 입력)</span></div>
+      <input id="bz-resto-address-input" type="text" placeholder="예: 서울 송파구 방이동 123" maxlength="80" style="width:100%;padding:10px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.85rem;background:#f8fafc;outline:none;font-family:inherit">
     </div>
     <div style="margin-bottom:12px">
       <div style="font-size:0.78rem;font-weight:700;color:#64748b;margin-bottom:7px">음식 테마</div>
