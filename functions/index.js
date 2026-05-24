@@ -2657,7 +2657,8 @@ exports.handleBotTriggers = onValueCreated(
       // 텍스트 없어도 제이 말풍선 reply + 사진 첨부면 허용
       if (!msg.text && !(hasImage && isReplyToBot)) return;
       const text = (msg.text || '').trim();
-      const senderName = msg.realName || '';
+      // 가명 모드에서는 alias로 응대 (일반 채팅에서는 alias === realName)
+      const senderName = msg.alias || msg.realName || '';
 
       // 제이 호칭 또는 제이 말풍선 reply → AI 응답 우선 처리
       const aiMentionMatch = text.match(/^제이[,!. ]*(.*)/s);
@@ -2707,7 +2708,7 @@ exports.handleBotTriggers = onValueCreated(
         const history = histSlice.map(m => ({
           role: m.realName === _BOT_NAME ? 'assistant' : 'user',
           content: m.realName !== _BOT_NAME
-            ? `${m.realName || '멤버'}: ${m.text.replace(/^제이[,!. ]*/i, '').trim()}`
+            ? `${m.alias || m.realName || '멤버'}: ${m.text.replace(/^제이[,!. ]*/i, '').trim()}`
             : m.text,
         }));
         // 제이 말풍선 reply이고 해당 봇 답변이 히스토리에 없으면 맨 끝에 추가
