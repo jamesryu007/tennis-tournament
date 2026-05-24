@@ -1775,7 +1775,7 @@ async function _botAI(question, senderName, history = []) {
   const memberList = Object.values(members);
   const males   = memberList.filter(m => m.gender === 'male').map(m => `${firstName(m.name)} 오빠`);
   const females = memberList.filter(m => m.gender === 'female').map(m => `${firstName(m.name)} 언니`);
-  const memberSummary = `[호칭 목록 — 이름만으로 성별 추측 절대 금지, 반드시 이 목록만 따를 것]\n${[...males, ...females].join(', ')}`;
+  const memberSummary = `남성 멤버(→ 오빠): ${males.join(', ')}\n여성 멤버(→ 언니): ${females.join(', ')}\n⚠️ 멤버 호칭 규칙: 위 목록 기준으로만 호칭. "님" 절대 금지. 예) 지은 언니, 지원 오빠`;
 
   // 날씨/미세먼지 — 히스토리에 이미 있으면 인용, 없으면 룰베이스 함수 직접 호출
   let weatherCtx = '';
@@ -1820,10 +1820,10 @@ async function _botAI(question, senderName, history = []) {
 [자미터 전용 데이터]
 - 아래 제공된 랭킹·경기기록·출첵·단골맛집은 자미터 실제 데이터야
 - 멤버 관련(랭킹·경기분석·출첵·모임) 질문엔 이 데이터로 구체적으로 답변
-- 단골맛집 질문엔 이 목록을 먼저 참고하고, 없으면 자유롭게 추천
+- 단골맛집은 서울/강남권 위주 — 다른 지역(가평·제주·부산 등) 맛집 질문엔 DB 무시하고 LLM 자유 추천
 - 날씨·운세는 [⚠️] 블록의 실제 데이터 기반으로 답변
 
-[자미터 멤버]
+[자미터 멤버 호칭 — 반드시 준수]
 ${memberSummary}
 
 [${year}년 개인 랭킹 (유효승률 기준)]
@@ -1836,7 +1836,7 @@ ${recentMatches != null ? `[최근 경기 20건]\n${recentMatches || '데이터 
 
 ${checkinCtx}
 
-[단골맛집]
+[자미터 단골맛집 — 서울/강남권 위주, 다른 지역 질문엔 이 목록 사용 금지]
 ${restaurantCtx}
 ${weatherCtx}${airCtx}
 현재 질문자: ${senderName}${fortuneCtx}`;
