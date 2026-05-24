@@ -1808,13 +1808,7 @@ async function _botAI(question, senderName, history = []) {
     } catch(_) {}
   }
 
-  // 히스토리에서 운세 결과 추출 — systemPrompt 전에 선언해야 함
-  const fortuneData = history
-    .filter(m => m.role === 'assistant' && /띠 운세/.test(m.content))
-    .map(m => m.content).join('\n---\n');
-  const fortuneCtx = fortuneData
-    ? `\n\n[⚠️ 아래 운세 데이터가 채팅에 이미 있음 — 이 내용을 그대로 인용한 뒤, 제이 본인의 짧은 의견이나 응원 한마디만 덧붙일 것. 운세 내용 자체는 절대 새로 만들지 말 것]\n${fortuneData}`
-    : '';
+  const fortuneCtx = ''; // 운세는 룰베이스(_botFortune)에서 처리 — LLM 개입 없음
 
   const systemPrompt = `너는 자미터 테니스 동호회 전용 AI 도우미 "제이"야.
 올해 30살이 된 천재 여자야. 모르는 게 없고, 유머도 넘쳐!
@@ -2463,20 +2457,21 @@ async function _botFortune(msgText) {
   let memberName = null;
 
   if (msgText) {
-    // 1순위: 멤버 이름 감지 → DB에서 birthday 조회
+    // 1순위: 멤버 이름 감지 → DB에서 birthday 조회 (성 제외한 이름도 매칭)
     const membSnap = await db.ref('jmt/members').once('value');
     const allMembers = Object.values(membSnap.val() || {}).filter(m => m.name && !m.isGuest);
+    const _fn = n => n && n.length >= 3 ? n.slice(1) : n;
     for (const m of allMembers) {
-      if (msgText.includes(m.name) && m.birthday) {
+      if ((msgText.includes(m.name) || msgText.includes(_fn(m.name))) && m.birthday) {
         birthYear = parseInt(m.birthday.split('-')[0]);
         memberName = m.name;
         break;
       }
     }
-    // 2순위: 4자리 연도 또는 2자리 년생
+    // 2순위: 4자리 연도 또는 2자리 연도 (년생/년 모두 허용)
     if (!birthYear) {
       const m4 = msgText.match(/(\d{4})년/);
-      const m2 = msgText.match(/(\d{2})년생/);
+      const m2 = msgText.match(/(\d{2})년(?:생)?/);
       if (m4) birthYear = parseInt(m4[1]);
       else if (m2) { const y2 = parseInt(m2[1]); birthYear = y2 >= 0 && y2 <= 30 ? 2000 + y2 : 1900 + y2; }
     }
@@ -2579,8 +2574,15 @@ exports.handleBotTriggers = onValueCreated(
       const aiMentionMatch = text.match(/^제이[,!. ]*(.*)/s);
       if (aiMentionMatch) {
         const question = aiMentionMatch[1].trim() || '안녕!';
-        // 타이핑 인디케이터 먼저 표시
+        // 운세 키워드 → LLM 우회, 룰베이스 직접 처리
+        if (/운세|띠/.test(question)) {
+          const result = await _botFortune(question);
+          if (result) await _postBotMsg(result);
+          return;
+        }
+        // 타이핑 인디케이터 먼저 표시 (최소 0.5초 노출)
         const typingRef = db.ref(`${_BOT_BZ_REF}/messages`).push();
+        const typingShownAt = Date.now();
         await typingRef.set({
           alias: _BOT_NAME, realName: _BOT_NAME, ts: Date.now(), typing: true, text: '...',
         });
@@ -2605,7 +2607,9 @@ exports.handleBotTriggers = onValueCreated(
             : m.text,
         }));
         const result = await _botAI(question, senderName, history);
-        // 타이핑 인디케이터 제거 후 실제 메시지 등록
+        // 타이핑 인디케이터 최소 0.5초 노출 후 제거
+        const elapsed = Date.now() - typingShownAt;
+        if (elapsed < 500) await new Promise(r => setTimeout(r, 500 - elapsed));
         await typingRef.remove();
         if (result) await _postBotMsg(result);
         return;
