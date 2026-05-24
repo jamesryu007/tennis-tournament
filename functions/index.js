@@ -1780,7 +1780,7 @@ async function _botAI(question, senderName, history = []) {
   // 날씨/미세먼지 — 히스토리에 이미 있으면 인용, 없으면 룰베이스 함수 직접 호출
   let weatherCtx = '';
   let airCtx = '';
-  const hasWeather = /날씨|기온|온도|비|눈|바람|테니스.*치|치기.*좋/.test(question);
+  const hasWeather = /날씨|기온|온도|비|눈|바람|테니스.*치|치기.*좋|옷.*입|입을.*옷|뭐.*입|복장|코디|겉옷|자켓|우산|춥|덥|쌀쌀|더울|추울/.test(question);
   const hasAir     = /미세먼지|공기|하늘|마스크/.test(question);
   if (hasWeather) {
     // 날씨는 항상 최신 데이터로 — 룰베이스 함수 직접 호출 (지역 파싱 포함)
