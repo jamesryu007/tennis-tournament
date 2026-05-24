@@ -1718,17 +1718,18 @@ async function _botAI(question, senderName, history = []) {
     return `${i+1}위 ${p.players.join('+')||p.key}: ${p.wins}승 ${p.losses}패 (승률 ${wr}%)`;
   }).join('\n');
 
-  // 최근 경기 30건
-  const recentMatches = Object.values(recentRaw)
+  // 최근 경기 — 경기/랭킹 관련 질문일 때만 포함 (토큰 절약)
+  const hasMatchQuery = /경기|승|패|랭킹|순위|점수|결과|대결|복식|누가.*이겼|이긴/.test(question);
+  const recentMatches = hasMatchQuery ? Object.values(recentRaw)
     .filter(m => m.source === 'daily' && m.sets && m.winner !== undefined)
     .sort((a, b) => (b.date||'').localeCompare(a.date||''))
-    .slice(0, 30)
+    .slice(0, 20)
     .map(m => {
       const t0 = (m.team0||[]).join('+'), t1 = (m.team1||[]).join('+');
       const score = (m.sets||[]).map(s => `${s.s0}-${s.s1}`).join(', ');
       const result = m.winner === 0 ? `${t0} 승` : m.winner === 1 ? `${t1} 승` : '무승부';
       return `${m.date} ${t0} vs ${t1} (${score}) → ${result}`;
-    }).join('\n');
+    }).join('\n') : null;
 
   // 출첵 현황 — jmt/pollState → weekId → jmt/poll/{weekId}/votes
   let checkinCtx = '출첵 정보 없음';
@@ -1836,8 +1837,7 @@ ${playerSummary || '데이터 없음'}
 [${year}년 페어 랭킹]
 ${pairSummary || '데이터 없음'}
 
-[최근 경기 30건]
-${recentMatches || '데이터 없음'}
+${recentMatches != null ? `[최근 경기 20건]\n${recentMatches || '데이터 없음'}` : ''}
 
 ${checkinCtx}
 
@@ -2566,15 +2566,19 @@ exports.handleBotTriggers = onValueCreated(
         const question = aiMentionMatch[1].trim() || '안녕!';
         // 최근 채팅 히스토리 (현재 메시지 이전 최대 20개)
         const histSnap = await db.ref(`${_BOT_BZ_REF}/messages`)
-          .orderByChild('ts').limitToLast(22).once('value');
+          .orderByChild('ts').limitToLast(60).once('value');
         const histRaw = histSnap.val() || {};
+        // 제이와의 대화만 히스토리로 — 제이에게 한 질문 + 제이 답변만 포함
         const history = Object.values(histRaw)
-          .filter(m => m.ts < msg.ts && m.text && m.type !== 'restaurant')
+          .filter(m => m.ts < msg.ts && m.text && m.type !== 'restaurant'
+            && (m.realName === _BOT_NAME || /^제이[,!. ]/i.test(m.text || '')))
           .sort((a, b) => a.ts - b.ts)
           .slice(-10)
           .map(m => ({
             role: m.realName === _BOT_NAME ? 'assistant' : 'user',
-            content: m.realName !== _BOT_NAME ? `${m.realName || '멤버'}: ${m.text}` : m.text,
+            content: m.realName !== _BOT_NAME
+              ? `${m.realName || '멤버'}: ${m.text.replace(/^제이[,!. ]*/i, '').trim()}`
+              : m.text,
           }));
         const result = await _botAI(question, senderName, history);
         if (result) await _postBotMsg(result);
