@@ -2565,7 +2565,12 @@ exports.handleBotTriggers = onValueCreated(
       const aiMentionMatch = text.match(/^제이[,!. ]*(.*)/s);
       if (aiMentionMatch) {
         const question = aiMentionMatch[1].trim() || '안녕!';
-        // 최근 채팅 히스토리 (현재 메시지 이전 최대 20개)
+        // 타이핑 인디케이터 먼저 표시
+        const typingRef = db.ref(`${_BOT_BZ_REF}/messages`).push();
+        await typingRef.set({
+          alias: _BOT_NAME, realName: _BOT_NAME, ts: Date.now(), typing: true, text: '...',
+        });
+        // 최근 채팅 히스토리 (현재 메시지 이전 최대 60개)
         const histSnap = await db.ref(`${_BOT_BZ_REF}/messages`)
           .orderByChild('ts').limitToLast(60).once('value');
         const histRaw = histSnap.val() || {};
@@ -2586,6 +2591,8 @@ exports.handleBotTriggers = onValueCreated(
             : m.text,
         }));
         const result = await _botAI(question, senderName, history);
+        // 타이핑 인디케이터 제거 후 실제 메시지 등록
+        await typingRef.remove();
         if (result) await _postBotMsg(result);
         return;
       }
