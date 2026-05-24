@@ -2576,8 +2576,8 @@ exports.handleBotTriggers = onValueCreated(
         // 마지막 제이 답변 시간 확인 — 5분 쿨타임
         const lastBotMsg = [...botExchanges].reverse().find(m => m.realName === _BOT_NAME);
         const isActiveSession = lastBotMsg && (msg.ts - lastBotMsg.ts) < 5 * 60 * 1000;
-        // 활성 세션: 최근 10개 / 신규 세션: 마지막 1쌍(질문+답변)만
-        const histSlice = isActiveSession ? botExchanges.slice(-10) : botExchanges.slice(-2);
+        // 활성 세션: 최근 4개(2쌍) / 신규 세션: 마지막 1쌍만
+        const histSlice = isActiveSession ? botExchanges.slice(-4) : botExchanges.slice(-2);
         const history = histSlice.map(m => ({
           role: m.realName === _BOT_NAME ? 'assistant' : 'user',
           content: m.realName !== _BOT_NAME
