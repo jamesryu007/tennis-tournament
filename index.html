@@ -1509,7 +1509,6 @@ const firebaseConfig = {
             <option value="">나 자신</option>
           </select>
           <div id="bz-alias-chips" style="display:flex;flex-wrap:wrap;gap:4px;flex:1"></div>
-          <button id="bz-jinsil-btn" onclick="bzToggleJinsil()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#64748b;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">진실톡 OFF</button>
           <span id="bz-bot-usage" style="display:none;font-size:0.68rem;color:#7c3aed;font-weight:700;white-space:nowrap;flex-shrink:0;padding:0 2px"></span>
           <button id="bz-llm-btn" onclick="bzToggleLlm()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #c4b5fd;background:#f5f3ff;color:#7c3aed;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">🤖 ON</button>
           <button id="bz-search-btn" onclick="bzOpenSearch()" style="padding:4px 8px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#64748b;font-size:0.9rem;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">🔍</button>
@@ -1522,14 +1521,13 @@ const firebaseConfig = {
         <!-- 관리자 컨트롤 -->
         <div id="bz-admin-controls" style="display:none;gap:8px;flex-wrap:wrap">
           <button id="bz-btn-start" onclick="bzStartGuessing()" style="padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer">🕵️ 자미톡 시작</button>
+          <button id="bz-jinsil-btn" onclick="bzToggleJinsil()" style="display:none;padding:7px 14px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#64748b;font-size:0.8rem;font-weight:700;cursor:pointer">진실톡 OFF</button>
           <button id="bz-btn-reveal" onclick="bzReveal()" style="display:none;padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer">🔓 최종 오픈</button>
           <button id="bz-btn-realnames" onclick="bzToggleRealNames()" style="padding:7px 14px;border-radius:10px;border:1.5px solid #fcd34d;background:#fff;color:#92400e;font-size:0.8rem;font-weight:700;cursor:pointer">👁 실명 공개</button>
           <button id="bz-btn-gamerestart" onclick="bzGameRestart()" style="display:none;padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer">🔁 게임 재시작</button>
           <button onclick="bzNewGame()" style="padding:7px 14px;border-radius:10px;border:1.5px solid #fcd34d;background:#fff;color:#92400e;font-size:0.8rem;font-weight:700;cursor:pointer">🔄 새 게임</button>
           <!-- 관리자: 맞추기 참여 현황 (guessing phase에서만 표시) -->
           <div id="bz-guess-status" style="display:none;width:100%;margin-top:4px"></div>
-          <!-- 이미지 크기 마이그레이션 — 1회 실행 후 버튼 사라짐 -->
-          <button id="bz-migrate-imgsize-btn" onclick="bzMigrateImageSizes()" style="padding:7px 14px;border-radius:10px;border:1.5px solid #94a3b8;background:#f8fafc;color:#64748b;font-size:0.75rem;font-weight:700;cursor:pointer">🔧 이미지 크기 보정</button>
         </div>
 
         <!-- 멤버 맞추기 섹션 (guessing phase) -->
@@ -1565,15 +1563,12 @@ const firebaseConfig = {
       </div>
 
       <!-- 채팅 검색 패널 -->
-      <div id="bz-search-panel" style="display:none;flex-direction:column;background:#f8fafc;border-bottom:1px solid #e2e8f0;flex-shrink:0">
-        <div style="display:flex;align-items:center;gap:6px;padding:10px 14px 8px">
-          <input id="bz-search-input" type="text" placeholder="채팅 내용 검색..." oninput="bzSearchChat()" style="flex:1;padding:7px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.88rem;font-family:inherit;outline:none;background:#fff">
-          <span id="bz-search-count" style="font-size:0.72rem;color:#94a3b8;white-space:nowrap;flex-shrink:0"></span>
-          <button onclick="bzSearchNavUp()" style="padding:4px 8px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#475569;font-size:0.85rem;cursor:pointer;flex-shrink:0;line-height:1">▲</button>
-          <button onclick="bzSearchNavDown()" style="padding:4px 8px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#475569;font-size:0.85rem;cursor:pointer;flex-shrink:0;line-height:1">▼</button>
-          <button onclick="bzCloseSearch()" style="padding:4px 10px;border-radius:8px;border:none;background:#e2e8f0;color:#64748b;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0">닫기</button>
-        </div>
-        <div id="bz-search-results" style="overflow-y:auto;max-height:240px;padding:0 14px 10px"></div>
+      <div id="bz-search-panel" style="display:none;flex-direction:row;align-items:center;gap:6px;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;flex-shrink:0">
+        <input id="bz-search-input" type="search" placeholder="채팅 내용 검색..." oninput="bzSearchChat()" style="flex:1;padding:7px 12px;border-radius:10px;border:1.5px solid #e2e8f0;font-size:0.88rem;font-family:inherit;outline:none;background:#fff">
+        <span id="bz-search-count" style="font-size:0.72rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;min-width:32px;text-align:center"></span>
+        <button onclick="bzSearchNavUp()" style="padding:5px 9px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#475569;font-size:0.8rem;cursor:pointer;flex-shrink:0;line-height:1">▲</button>
+        <button onclick="bzSearchNavDown()" style="padding:5px 9px;border-radius:8px;border:1.5px solid #e2e8f0;background:#fff;color:#475569;font-size:0.8rem;cursor:pointer;flex-shrink:0;line-height:1">▼</button>
+        <button onclick="bzCloseSearch()" style="padding:5px 10px;border-radius:8px;border:none;background:#e2e8f0;color:#64748b;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0">닫기</button>
       </div>
 
       <!-- 채팅 영역 — 순백 계열로 대화 구역 명확히 구분 -->
@@ -2431,7 +2426,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v677';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v678';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -16530,44 +16525,6 @@ async function deleteNotice(noticeId) {
   _renderNoticeList();
 }
 
-// ── 이미지 크기 마이그레이션 (1회 실행) ─────────────────────────────
-// imageUrl은 있으나 imgW/imgH가 없는 메시지에 실제 이미지 크기를 측정해서 저장
-async function bzMigrateImageSizes() {
-  const btn = document.getElementById('bz-migrate-imgsize-btn');
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ 작업 중...'; }
-  const snap = await db.ref(`${BZ_REF}/messages`).once('value');
-  const msgs = snap.val() || {};
-  const targets = Object.entries(msgs).filter(([, m]) => m.imageUrl && !m.imgW);
-  if (!targets.length) {
-    alert('보정할 이미지가 없습니다.');
-    if (btn) { btn.disabled = false; btn.textContent = '🔧 이미지 크기 보정'; }
-    return;
-  }
-  let done = 0;
-  const _measure = (url) => new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
-    img.onerror = () => resolve(null);
-    img.src = url;
-  });
-  for (const [key, m] of targets) {
-    const size = await _measure(m.imageUrl);
-    if (size && size.w && size.h) {
-      // 업로드 시 max 600 리사이즈 기준 재적용
-      let { w, h } = size;
-      const MAX = 600;
-      if (w > MAX || h > MAX) {
-        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
-        else { w = Math.round(w * MAX / h); h = MAX; }
-      }
-      await db.ref(`${BZ_REF}/messages/${key}`).update({ imgW: w, imgH: h }).catch(fbErr);
-      done++;
-    }
-    if (btn) btn.textContent = `⏳ ${done}/${targets.length} 완료...`;
-  }
-  alert(`완료! ${done}개 이미지 크기 보정됨.`);
-  if (btn) btn.remove(); // 1회 실행 후 버튼 제거
-}
 
 function bzCloseRestoModal() {
   const modal = document.getElementById('bz-resto-modal');
@@ -17786,125 +17743,164 @@ function bzToggleJinsil() {
 }
 
 // ── 채팅 검색 ───────────────────────────────────────────────────────
-let _bzSearchResults = [];  // [{key, m}] — 검색 결과 (시간 역순)
-let _bzSearchIdx = -1;      // 현재 포커스 인덱스
+let _bzSearchMatches = []; // [{key}] — ts 오름차순(위→아래)
+let _bzSearchIdx = -1;
 
 function bzOpenSearch() {
   const panel = document.getElementById('bz-search-panel');
   if (!panel) return;
-  // 접힌 상태면 alias-strip을 숨기고 검색패널로 대체
+  // alias-strip 숨기기 (접힌 상태)
   const strip = document.getElementById('bz-alias-strip');
   if (strip && _bzInfoCollapsed) strip.style.display = 'none';
+  // 입력 영역 숨기기
+  const inputArea = document.getElementById('bz-input-area');
+  if (inputArea) inputArea.style.display = 'none';
   panel.style.display = 'flex';
   const input = document.getElementById('bz-search-input');
   if (input) { input.value = ''; input.focus(); }
-  document.getElementById('bz-search-results').innerHTML = '';
   const countEl = document.getElementById('bz-search-count');
   if (countEl) countEl.textContent = '';
-  _bzSearchResults = [];
+  _bzSearchMatches = [];
   _bzSearchIdx = -1;
 }
 
 function bzCloseSearch() {
   const panel = document.getElementById('bz-search-panel');
   if (panel) panel.style.display = 'none';
-  // alias-strip 복원 (접힌 상태에서 가명이 있으면 다시 표시)
+  // 입력 영역 복원
+  const inputArea = document.getElementById('bz-input-area');
+  if (inputArea) inputArea.style.display = '';
+  // alias-strip 복원
   _bzUpdateAliasStrip();
-  _bzSearchResults = [];
+  // 기존 검색 하이라이트 제거
+  _bzClearSearchMarks();
+  _bzSearchMatches = [];
   _bzSearchIdx = -1;
+  // 맨 아래로 이동
+  const chatArea = document.getElementById('bz-chat-area');
+  if (chatArea) chatArea.scrollTop = chatArea.scrollHeight;
 }
 
 function bzSearchChat() {
   const query = (document.getElementById('bz-search-input').value || '').trim();
-  const resultsEl = document.getElementById('bz-search-results');
   const countEl = document.getElementById('bz-search-count');
-  if (!resultsEl) return;
-  _bzSearchResults = [];
+  // 이전 하이라이트 제거
+  _bzClearSearchMarks();
+  _bzSearchMatches = [];
   _bzSearchIdx = -1;
-  if (!query) {
-    resultsEl.innerHTML = '';
-    if (countEl) countEl.textContent = '';
-    return;
-  }
+  if (!query) { if (countEl) countEl.textContent = ''; return; }
 
   const messages = (_bzState && _bzState.messages) || {};
   const q = query.toLowerCase();
+  // ts 오름차순 (채팅 위→아래 순서)
   const matched = Object.entries(messages)
     .filter(([, m]) => m.text && m.text.toLowerCase().includes(q))
-    .sort(([, a], [, b]) => (b.ts || 0) - (a.ts || 0))
-    .slice(0, 100);
+    .sort(([, a], [, b]) => (a.ts || 0) - (b.ts || 0));
 
-  _bzSearchResults = matched;
-  if (countEl) countEl.textContent = matched.length ? `${matched.length}건` : '';
+  _bzSearchMatches = matched.map(([key]) => ({ key }));
 
   if (!matched.length) {
-    resultsEl.innerHTML = '<div style="color:#94a3b8;font-size:0.82rem;padding:8px 0">검색 결과가 없습니다</div>';
+    if (countEl) countEl.textContent = '없음';
     return;
   }
 
-  const phase = (_bzState && _bzState.phase) || 'chatting';
-  const showRealNames = phase === 'revealed' || !!(_bzState && _bzState.showRealNames);
-  const reStr = query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-  resultsEl.innerHTML = matched.map(([key, m], idx) => {
-    const sender = showRealNames && m.realName ? `${m.alias || m.realName} (${m.realName})` : (m.alias || m.realName || '');
-    const date = m.ts ? _bzFormatDateLabel(m.ts) + ' ' + _bzFormatTime(m.ts) : '';
-    // 매칭 키워드 하이라이트
-    const escaped = (m.text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const highlighted = escaped.replace(new RegExp(reStr, 'gi'),
-      match => `<span style="background:#fef08a;color:#854d0e;border-radius:2px">${match}</span>`);
-    return `<div id="bz-sr-${idx}" onclick="bzSearchNavJump(${idx})" style="padding:8px 10px;border-radius:10px;background:#fff;border:1.5px solid #e2e8f0;margin-bottom:6px;cursor:pointer;-webkit-tap-highlight-color:transparent">
-      <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-        <span style="font-size:0.72rem;font-weight:700;color:#475569">${sender}</span>
-        <span style="font-size:0.68rem;color:#94a3b8">${date}</span>
-      </div>
-      <div style="font-size:0.82rem;color:#1e293b;line-height:1.4;word-break:break-word">${highlighted}</div>
-    </div>`;
-  }).join('');
-}
-
-// 결과 항목 클릭 — 해당 메시지로 스크롤
-function bzSearchNavJump(idx) {
-  if (idx < 0 || idx >= _bzSearchResults.length) return;
-  _bzSearchIdx = idx;
-  _bzHighlightSearchResult(idx);
-  const [key] = _bzSearchResults[idx];
-  bzScrollToMsg(key, '');
-}
-
-// ▲ 이전 결과 (시간 역순이므로 ▲ = 더 최근)
-function bzSearchNavUp() {
-  if (!_bzSearchResults.length) return;
-  _bzSearchIdx = (_bzSearchIdx <= 0) ? _bzSearchResults.length - 1 : _bzSearchIdx - 1;
-  _bzHighlightSearchResult(_bzSearchIdx);
-  const [key] = _bzSearchResults[_bzSearchIdx];
-  bzScrollToMsg(key, '');
-}
-
-// ▼ 다음 결과 (시간 역순이므로 ▼ = 더 오래된 것)
-function bzSearchNavDown() {
-  if (!_bzSearchResults.length) return;
-  _bzSearchIdx = (_bzSearchIdx >= _bzSearchResults.length - 1) ? 0 : _bzSearchIdx + 1;
-  _bzHighlightSearchResult(_bzSearchIdx);
-  const [key] = _bzSearchResults[_bzSearchIdx];
-  bzScrollToMsg(key, '');
-}
-
-function _bzHighlightSearchResult(idx) {
-  // 결과 목록 내 선택 항목 강조
-  const resultsEl = document.getElementById('bz-search-results');
-  if (!resultsEl) return;
-  resultsEl.querySelectorAll('[id^="bz-sr-"]').forEach((el, i) => {
-    el.style.borderColor = i === idx ? '#7c3aed' : '#e2e8f0';
-    el.style.background = i === idx ? '#f5f3ff' : '#fff';
-  });
-  // 선택 항목이 결과 목록 내에서 보이도록 스크롤
-  const target = document.getElementById(`bz-sr-${idx}`);
-  if (target) target.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  // count 업데이트
-  const countEl = document.getElementById('bz-search-count');
-  if (countEl && _bzSearchResults.length) {
-    countEl.textContent = `${idx + 1}/${_bzSearchResults.length}`;
+  // 채팅 DOM에서 매칭 텍스트 하이라이트 적용
+  const area = document.getElementById('bz-chat-area');
+  if (area) {
+    matched.forEach(([key]) => {
+      const row = area.querySelector(`[data-bzkey="${key}"]`);
+      if (!row) return;
+      const bubble = row.querySelector('[data-bzbubble]');
+      if (!bubble) return;
+      _bzApplySearchMark(bubble, query);
+    });
   }
+
+  // 가장 최신 결과(마지막)로 이동
+  _bzSearchIdx = _bzSearchMatches.length - 1;
+  _bzSearchScrollTo(_bzSearchIdx);
+  _bzUpdateSearchCount();
+}
+
+// 텍스트 노드에 검색어 하이라이트 적용 (DOM 텍스트노드 직접 조작)
+function _bzApplySearchMark(el, query) {
+  const re = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  const toProcess = [];
+  while (walker.nextNode()) {
+    if (re.test(walker.currentNode.textContent)) toProcess.push(walker.currentNode);
+  }
+  toProcess.forEach(node => {
+    re.lastIndex = 0;
+    const text = node.textContent;
+    const frag = document.createDocumentFragment();
+    let last = 0, m;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+      const mark = document.createElement('mark');
+      mark.className = 'bz-search-mark';
+      mark.style.cssText = 'background:#fef08a;color:#854d0e;border-radius:2px;font-style:normal';
+      mark.textContent = m[0];
+      frag.appendChild(mark);
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+    node.parentNode.replaceChild(frag, node);
+  });
+}
+
+// 검색 하이라이트 전체 제거
+function _bzClearSearchMarks() {
+  document.querySelectorAll('.bz-search-mark').forEach(mark => {
+    const parent = mark.parentNode;
+    if (!parent) return;
+    while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+    parent.removeChild(mark);
+    parent.normalize();
+  });
+}
+
+// 지정 인덱스로 스크롤 + 현재 항목 강조
+function _bzSearchScrollTo(idx) {
+  if (idx < 0 || idx >= _bzSearchMatches.length) return;
+  const { key } = _bzSearchMatches[idx];
+  const area = document.getElementById('bz-chat-area');
+  const row = area && area.querySelector(`[data-bzkey="${key}"]`);
+  if (!row) return;
+  // 이전 active 링 제거
+  area.querySelectorAll('[data-bzsearchactive]').forEach(el => {
+    el.removeAttribute('data-bzsearchactive');
+    el.style.outline = '';
+    el.style.borderRadius = '';
+  });
+  // 현재 항목 링 표시
+  row.setAttribute('data-bzsearchactive', '1');
+  row.style.outline = '2.5px solid #7c3aed';
+  row.style.borderRadius = '12px';
+  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function _bzUpdateSearchCount() {
+  const countEl = document.getElementById('bz-search-count');
+  if (!countEl) return;
+  if (!_bzSearchMatches.length) { countEl.textContent = '없음'; return; }
+  countEl.textContent = `${_bzSearchIdx + 1}/${_bzSearchMatches.length}`;
+}
+
+// ▲ 이전(위, 더 오래된 메시지)
+function bzSearchNavUp() {
+  if (!_bzSearchMatches.length) return;
+  _bzSearchIdx = (_bzSearchIdx <= 0) ? _bzSearchMatches.length - 1 : _bzSearchIdx - 1;
+  _bzSearchScrollTo(_bzSearchIdx);
+  _bzUpdateSearchCount();
+}
+
+// ▼ 다음(아래, 더 최신 메시지)
+function bzSearchNavDown() {
+  if (!_bzSearchMatches.length) return;
+  _bzSearchIdx = (_bzSearchIdx >= _bzSearchMatches.length - 1) ? 0 : _bzSearchIdx + 1;
+  _bzSearchScrollTo(_bzSearchIdx);
+  _bzUpdateSearchCount();
 }
 
 function bzToggleLlm() {
