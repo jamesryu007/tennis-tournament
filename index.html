@@ -2426,7 +2426,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v680';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v681';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4410,6 +4410,27 @@ function _saveCardToFirebase(id){
   db.ref(`jmt/dailyCards/${id}`).set(_dailyCards[id]).catch(()=>{});
 }
 
+// matchKey는 있는데 jmt/matches에 데이터가 없는 카드 자동 복구
+async function _recoverMissingMatchKeys(){
+  if(!db) return;
+  const doneCards=Object.entries(_dailyCards).filter(([,d])=>
+    d.phase==='done' && d.matchKey && d.team0 && d.team1 && d.winner!==undefined
+  );
+  for(const [,d] of doneCards){
+    const snap=await db.ref('jmt/matches/'+d.matchKey).once('value');
+    if(snap.val()!==null) continue; // 이미 있음
+    const ts=d.createdAt||Date.now();
+    const date=new Date(ts).toLocaleDateString('en-CA',{timeZone:'Asia/Seoul'});
+    const team0=(Array.isArray(d.team0)?d.team0:Object.values(d.team0||{})).slice().sort();
+    const team1=(Array.isArray(d.team1)?d.team1:Object.values(d.team1||{})).slice().sort();
+    const sets=Array.isArray(d.sets)?d.sets:Object.values(d.sets||{});
+    await db.ref('jmt/matches/'+d.matchKey).set({
+      date, team0, team1, sets, winner:d.winner, source:'daily'
+    }).catch(fbErr);
+    console.log('[recovery] jmt/matches 복구:',d.matchKey,date,team0,'vs',team1,'winner:',d.winner);
+  }
+}
+
 function _normCard(data){
   data.sets=Array.isArray(data.sets)?data.sets:(data.sets?Object.values(data.sets):[]);
   data.team0=Array.isArray(data.team0)?data.team0:(data.team0?Object.values(data.team0):[]);
@@ -4436,6 +4457,15 @@ function _setupDailyCardsListener(){
     });
     _restoreLocalDailyCards(); // 로컬 전용 카드 병합
     _reGroupDailyCards(); // 라운드 그룹 프레임으로 DOM 구성
+    // 서버 카운터 초기화 (없으면 현재 최대 num으로 설정)
+    db.ref('jmt/dailyCardCounter').once('value').then(csnap=>{
+      if(csnap.val()===null){
+        const maxNum=Math.max(0,...Object.values(_dailyCards).map(d=>d.num||0));
+        if(maxNum>0) db.ref('jmt/dailyCardCounter').set(maxNum).catch(()=>{});
+      }
+    });
+    // matchKey 복구 (네트워크 불안정으로 jmt/matches 저장 실패한 경우)
+    _recoverMissingMatchKeys().catch(()=>{});
   });
   // 실시간 카드 상태 변경 감지 — phase 전환(teamSetup→playing 등) 즉시 반영
   db.ref('jmt/dailyCards').on('child_changed', snap=>{
@@ -4482,6 +4512,7 @@ function _clearDailyCards(){
   }
   if(db){
     db.ref('jmt/dailyCards').remove().catch(()=>{});
+    db.ref('jmt/dailyCardCounter').remove().catch(()=>{}); // 카드 번호 카운터 리셋
     // 자동대진 락·세션도 함께 초기화 (다음 주 대진 생성 가능하도록)
     db.ref('jmt/autoDrawLock').remove().catch(()=>{});
     db.ref('jmt/autoDrawSession').remove().catch(()=>{});
@@ -5858,8 +5889,9 @@ async function generateAutoDrawCards(){
     const typeName={mixed:'혼복경기',mens:'남복경기',womens:'여복경기'};
     const typeIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
     const bgImages=_DC_BG_IMAGES;
-    // 카드 번호 기준: 현재 로컬 카드 수
-    let numBase=Object.keys(_dailyCards).length;
+    // 서버 카운터로 N개 num 한번에 원자 예약 (중복 방지)
+    const _cntRes=await db.ref('jmt/dailyCardCounter').transaction(n=>(n||0)+scheduled.length);
+    let numBase=(_cntRes.snapshot.val()||scheduled.length)-scheduled.length;
     // createdAt: 같은 라운드 내에서 코트 순으로 정렬되도록 si 역순 부여
     for(let si=0;si<scheduled.length;si++){
       const match=scheduled[si];
@@ -5985,10 +6017,10 @@ function _allPlayers(){
 
 const _DC_BG_IMAGES=['ca2.png','ca3.png','ca4.png','ca5.png','ca6.png','ca7.png','ca8.png','ca9.png','ca10.png','ca11.png'];
 function addDailyMatchCard(){
-  const _doAdd=()=>{
+  const _doAdd=(num)=>{
     const id=++_dailyCardCounter;
     const bgImage='images/'+_DC_BG_IMAGES[Math.floor(Math.random()*_DC_BG_IMAGES.length)];
-    const num=Object.keys(_dailyCards).length+1;
+    if(!num) num=Object.keys(_dailyCards).length+1; // fallback (offline)
     const createdAt=Date.now();
     const _today=new Date();
     const _mm=String(_today.getMonth()+1).padStart(2,'0');
@@ -6030,7 +6062,7 @@ function addDailyMatchCard(){
     },80);
   };
   if(!db){ _doAdd(); return; }
-  // + 버튼 클릭 시 DB 최신 상태 한 번 조회 → 다른 멤버가 추가한 카드 동기화
+  // + 버튼 클릭 시 DB 최신 상태 한 번 조회 + 서버 카운터로 num 채번 (중복 방지)
   db.ref('jmt/dailyCards').once('value').then(snap=>{
     const all=snap.val()||{};
     const container=document.getElementById('daily-match-cards');
@@ -6053,7 +6085,10 @@ function addDailyMatchCard(){
       else container.appendChild(el);
       _renderDailyCard(id);
     });
-    _doAdd();
+    // 서버 카운터로 원자적 num 채번 → 중복 방지
+    db.ref('jmt/dailyCardCounter').transaction(n=>(n||0)+1).then(res=>{
+      _doAdd(res.snapshot.val());
+    }).catch(()=>_doAdd());
   }).catch(()=>_doAdd());
 }
 
