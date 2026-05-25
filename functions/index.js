@@ -705,12 +705,13 @@ async function _runAtpDailyDigest(overrideData = null) {
     (groups[rk] = groups[rk] || []).push(item);
   }
 
-  const yesterday = toKSTDate(new Date(nowTs - 86400000).toISOString());
+  const yesterday = new Date(nowTs - 86400000);
+  const monthDay = `${yesterday.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric' }).replace('월', '').trim()}.${yesterday.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', day: 'numeric' }).replace('일', '').trim()}`;
   const tName = tournamentInfo.displayName || '';
-  const lines = [`🎾 ${tName} · ${yesterday} 결과`];
+  const lines = [`[ Daily Report ] ${monthDay}`, `${tName} Top5 Report`];
 
   for (const [roundKey, items] of Object.entries(groups)) {
-    lines.push(``, `▪ ${ROUND_LABEL[roundKey] || roundKey}`);
+    lines.push(`  – ${ROUND_LABEL[roundKey] || roundKey}`);
     for (const { m, r1, r2 } of items) {
       const isP1Win = m.player1Winner;
       const wName  = isP1Win ? m.player1Name : m.player2Name;
@@ -721,15 +722,13 @@ async function _runAtpDailyDigest(overrideData = null) {
       const lScore = (isP1Win ? m.player2Score : m.player1Score || '').split(' ').filter(Boolean);
       const wSets  = wScore.filter((s, i) => parseInt(s) > parseInt(lScore[i] || 0)).length;
       const lSets  = lScore.filter((s, i) => parseInt(s) > parseInt(wScore[i] || 0)).length;
-      // 세트별 점수: "6-4, 7-5, 6-3" 형태
       const setScores = wScore.map((w, i) => `${w}-${lScore[i] || 0}`).join(', ');
-      const wLabel = wRank && wRank <= 5 ? `${wName}(${wRank}위)` : wName;
-      const lLabel = lRank && lRank <= 5 ? `${lName}(${lRank}위)` : lName;
-      lines.push(`${wLabel} vs. ${lLabel}  ${wSets}-${lSets}`);
-      lines.push(`  ${setScores}`);
+      const wLabel = wRank && wRank <= 5 ? `${wName}(${wRank})` : wName;
+      const lLabel = lRank && lRank <= 5 ? `${lName}(${lRank})` : lName;
+      lines.push(`    – ${wLabel} vs ${lLabel} ${wSets}-${lSets}`);
+      lines.push(`    – ${setScores}`);
     }
   }
-  lines.push(``, `Top5 ${newResults.length}경기 완료`);
 
   await _postBotMsg({ text: lines.join('\n') });
 
