@@ -1477,57 +1477,61 @@ async function _runWeeklyMvp(isDryRun = false, skipMinCheck = false) {
 
   // ── 메시지 생성 ─────────────────────────────────────────────────
   const todayStr = `${todayKST.getMonth() + 1}.${todayKST.getDate()}`;
+  const SEP = `━━━━━━━━━━━━━━━━━━`;
   const lines = [
-    `[ 이번 주 경기 결과 ] ${todayStr}`,
-    ``,
-    `이번 주 총 ${thisWeekMatches.length}경기 · 참여 ${thisWeekPlayers.size}명`,
-    ``,
+    `🏆 이번 주 경기 결과  ${todayStr}`,
+    SEP,
+    `총 ${thisWeekMatches.length}경기  참여 ${thisWeekPlayers.size}명`,
   ];
 
   // 🥇 MVP
   if (mvpList.length) {
-    lines.push(`🥇 MVP`);
+    lines.push(``, `🥇 MVP`);
     mvpList.forEach(p => {
-      lines.push(`  ${p.name} · ${p.wins}전 ${p.wins}승${p.total > p.wins ? ` ${p.total - p.wins}패` : ''} (${Math.round(p.rate * 100)}%)`);
+      const record = `${p.wins}승${p.total > p.wins ? ` ${p.total - p.wins}패` : ''}`;
+      lines.push(`  • ${p.name}  ${record}  ${Math.round(p.rate * 100)}%`);
     });
-    if (mvpList.length > 1) lines.push(`  ※ 공동 수상`);
+    if (mvpList.length > 1) lines.push(`  공동 수상`);
   }
 
   // 🤝 최강 듀오
   if (duoList.length) {
-    lines.push(``, `🤝 최강 듀오 (2주 합산)`);
+    lines.push(``, `🤝 최강 듀오  (2주 합산)`);
     duoList.forEach(d => {
-      lines.push(`  ${d.names.join(' + ')} · ${d.wins}승 ${d.total - d.wins}패 (${Math.round(d.rate * 100)}%)`);
+      lines.push(`  • ${d.names.join(' + ')}  ${d.wins}승 ${d.total - d.wins}패  ${Math.round(d.rate * 100)}%`);
     });
-    if (duoList.length > 1) lines.push(`  ※ 공동 수상`);
+    if (duoList.length > 1) lines.push(`  공동 수상`);
   }
 
   // 🔥 뒤집기 왕
   if (tbList.length) {
     lines.push(``, `🔥 뒤집기 왕`);
     tbList.forEach(p => {
-      lines.push(`  ${p.name} · 타이브레이크 ${p.count}승`);
+      lines.push(`  • ${p.name}  타이브레이크 ${p.count}승`);
     });
-    if (tbList.length > 1) lines.push(`  ※ 공동 수상`);
+    if (tbList.length > 1) lines.push(`  공동 수상`);
   }
 
   // 🌟 다크호스
   if (darkList.length) {
     lines.push(``, `🌟 다크호스`);
     darkList.forEach(d => {
-      lines.push(`  ${d.name} · 시즌 ${Math.round(d.seasonRate * 100)}% → 이번 주 ${Math.round(d.weekRate * 100)}% (+${Math.round(d.diff * 100)}%p)`);
+      lines.push(`  • ${d.name}`);
+      lines.push(`    시즌 ${Math.round(d.seasonRate * 100)}%  →  이번 주 ${Math.round(d.weekRate * 100)}%  (+${Math.round(d.diff * 100)}%p)`);
     });
-    if (darkList.length > 1) lines.push(`  ※ 공동 수상`);
+    if (darkList.length > 1) lines.push(`  공동 수상`);
   }
 
   // 🏃 개근왕
   if (attendWinners.length) {
     lines.push(``, `🏃 개근왕`);
     attendWinners.forEach(a => {
-      lines.push(`  ${a.name} · ${a.streak}주 연속 개근${a.streak >= 5 ? ' 🔥' : ''}`);
+      lines.push(`  • ${a.name}  ${a.streak}주 연속${a.streak >= 5 ? '  🔥' : ''}`);
     });
-    if (attendWinners.length > 1) lines.push(`  ※ 공동 수상`);
+    if (attendWinners.length > 1) lines.push(`  공동 수상`);
   }
+
+  lines.push(``, SEP);
 
   // ── 발송 ────────────────────────────────────────────────────────
   if (!isDryRun) {
