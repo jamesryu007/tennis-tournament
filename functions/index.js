@@ -1311,7 +1311,7 @@ exports.fetchAtpRankings = onSchedule(
 
 // ══ 주간 MVP 시상 — 매주 토요일 오후 12:30 KST ══════════════════════
 
-async function _runWeeklyMvp(isDryRun = false) {
+async function _runWeeklyMvp(isDryRun = false, skipMinCheck = false) {
   const now = Date.now();
 
   // ── 날짜 범위 계산 ───────────────────────────────────────────────
@@ -1342,7 +1342,7 @@ async function _runWeeklyMvp(isDryRun = false) {
     toArr(m.team0).forEach(p => thisWeekPlayers.add(p));
     toArr(m.team1).forEach(p => thisWeekPlayers.add(p));
   });
-  if (thisWeekMatches.length < 5 || thisWeekPlayers.size < 4) {
+  if (!skipMinCheck && (thisWeekMatches.length < 5 || thisWeekPlayers.size < 4)) {
     return `발송 생략 — 이번 주 경기 ${thisWeekMatches.length}개, 참여 ${thisWeekPlayers.size}명 (최소 5경기/4명 필요)`;
   }
 
@@ -1485,21 +1485,21 @@ async function _runWeeklyMvp(isDryRun = false) {
   ];
 
   // 🥇 MVP
-  lines.push(`🥇 MVP`);
-  mvpList.forEach(p => {
-    lines.push(`  ${p.name} · ${p.wins}전 ${p.wins}승${p.total > p.wins ? ` ${p.total - p.wins}패` : ''} (${Math.round(p.rate * 100)}%)`);
-  });
-  if (mvpList.length > 1) lines.push(`  ※ 공동 수상`);
+  if (mvpList.length) {
+    lines.push(`🥇 MVP`);
+    mvpList.forEach(p => {
+      lines.push(`  ${p.name} · ${p.wins}전 ${p.wins}승${p.total > p.wins ? ` ${p.total - p.wins}패` : ''} (${Math.round(p.rate * 100)}%)`);
+    });
+    if (mvpList.length > 1) lines.push(`  ※ 공동 수상`);
+  }
 
   // 🤝 최강 듀오
-  lines.push(``, `🤝 최강 듀오 (2주 합산)`);
   if (duoList.length) {
+    lines.push(``, `🤝 최강 듀오 (2주 합산)`);
     duoList.forEach(d => {
       lines.push(`  ${d.names.join(' + ')} · ${d.wins}승 ${d.total - d.wins}패 (${Math.round(d.rate * 100)}%)`);
     });
     if (duoList.length > 1) lines.push(`  ※ 공동 수상`);
-  } else {
-    lines.push(`  해당 없음 (2주간 함께 3경기 이상 출전 팀 없음)`);
   }
 
   // 🔥 뒤집기 왕
@@ -1555,7 +1555,8 @@ exports.weeklyMvpReport = onSchedule(
 // ── 테스트 callable (관리자 전용) ────────────────────────────────
 exports.testWeeklyMvp = onCall({ region: 'asia-southeast1' }, async (req) => {
   if (!_BOT_MANAGERS.includes(req.data.senderName || '')) throw new Error('권한 없음');
-  const result = await _runWeeklyMvp(true); // isDryRun=true → 발송 안 함, 결과만 반환
+  // skipMinCheck:true → 최소 경기/인원 조건 무시 (dev 테스트용)
+  const result = await _runWeeklyMvp(true, !!req.data.skipMinCheck);
   return { result };
 });
 
