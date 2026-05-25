@@ -1309,6 +1309,256 @@ exports.fetchAtpRankings = onSchedule(
   }
 );
 
+// ══ 주간 MVP 시상 — 매주 토요일 오후 12:30 KST ══════════════════════
+
+async function _runWeeklyMvp(isDryRun = false) {
+  const now = Date.now();
+
+  // ── 날짜 범위 계산 ───────────────────────────────────────────────
+  // 이번 주 토요일 00:00 KST
+  const todayKST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+  todayKST.setHours(0, 0, 0, 0);
+  const thisWeekStart = todayKST.toISOString().split('T')[0];
+  // 2주 전 토요일 00:00 KST
+  const twoWeeksAgo = new Date(todayKST); twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+  const twoWeeksStart = twoWeeksAgo.toISOString().split('T')[0];
+  // 3주 전 (개근왕용)
+  const threeWeeksAgo = new Date(todayKST); threeWeeksAgo.setDate(threeWeeksAgo.getDate() - 21);
+
+  // ── 경기 데이터 로드 ─────────────────────────────────────────────
+  const snap = await db.ref('jmt/matches').orderByChild('date').limitToLast(500).once('value');
+  const allRaw = snap.val() || {};
+  const toArr = v => Array.isArray(v) ? v : Object.values(v || {});
+
+  // 이번 주 경기 (source=daily, winner 확정)
+  const thisWeekMatches = Object.values(allRaw).filter(m =>
+    m.source === 'daily' && m.sets && m.winner !== undefined && m.winner !== -1
+    && (m.date || '') >= thisWeekStart
+  );
+
+  // 최소 발송 조건 확인
+  const thisWeekPlayers = new Set();
+  thisWeekMatches.forEach(m => {
+    toArr(m.team0).forEach(p => thisWeekPlayers.add(p));
+    toArr(m.team1).forEach(p => thisWeekPlayers.add(p));
+  });
+  if (thisWeekMatches.length < 5 || thisWeekPlayers.size < 4) {
+    return `발송 생략 — 이번 주 경기 ${thisWeekMatches.length}개, 참여 ${thisWeekPlayers.size}명 (최소 5경기/4명 필요)`;
+  }
+
+  // 2주치 경기
+  const twoWeekMatches = Object.values(allRaw).filter(m =>
+    m.source === 'daily' && m.sets && m.winner !== undefined && m.winner !== -1
+    && (m.date || '') >= twoWeeksStart
+  );
+
+  // 시즌 전체 경기 (개인 누적 승률용)
+  const year = new Date().getFullYear().toString();
+  const statsSnap = await db.ref(`jmt/playerStats/${year}`).once('value');
+  const seasonStats = statsSnap.val() || {};
+
+  // ── 선수별 이번 주 집계 ──────────────────────────────────────────
+  const weeklyStats = {}; // name → { wins, total }
+  const getWS = n => (weeklyStats[n] = weeklyStats[n] || { wins: 0, total: 0 });
+  thisWeekMatches.forEach(m => {
+    const t0 = toArr(m.team0), t1 = toArr(m.team1);
+    const winners = m.winner === 0 ? t0 : t1;
+    const losers  = m.winner === 0 ? t1 : t0;
+    winners.forEach(p => { getWS(p).wins++; getWS(p).total++; });
+    losers.forEach(p => { getWS(p).total++; });
+  });
+
+  // ── 🥇 MVP — 이번 주 승률 1위 (최소 2경기) ──────────────────────
+  const mvpCandidates = Object.entries(weeklyStats)
+    .filter(([, s]) => s.total >= 2)
+    .map(([name, s]) => ({ name, rate: s.wins / s.total, wins: s.wins, total: s.total }))
+    .sort((a, b) => b.rate - a.rate || b.wins - a.wins || b.total - a.total);
+  const mvpRate = mvpCandidates[0]?.rate;
+  const mvpList = mvpCandidates.filter(p => p.rate === mvpRate && p.wins === mvpCandidates[0].wins);
+
+  // ── 🤝 최강 듀오 — 2주 합산 (최소 3경기 함께) ───────────────────
+  const pairStats = {}; // 'A+B' → { wins, total }
+  const getPS = k => (pairStats[k] = pairStats[k] || { wins: 0, total: 0, names: [] });
+  twoWeekMatches.forEach(m => {
+    const t0 = toArr(m.team0), t1 = toArr(m.team1);
+    [[t0, m.winner === 0], [t1, m.winner === 1]].forEach(([team, won]) => {
+      if (team.length === 2) {
+        const key = [team[0], team[1]].sort().join('+');
+        const ps = getPS(key);
+        if (!ps.names.length) ps.names = [team[0], team[1]].sort();
+        ps.total++;
+        if (won) ps.wins++;
+      }
+    });
+  });
+  const duoCandidates = Object.entries(pairStats)
+    .filter(([, s]) => s.total >= 3)
+    .map(([, s]) => ({ ...s, rate: s.wins / s.total }))
+    .sort((a, b) => b.rate - a.rate || b.wins - a.wins || b.total - a.total);
+  const duoRate = duoCandidates[0]?.rate;
+  const duoList = duoRate != null
+    ? duoCandidates.filter(d => d.rate === duoRate && d.wins === duoCandidates[0].wins)
+    : [];
+
+  // ── 🔥 뒤집기 왕 — 타이브레이크 승리 (7-6 또는 6-7 세트 포함 + 승리) ──
+  const tbWins = {}; // name → count
+  thisWeekMatches.forEach(m => {
+    const sets = toArr(m.sets);
+    const hasTB = sets.some(s => {
+      const arr = toArr(s);
+      return (arr[0] === 7 && arr[1] === 6) || (arr[0] === 6 && arr[1] === 7);
+    });
+    if (!hasTB) return;
+    const winners = m.winner === 0 ? toArr(m.team0) : toArr(m.team1);
+    winners.forEach(p => { tbWins[p] = (tbWins[p] || 0) + 1; });
+  });
+  const tbMax = Math.max(0, ...Object.values(tbWins));
+  const tbList = tbMax > 0
+    ? Object.entries(tbWins).filter(([, c]) => c === tbMax).map(([name, count]) => ({ name, count }))
+    : [];
+
+  // ── 🌟 다크호스 — 시즌 평균 대비 이번 주 상승폭 최대 ───────────
+  const darkCandidates = Object.entries(weeklyStats)
+    .filter(([name, s]) => {
+      const ss = seasonStats[name];
+      if (!ss) return false;
+      const sTotal = (ss.wins || 0) + (ss.losses || 0) + (ss.draws || 0);
+      return s.total >= 2 && sTotal >= 5;
+    })
+    .map(([name, s]) => {
+      const ss = seasonStats[name];
+      const sTotal = (ss.wins || 0) + (ss.losses || 0) + (ss.draws || 0);
+      const seasonRate = sTotal ? (ss.wins || 0) / sTotal : 0;
+      const weekRate = s.wins / s.total;
+      return { name, weekRate, seasonRate, diff: weekRate - seasonRate, weekW: s.wins, weekT: s.total };
+    })
+    .filter(d => d.diff > 0)
+    .sort((a, b) => b.diff - a.diff || b.weekRate - a.weekRate);
+  const darkMax = darkCandidates[0]?.diff;
+  const darkList = darkMax != null
+    ? darkCandidates.filter(d => Math.abs(d.diff - darkMax) < 0.001)
+    : [];
+
+  // ── 🏃 개근왕 — 최근 N주 연속 참석 (최소 3주) ──────────────────
+  // 주차 경계: 토요일 기준 7일 단위
+  const getWeekKey = dateStr => {
+    const d = new Date(dateStr + 'T00:00:00+09:00');
+    const sat = new Date(d); sat.setDate(d.getDate() - ((d.getDay() + 1) % 7));
+    return sat.toISOString().split('T')[0];
+  };
+  const playerWeeks = {}; // name → Set of weekKeys
+  Object.values(allRaw).filter(m => m.source === 'daily' && m.date && new Date(m.date) >= threeWeeksAgo)
+    .forEach(m => {
+      const wk = getWeekKey(m.date);
+      toArr(m.team0).concat(toArr(m.team1)).forEach(p => {
+        if (!playerWeeks[p]) playerWeeks[p] = new Set();
+        playerWeeks[p].add(wk);
+      });
+    });
+  // 이번 주 포함 연속 주 수 계산
+  const thisWeekKey = getWeekKey(thisWeekStart);
+  const attendList = [];
+  for (const [name, weeks] of Object.entries(playerWeeks)) {
+    if (!weeks.has(thisWeekKey)) continue; // 이번 주 불참이면 제외
+    let streak = 0;
+    let checkDate = new Date(todayKST);
+    while (true) {
+      const wk = getWeekKey(checkDate.toISOString().split('T')[0]);
+      if (!weeks.has(wk)) break;
+      streak++;
+      checkDate.setDate(checkDate.getDate() - 7);
+      if (streak > 52) break; // 안전장치
+    }
+    if (streak >= 3) attendList.push({ name, streak });
+  }
+  attendList.sort((a, b) => b.streak - a.streak || a.name.localeCompare(b.name));
+  const maxStreak = attendList[0]?.streak;
+  const attendWinners = maxStreak ? attendList.filter(a => a.streak === maxStreak) : [];
+
+  // ── 메시지 생성 ─────────────────────────────────────────────────
+  const todayStr = `${todayKST.getMonth() + 1}.${todayKST.getDate()}`;
+  const lines = [
+    `[ 이번 주 경기 결과 ] ${todayStr}`,
+    ``,
+    `이번 주 총 ${thisWeekMatches.length}경기 · 참여 ${thisWeekPlayers.size}명`,
+    ``,
+  ];
+
+  // 🥇 MVP
+  lines.push(`🥇 MVP`);
+  mvpList.forEach(p => {
+    lines.push(`  ${p.name} · ${p.wins}전 ${p.wins}승${p.total > p.wins ? ` ${p.total - p.wins}패` : ''} (${Math.round(p.rate * 100)}%)`);
+  });
+  if (mvpList.length > 1) lines.push(`  ※ 공동 수상`);
+
+  // 🤝 최강 듀오
+  lines.push(``, `🤝 최강 듀오 (2주 합산)`);
+  if (duoList.length) {
+    duoList.forEach(d => {
+      lines.push(`  ${d.names.join(' + ')} · ${d.wins}승 ${d.total - d.wins}패 (${Math.round(d.rate * 100)}%)`);
+    });
+    if (duoList.length > 1) lines.push(`  ※ 공동 수상`);
+  } else {
+    lines.push(`  해당 없음 (2주간 함께 3경기 이상 출전 팀 없음)`);
+  }
+
+  // 🔥 뒤집기 왕
+  if (tbList.length) {
+    lines.push(``, `🔥 뒤집기 왕`);
+    tbList.forEach(p => {
+      lines.push(`  ${p.name} · 타이브레이크 ${p.count}승`);
+    });
+    if (tbList.length > 1) lines.push(`  ※ 공동 수상`);
+  }
+
+  // 🌟 다크호스
+  if (darkList.length) {
+    lines.push(``, `🌟 다크호스`);
+    darkList.forEach(d => {
+      lines.push(`  ${d.name} · 시즌 ${Math.round(d.seasonRate * 100)}% → 이번 주 ${Math.round(d.weekRate * 100)}% (+${Math.round(d.diff * 100)}%p)`);
+    });
+    if (darkList.length > 1) lines.push(`  ※ 공동 수상`);
+  }
+
+  // 🏃 개근왕
+  if (attendWinners.length) {
+    lines.push(``, `🏃 개근왕`);
+    attendWinners.forEach(a => {
+      lines.push(`  ${a.name} · ${a.streak}주 연속 개근${a.streak >= 5 ? ' 🔥' : ''}`);
+    });
+    if (attendWinners.length > 1) lines.push(`  ※ 공동 수상`);
+  }
+
+  // ── 발송 ────────────────────────────────────────────────────────
+  if (!isDryRun) {
+    // 말풍선 ① — 예고 + 전체 푸시
+    await _postBotMsg({ text: '이번 주 경기 결과를 발표하겠습니다 🏆' });
+    const allTokens = await getAllTokens();
+    await sendPush(allTokens, '🏆 이번 주 경기 결과 발표', '자미터 채팅방을 확인하세요!', 'banzige');
+    // 3초 딜레이 후 말풍선 ②
+    await new Promise(r => setTimeout(r, 3000));
+    await _postBotMsg({ text: lines.join('\n') });
+  }
+
+  return `완료 — ${lines.join('\n')}`;
+}
+
+// ── 스케줄 함수 (매주 토요일 12:30 KST) ─────────────────────────
+exports.weeklyMvpReport = onSchedule(
+  { schedule: '30 12 * * 6', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    try { await _runWeeklyMvp(); }
+    catch (e) { console.error('weeklyMvpReport error:', e); }
+  }
+);
+
+// ── 테스트 callable (관리자 전용) ────────────────────────────────
+exports.testWeeklyMvp = onCall({ region: 'asia-southeast1' }, async (req) => {
+  if (!_BOT_MANAGERS.includes(req.data.senderName || '')) throw new Error('권한 없음');
+  const result = await _runWeeklyMvp(true); // isDryRun=true → 발송 안 함, 결과만 반환
+  return { result };
+});
+
 const TRANSLATE_URL = 'https://script.google.com/macros/s/AKfycbwfF6W1xll0ooa0g4Gb57dnVnknXbZxKM1au3YlY52oGsrDIqHPty4q6fh6mWW0SXI00w/exec';
 
 async function translateTexts(texts) {
