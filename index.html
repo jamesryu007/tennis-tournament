@@ -1511,7 +1511,6 @@ const firebaseConfig = {
           <div id="bz-alias-chips" style="display:flex;flex-wrap:wrap;gap:4px;flex:1"></div>
           <span id="bz-bot-usage" style="display:none;font-size:0.68rem;color:#7c3aed;font-weight:700;white-space:nowrap;flex-shrink:0;padding:0 2px"></span>
           <button id="bz-llm-btn" onclick="bzToggleLlm()" style="display:none;padding:4px 10px;border-radius:8px;border:1.5px solid #c4b5fd;background:#f5f3ff;color:#7c3aed;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">🤖 ON</button>
-          <button id="bz-search-btn" onclick="bzOpenSearch()" style="padding:4px 8px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#64748b;font-size:0.9rem;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">🔍</button>
           <button id="bz-notice-btn" onclick="openNoticeModal()" style="display:none;padding:4px 8px;border-radius:8px;border:1.5px solid #fcd34d;background:#fffbeb;color:#92400e;font-size:0.9rem;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0">📢</button>
         </div>
         <div id="bz-alias-limit-msg" style="display:none;font-size:0.72rem;color:#dc2626;margin-bottom:4px">⚠️ 최대 2개의 가명만 사용할 수 있습니다.</div>
@@ -1519,13 +1518,13 @@ const firebaseConfig = {
         <div id="bz-active-members" style="font-size:0.75rem;color:#b45309;margin-bottom:6px"></div>
 
         <!-- 관리자 컨트롤 -->
-        <div id="bz-admin-controls" style="display:none;gap:8px;flex-wrap:wrap">
-          <button id="bz-btn-start" onclick="bzStartGuessing()" style="padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer">🕵️ 자미톡 시작</button>
-          <button id="bz-jinsil-btn" onclick="bzToggleJinsil()" style="display:none;padding:7px 14px;border-radius:10px;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#64748b;font-size:0.8rem;font-weight:700;cursor:pointer">진실톡 OFF</button>
-          <button id="bz-btn-reveal" onclick="bzReveal()" style="display:none;padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-size:0.8rem;font-weight:800;cursor:pointer">🔓 최종 오픈</button>
-          <button id="bz-btn-realnames" onclick="bzToggleRealNames()" style="padding:7px 14px;border-radius:10px;border:1.5px solid #fcd34d;background:#fff;color:#92400e;font-size:0.8rem;font-weight:700;cursor:pointer">👁 실명 공개</button>
-          <button id="bz-btn-gamerestart" onclick="bzGameRestart()" style="display:none;padding:7px 14px;border-radius:10px;border:none;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer">🔁 게임 재시작</button>
-          <button onclick="bzNewGame()" style="padding:7px 14px;border-radius:10px;border:1.5px solid #fcd34d;background:#fff;color:#92400e;font-size:0.8rem;font-weight:700;cursor:pointer">🔄 새 게임</button>
+        <div id="bz-admin-controls" style="display:none;gap:6px;flex-wrap:nowrap;overflow-x:auto">
+          <button id="bz-btn-start" onclick="bzStartGuessing()" style="padding:6px 11px;border-radius:9px;border:none;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-size:0.75rem;font-weight:800;cursor:pointer;white-space:nowrap;flex-shrink:0">🕵️ 자미톡</button>
+          <button id="bz-jinsil-btn" onclick="bzToggleJinsil()" style="display:none;padding:6px 11px;border-radius:9px;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#64748b;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">진실톡 OFF</button>
+          <button id="bz-btn-reveal" onclick="bzReveal()" style="display:none;padding:6px 11px;border-radius:9px;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff;font-size:0.75rem;font-weight:800;cursor:pointer;white-space:nowrap;flex-shrink:0">🔓 최종 오픈</button>
+          <button id="bz-btn-realnames" onclick="bzToggleRealNames()" style="padding:6px 11px;border-radius:9px;border:1.5px solid #fcd34d;background:#fff;color:#92400e;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">👁 실명 공개</button>
+          <button id="bz-btn-gamerestart" onclick="bzGameRestart()" style="display:none;padding:6px 11px;border-radius:9px;border:none;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">🔁 재시작</button>
+          <button onclick="bzNewGame()" style="padding:6px 11px;border-radius:9px;border:1.5px solid #fcd34d;background:#fff;color:#92400e;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">🔄 새 게임</button>
           <!-- 관리자: 맞추기 참여 현황 (guessing phase에서만 표시) -->
           <div id="bz-guess-status" style="display:none;width:100%;margin-top:4px"></div>
         </div>
@@ -2426,7 +2425,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v678';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v679';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -17792,10 +17791,10 @@ function bzSearchChat() {
 
   const messages = (_bzState && _bzState.messages) || {};
   const q = query.toLowerCase();
-  // ts 오름차순 (채팅 위→아래 순서)
+  // ts 내림차순 — 최신 = 인덱스 0 = #1번
   const matched = Object.entries(messages)
     .filter(([, m]) => m.text && m.text.toLowerCase().includes(q))
-    .sort(([, a], [, b]) => (a.ts || 0) - (b.ts || 0));
+    .sort(([, a], [, b]) => (b.ts || 0) - (a.ts || 0));
 
   _bzSearchMatches = matched.map(([key]) => ({ key }));
 
@@ -17816,8 +17815,8 @@ function bzSearchChat() {
     });
   }
 
-  // 가장 최신 결과(마지막)로 이동
-  _bzSearchIdx = _bzSearchMatches.length - 1;
+  // #1번(최신)부터 시작
+  _bzSearchIdx = 0;
   _bzSearchScrollTo(_bzSearchIdx);
   _bzUpdateSearchCount();
 }
@@ -17887,18 +17886,18 @@ function _bzUpdateSearchCount() {
   countEl.textContent = `${_bzSearchIdx + 1}/${_bzSearchMatches.length}`;
 }
 
-// ▲ 이전(위, 더 오래된 메시지)
+// ▲ 위 — #1→#2→#3 (최신→오래된 순, 채팅창에서 위로 올라감)
 function bzSearchNavUp() {
   if (!_bzSearchMatches.length) return;
-  _bzSearchIdx = (_bzSearchIdx <= 0) ? _bzSearchMatches.length - 1 : _bzSearchIdx - 1;
+  _bzSearchIdx = (_bzSearchIdx >= _bzSearchMatches.length - 1) ? 0 : _bzSearchIdx + 1;
   _bzSearchScrollTo(_bzSearchIdx);
   _bzUpdateSearchCount();
 }
 
-// ▼ 다음(아래, 더 최신 메시지)
+// ▼ 아래 — #10→#9→#8 (오래된→최신 순, 채팅창에서 아래로 내려감)
 function bzSearchNavDown() {
   if (!_bzSearchMatches.length) return;
-  _bzSearchIdx = (_bzSearchIdx >= _bzSearchMatches.length - 1) ? 0 : _bzSearchIdx + 1;
+  _bzSearchIdx = (_bzSearchIdx <= 0) ? _bzSearchMatches.length - 1 : _bzSearchIdx - 1;
   _bzSearchScrollTo(_bzSearchIdx);
   _bzUpdateSearchCount();
 }
