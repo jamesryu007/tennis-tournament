@@ -1578,7 +1578,7 @@ async function _runWeeklyMvp(isDryRun = false, skipMinCheck = false) {
   // ── 발송 ────────────────────────────────────────────────────────
   if (!isDryRun) {
     // 말풍선 ① — 예고 + 전체 푸시
-    await _postBotMsg({ text: '이번 주 경기 결과를 발표하겠습니다 🏆' });
+    await _postBotMsg({ text: '주말 잘 쉬고 계신가요? 이번 주 경기 결과를 발표하겠습니다 🏆' });
     const allTokens = await getAllTokens();
     await sendPush(allTokens, '🏆 이번 주 경기 결과 발표', '자미터 채팅방을 확인하세요!', 'banzige');
     // 3초 딜레이 후 말풍선 ②
