@@ -809,6 +809,7 @@ const firebaseConfig = {
       <div>
         <div style="font-size:1rem;font-weight:800;color:#1e293b">⭐ 관심선수 등록</div>
         <div style="font-size:0.75rem;color:#64748b;margin-top:2px">최대 3명 선택 · 선택된 선수의 경기를 상단에 표시</div>
+        <div id="fav-ranking-date" style="font-size:0.68rem;color:#94a3b8;margin-top:2px"></div>
       </div>
       <button onclick="closeFavPlayerModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8">✕</button>
     </div>
@@ -2425,7 +2426,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v679';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v680';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9855,6 +9856,7 @@ function initAtpListeners() {
   db.ref('jmt/atpRankings').on('value', snap => {
     const d = snap.val();
     atpState.rankingsFromDb = (d && d.players) ? d.players : [];
+    atpState.rankingsUpdatedAt = (d && d.updatedAt) ? d.updatedAt : null;
   });
 
   // ATP 뉴스 구독
@@ -11043,10 +11045,23 @@ function openFavPlayerModal() {
   // 현재 등록된 관심선수를 임시 배열로 복사
   atpState.favPlayersTmp = atpState.favPlayers.map(p => ({ ...p }));
 
-  // 전체 선수 목록 구성 (하드코딩 랭킹 + 현재 토너먼트 선수)
-  const seen = new Set(ATP_TOP_PLAYERS.map(p => p.name.toLowerCase()));
-  const players = [...ATP_TOP_PLAYERS];
-  let extraRank = ATP_TOP_PLAYERS.length + 1;
+  // 랭킹 기준일 표시
+  const rankDateEl = document.getElementById('fav-ranking-date');
+  if (rankDateEl) {
+    if (atpState.rankingsUpdatedAt) {
+      const d = new Date(atpState.rankingsUpdatedAt);
+      const dateStr = d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+      rankDateEl.textContent = `📅 랭킹 기준: ${dateStr}`;
+    } else {
+      rankDateEl.textContent = '📅 랭킹 기준: 내부 데이터 (하드코딩)';
+    }
+  }
+
+  // 전체 선수 목록 구성 (DB 랭킹 우선, 없으면 하드코딩 폴백)
+  const rankSource = atpState.rankingsFromDb.length ? atpState.rankingsFromDb : ATP_TOP_PLAYERS;
+  const seen = new Set(rankSource.map(p => p.name.toLowerCase()));
+  const players = [...rankSource];
+  let extraRank = rankSource.length + 1;
   for (const m of atpState.matches) {
     for (const n of [m.player1Name, m.player2Name]) {
       if (n && !seen.has(n.toLowerCase())) {
