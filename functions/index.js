@@ -1478,6 +1478,44 @@ async function _runWeeklyMvp(isDryRun = false, skipMinCheck = false) {
   // ── 메시지 생성 ─────────────────────────────────────────────────
   const todayStr = `${todayKST.getMonth() + 1}.${todayKST.getDate()}`;
   const SEP = `━━━━━━━━━━━━━━━━━━`;
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  const MVP_COMMENTS = [
+    '이번 주 코트를 지배했습니다 👑',
+    '상대가 없었습니다. 압도적입니다.',
+    '완벽한 한 주였습니다. 누가 막을 수 있을까요?',
+    '이번 주만큼은 넘볼 자가 없었습니다.',
+    '결과가 모든 것을 말해줍니다.',
+  ];
+  const DUO_COMMENTS = [
+    '이 조합, 상대하고 싶지 않습니다.',
+    '둘이 만나면 뭔가 다릅니다.',
+    '환상의 파트너십. 케미가 남다릅니다.',
+    '2주 동안 함께한 결과가 증명합니다.',
+    '이 팀 앞에서는 누구도 안심할 수 없습니다.',
+  ];
+  const TB_COMMENTS = [
+    '끝날 때까지 끝난 게 아니다.',
+    '7-6, 그 숫자가 모든 것을 말해줍니다.',
+    '극한의 상황에서 더 빛났습니다.',
+    '멘탈이 다릅니다. 타이브레이크의 지배자.',
+    '포기를 모르는 선수입니다.',
+  ];
+  const DARK_COMMENTS = [
+    '이번 주 가장 뜨거웠던 선수입니다.',
+    '숨겨진 실력이 폭발했습니다.',
+    '이번 주만큼은 아무도 예상 못 했습니다.',
+    '반전의 아이콘. 다음 주도 기대됩니다.',
+    '데이터가 거짓말을 안 합니다. 완전히 달랐습니다.',
+  ];
+  const ATTEND_COMMENTS = [
+    '꾸준함이 재능을 이깁니다.',
+    '비가 와도 눈이 와도 코트에 있습니다.',
+    '출석률이 곧 실력입니다.',
+    '자미터의 진정한 기둥입니다.',
+    '이 성실함, 배워야 합니다.',
+  ];
+
   const lines = [
     `🏆 이번 주 경기 결과  ${todayStr}`,
     SEP,
@@ -1491,6 +1529,7 @@ async function _runWeeklyMvp(isDryRun = false, skipMinCheck = false) {
       const record = `${p.wins}승${p.total > p.wins ? ` ${p.total - p.wins}패` : ''}`;
       lines.push(`  • ${p.name}  ${record}  ${Math.round(p.rate * 100)}%`);
     });
+    lines.push(`  "${pick(MVP_COMMENTS)}"`);
     if (mvpList.length > 1) lines.push(`  공동 수상`);
   }
 
@@ -1500,6 +1539,7 @@ async function _runWeeklyMvp(isDryRun = false, skipMinCheck = false) {
     duoList.forEach(d => {
       lines.push(`  • ${d.names.join(' + ')}  ${d.wins}승 ${d.total - d.wins}패  ${Math.round(d.rate * 100)}%`);
     });
+    lines.push(`  "${pick(DUO_COMMENTS)}"`);
     if (duoList.length > 1) lines.push(`  공동 수상`);
   }
 
@@ -1509,6 +1549,7 @@ async function _runWeeklyMvp(isDryRun = false, skipMinCheck = false) {
     tbList.forEach(p => {
       lines.push(`  • ${p.name}  타이브레이크 ${p.count}승`);
     });
+    lines.push(`  "${pick(TB_COMMENTS)}"`);
     if (tbList.length > 1) lines.push(`  공동 수상`);
   }
 
@@ -1516,9 +1557,9 @@ async function _runWeeklyMvp(isDryRun = false, skipMinCheck = false) {
   if (darkList.length) {
     lines.push(``, `🌟 다크호스`);
     darkList.forEach(d => {
-      lines.push(`  • ${d.name}`);
-      lines.push(`    시즌 ${Math.round(d.seasonRate * 100)}%  →  이번 주 ${Math.round(d.weekRate * 100)}%  (+${Math.round(d.diff * 100)}%p)`);
+      lines.push(`  • ${d.name}  시즌 ${Math.round(d.seasonRate * 100)}% → 이번 주 ${Math.round(d.weekRate * 100)}%  (+${Math.round(d.diff * 100)}%p)`);
     });
+    lines.push(`  "${pick(DARK_COMMENTS)}"`);
     if (darkList.length > 1) lines.push(`  공동 수상`);
   }
 
@@ -1528,6 +1569,7 @@ async function _runWeeklyMvp(isDryRun = false, skipMinCheck = false) {
     attendWinners.forEach(a => {
       lines.push(`  • ${a.name}  ${a.streak}주 연속${a.streak >= 5 ? '  🔥' : ''}`);
     });
+    lines.push(`  "${pick(ATTEND_COMMENTS)}"`);
     if (attendWinners.length > 1) lines.push(`  공동 수상`);
   }
 
@@ -1560,7 +1602,9 @@ exports.weeklyMvpReport = onSchedule(
 exports.testWeeklyMvp = onCall({ region: 'asia-southeast1' }, async (req) => {
   if (!_BOT_MANAGERS.includes(req.data.senderName || '')) throw new Error('권한 없음');
   // skipMinCheck:true → 최소 경기/인원 조건 무시 (dev 테스트용)
-  const result = await _runWeeklyMvp(true, !!req.data.skipMinCheck);
+  // sendToChat:true  → 실제 채팅방 발송 (isDryRun=false)
+  const isDryRun = !req.data.sendToChat;
+  const result = await _runWeeklyMvp(isDryRun, !!req.data.skipMinCheck);
   return { result };
 });
 
