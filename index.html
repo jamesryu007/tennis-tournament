@@ -2433,7 +2433,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v706';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v707';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5545,7 +5545,7 @@ function _openDrawEditModal(){
   // ── 자동배정 모드
   if(!d.teamMode){
     if(!isManager()&&!isAdmin()){alert('관리자만 수정할 수 있습니다.');return;}
-    const startedAuto=Object.values(_dailyCards).some(c=>c._round&&!c._teamMode&&c.phase==='playing');
+    const startedAuto=Object.values(_dailyCards).some(c=>c._round&&!c._teamMode&&c.phase!=='setup');
     if(startedAuto){alert('게임이 시작되었으므로, 멤버를 수정할 수 없습니다.');return;}
     const cardKeyMap={};
     Object.entries(_dailyCards).forEach(([id,c])=>{
@@ -5585,7 +5585,7 @@ function _openDrawEditModal(){
         const _vs='<span style="color:#94a3b8;font-size:0.75rem;font-weight:600;flex-shrink:0;margin:0 4px">vs</span>';
         html+=`<div style="padding:6px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
           <div style="font-size:0.72rem;font-weight:800;color:#475569;margin-bottom:4px">제${r}경기 ${c}코트</div>
-          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px 3px">
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px 3px;padding-left:10px">
             <span style="font-size:0.72rem;font-weight:800;color:${tColor[card.matchType]};white-space:nowrap;flex-shrink:0;margin-right:6px">${tIcon[card.matchType]} ${tName[card.matchType]}</span>
             <div style="display:flex;align-items:center;flex-shrink:0">
               ${mkSel(a0,opts0,cardId,'0')}${_dash}${mkSel(a1,opts1,cardId,'1')}
@@ -5815,7 +5815,7 @@ function _bulkStartTeam(){
     const setupCards=Object.entries(_dailyCards).filter(([,c])=>c._round&&!c._teamMode&&c.phase==='setup');
     const alreadyStarted=Object.values(_dailyCards).some(c=>c._round&&!c._teamMode&&c.phase==='playing');
     if(!setupCards.length){alert(alreadyStarted?'이미 경기가 시작되었습니다.':'시작 가능한 경기가 없습니다.');return;}
-    if(!confirm(`자동배정 경기 ${setupCards.length}개를 일괄 시작합니다.`)) return;
+    if(!confirm(`대진표 경기 ${setupCards.length}개를 일괄 시작합니다.`)) return;
     setupCards.forEach(([id])=>startDailyMatch(id));
     return;
   }
@@ -5982,9 +5982,11 @@ function _renderDrawAnalysis(d){
     let _showBtn=false;
     if(d.teamMode){
       const _capA=d.teamANames[0]||'';const _capB=d.teamBNames[0]||'';
-      _showBtn=curName===_capA||curName===_capB||isAdmin();
+      const _tmStarted=Object.values(_dailyCards).some(c=>c._teamMode&&c._round&&c.phase!=='teamSetup');
+      _showBtn=(curName===_capA||curName===_capB||isAdmin())&&!_tmStarted;
     } else {
-      _showBtn=isManager()||isAdmin();
+      const _autoStarted=Object.values(_dailyCards).some(c=>c._round&&!c._teamMode&&c.phase!=='setup');
+      _showBtn=(isManager()||isAdmin())&&!_autoStarted;
     }
     if(_showBtn){
       html+=`<div style="display:flex;gap:8px;margin-bottom:12px">
