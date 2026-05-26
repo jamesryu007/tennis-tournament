@@ -2436,7 +2436,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v698';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v699';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6611,11 +6611,15 @@ function _renderDailyPickList(){
   let html='';
 
   // 현재 진행 중(playing)인 다른 카드의 선수 목록
+  // 개별카드(수동) 선택 시 자동대진/팀대결 카드의 playing 상태는 차단 제외
+  const _isManualPick=!(_dailyCards[id]&&_dailyCards[id]._round);
   const playingPlayers=new Set();
   Object.entries(_dailyCards).forEach(([cid,cd])=>{
     if(String(cid)!==String(id)&&cd.phase==='playing'){
-      (cd.team0||[]).forEach(p=>playingPlayers.add(p));
-      (cd.team1||[]).forEach(p=>playingPlayers.add(p));
+      if(!_isManualPick||!cd._round){
+        (cd.team0||[]).forEach(p=>playingPlayers.add(p));
+        (cd.team1||[]).forEach(p=>playingPlayers.add(p));
+      }
     }
   });
 
