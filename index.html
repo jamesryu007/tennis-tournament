@@ -2433,7 +2433,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v714';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v715';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6613,9 +6613,10 @@ function addDailyMatchCard(){
       container.insertBefore(el,container.firstChild);
     }
     _renderDailyCard(id);
-    // 개별 추가 카드 생성 후 맨 아래로 스크롤 (body가 실제 스크롤 컨테이너)
+    // 자동배정/팀대결 카드 있으면 맨 아래, 없으면 맨 위로 스크롤
     setTimeout(()=>{
-      window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+      if(autoCards.length>0) window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
+      else window.scrollTo({top:0,behavior:'smooth'});
     },80);
   };
   if(!db){ _doAdd(); return; }
