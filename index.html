@@ -2436,7 +2436,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v692';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v693';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5503,6 +5503,8 @@ function _renderTeamFinalResult(){
 }
 
 // ── 팀장 대진수정 팝업 ───────────────────────────────────────────────
+let _drawEditCtx=null;
+
 function _openDrawEditModal(){
   const d=_computeDrawAnalysis();
   if(!d||!d.teamMode){alert('팀 대결 대진이 없습니다.');return;}
@@ -5519,10 +5521,21 @@ function _openDrawEditModal(){
   Object.entries(_dailyCards).forEach(([id,c])=>{
     if(c._round&&c._court) cardKeyMap[`${c._round}_${c._court}`]=id;
   });
+  // 분석화면과 동일한 색상 맵
+  const maleColors=['#1d4ed8','#0369a1','#4f46e5','#0891b2','#1e40af','#6366f1','#0284c7','#3b82f6'];
+  const femColors=['#be185d','#c026d3','#e11d48','#9d174d','#a21caf','#ec4899','#f43f5e','#db2777'];
+  const colorMap={};let _mi=0,_fi=0;
+  d.attendees.forEach(p=>{colorMap[p.name]=p.gender==='male'?maleColors[_mi++%maleColors.length]:femColors[_fi++%femColors.length];});
+  _drawEditCtx={colorMap,d,mySide,cardKeyMap};
   const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
   const tName={mixed:'혼복',mens:'남복',womens:'여복'};
+  const tColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777'};
+  const teamColor=mySide==='A'?'#1e40af':'#9d174d';
   const teamLabel=mySide==='A'?(capA?capA+'팀':'A팀'):(capB?capB+'팀':'B팀');
-  let html=`<div style="font-size:0.78rem;color:#64748b;font-weight:600;margin-bottom:12px">🔵 ${teamLabel} 출전 선수를 수정하세요.</div>`;
+  const teamBadgeColor=mySide==='A'?'#eff6ff':'#fdf2f8';
+  const teamBorderColor=mySide==='A'?'#3b82f6':'#ec4899';
+  const selStyle='font-size:0.92rem;font-weight:700;padding:7px 5px;border:1.5px solid #e2e8f0;border-radius:9px;background:#fff;width:90px;color:#1e293b;font-family:inherit;flex-shrink:0';
+  let html=`<div style="background:${teamBadgeColor};border:1.5px solid ${teamBorderColor};border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:0.9rem;font-weight:800;color:${teamColor}">${mySide==='A'?'🔵':'🔴'} ${teamLabel} 출전 선수</div>`;
   for(const r of d.roundNums){
     for(let c=1;c<=d.courtCount;c++){
       const card=d.roundMap[r][c];
@@ -5533,7 +5546,6 @@ function _openDrawEditModal(){
       let p0=myTeamArr[0]||'',p1=myTeamArr[1]||'';
       let opts0,opts1;
       if(card.matchType==='mixed'){
-        // p0=남, p1=여 보장
         if(teamMales.includes(p1)||teamFemales.includes(p0)){[p0,p1]=[p1,p0];}
         opts0=teamMales.length?teamMales:[p0||'—'];
         opts1=teamFemales.length?teamFemales:[p1||'—'];
@@ -5542,25 +5554,80 @@ function _openDrawEditModal(){
       } else {
         opts0=opts1=teamFemales.length?teamFemales:[p0||'—'];
       }
-      const selStyle='font-size:0.8rem;font-weight:700;padding:5px 4px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;width:82px;color:#1e293b;font-family:inherit;flex-shrink:0';
+      const col0=colorMap[p0]||'#94a3b8';
+      const col1=colorMap[p1]||'#94a3b8';
       const mkSel=(val,opts,slot)=>{
         const optHtml=opts.map(n=>`<option value="${n}"${n===val?' selected':''}>${n}</option>`).join('');
-        return `<select data-card="${cardId}" data-slot="${slot}" style="${selStyle}">${optHtml}</select>`;
+        return `<select data-card="${cardId}" data-slot="${slot}" onchange="_onDrawEditChange(this)" style="${selStyle}">${optHtml}</select>`;
       };
-      html+=`<div style="display:flex;align-items:center;gap:7px;padding:9px 0;border-bottom:1px solid #f1f5f9">
-        <span style="font-size:0.72rem;font-weight:800;color:#475569;white-space:nowrap;min-width:68px">제${r}경기 ${c}코트</span>
-        <span style="font-size:0.8rem;white-space:nowrap">${tIcon[card.matchType]} ${tName[card.matchType]}</span>
+      html+=`<div style="display:flex;align-items:center;gap:7px;padding:8px 0;border-bottom:1px solid #f1f5f9">
+        <div style="min-width:78px;flex-shrink:0">
+          <div style="font-size:0.85rem;font-weight:800;color:#334155">제${r}경기 ${c}코트</div>
+          <div style="font-size:0.82rem;font-weight:800;color:${tColor[card.matchType]};margin-top:1px">${tIcon[card.matchType]} ${tName[card.matchType]}</div>
+        </div>
         <div style="display:flex;align-items:center;gap:5px;flex:1;min-width:0">
+          <span id="dedot-${cardId}-0" style="width:10px;height:10px;border-radius:50%;background:${col0};flex-shrink:0"></span>
           ${mkSel(p0,opts0,'0')}
-          <span style="color:#94a3b8;font-size:0.75rem;flex-shrink:0">-</span>
+          <span style="color:#94a3b8;font-weight:400;font-size:0.9rem;flex-shrink:0">-</span>
+          <span id="dedot-${cardId}-1" style="width:10px;height:10px;border-radius:50%;background:${col1};flex-shrink:0"></span>
           ${mkSel(p1,opts1,'1')}
         </div>
       </div>`;
     }
   }
+  html+=`<div id="draw-edit-participation-wrap" style="margin-top:14px;padding-top:12px;border-top:2px solid #e2e8f0"></div>`;
   document.getElementById('draw-edit-inner').innerHTML=html;
+  _updateDrawEditParticipation();
   document.getElementById('draw-edit-modal').classList.add('open');
   document.body.style.overflow='hidden';
+}
+
+function _onDrawEditChange(sel){
+  const cardId=sel.dataset.card;
+  const slot=sel.dataset.slot;
+  const col=(_drawEditCtx&&_drawEditCtx.colorMap[sel.value])||'#94a3b8';
+  const dot=document.getElementById(`dedot-${cardId}-${slot}`);
+  if(dot) dot.style.background=col;
+  _updateDrawEditParticipation();
+}
+
+function _updateDrawEditParticipation(){
+  const wrap=document.getElementById('draw-edit-participation-wrap');
+  if(!wrap||!_drawEditCtx) return;
+  const {colorMap,d,mySide,cardKeyMap}=_drawEditCtx;
+  // 현재 select 값에서 수정된 선수 읽기
+  const edits={};
+  document.querySelectorAll('#draw-edit-inner select').forEach(sel=>{
+    const id=sel.dataset.card;const slot=parseInt(sel.dataset.slot);
+    if(!edits[id]) edits[id]=[null,null];
+    edits[id][slot]=sel.value;
+  });
+  const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
+  const teamNames=mySide==='A'?d.teamANames:d.teamBNames;
+  const teamPlayers=d.attendees.filter(p=>teamNames.includes(p.name));
+  let t=`<div style="font-size:0.88rem;font-weight:800;color:#1e293b;margin-bottom:8px">📊 선수별 참여 현황</div>`;
+  t+=`<table style="width:100%;border-collapse:collapse;font-size:0.82rem"><thead><tr style="border-bottom:2px solid #e2e8f0">
+    <th style="text-align:left;padding:5px 4px;font-size:0.78rem;color:#64748b;font-weight:700">선수</th>`;
+  for(const r of d.roundNums){t+=`<th style="padding:5px 3px;color:#64748b;font-size:0.72rem;font-weight:700;text-align:center">제${r}</th>`;}
+  t+=`<th style="padding:5px 4px;color:#64748b;font-weight:700;text-align:right;font-size:0.78rem">합계</th></tr></thead><tbody>`;
+  teamPlayers.forEach(p=>{
+    const col=colorMap[p.name]||'#64748b';
+    let games=0;
+    t+=`<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:6px 4px;font-weight:800;color:${col};white-space:nowrap">${p.name}</td>`;
+    for(const r of d.roundNums){
+      let icon='';
+      for(let c=1;c<=d.courtCount;c++){
+        const card=d.roundMap[r][c];if(!card) continue;
+        const cid=cardKeyMap[`${r}_${c}`];
+        const cur=cid&&edits[cid]?edits[cid]:(mySide==='A'?[...card.team0]:[...card.team1]);
+        if(cur.includes(p.name)){icon=tIcon[card.matchType];games++;break;}
+      }
+      t+=`<td style="text-align:center;padding:6px 3px">${icon||'<span style="color:#e2e8f0;font-size:0.65rem">—</span>'}</td>`;
+    }
+    t+=`<td style="text-align:right;padding:6px 4px;font-weight:800;color:#1e293b">${games}</td></tr>`;
+  });
+  t+=`</tbody></table>`;
+  wrap.innerHTML=t;
 }
 
 function closeDrawEditModal(){
