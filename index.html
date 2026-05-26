@@ -2433,7 +2433,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v704';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v705';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5588,11 +5588,11 @@ function _openDrawEditModal(){
           <div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px 3px">
             <span style="font-size:0.72rem;font-weight:800;color:${tColor[card.matchType]};white-space:nowrap;flex-shrink:0;margin-right:6px">${tIcon[card.matchType]} ${tName[card.matchType]}</span>
             <div style="display:flex;align-items:center;flex-shrink:0">
-              ${mkDot(a0,cardId,'0')}${mkSel(a0,opts0,cardId,'0')}${_dash}${mkDot(a1,cardId,'1')}${mkSel(a1,opts1,cardId,'1')}
+              ${mkSel(a0,opts0,cardId,'0')}${_dash}${mkSel(a1,opts1,cardId,'1')}
             </div>
             ${_vs}
             <div style="display:flex;align-items:center;flex-shrink:0">
-              ${mkDot(b0,cardId,'2')}${mkSel(b0,opts2,cardId,'2')}${_dash}${mkDot(b1,cardId,'3')}${mkSel(b1,opts3,cardId,'3')}
+              ${mkSel(b0,opts2,cardId,'2')}${_dash}${mkSel(b1,opts3,cardId,'3')}
             </div>
           </div>
         </div>`;
