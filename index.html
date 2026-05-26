@@ -2433,7 +2433,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v710';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v711';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4269,11 +4269,11 @@ function executeDailyCreate(){
       openIdentityModal();
       return;
     }
-    // 모드 충돌 체크: 자동배정↔팀대결 혼용 방지
-    const _hasTeamCards=Object.values(_dailyCards).some(c=>c._teamMode&&c._round);
-    const _hasAutoCards=Object.values(_dailyCards).some(c=>c._round&&!c._teamMode);
-    if(_dailyCreateMode==='auto'&&_hasTeamCards){alert('팀대결이 진행중입니다.');return;}
-    if(_dailyCreateMode==='team'&&_hasAutoCards){alert('자동배정이 진행중입니다.');return;}
+    // 기존 경기 카드 존재 시 자동배정/팀대결 차단 (개별추가는 허용)
+    if(_dailyCreateMode==='auto'||_dailyCreateMode==='team'){
+      const _hasAnyCards=Object.keys(_dailyCards).length>0;
+      if(_hasAnyCards){alert('이전 경기가 남아 있어 금요일 오전 12시 이후 생성 가능합니다.');return;}
+    }
     // 팀대결/일반 자동 → _autoTeamMode 세팅 후 모달 오픈
     _autoTeamMode=(_dailyCreateMode==='team');
     const toggle=document.getElementById('auto-team-toggle');
@@ -6373,9 +6373,12 @@ async function generateAutoDrawCards(){
     w.textContent='경기 수를 1개 이상 선택해주세요.'; w.style.display='';
     return;
   }
-  // 기존 모든 카드 삭제 (done 포함 — done은 차단 조건에서만 제외)
+  // 기존 setup/playing/teamSetup 카드만 DB에서도 삭제, done 카드는 화면에서만 숨김
   for(const aid of Object.keys(_dailyCards)){
-    if(String(aid).startsWith('-')) db.ref(`jmt/dailyCards/${aid}`).remove().catch(fbErr);
+    const _ac=_dailyCards[aid];
+    if(_ac&&_ac.phase!=='done'){
+      if(String(aid).startsWith('-')) db.ref(`jmt/dailyCards/${aid}`).remove().catch(fbErr);
+    }
     delete _dailyCards[aid];
     const ael=document.getElementById(`daily-card-${aid}`);
     if(ael) ael.remove();
