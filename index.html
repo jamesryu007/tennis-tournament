@@ -2418,7 +2418,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v686';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v687';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5485,6 +5485,16 @@ function _renderDrawAnalysis(d){
   const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
   const tName={mixed:'혼복',mens:'남복',womens:'여복'};
   const tColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777'};
+  // ── 팀 대결 공개 제어
+  const curName=(state.identity&&state.identity.name)||'';
+  // 현재 사용자가 속한 팀 ('A'|'B'|null) — null이면 마스킹 없음
+  const myTeamSide=d.teamMode
+    ?(d.teamANames.includes(curName)?'A':d.teamBNames.includes(curName)?'B':null)
+    :null;
+  // 카드 공개 여부: 양 팀 모두 ready(playing/done) 또는 마스킹 대상 아님
+  const isRevealedCard=card=>!myTeamSide||card.phase!=='teamSetup';
+  // 팀별 공개 헬퍼 — team0=A팀, team1=B팀 (항상)
+  const maskTeam='<span style="color:#94a3b8;font-weight:700">미정 — 미정</span>';
   let html=`<div style="font-family:-apple-system,'Segoe UI',sans-serif;padding:28px 4px 40px">`;
   // ── 타이틀
   html+=`<div style="text-align:center;margin-bottom:22px">
@@ -5571,9 +5581,9 @@ function _renderDrawAnalysis(d){
               <span style="font-size:0.8rem;font-weight:800;color:${tColor[card.matchType]};white-space:nowrap">${tIcon[card.matchType]} ${tName[card.matchType]}</span>
             </div>
             <div style="flex:1;display:flex;align-items:center;min-width:0">
-              <span style="flex:1;font-size:0.82rem;font-weight:600;text-align:right">${colorTeam(card.team0)}</span>
+              <span style="flex:1;font-size:0.82rem;font-weight:600;text-align:right">${isRevealedCard(card)||myTeamSide==='A'?colorTeam(card.team0):maskTeam}</span>
               ${_vsSpan}
-              <span style="flex:1;font-size:0.82rem;font-weight:600">${colorTeam(card.team1)}</span>
+              <span style="flex:1;font-size:0.82rem;font-weight:600">${isRevealedCard(card)||myTeamSide==='B'?colorTeam(card.team1):maskTeam}</span>
             </div>
           </div>
         </div>`;
@@ -5618,7 +5628,7 @@ function _renderDrawAnalysis(d){
   html+=`<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:13px 15px;margin-bottom:12px;overflow-x:auto">
     <div style="font-size:0.85rem;font-weight:800;color:#1e293b;margin-bottom:10px">📊 선수별 참여 현황</div>`;
   // 테이블 헤더 생성 헬퍼
-  const _makePlayerTable=(players,headerHtml)=>{
+  const _makePlayerTable=(players,headerHtml,isMyTeamTable)=>{
     let t=`<table style="width:100%;border-collapse:collapse;font-size:0.76rem;min-width:280px;margin-bottom:${d.teamMode?'10px':'0'}">
       <thead><tr style="border-bottom:2px solid #e2e8f0">
         <th style="text-align:left;padding:5px 6px;white-space:nowrap">${headerHtml}</th>`;
@@ -5626,16 +5636,19 @@ function _renderDrawAnalysis(d){
     t+=`<th style="padding:5px 6px;color:#64748b;font-weight:700;text-align:right">합계</th>
       </tr></thead><tbody>`;
     players.forEach(p=>{
-      const pd=d.playerData[p.name]||{rounds:[],games:0};
       const isMale=p.gender==='male';
+      let visibleGames=0;
       t+=`<tr style="border-bottom:1px solid #f1f5f9">
         <td style="padding:6px 6px;font-weight:700;color:${isMale?'#1d4ed8':'#be185d'};white-space:nowrap">${p.name}</td>`;
       for(const r of d.roundNums){
         const card=Object.values(d.roundMap[r]).find(c=>[...c.team0,...c.team1].includes(p.name));
-        if(card){t+=`<td style="text-align:center;padding:6px 3px">${tIcon[card.matchType]}</td>`;}
+        // 셀 공개 여부: 내 팀 테이블이거나 카드 공개됨
+        const visible=!myTeamSide||isMyTeamTable||isRevealedCard(card||{});
+        if(card&&visible){visibleGames++;t+=`<td style="text-align:center;padding:6px 3px">${tIcon[card.matchType]}</td>`;}
+        else if(card&&!visible){t+=`<td style="text-align:center;padding:6px 3px;color:#cbd5e1;font-size:0.7rem">—</td>`;}
         else{t+=`<td style="text-align:center;padding:6px 3px;color:#e2e8f0;font-size:0.7rem">—</td>`;}
       }
-      t+=`<td style="text-align:right;padding:6px 6px;font-weight:800;color:#1e293b">${pd.games}</td>
+      t+=`<td style="text-align:right;padding:6px 6px;font-weight:800;color:#1e293b">${visibleGames}</td>
       </tr>`;
     });
     t+=`</tbody></table>`;
@@ -5646,11 +5659,13 @@ function _renderDrawAnalysis(d){
     const bN2=d.teamBNames[0]?d.teamBNames[0]+'팀':'B팀';
     const teamAPlayers=d.attendees.filter(p=>d.teamANames.includes(p.name));
     const teamBPlayers=d.attendees.filter(p=>d.teamBNames.includes(p.name));
-    html+=_makePlayerTable(teamAPlayers,`<span style="color:#1e40af;font-weight:800">🔵 ${aN2}</span>`);
+    const amITeamA=myTeamSide==='A';
+    const amITeamB=myTeamSide==='B';
+    html+=_makePlayerTable(teamAPlayers,`<span style="color:#1e40af;font-weight:800">🔵 ${aN2}</span>`,amITeamA||!myTeamSide);
     html+=`<div style="border-top:2px dashed #e2e8f0;margin-bottom:10px"></div>`;
-    html+=_makePlayerTable(teamBPlayers,`<span style="color:#9d174d;font-weight:800">🔴 ${bN2}</span>`);
+    html+=_makePlayerTable(teamBPlayers,`<span style="color:#9d174d;font-weight:800">🔴 ${bN2}</span>`,amITeamB||!myTeamSide);
   } else {
-    html+=_makePlayerTable(d.attendees,`<span style="color:#64748b;font-weight:700">선수</span>`);
+    html+=_makePlayerTable(d.attendees,`<span style="color:#64748b;font-weight:700">선수</span>`,true);
   }
   html+=`</div>`;
   // 총 경기 요약 (종합평가 대신 간략 표시)
