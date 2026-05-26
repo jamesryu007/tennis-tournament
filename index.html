@@ -2433,7 +2433,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v711';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v712';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4269,10 +4269,10 @@ function executeDailyCreate(){
       openIdentityModal();
       return;
     }
-    // 기존 경기 카드 존재 시 자동배정/팀대결 차단 (개별추가는 허용)
+    // 완료/진행중 경기 카드 존재 시 자동배정/팀대결 차단 (빈 setup 카드·개별추가는 허용)
     if(_dailyCreateMode==='auto'||_dailyCreateMode==='team'){
-      const _hasAnyCards=Object.keys(_dailyCards).length>0;
-      if(_hasAnyCards){alert('이전 경기가 남아 있어 금요일 오전 12시 이후 생성 가능합니다.');return;}
+      const _hasRealCards=Object.values(_dailyCards).some(c=>c.phase==='done'||c.phase==='playing');
+      if(_hasRealCards){alert('이전 경기가 남아 있어 금요일 오전 12시 이후 생성 가능합니다.');return;}
     }
     // 팀대결/일반 자동 → _autoTeamMode 세팅 후 모달 오픈
     _autoTeamMode=(_dailyCreateMode==='team');
