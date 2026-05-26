@@ -1761,13 +1761,13 @@ const firebaseConfig = {
         </div>
         <div id="auto-recommend-info" style="display:none"></div>
         <!-- 혼복 + 남복 + 여복 한 줄 -->
-        <div style="background:linear-gradient(135deg,rgba(13,148,136,0.07),rgba(16,185,129,0.05));border-radius:14px;padding:8px 14px;margin-bottom:6px;display:flex;align-items:center;gap:6px">
-          <span style="font-size:0.82rem;font-weight:800;color:#7c3aed;flex:1">🟣 혼복</span>
-          <select id="auto-mixed-cnt" style="font-size:0.82rem;font-weight:700;padding:5px 6px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#1e293b;font-family:inherit;cursor:pointer;width:72px"></select>
-          <span style="font-size:0.82rem;font-weight:800;color:#2563eb;flex:1;text-align:center">🔵 남복</span>
-          <select id="auto-mens-cnt" style="font-size:0.82rem;font-weight:700;padding:5px 6px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#1e293b;font-family:inherit;cursor:pointer;width:72px"></select>
-          <span style="font-size:0.82rem;font-weight:800;color:#db2777;flex:1;text-align:right">🩷 여복</span>
-          <select id="auto-womens-cnt" style="font-size:0.82rem;font-weight:700;padding:5px 6px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#1e293b;font-family:inherit;cursor:pointer;width:72px"></select>
+        <div style="background:linear-gradient(135deg,rgba(13,148,136,0.07),rgba(16,185,129,0.05));border-radius:14px;padding:8px 14px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;gap:4px">
+          <span style="font-size:0.78rem;font-weight:800;color:#7c3aed;white-space:nowrap;flex-shrink:0">🟣 혼복</span>
+          <select id="auto-mixed-cnt" style="font-size:0.78rem;font-weight:700;padding:4px 2px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#1e293b;font-family:inherit;cursor:pointer;width:62px;text-align:center;text-align-last:center"></select>
+          <span style="font-size:0.78rem;font-weight:800;color:#2563eb;white-space:nowrap;flex-shrink:0">🔵 남복</span>
+          <select id="auto-mens-cnt" style="font-size:0.78rem;font-weight:700;padding:4px 2px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#1e293b;font-family:inherit;cursor:pointer;width:62px;text-align:center;text-align-last:center"></select>
+          <span style="font-size:0.78rem;font-weight:800;color:#db2777;white-space:nowrap;flex-shrink:0">🩷 여복</span>
+          <select id="auto-womens-cnt" style="font-size:0.78rem;font-weight:700;padding:4px 2px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#1e293b;font-family:inherit;cursor:pointer;width:62px;text-align:center;text-align-last:center"></select>
         </div>
       </div>
       <div id="auto-preset-themes" style="margin-top:6px"></div>
@@ -2433,7 +2433,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v705';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v706';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
