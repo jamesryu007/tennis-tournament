@@ -1774,6 +1774,7 @@ const firebaseConfig = {
           <select id="auto-womens-cnt"></select>
         </div>
       </div>
+      <div id="auto-preset-themes" style="margin-top:6px"></div>
       <div id="auto-draw-warn" style="color:#dc2626;font-size:0.8rem;margin:10px 0 0;display:none"></div>
 <button id="auto-draw-submit-btn" onclick="generateAutoDrawCards()" style="width:100%;margin-top:12px;padding:12px;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.3px">대진 생성</button>
     </div>
@@ -2436,9 +2437,9 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v699';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v700';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
-const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
+const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
 function isAdmin()   { return (state.identity && state.identity.name) === ADMIN_NAME; }
 
@@ -4727,6 +4728,7 @@ function autoRecommendGames(){
   document.getElementById('auto-womens-cnt').value=rec.womens;
   const infoEl=document.getElementById('auto-recommend-info');
   if(infoEl) infoEl.textContent=`${courts}코트 × ${hrs}시간 × ${attendees.length}명 기준 ${maxGames}경기 | 🟣혼복 ${rec.mixed} · 🔵남복 ${rec.mens} · 🩷여복 ${rec.womens} 추천`;
+  _renderAutoPresetThemes();
   // 세션 오너가 직접 변경한 경우만 DB 저장 (리스너 내부 호출 시 제외)
   const curN=(state.identity&&state.identity.name)||'';
   if(_autoDrawSession&&_autoDrawSession.owner===curN&&!_applyingSession) _saveAutoDrawSession();
@@ -5512,11 +5514,74 @@ let _drawEditCtx=null;
 
 function _openDrawEditModal(){
   const d=_computeDrawAnalysis();
-  if(!d||!d.teamMode){alert('팀 대결 대진이 없습니다.');return;}
+  if(!d){alert('대진 정보가 없습니다.');return;}
+  const curName=(state.identity&&state.identity.name)||'';
+  // ── 자동배정 모드
+  if(!d.teamMode){
+    if(!isManager()&&!isAdmin()){alert('관리자만 수정할 수 있습니다.');return;}
+    const startedAuto=Object.values(_dailyCards).some(c=>c._round&&!c._teamMode&&c.phase==='playing');
+    if(startedAuto){alert('게임이 시작되었으므로, 멤버를 수정할 수 없습니다.');return;}
+    const cardKeyMap={};
+    Object.entries(_dailyCards).forEach(([id,c])=>{
+      if(c._round&&c._court&&!c._teamMode) cardKeyMap[`${c._round}_${c._court}`]=id;
+    });
+    const maleColors=['#1d4ed8','#0369a1','#4f46e5','#0891b2','#1e40af','#6366f1','#0284c7','#3b82f6'];
+    const femColors=['#be185d','#c026d3','#e11d48','#9d174d','#a21caf','#ec4899','#f43f5e','#db2777'];
+    const colorMap={};let _cmi=0,_cfi=0;
+    d.attendees.forEach(p=>{colorMap[p.name]=p.gender==='male'?maleColors[_cmi++%maleColors.length]:femColors[_cfi++%femColors.length];});
+    _drawEditCtx={colorMap,d,mySide:'ALL',cardKeyMap,isAutoMode:true};
+    const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
+    const tName={mixed:'혼복',mens:'남복',womens:'여복'};
+    const tColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777'};
+    const males=d.attendees.filter(p=>p.gender==='male').map(p=>p.name);
+    const females=d.attendees.filter(p=>p.gender!=='male').map(p=>p.name);
+    const roundPastels=['#eff6ff','#fdf4ff','#fff7ed','#f0fdf4','#fef2f2','#f0f9ff','#fefce8','#fdf2f8'];
+    const selStyle='font-size:0.78rem;font-weight:700;padding:4px 3px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;width:76px;color:#1e293b;font-family:inherit;flex-shrink:0;text-align:center;text-align-last:center';
+    const mkSel=(val,opts,cardId,slot)=>{
+      const optHtml=opts.map(n=>`<option value="${n}"${n===val?' selected':''}>${n}</option>`).join('');
+      return `<select data-card="${cardId}" data-slot="${slot}" onchange="_onDrawEditChange(this)" style="${selStyle}">${optHtml}</select>`;
+    };
+    const mkDot=(name,cardId,slot)=>`<span id="dedot-${cardId}-${slot}" style="width:8px;height:8px;border-radius:50%;background:${colorMap[name]||'#94a3b8'};flex-shrink:0;margin-right:4px"></span>`;
+    let html='';
+    for(const r of d.roundNums){
+      const bg=roundPastels[(parseInt(r)-1)%roundPastels.length];
+      html+=`<div style="background:${bg};border-radius:8px;margin-bottom:4px;padding:1px 8px">`;
+      for(let c=1;c<=d.courtCount;c++){
+        const card=d.roundMap[r][c];if(!card) continue;
+        const cardId=cardKeyMap[`${r}_${c}`];if(!cardId) continue;
+        let opts0,opts1,opts2,opts3;
+        if(card.matchType==='mixed'){opts0=opts2=males.length?males:['?'];opts1=opts3=females.length?females:['?'];}
+        else if(card.matchType==='mens'){opts0=opts1=opts2=opts3=males.length?males:['?'];}
+        else{opts0=opts1=opts2=opts3=females.length?females:['?'];}
+        const [a0,a1,b0,b1]=[card.team0[0]||'',card.team0[1]||'',card.team1[0]||'',card.team1[1]||''];
+        const isLast=c===d.courtCount;
+        const _dash='<span style="color:#94a3b8;font-size:0.8rem;flex-shrink:0;margin:0 3px">-</span>';
+        const _vs='<span style="color:#94a3b8;font-size:0.78rem;font-weight:600;flex-shrink:0;margin:0 5px">vs</span>';
+        html+=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px 4px;padding:6px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
+          <span style="font-size:0.72rem;font-weight:800;color:#475569;white-space:nowrap;flex-shrink:0;min-width:66px;margin-right:8px">제${r}경기 ${c}코트</span>
+          <span style="font-size:0.72rem;font-weight:800;color:${tColor[card.matchType]};white-space:nowrap;flex-shrink:0;margin-right:8px">${tIcon[card.matchType]} ${tName[card.matchType]}</span>
+          <div style="display:flex;align-items:center;flex-shrink:0">
+            ${mkDot(a0,cardId,'0')}${mkSel(a0,opts0,cardId,'0')}${_dash}${mkDot(a1,cardId,'1')}${mkSel(a1,opts1,cardId,'1')}
+          </div>
+          ${_vs}
+          <div style="display:flex;align-items:center;flex-shrink:0">
+            ${mkDot(b0,cardId,'2')}${mkSel(b0,opts2,cardId,'2')}${_dash}${mkDot(b1,cardId,'3')}${mkSel(b1,opts3,cardId,'3')}
+          </div>
+        </div>`;
+      }
+      html+=`</div>`;
+    }
+    html+=`<div id="draw-edit-participation-wrap" style="margin-top:10px;padding-top:10px;border-top:1.5px solid #e2e8f0"></div>`;
+    document.getElementById('draw-edit-inner').innerHTML=html;
+    _updateDrawEditParticipation();
+    document.getElementById('draw-edit-modal').classList.add('open');
+    document.body.style.overflow='hidden';
+    return;
+  }
+  // ── 팀 대결 모드 (기존 코드)
   // 이미 시작된 경기가 하나라도 있으면 수정 불가
   const started=Object.values(_dailyCards).some(c=>c._teamMode&&c._round&&c.phase!=='teamSetup');
   if(started){alert('게임이 시작되었으므로, 멤버를 수정할 수 없습니다.');return;}
-  const curName=(state.identity&&state.identity.name)||'';
   const capA=d.teamANames[0]||'';
   const capB=d.teamBNames[0]||'';
   const mySide=curName===capA?'A':curName===capB?'B':(isAdmin()?'A':null);
@@ -5603,15 +5668,42 @@ function _onDrawEditChange(sel){
 function _updateDrawEditParticipation(){
   const wrap=document.getElementById('draw-edit-participation-wrap');
   if(!wrap||!_drawEditCtx) return;
-  const {colorMap,d,mySide,cardKeyMap}=_drawEditCtx;
+  const {colorMap,d,mySide,cardKeyMap,isAutoMode}=_drawEditCtx;
+  const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
   // 현재 select 값에서 수정된 선수 읽기
   const edits={};
   document.querySelectorAll('#draw-edit-inner select').forEach(sel=>{
     const id=sel.dataset.card;const slot=parseInt(sel.dataset.slot);
-    if(!edits[id]) edits[id]=[null,null];
+    if(!edits[id]) edits[id]=[null,null,null,null];
     edits[id][slot]=sel.value;
   });
-  const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
+  // ── 자동배정 모드: 전체 참석자 참여현황
+  if(isAutoMode){
+    let t=`<div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">📊 선수별 참여 현황</div>`;
+    t+=`<table style="width:100%;border-collapse:collapse;font-size:0.75rem"><thead><tr style="border-bottom:1.5px solid #e2e8f0">
+      <th style="text-align:left;padding:4px 3px;font-size:0.72rem;color:#64748b;font-weight:700">선수</th>`;
+    for(const r of d.roundNums){t+=`<th style="padding:4px 2px;color:#64748b;font-size:0.68rem;font-weight:700;text-align:center">제${r}</th>`;}
+    t+=`<th style="padding:4px 3px;color:#64748b;font-weight:700;text-align:right;font-size:0.72rem">합계</th></tr></thead><tbody>`;
+    d.attendees.forEach(p=>{
+      const col=colorMap[p.name]||'#64748b';let games=0;
+      t+=`<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:4px 3px;font-weight:800;color:${col};white-space:nowrap">${p.name}</td>`;
+      for(const r of d.roundNums){
+        let icon='';
+        for(let c=1;c<=d.courtCount;c++){
+          const card=d.roundMap[r][c];if(!card) continue;
+          const cid=cardKeyMap[`${r}_${c}`];
+          const cur=cid&&edits[cid]?[edits[cid][0],edits[cid][1],edits[cid][2],edits[cid][3]]:[...card.team0,...card.team1];
+          if(cur.includes(p.name)){icon=tIcon[card.matchType];games++;break;}
+        }
+        t+=`<td style="text-align:center;padding:4px 2px">${icon||'<span style="color:#e2e8f0;font-size:0.6rem">—</span>'}</td>`;
+      }
+      t+=`<td style="text-align:right;padding:4px 3px;font-weight:800;color:#1e293b">${games}</td></tr>`;
+    });
+    t+=`</tbody></table>`;
+    wrap.innerHTML=t;
+    return;
+  }
+  // ── 팀 대결 모드 (기존 코드)
   const teamNames=mySide==='A'?d.teamANames:d.teamBNames;
   const teamPlayers=d.attendees.filter(p=>teamNames.includes(p.name));
   let t=`<div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">📊 선수별 참여 현황</div>`;
@@ -5648,20 +5740,34 @@ function _applyDrawEdits(){
   const selects=document.querySelectorAll('#draw-edit-inner select');
   const edits={};
   selects.forEach(sel=>{
-    const id=sel.dataset.card;
-    const slot=parseInt(sel.dataset.slot);
-    if(!edits[id]) edits[id]=[null,null];
+    const id=sel.dataset.card;const slot=parseInt(sel.dataset.slot);
+    if(!edits[id]) edits[id]=[null,null,null,null];
     edits[id][slot]=sel.value;
   });
   const d=_computeDrawAnalysis();
   if(!d) return;
+  // ── 자동배정 모드
+  if(_drawEditCtx&&_drawEditCtx.isAutoMode){
+    Object.entries(edits).forEach(([cardId,slots])=>{
+      if(!slots[0]||!slots[1]||!slots[2]||!slots[3]) return;
+      const card=_dailyCards[cardId];if(!card) return;
+      card.team0=[slots[0],slots[1]];card.team1=[slots[2],slots[3]];
+      if(typeof cardId==='string'&&cardId.startsWith('-')){
+        db.ref(`jmt/dailyCards/${cardId}`).update({team0:card.team0,team1:card.team1}).catch(fbErr);
+      }
+      _renderDailyCard(cardId);
+    });
+    _saveLocalDailyCards();
+    closeDrawEditModal();refreshDrawAnalysis();return;
+  }
+  // ── 팀 대결 모드 (기존 코드)
   const curName=(state.identity&&state.identity.name)||'';
   const mySide=d.teamANames.includes(curName)?'A':d.teamBNames.includes(curName)?'B':(isAdmin()?'A':null);
   if(!mySide) return;
-  Object.entries(edits).forEach(([cardId,players])=>{
-    if(!players[0]||!players[1]) return;
-    const card=_dailyCards[cardId];
-    if(!card) return;
+  Object.entries(edits).forEach(([cardId,slots])=>{
+    if(!slots[0]||!slots[1]) return;
+    const card=_dailyCards[cardId];if(!card) return;
+    const players=[slots[0],slots[1]];
     if(mySide==='A') card.team0=players; else card.team1=players;
     const upd=mySide==='A'?{team0:players}:{team1:players};
     db.ref(`jmt/dailyCards/${cardId}`).update(upd).catch(fbErr);
@@ -5674,7 +5780,17 @@ function _applyDrawEdits(){
 // ── 팀장 일괄시작 ─────────────────────────────────────────────────────
 function _bulkStartTeam(){
   const d=_computeDrawAnalysis();
-  if(!d||!d.teamMode){alert('팀 대결 대진이 없습니다.');return;}
+  if(!d){alert('대진 정보가 없습니다.');return;}
+  // ── 자동배정 모드 일괄시작
+  if(!d.teamMode){
+    if(!isManager()&&!isAdmin()){alert('관리자만 일괄시작할 수 있습니다.');return;}
+    const setupCards=Object.entries(_dailyCards).filter(([,c])=>c._round&&!c._teamMode&&c.phase==='setup');
+    const alreadyStarted=Object.values(_dailyCards).some(c=>c._round&&!c._teamMode&&c.phase==='playing');
+    if(!setupCards.length){alert(alreadyStarted?'이미 경기가 시작되었습니다.':'시작 가능한 경기가 없습니다.');return;}
+    if(!confirm(`자동배정 경기 ${setupCards.length}개를 일괄 시작합니다.`)) return;
+    setupCards.forEach(([id])=>startDailyMatch(id));
+    return;
+  }
   const curName=(state.identity&&state.identity.name)||'';
   const capA=d.teamANames[0]||'';
   const capB=d.teamBNames[0]||'';
@@ -5833,12 +5949,16 @@ function _renderDrawAnalysis(d){
     html+=`</div>`;
   }
   html+=`</div>`;
-  // ── 팀장 전용 대진수정/일괄시작 버튼
-  if(d.teamMode){
-    const _capA=d.teamANames[0]||'';
-    const _capB=d.teamBNames[0]||'';
-    const _isCap=curName===_capA||curName===_capB||isAdmin();
-    if(_isCap){
+  // ── 대진수정/일괄시작 버튼 (팀장/관리자)
+  {
+    let _showBtn=false;
+    if(d.teamMode){
+      const _capA=d.teamANames[0]||'';const _capB=d.teamBNames[0]||'';
+      _showBtn=curName===_capA||curName===_capB||isAdmin();
+    } else {
+      _showBtn=isManager()||isAdmin();
+    }
+    if(_showBtn){
       html+=`<div style="display:flex;gap:8px;margin-bottom:12px">
         <button onclick="_openDrawEditModal()" style="flex:1;padding:11px;background:#fff;border:2px solid #3b82f6;border-radius:12px;font-size:0.88rem;font-weight:800;color:#1e40af;cursor:pointer;font-family:inherit">✏️ 대진수정</button>
         <button onclick="_bulkStartTeam()" style="flex:1;padding:11px;background:linear-gradient(135deg,#2563eb,#1e40af);color:#fff;border:none;border-radius:12px;font-size:0.88rem;font-weight:800;cursor:pointer;font-family:inherit">▶ 일괄시작</button>
@@ -5936,6 +6056,49 @@ function _getAutoDrawAttendees(){
   const all=[...members];
   guests.forEach(g=>{if(!seen.has(g.name)){seen.add(g.name);all.push(g);}});
   return all;
+}
+
+// 늦참 멤버 이름 집합 반환
+function _getLatePlayerNames(){
+  const votes=state.pollData&&state.pollData.votes
+    ?(Array.isArray(state.pollData.votes)?state.pollData.votes:Object.values(state.pollData.votes))
+    :[];
+  return new Set(votes.filter(v=>v.vote==='late').map(v=>v.name));
+}
+
+// 경기테마 사전설정 UI 렌더링 (제1~3경기 코트별)
+function _renderAutoPresetThemes(){
+  const el=document.getElementById('auto-preset-themes');
+  if(!el) return;
+  const courts=parseInt(document.getElementById('auto-court-cnt').value)||2;
+  const typeLabel={mixed:'혼복',mens:'남복',womens:'여복'};
+  const selStyle='font-size:0.75rem;font-weight:700;padding:3px 4px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#1e293b;font-family:inherit';
+  const lateNames=_getLatePlayerNames();
+  const lateNote=lateNames.size>0?` <span style="color:#f59e0b;font-size:0.7rem;font-weight:700">(늦참 ${lateNames.size}명: ${[...lateNames].join('·')})</span>`:'';
+  let html=`<div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:8px 10px">
+    <div style="font-size:0.78rem;font-weight:800;color:#64748b;margin-bottom:6px">🎯 제1~3경기 테마 사전설정${lateNote}
+      <span style="display:block;font-size:0.7rem;font-weight:600;color:#94a3b8;margin-top:2px">늦참 멤버는 4경기부터 배정됩니다</span>
+    </div>`;
+  for(let r=1;r<=3;r++){
+    html+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:${r<3?'4px':'0'}">
+      <span style="font-size:0.75rem;font-weight:800;color:#475569;flex-shrink:0;min-width:50px">제${r}경기</span>`;
+    for(let c=1;c<=courts;c++){
+      const id=`auto-preset-r${r}-c${c}`;
+      const curEl=document.getElementById(id);
+      const curVal=curEl?curEl.value:'mixed';
+      html+=`<div style="display:flex;align-items:center;gap:2px">
+        <span style="font-size:0.7rem;color:#94a3b8;flex-shrink:0">${c}코트</span>
+        <select id="${id}" style="${selStyle}">
+          <option value="mixed"${curVal==='mixed'?' selected':''}>🟣혼복</option>
+          <option value="mens"${curVal==='mens'?' selected':''}>🔵남복</option>
+          <option value="womens"${curVal==='womens'?' selected':''}>🩷여복</option>
+        </select>
+      </div>`;
+    }
+    html+=`</div>`;
+  }
+  html+=`</div>`;
+  el.innerHTML=html;
 }
 
 // NTRP 수치 변환
@@ -6044,7 +6207,9 @@ function _genOneSameGender(type,roundPlayers,prevPlayers,prevPrevPlayers,prevMen
 // 생성+스케줄 통합 함수 ─ 한 경기씩 생성하면서 즉시 라운드 배정
 // 현재 라운드 상태(prevPlayers, prevMensPlayers 등)를 알면서 생성하므로
 // 구조적으로 3연속·남복연속 위반이 발생하지 않음
-function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,allowConsec3){
+function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,allowConsec3,presetRounds,lateNamesSet){
+  if(!presetRounds) presetRounds={};
+  if(!lateNamesSet) lateNamesSet=new Set();
   const remaining={mixed:counts.mixed,mens:counts.mens,womens:counts.womens};
   const generated={mixed:0,mens:0,womens:0};
   const scheduled=[];
@@ -6055,6 +6220,9 @@ function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,a
   const usedCombos={mixed:new Set(),mens:new Set(),womens:new Set()};
   const typeIdx={mixed:0,mens:0,womens:0};
   const allPlayers=new Set([...sortedM,...sortedF].map(p=>p.name));
+  // 프리셋 라운드용 늦참 제외 풀
+  const nonLateM=lateNamesSet.size?sortedM.filter(p=>!lateNamesSet.has(p.name)):sortedM;
+  const nonLateF=lateNamesSet.size?sortedF.filter(p=>!lateNamesSet.has(p.name)):sortedF;
   let prevPlayers=new Set();
   let prevPrevPlayers=new Set();
   let prevMensPlayers=new Set();
@@ -6064,25 +6232,38 @@ function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,a
     const roundPlayers=new Set();
     const round=[];
     let courtIdx=0;
-    // mustPlay: 직전 라운드 쉰 선수 (연속 쉼 방지)
-    const mustPlay=new Set([...prevRested]);
+    // 프리셋 라운드 여부 — 늦참 선수 제외 풀 사용
+    const hasPreset=presetRounds[roundNum]&&presetRounds[roundNum].length>0;
+    const activeM=hasPreset?nonLateM:sortedM;
+    const activeF=hasPreset?nonLateF:sortedF;
+    // mustPlay: 직전 라운드 쉰 선수 (연속 쉼 방지), 프리셋 라운드에서는 늦참 제외
+    const baseMust=new Set([...prevRested]);
+    const mustPlay=hasPreset&&lateNamesSet.size?new Set([...baseMust].filter(n=>!lateNamesSet.has(n))):baseMust;
     for(let c=0;c<courtCount;c++){
       if(remaining.mixed+remaining.mens+remaining.womens===0) break;
-      // 타입 순서: 목표 대비 생성 비율 낮은 타입 먼저 (인터리브 유지)
-      const typeOrder=['mixed','mens','womens']
-        .filter(t=>remaining[t]>0)
-        .sort((a,b)=>(generated[a]/(counts[a]||1))-(generated[b]/(counts[b]||1)));
+      // 타입 결정: 프리셋 타입 우선, 실패 시 비율 낮은 타입으로 폴백
+      let typeOrder;
+      const presetType=hasPreset?presetRounds[roundNum][c]:null;
+      if(presetType&&remaining[presetType]>0){
+        const autoFallback=['mixed','mens','womens'].filter(t=>t!==presetType&&remaining[t]>0)
+          .sort((a,b)=>(generated[a]/(counts[a]||1))-(generated[b]/(counts[b]||1)));
+        typeOrder=[presetType,...autoFallback];
+      } else {
+        typeOrder=['mixed','mens','womens']
+          .filter(t=>remaining[t]>0)
+          .sort((a,b)=>(generated[a]/(counts[a]||1))-(generated[b]/(counts[b]||1)));
+      }
       for(const type of typeOrder){
         let match=null;
         if(type==='mixed'){
           match=_genOneMixed(roundPlayers,prevPlayers,prevPrevPlayers,
-            sortedM,sortedF,mSess,fSess,pairStats,usedCombos.mixed,mustPlay,allowConsec3);
+            activeM,activeF,mSess,fSess,pairStats,usedCombos.mixed,mustPlay,allowConsec3);
         } else if(type==='mens'){
           match=_genOneSameGender('mens',roundPlayers,prevPlayers,prevPrevPlayers,
-            prevMensPlayers,sortedM,mensSess,pairStats,usedCombos.mens,mustPlay,allowConsec3);
+            prevMensPlayers,activeM,mensSess,pairStats,usedCombos.mens,mustPlay,allowConsec3);
         } else {
           match=_genOneSameGender('womens',roundPlayers,prevPlayers,prevPrevPlayers,
-            new Set(),sortedF,womensSess,pairStats,usedCombos.womens,mustPlay,allowConsec3);
+            new Set(),activeF,womensSess,pairStats,usedCombos.womens,mustPlay,allowConsec3);
         }
         if(match){
           remaining[type]--;
@@ -6118,7 +6299,11 @@ function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,a
     });
     prevPrevPlayers=prevPlayers;
     prevPlayers=roundPlayers;
-    prevRested=new Set([...allPlayers].filter(p=>!roundPlayers.has(p)));
+    // 프리셋 라운드에서 늦참 선수는 휴식 카운트 제외 (4경기+ 시 과도한 mustPlay 방지)
+    const allForRested=hasPreset&&lateNamesSet.size
+      ?new Set([...allPlayers].filter(n=>!lateNamesSet.has(n)))
+      :allPlayers;
+    prevRested=new Set([...allForRested].filter(p=>!roundPlayers.has(p)));
   }
   return scheduled;
 }
@@ -6171,6 +6356,18 @@ async function generateAutoDrawCards(){
     const hrsVal=parseInt(document.getElementById('auto-time-hrs')&&document.getElementById('auto-time-hrs').value)||4;
     const maxRounds=Math.floor(hrsVal*1.5);
     const allowConsec3=false;
+    // 사전설정 테마 읽기 (제1~3경기 코트별)
+    const presetRounds={};
+    for(let r=1;r<=3;r++){
+      const types=[];let hasAny=false;
+      for(let c=1;c<=courtCount;c++){
+        const el=document.getElementById(`auto-preset-r${r}-c${c}`);
+        if(el){types.push(el.value);hasAny=true;}else types.push('mixed');
+      }
+      if(hasAny) presetRounds[r]=types;
+    }
+    // 늦참 멤버 집합
+    const lateNamesSet=_getLatePlayerNames();
     let scheduled;
     // 팀 대결 모드 분기
     if(_autoTeamMode&&_autoTeamA.length&&_autoTeamB.length){
@@ -6181,7 +6378,8 @@ async function generateAutoDrawCards(){
       const sortedM=_autoSortByRank(males,playerStats);
       const sortedF=_autoSortByRank(females,playerStats);
       scheduled=_genAndSchedule(sortedM,sortedF,pairStats,
-        {mixed:mixedCnt,mens:mensCnt,womens:womensCnt},courtCount,maxRounds,allowConsec3);
+        {mixed:mixedCnt,mens:mensCnt,womens:womensCnt},courtCount,maxRounds,allowConsec3,
+        presetRounds,lateNamesSet);
     }
     const totalMade=scheduled.length;
     if(totalMade===0){
