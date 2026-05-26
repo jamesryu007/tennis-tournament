@@ -2433,7 +2433,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v707';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v708';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5813,7 +5813,7 @@ function _bulkStartTeam(){
   if(!d.teamMode){
     if(!isManager()&&!isAdmin()){alert('관리자만 일괄시작할 수 있습니다.');return;}
     const setupCards=Object.entries(_dailyCards).filter(([,c])=>c._round&&!c._teamMode&&c.phase==='setup');
-    const alreadyStarted=Object.values(_dailyCards).some(c=>c._round&&!c._teamMode&&c.phase==='playing');
+    const alreadyStarted=Object.values(_dailyCards).some(c=>c._round&&!c._teamMode&&c.phase!=='setup');
     if(!setupCards.length){alert(alreadyStarted?'이미 경기가 시작되었습니다.':'시작 가능한 경기가 없습니다.');return;}
     if(!confirm(`대진표 경기 ${setupCards.length}개를 일괄 시작합니다.`)) return;
     setupCards.forEach(([id])=>startDailyMatch(id));
@@ -5982,11 +5982,9 @@ function _renderDrawAnalysis(d){
     let _showBtn=false;
     if(d.teamMode){
       const _capA=d.teamANames[0]||'';const _capB=d.teamBNames[0]||'';
-      const _tmStarted=Object.values(_dailyCards).some(c=>c._teamMode&&c._round&&c.phase!=='teamSetup');
-      _showBtn=(curName===_capA||curName===_capB||isAdmin())&&!_tmStarted;
+      _showBtn=curName===_capA||curName===_capB||isAdmin();
     } else {
-      const _autoStarted=Object.values(_dailyCards).some(c=>c._round&&!c._teamMode&&c.phase!=='setup');
-      _showBtn=(isManager()||isAdmin())&&!_autoStarted;
+      _showBtn=isManager()||isAdmin();
     }
     if(_showBtn){
       html+=`<div style="display:flex;gap:8px;margin-bottom:12px">
