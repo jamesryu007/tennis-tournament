@@ -2418,7 +2418,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v687';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v688';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4293,7 +4293,7 @@ function _updateScoreBtn(id, val){
 function _isTBScore(s0, s1) {
   if(isNaN(s0)||isNaN(s1)) return false;
   const hi=Math.max(s0,s1), lo=Math.min(s0,s1);
-  return (hi===6&&lo===5)||(hi===7&&lo===6);
+  return (hi===6&&lo===5)||(hi===7&&lo===6)||(hi===7&&lo===5);
 }
 
 function _checkAndUpdateTB(setIdx) {
@@ -6647,9 +6647,10 @@ function openDailyScore(id){
     const b=document.getElementById(`dscore-b-${i}`);
     if(a){ a.value=s.s0; _updateScoreBtn(`dscore-a-${i}`,String(s.s0)); }
     if(b){ b.value=s.s1; _updateScoreBtn(`dscore-b-${i}`,String(s.s1)); }
+    // TB row 표시 여부 항상 체크 (7:5 포함)
+    _checkAndUpdateTB(i);
     // TB 복원
     if(s.tb0!=null&&s.tb1!=null){
-      _checkAndUpdateTB(i);
       const ta=document.getElementById(`dscore-tba-${i}`);
       const tb=document.getElementById(`dscore-tbb-${i}`);
       if(ta){ ta.value=s.tb0; _updateScoreBtn(`dscore-tba-${i}`,String(s.tb0)); }
