@@ -2436,7 +2436,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v695';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v696';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5508,6 +5508,9 @@ let _drawEditCtx=null;
 function _openDrawEditModal(){
   const d=_computeDrawAnalysis();
   if(!d||!d.teamMode){alert('팀 대결 대진이 없습니다.');return;}
+  // 이미 시작된 경기가 하나라도 있으면 수정 불가
+  const started=Object.values(_dailyCards).some(c=>c._teamMode&&c._round&&c.phase!=='teamSetup');
+  if(started){alert('게임이 시작되었으므로, 멤버를 수정할 수 없습니다.');return;}
   const curName=(state.identity&&state.identity.name)||'';
   const capA=d.teamANames[0]||'';
   const capB=d.teamBNames[0]||'';
@@ -5534,7 +5537,7 @@ function _openDrawEditModal(){
   const teamLabel=mySide==='A'?(capA?capA+'팀':'A팀'):(capB?capB+'팀':'B팀');
   const teamBadgeColor=mySide==='A'?'#eff6ff':'#fdf2f8';
   const teamBorderColor=mySide==='A'?'#3b82f6':'#ec4899';
-  const selStyle='font-size:0.78rem;font-weight:700;padding:4px 3px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;width:76px;color:#1e293b;font-family:inherit;flex-shrink:0';
+  const selStyle='font-size:0.78rem;font-weight:700;padding:4px 3px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;width:76px;color:#1e293b;font-family:inherit;flex-shrink:0;text-align:center;text-align-last:center';
   const roundPastels=['#eff6ff','#fdf4ff','#fff7ed','#f0fdf4','#fef2f2','#f0f9ff','#fefce8','#fdf2f8'];
   let html=`<div style="background:${teamBadgeColor};border:1.5px solid ${teamBorderColor};border-radius:8px;padding:5px 10px;margin-bottom:8px;font-size:0.78rem;font-weight:800;color:${teamColor}">${mySide==='A'?'🔵':'🔴'} ${teamLabel} 출전 선수</div>`;
   for(const r of d.roundNums){
@@ -5565,8 +5568,8 @@ function _openDrawEditModal(){
         return `<select data-card="${cardId}" data-slot="${slot}" onchange="_onDrawEditChange(this)" style="${selStyle}">${optHtml}</select>`;
       };
       html+=`<div style="display:flex;align-items:center;padding:6px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
-        <span style="font-size:0.72rem;font-weight:800;color:#475569;white-space:nowrap;flex-shrink:0;min-width:66px;margin-right:8px">제${r}경기 ${c}코트</span>
-        <span style="font-size:0.72rem;font-weight:800;color:${tColor[card.matchType]};white-space:nowrap;flex-shrink:0;margin-right:12px">${tIcon[card.matchType]} ${tName[card.matchType]}</span>
+        <span style="font-size:0.72rem;font-weight:800;color:#475569;white-space:nowrap;flex-shrink:0;min-width:66px;margin-right:16px">제${r}경기 ${c}코트</span>
+        <span style="font-size:0.72rem;font-weight:800;color:${tColor[card.matchType]};white-space:nowrap;flex-shrink:0;margin-right:24px">${tIcon[card.matchType]} ${tName[card.matchType]}</span>
         <span id="dedot-${cardId}-0" style="width:8px;height:8px;border-radius:50%;background:${col0};flex-shrink:0;margin-right:4px"></span>
         ${mkSel(p0,opts0,'0')}
         <span style="color:#94a3b8;font-size:0.8rem;flex-shrink:0;margin:0 5px">-</span>
