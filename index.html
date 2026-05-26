@@ -1763,27 +1763,19 @@ const firebaseConfig = {
         <div id="auto-recommend-info" style="display:none"></div>
         <div class="type-row">
           <span class="type-label" style="color:#7c3aed">🟣 혼복</span>
-          <select id="auto-mixed-cnt" onchange="_checkAutoConsec3()"></select>
+          <select id="auto-mixed-cnt"></select>
         </div>
         <div class="type-row">
           <span class="type-label" style="color:#2563eb">🔵 남복</span>
-          <select id="auto-mens-cnt" onchange="_checkAutoConsec3()"></select>
+          <select id="auto-mens-cnt"></select>
         </div>
         <div class="type-row">
           <span class="type-label" style="color:#db2777">🩷 여복</span>
-          <select id="auto-womens-cnt" onchange="_checkAutoConsec3()"></select>
+          <select id="auto-womens-cnt"></select>
         </div>
       </div>
       <div id="auto-draw-warn" style="color:#dc2626;font-size:0.8rem;margin:10px 0 0;display:none"></div>
-      <div id="auto-consec3-notice" style="display:none;background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:10px 12px;margin-top:10px;font-size:0.82rem">
-        <div style="font-weight:700;color:#92400e;margin-bottom:5px">⚠️ 3연속 출전 불가피</div>
-        <div style="color:#78350f;line-height:1.5;margin-bottom:8px">현재 인원/코트 조건에서는 모든 경기를 배정하면 일부 선수가 3연속 출전하게 됩니다.<br>허용하지 않으면 일부 경기가 미배정될 수 있습니다.</div>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-          <input type="checkbox" id="auto-allow-consec3" style="width:18px;height:18px;accent-color:#f59e0b">
-          <span style="font-weight:700;color:#92400e">체력 부담 감수하고 전 경기 생성</span>
-        </label>
-      </div>
-      <button id="auto-draw-submit-btn" onclick="generateAutoDrawCards()" style="width:100%;margin-top:12px;padding:12px;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.3px">대진 생성</button>
+<button id="auto-draw-submit-btn" onclick="generateAutoDrawCards()" style="width:100%;margin-top:12px;padding:12px;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.3px">대진 생성</button>
     </div>
   </div>
 </div>
@@ -2426,7 +2418,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v684';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v685';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4712,35 +4704,11 @@ function autoRecommendGames(){
   document.getElementById('auto-womens-cnt').value=rec.womens;
   const infoEl=document.getElementById('auto-recommend-info');
   if(infoEl) infoEl.textContent=`${courts}코트 × ${hrs}시간 × ${attendees.length}명 기준 ${maxGames}경기 | 🟣혼복 ${rec.mixed} · 🔵남복 ${rec.mens} · 🩷여복 ${rec.womens} 추천`;
-  _checkAutoConsec3();
   // 세션 오너가 직접 변경한 경우만 DB 저장 (리스너 내부 호출 시 제외)
   const curN=(state.identity&&state.identity.name)||'';
   if(_autoDrawSession&&_autoDrawSession.owner===curN&&!_applyingSession) _saveAutoDrawSession();
 }
 
-// 3연속 출전 불가피 여부 감지 → 경고 notice 표시
-function _checkAutoConsec3(){
-  const courts=parseInt(document.getElementById('auto-court-cnt').value)||2;
-  const attendees=_getAutoDrawAttendees();
-  const totalGames=
-    (parseInt(document.getElementById('auto-mixed-cnt').value)||0)+
-    (parseInt(document.getElementById('auto-mens-cnt').value)||0)+
-    (parseInt(document.getElementById('auto-womens-cnt').value)||0);
-  const notice=document.getElementById('auto-consec3-notice');
-  if(!notice) return;
-  // 3라운드에서 활용 가능한 "최소 1회 쉰" 선수 최대 = 2 × (N - courts×4)
-  // 이 값이 courts×4 미만이면 3연속 불가피: N < courts × 6
-  const playersPerRound=courts*4;
-  const unavoidable=attendees.length>0
-    && playersPerRound<=attendees.length        // 코트 채울 인원은 있음
-    && attendees.length<courts*6                // 3연속 회피 불가
-    && Math.ceil(totalGames/courts)>2;          // 3라운드 이상 필요
-  notice.style.display=unavoidable?'':'none';
-  if(!unavoidable){
-    const cb=document.getElementById('auto-allow-consec3');
-    if(cb) cb.checked=false;
-  }
-}
 
 // ── 팀 대결 모드 함수들 ────────────────────────────────────────────
 function _onTeamModeToggle(){
@@ -5931,7 +5899,7 @@ async function generateAutoDrawCards(){
     const courtCount=parseInt(document.getElementById('auto-court-cnt').value)||2;
     const hrsVal=parseInt(document.getElementById('auto-time-hrs')&&document.getElementById('auto-time-hrs').value)||4;
     const maxRounds=Math.floor(hrsVal*1.5);
-    const allowConsec3=!!(document.getElementById('auto-allow-consec3')?.checked);
+    const allowConsec3=false;
     let scheduled;
     // 팀 대결 모드 분기
     if(_autoTeamMode&&_autoTeamA.length&&_autoTeamB.length){
