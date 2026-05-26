@@ -2418,7 +2418,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v690';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v691';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4916,25 +4916,30 @@ function _genTeamDrawOnce(attendees,teamANames,teamBNames,counts,courtCount,maxR
     const roundPlayers=new Set();
     const roundMatches=[];
     let courtIdx=0;
-    // 혼복 미경험자가 있으면 혼복 먼저 배정
-    const allHaveMixed=[...teamA,...teamB].every(p=>mixedSess[p.name]>0);
-    const typeOrder=['mixed','mens','womens']
+    // 처음 3라운드 고정 패턴: 혼복/혼복 → 남복/여복 → 혼복/혼복 → 4경기부터 비율 기반
+    const _fixedPattern=[['mixed','mixed'],['mens','womens'],['mixed','mixed']];
+    const _useFixed=activeRound<_fixedPattern.length;
+    const _patternRow=_useFixed?_fixedPattern[activeRound]:null;
+    // 비율 기반 기본 순서 (4경기부터 또는 고정 패턴 실패 시 fallback)
+    const _ratioOrder=['mixed','mens','womens']
       .filter(t=>remaining[t]>0)
-      .sort((a,b)=>{
-        if(!allHaveMixed){if(a==='mixed')return -1;if(b==='mixed')return 1;}
-        return (generated[a]/(counts[a]||1))-(generated[b]/(counts[b]||1));
-      });
+      .sort((a,b)=>(generated[a]/(counts[a]||1))-(generated[b]/(counts[b]||1)));
 
     const usedTypeThisRound=new Set(); // 이번 라운드 코트별 종목 다양화 추적
     for(let c=0;c<courtCount;c++){
       if(remaining.mixed+remaining.mens+remaining.womens===0) break;
-      // 코트 2 이상: 전원 혼복 경험 완료 시 이번 라운드 미사용 종목 우선 배정
-      const courtTypeOrder=(c>0&&allHaveMixed)
-        ?typeOrder.slice().sort((a,b)=>{
-            const aN=!usedTypeThisRound.has(a),bN=!usedTypeThisRound.has(b);
-            if(aN&&!bN)return -1;if(!aN&&bN)return 1;return 0;
-          })
-        :typeOrder;
+      let courtTypeOrder;
+      if(_useFixed&&_patternRow){
+        // 고정 패턴: 해당 코트 선호 타입을 앞에 배치, 없으면 ratio fallback
+        const preferred=_patternRow[Math.min(c,_patternRow.length-1)];
+        courtTypeOrder=[preferred,..._ratioOrder.filter(t=>t!==preferred)].filter(t=>remaining[t]>0);
+        if(!courtTypeOrder.length) courtTypeOrder=_ratioOrder;
+      } else {
+        // 4경기부터: 비율 기반 + 이번 라운드 다양화
+        courtTypeOrder=c>0
+          ?_ratioOrder.slice().sort((a,b)=>{const aN=!usedTypeThisRound.has(a),bN=!usedTypeThisRound.has(b);if(aN&&!bN)return -1;if(!aN&&bN)return 1;return 0;})
+          :_ratioOrder;
+      }
       for(const type of courtTypeOrder){
         if(remaining[type]<=0) continue;
         let match=null;
