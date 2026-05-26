@@ -2433,7 +2433,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v703';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v704';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5481,7 +5481,11 @@ function _renderTeamFinalResult(){
   if(!done.length){alert('아직 완료된 경기가 없습니다.');return;}
   let aWins=0,bWins=0;
   const rows=[];
-  for(const c of done.sort((a,b)=>(a._round-b._round)||(a._court-b._court))){
+  let _extraIdx=1;
+  for(const c of done.sort((a,b)=>{
+    if(a._round!=null&&b._round!=null)return(a._round-b._round)||(a._court-b._court);
+    if(a._round!=null)return -1;if(b._round!=null)return 1;return 0;
+  })){
     const t0side=c._team0Side||'A';
     const t1side=t0side==='A'?'B':'A';
     const winSide=c.winner===0?t0side:t1side;
@@ -5489,8 +5493,9 @@ function _renderTeamFinalResult(){
     const aTeam=t0side==='A'?c.team0:c.team1;
     const bTeam=t0side==='A'?c.team1:c.team0;
     const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
+    const _matchLabel=c._round!=null?`제${c._round}경기`:`추가경기${_extraIdx++}`;
     rows.push(`<tr style="border-bottom:1px solid #f1f5f9">
-      <td style="padding:5px 6px;font-size:0.72rem;color:#64748b">제${c._round}경기</td>
+      <td style="padding:5px 6px;font-size:0.72rem;color:#64748b">${_matchLabel}</td>
       <td style="padding:5px 4px;font-size:0.72rem">${tIcon[c.matchType]||''}</td>
       <td style="padding:5px 4px;font-size:0.75rem;font-weight:700;color:#1e40af">${aTeam.join('-')}</td>
       <td style="padding:5px 4px;font-size:0.75rem;font-weight:700;color:#9d174d">${bTeam.join('-')}</td>
@@ -5557,7 +5562,7 @@ function _openDrawEditModal(){
     const males=d.attendees.filter(p=>p.gender==='male').map(p=>p.name);
     const females=d.attendees.filter(p=>p.gender!=='male').map(p=>p.name);
     const roundPastels=['#eff6ff','#fdf4ff','#fff7ed','#f0fdf4','#fef2f2','#f0f9ff','#fefce8','#fdf2f8'];
-    const selStyle='font-size:0.78rem;font-weight:700;padding:4px 3px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;width:76px;color:#1e293b;font-family:inherit;flex-shrink:0;text-align:center;text-align-last:center';
+    const selStyle='font-size:0.75rem;font-weight:700;padding:3px 2px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;width:68px;color:#1e293b;font-family:inherit;flex-shrink:0;text-align:center;text-align-last:center';
     const mkSel=(val,opts,cardId,slot)=>{
       const optHtml=opts.map(n=>`<option value="${n}"${n===val?' selected':''}>${n}</option>`).join('');
       return `<select data-card="${cardId}" data-slot="${slot}" onchange="_onDrawEditChange(this)" style="${selStyle}">${optHtml}</select>`;
@@ -5576,17 +5581,19 @@ function _openDrawEditModal(){
         else{opts0=opts1=opts2=opts3=females.length?females:['?'];}
         const [a0,a1,b0,b1]=[card.team0[0]||'',card.team0[1]||'',card.team1[0]||'',card.team1[1]||''];
         const isLast=c===d.courtCount;
-        const _dash='<span style="color:#94a3b8;font-size:0.8rem;flex-shrink:0;margin:0 3px">-</span>';
-        const _vs='<span style="color:#94a3b8;font-size:0.78rem;font-weight:600;flex-shrink:0;margin:0 5px">vs</span>';
-        html+=`<div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px 4px;padding:6px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
-          <span style="font-size:0.72rem;font-weight:800;color:#475569;white-space:nowrap;flex-shrink:0;min-width:66px;margin-right:8px">제${r}경기 ${c}코트</span>
-          <span style="font-size:0.72rem;font-weight:800;color:${tColor[card.matchType]};white-space:nowrap;flex-shrink:0;margin-right:8px">${tIcon[card.matchType]} ${tName[card.matchType]}</span>
-          <div style="display:flex;align-items:center;flex-shrink:0">
-            ${mkDot(a0,cardId,'0')}${mkSel(a0,opts0,cardId,'0')}${_dash}${mkDot(a1,cardId,'1')}${mkSel(a1,opts1,cardId,'1')}
-          </div>
-          ${_vs}
-          <div style="display:flex;align-items:center;flex-shrink:0">
-            ${mkDot(b0,cardId,'2')}${mkSel(b0,opts2,cardId,'2')}${_dash}${mkDot(b1,cardId,'3')}${mkSel(b1,opts3,cardId,'3')}
+        const _dash='<span style="color:#94a3b8;font-size:0.8rem;flex-shrink:0;margin:0 2px">-</span>';
+        const _vs='<span style="color:#94a3b8;font-size:0.75rem;font-weight:600;flex-shrink:0;margin:0 4px">vs</span>';
+        html+=`<div style="padding:6px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
+          <div style="font-size:0.72rem;font-weight:800;color:#475569;margin-bottom:4px">제${r}경기 ${c}코트</div>
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px 3px">
+            <span style="font-size:0.72rem;font-weight:800;color:${tColor[card.matchType]};white-space:nowrap;flex-shrink:0;margin-right:6px">${tIcon[card.matchType]} ${tName[card.matchType]}</span>
+            <div style="display:flex;align-items:center;flex-shrink:0">
+              ${mkDot(a0,cardId,'0')}${mkSel(a0,opts0,cardId,'0')}${_dash}${mkDot(a1,cardId,'1')}${mkSel(a1,opts1,cardId,'1')}
+            </div>
+            ${_vs}
+            <div style="display:flex;align-items:center;flex-shrink:0">
+              ${mkDot(b0,cardId,'2')}${mkSel(b0,opts2,cardId,'2')}${_dash}${mkDot(b1,cardId,'3')}${mkSel(b1,opts3,cardId,'3')}
+            </div>
           </div>
         </div>`;
       }
