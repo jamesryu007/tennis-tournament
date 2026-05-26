@@ -2437,7 +2437,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v700';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v701';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6071,24 +6071,24 @@ function _renderAutoPresetThemes(){
   const el=document.getElementById('auto-preset-themes');
   if(!el) return;
   const courts=parseInt(document.getElementById('auto-court-cnt').value)||2;
-  const typeLabel={mixed:'혼복',mens:'남복',womens:'여복'};
-  const selStyle='font-size:0.75rem;font-weight:700;padding:3px 4px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#1e293b;font-family:inherit';
+  const selStyle='font-size:0.75rem;font-weight:700;padding:3px 4px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;color:#1e293b;font-family:inherit;text-align:center;text-align-last:center';
   const lateNames=_getLatePlayerNames();
   const lateNote=lateNames.size>0?` <span style="color:#f59e0b;font-size:0.7rem;font-weight:700">(늦참 ${lateNames.size}명: ${[...lateNames].join('·')})</span>`:'';
   let html=`<div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:8px 10px">
-    <div style="font-size:0.78rem;font-weight:800;color:#64748b;margin-bottom:6px">🎯 제1~3경기 테마 사전설정${lateNote}
-      <span style="display:block;font-size:0.7rem;font-weight:600;color:#94a3b8;margin-top:2px">늦참 멤버는 4경기부터 배정됩니다</span>
+    <div style="font-size:0.78rem;font-weight:800;color:#64748b;margin-bottom:6px">🎯 제1~4경기 테마 사전설정${lateNote}
+      <span style="display:block;font-size:0.7rem;font-weight:600;color:#94a3b8;margin-top:2px">자동배정 설정 경기부터 늦참 멤버 포함</span>
     </div>`;
-  for(let r=1;r<=3;r++){
-    html+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:${r<3?'4px':'0'}">
+  for(let r=1;r<=4;r++){
+    html+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:${r<4?'4px':'0'}">
       <span style="font-size:0.75rem;font-weight:800;color:#475569;flex-shrink:0;min-width:50px">제${r}경기</span>`;
     for(let c=1;c<=courts;c++){
       const id=`auto-preset-r${r}-c${c}`;
       const curEl=document.getElementById(id);
-      const curVal=curEl?curEl.value:'mixed';
+      const curVal=curEl?curEl.value:'auto';
       html+=`<div style="display:flex;align-items:center;gap:2px">
         <span style="font-size:0.7rem;color:#94a3b8;flex-shrink:0">${c}코트</span>
         <select id="${id}" style="${selStyle}">
+          <option value="auto"${curVal==='auto'?' selected':''}>자동배정</option>
           <option value="mixed"${curVal==='mixed'?' selected':''}>🟣혼복</option>
           <option value="mens"${curVal==='mens'?' selected':''}>🔵남복</option>
           <option value="womens"${curVal==='womens'?' selected':''}>🩷여복</option>
@@ -6220,7 +6220,13 @@ function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,a
   const usedCombos={mixed:new Set(),mens:new Set(),womens:new Set()};
   const typeIdx={mixed:0,mens:0,womens:0};
   const allPlayers=new Set([...sortedM,...sortedF].map(p=>p.name));
-  // 프리셋 라운드용 늦참 제외 풀
+  // lateStartRound: 시작부터 연속으로 명시 타입(non-auto)인 라운드 수+1
+  // 첫 번째 '자동배정' 라운드(모든 코트가 auto이거나 presetRounds 미설정)부터 늦참 포함
+  let lateStartRound=5;
+  for(let _r=1;_r<=4;_r++){
+    const _types=presetRounds[_r];
+    if(!_types||_types.length===0||_types.some(t=>!t||t==='auto')){lateStartRound=_r;break;}
+  }
   const nonLateM=lateNamesSet.size?sortedM.filter(p=>!lateNamesSet.has(p.name)):sortedM;
   const nonLateF=lateNamesSet.size?sortedF.filter(p=>!lateNamesSet.has(p.name)):sortedF;
   let prevPlayers=new Set();
@@ -6232,18 +6238,19 @@ function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,a
     const roundPlayers=new Set();
     const round=[];
     let courtIdx=0;
-    // 프리셋 라운드 여부 — 늦참 선수 제외 풀 사용
-    const hasPreset=presetRounds[roundNum]&&presetRounds[roundNum].length>0;
-    const activeM=hasPreset?nonLateM:sortedM;
-    const activeF=hasPreset?nonLateF:sortedF;
-    // mustPlay: 직전 라운드 쉰 선수 (연속 쉼 방지), 프리셋 라운드에서는 늦참 제외
+    // 늦참 제외 여부: lateStartRound 이전 라운드에서만 제외
+    const isLateExcluded=lateNamesSet.size>0&&roundNum<lateStartRound;
+    const activeM=isLateExcluded?nonLateM:sortedM;
+    const activeF=isLateExcluded?nonLateF:sortedF;
+    // mustPlay: 직전 라운드 쉰 선수 (연속 쉼 방지), 늦참 제외 구간에서는 늦참 제외
     const baseMust=new Set([...prevRested]);
-    const mustPlay=hasPreset&&lateNamesSet.size?new Set([...baseMust].filter(n=>!lateNamesSet.has(n))):baseMust;
+    const mustPlay=isLateExcluded?new Set([...baseMust].filter(n=>!lateNamesSet.has(n))):baseMust;
     for(let c=0;c<courtCount;c++){
       if(remaining.mixed+remaining.mens+remaining.womens===0) break;
-      // 타입 결정: 프리셋 타입 우선, 실패 시 비율 낮은 타입으로 폴백
+      // 타입 결정: 명시 프리셋 타입(non-auto) 우선, 실패 시 비율 낮은 타입으로 폴백
       let typeOrder;
-      const presetType=hasPreset?presetRounds[roundNum][c]:null;
+      const _rawPreset=presetRounds[roundNum]?presetRounds[roundNum][c]:null;
+      const presetType=(_rawPreset&&_rawPreset!=='auto')?_rawPreset:null;
       if(presetType&&remaining[presetType]>0){
         const autoFallback=['mixed','mens','womens'].filter(t=>t!==presetType&&remaining[t]>0)
           .sort((a,b)=>(generated[a]/(counts[a]||1))-(generated[b]/(counts[b]||1)));
@@ -6299,8 +6306,8 @@ function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,a
     });
     prevPrevPlayers=prevPlayers;
     prevPlayers=roundPlayers;
-    // 프리셋 라운드에서 늦참 선수는 휴식 카운트 제외 (4경기+ 시 과도한 mustPlay 방지)
-    const allForRested=hasPreset&&lateNamesSet.size
+    // 늦참 제외 구간에서 늦참 선수는 휴식 카운트 제외 (lateStartRound 이후 과도한 mustPlay 방지)
+    const allForRested=isLateExcluded
       ?new Set([...allPlayers].filter(n=>!lateNamesSet.has(n)))
       :allPlayers;
     prevRested=new Set([...allForRested].filter(p=>!roundPlayers.has(p)));
@@ -6356,13 +6363,13 @@ async function generateAutoDrawCards(){
     const hrsVal=parseInt(document.getElementById('auto-time-hrs')&&document.getElementById('auto-time-hrs').value)||4;
     const maxRounds=Math.floor(hrsVal*1.5);
     const allowConsec3=false;
-    // 사전설정 테마 읽기 (제1~3경기 코트별)
+    // 사전설정 테마 읽기 (제1~4경기 코트별)
     const presetRounds={};
-    for(let r=1;r<=3;r++){
+    for(let r=1;r<=4;r++){
       const types=[];let hasAny=false;
       for(let c=1;c<=courtCount;c++){
         const el=document.getElementById(`auto-preset-r${r}-c${c}`);
-        if(el){types.push(el.value);hasAny=true;}else types.push('mixed');
+        if(el){types.push(el.value);hasAny=true;}else types.push('auto');
       }
       if(hasAny) presetRounds[r]=types;
     }
