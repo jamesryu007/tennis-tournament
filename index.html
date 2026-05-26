@@ -1748,30 +1748,26 @@ const firebaseConfig = {
       <!-- 팀 배정 영역 (팀 대결 모드 ON시 표시) -->
       <div id="auto-team-assign" style="display:none;margin-bottom:10px"></div>
       <div>
-        <div class="court-row">
-          <span class="type-label" style="color:#0f766e">🎾 코트 수</span>
-          <select id="auto-court-cnt" onchange="autoRecommendGames()">
+        <!-- 코트 수 + 경기 시간 한 줄 -->
+        <div style="background:linear-gradient(135deg,rgba(13,148,136,0.07),rgba(16,185,129,0.05));border-radius:14px;padding:8px 14px;margin-bottom:6px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:0.82rem;font-weight:800;color:#0f766e;flex:1">🎾 코트 수</span>
+          <select id="auto-court-cnt" onchange="autoRecommendGames()" style="font-size:0.82rem;font-weight:700;padding:5px 8px;border:1.5px solid #0d9488;border-radius:10px;background:#f8fafc;color:#1e293b;font-family:inherit;cursor:pointer;width:80px">
             <option value="1">1코트</option><option value="2" selected>2코트</option><option value="3">3코트</option><option value="4">4코트</option><option value="5">5코트</option>
           </select>
-        </div>
-        <div class="court-row" style="margin-top:6px">
-          <span class="type-label" style="color:#0f766e">⏱ 경기 시간</span>
-          <select id="auto-time-hrs" onchange="autoRecommendGames()">
+          <span style="font-size:0.82rem;font-weight:800;color:#0f766e;flex:1;text-align:right">⏱ 경기 시간</span>
+          <select id="auto-time-hrs" onchange="autoRecommendGames()" style="font-size:0.82rem;font-weight:700;padding:5px 8px;border:1.5px solid #0d9488;border-radius:10px;background:#f8fafc;color:#1e293b;font-family:inherit;cursor:pointer;width:80px">
             <option value="2">2시간</option><option value="3">3시간</option><option value="4" selected>4시간</option><option value="5">5시간</option><option value="6">6시간</option><option value="7">7시간</option><option value="8">8시간</option>
           </select>
         </div>
         <div id="auto-recommend-info" style="display:none"></div>
-        <div class="type-row">
-          <span class="type-label" style="color:#7c3aed">🟣 혼복</span>
-          <select id="auto-mixed-cnt"></select>
-        </div>
-        <div class="type-row">
-          <span class="type-label" style="color:#2563eb">🔵 남복</span>
-          <select id="auto-mens-cnt"></select>
-        </div>
-        <div class="type-row">
-          <span class="type-label" style="color:#db2777">🩷 여복</span>
-          <select id="auto-womens-cnt"></select>
+        <!-- 혼복 + 남복 + 여복 한 줄 -->
+        <div style="background:linear-gradient(135deg,rgba(13,148,136,0.07),rgba(16,185,129,0.05));border-radius:14px;padding:8px 14px;margin-bottom:6px;display:flex;align-items:center;gap:6px">
+          <span style="font-size:0.82rem;font-weight:800;color:#7c3aed;flex:1">🟣 혼복</span>
+          <select id="auto-mixed-cnt" style="font-size:0.82rem;font-weight:700;padding:5px 6px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#1e293b;font-family:inherit;cursor:pointer;width:72px"></select>
+          <span style="font-size:0.82rem;font-weight:800;color:#2563eb;flex:1;text-align:center">🔵 남복</span>
+          <select id="auto-mens-cnt" style="font-size:0.82rem;font-weight:700;padding:5px 6px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#1e293b;font-family:inherit;cursor:pointer;width:72px"></select>
+          <span style="font-size:0.82rem;font-weight:800;color:#db2777;flex:1;text-align:right">🩷 여복</span>
+          <select id="auto-womens-cnt" style="font-size:0.82rem;font-weight:700;padding:5px 6px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;color:#1e293b;font-family:inherit;cursor:pointer;width:72px"></select>
         </div>
       </div>
       <div id="auto-preset-themes" style="margin-top:6px"></div>
@@ -2437,7 +2433,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v701';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v702';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
