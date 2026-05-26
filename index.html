@@ -2433,7 +2433,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v716';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v717';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4920,12 +4920,13 @@ function _genTeamDrawOnce(attendees,teamANames,teamBNames,counts,courtCount,maxR
   conditionGood=conditionGood||new Set();
   if(!presetRounds) presetRounds={};
   if(!lateNamesSet) lateNamesSet=new Set();
-  // lateStartRound: 연속 명시 타입 라운드 수+1
+  // lateStartRound: 연속 명시 타입 라운드 수+1 (최소 2 — 모두 자동배정이어도 늦참자는 2경기부터)
   let lateStartRound=5;
   for(let _r=1;_r<=4;_r++){
     const _t=presetRounds[_r];
     if(!_t||_t.length===0||_t.some(t=>!t||t==='auto')){lateStartRound=_r;break;}
   }
+  if(lateStartRound<2) lateStartRound=2;
   const teamA=attendees.filter(p=>teamANames.includes(p.name));
   const teamB=attendees.filter(p=>teamBNames.includes(p.name));
   const teamAM=teamA.filter(p=>p.gender==='male');
@@ -6125,7 +6126,7 @@ function _renderAutoPresetThemes(){
   const lateNote=lateNames.size>0?` <span style="color:#f59e0b;font-size:0.7rem;font-weight:700">(늦참 ${lateNames.size}명: ${[...lateNames].join('·')})</span>`:'';
   let html=`<div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:8px 10px">
     <div style="font-size:0.78rem;font-weight:800;color:#64748b;margin-bottom:6px">🎯 제1~4경기 테마 사전설정${lateNote}
-      <span style="display:block;font-size:0.7rem;font-weight:600;color:#94a3b8;margin-top:2px">자동배정 설정 경기부터 늦참 멤버 포함</span>
+      <span style="display:block;font-size:0.7rem;font-weight:600;color:#94a3b8;margin-top:2px">자동배정 설정 경기부터 늦참 멤버 포함 (최소 2경기부터)</span>
     </div>`;
   for(let r=1;r<=4;r++){
     html+=`<div style="display:flex;align-items:center;gap:6px;margin-bottom:${r<4?'4px':'0'}">
@@ -6269,13 +6270,13 @@ function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,a
   const usedCombos={mixed:new Set(),mens:new Set(),womens:new Set()};
   const typeIdx={mixed:0,mens:0,womens:0};
   const allPlayers=new Set([...sortedM,...sortedF].map(p=>p.name));
-  // lateStartRound: 시작부터 연속으로 명시 타입(non-auto)인 라운드 수+1
-  // 첫 번째 '자동배정' 라운드(모든 코트가 auto이거나 presetRounds 미설정)부터 늦참 포함
+  // lateStartRound: 시작부터 연속으로 명시 타입(non-auto)인 라운드 수+1 (최소 2 — 모두 자동배정이어도 늦참자는 2경기부터)
   let lateStartRound=5;
   for(let _r=1;_r<=4;_r++){
     const _types=presetRounds[_r];
     if(!_types||_types.length===0||_types.some(t=>!t||t==='auto')){lateStartRound=_r;break;}
   }
+  if(lateStartRound<2) lateStartRound=2;
   const nonLateM=lateNamesSet.size?sortedM.filter(p=>!lateNamesSet.has(p.name)):sortedM;
   const nonLateF=lateNamesSet.size?sortedF.filter(p=>!lateNamesSet.has(p.name)):sortedF;
   let prevPlayers=new Set();
