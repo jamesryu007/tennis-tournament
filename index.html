@@ -2426,7 +2426,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v682';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v683';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4796,13 +4796,19 @@ function _renderTeamAssign(){
     else          { if(_conditionBadB===name) return '🙏'; if(_conditionGoodB===name) return '💪'; }
     return '';
   };
+  // 3열 grid 고정 — 이모지 추가/제거 시 흔들림 없도록 고정 높이
   const memberHtml=(p,team)=>{
     const emoji=condEmoji(p.name,team);
-    const badge=emoji?`<span style="font-size:0.85em">${emoji}</span>`:'';
+    const bg=emoji==='🙏'?'#fef3c7':emoji==='💪'?'#dcfce7':'#f1f5f9';
+    const border=emoji?'#94a3b8':'#e2e8f0';
+    const color=team==='A'?'#1d4ed8':'#9d174d';
+    const inner=emoji?`<span style="font-size:0.75em;margin-right:1px">${emoji}</span>${p.name}`:p.name;
     return isDrawOwner
-      ? `<span onclick="_tapConditionPlayer('${team}','${p.name}')" style="display:inline-block;cursor:pointer;margin:1px 3px;padding:2px 5px;border-radius:6px;font-size:0.78rem;font-weight:700;color:${team==='A'?'#1d4ed8':'#9d174d'};background:${emoji==='🙏'?'#fef3c7':emoji==='💪'?'#dcfce7':'transparent'};border:1px solid ${emoji?'#94a3b8':'transparent'}">${badge}${p.name}</span>`
-      : `<span style="display:inline-block;margin:1px 3px;font-size:0.78rem;font-weight:700;color:${team==='A'?'#1d4ed8':'#9d174d'}">${badge}${p.name}</span>`;
+      ? `<span onclick="_tapConditionPlayer('${team}','${p.name}')" style="display:flex;align-items:center;justify-content:center;cursor:pointer;height:26px;border-radius:6px;font-size:0.76rem;font-weight:700;color:${color};background:${bg};border:1px solid ${border};overflow:hidden;white-space:nowrap">${inner}</span>`
+      : `<span style="display:flex;align-items:center;justify-content:center;height:26px;font-size:0.76rem;font-weight:700;color:${color};overflow:hidden;white-space:nowrap">${inner}</span>`;
   };
+  const membersGridA=[...aMales,...aFemales];
+  const membersGridB=[...bMales,...bFemales];
   el.innerHTML=`
     <div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:8px">
       <div style="font-size:0.75rem;font-weight:700;color:#64748b;margin-bottom:6px">참석자 — 탭하여 팀 배정 (미배정→A팀→B팀→미배정)</div>
@@ -4811,14 +4817,14 @@ function _renderTeamAssign(){
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div style="background:#eff6ff;border:2px solid #3b82f6;border-radius:12px;padding:9px 11px">
-        <div style="font-size:0.75rem;font-weight:800;color:#1e40af;margin-bottom:5px">🔵 ${aName} (${_autoTeamA.length}명)</div>
-        <div style="display:flex;flex-wrap:wrap;line-height:1.8">${[...aMales,...aFemales].map(p=>memberHtml(p,'A')).join('')||'—'}</div>
-        ${isDrawOwner?`<div style="font-size:0.65rem;color:#94a3b8;margin-top:4px">이름 탭: 🙏양보 → 💪추가 → 해제</div>`:''}
+        <div style="font-size:0.75rem;font-weight:800;color:#1e40af;margin-bottom:6px">🔵 ${aName} (${_autoTeamA.length}명)</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px">${membersGridA.map(p=>memberHtml(p,'A')).join('')||'—'}</div>
+        ${isDrawOwner&&membersGridA.length?`<div style="font-size:0.62rem;color:#94a3b8;margin-top:5px">탭: 🙏양보→💪추가→해제</div>`:''}
       </div>
       <div style="background:#fdf2f8;border:2px solid #ec4899;border-radius:12px;padding:9px 11px">
-        <div style="font-size:0.75rem;font-weight:800;color:#9d174d;margin-bottom:5px">🔴 ${bName} (${_autoTeamB.length}명)</div>
-        <div style="display:flex;flex-wrap:wrap;line-height:1.8">${[...bMales,...bFemales].map(p=>memberHtml(p,'B')).join('')||'—'}</div>
-        ${isDrawOwner?`<div style="font-size:0.65rem;color:#94a3b8;margin-top:4px">이름 탭: 🙏양보 → 💪추가 → 해제</div>`:''}
+        <div style="font-size:0.75rem;font-weight:800;color:#9d174d;margin-bottom:6px">🔴 ${bName} (${_autoTeamB.length}명)</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px">${membersGridB.map(p=>memberHtml(p,'B')).join('')||'—'}</div>
+        ${isDrawOwner&&membersGridB.length?`<div style="font-size:0.62rem;color:#94a3b8;margin-top:5px">탭: 🙏양보→💪추가→해제</div>`:''}
       </div>
     </div>
     ${unassigned.length?`<div style="font-size:0.72rem;color:#94a3b8;margin-top:6px;font-weight:600">미배정: ${unassigned.map(p=>p.name).join(', ')}</div>`:''}
@@ -4844,19 +4850,21 @@ function _tapPillTeam(name){
   _saveAutoDrawSession();
 }
 
-// 팀 박스 이름 탭 → 없음→🙏양보→💪추가→없음 순환
+// 팀 박스 이름 탭 → 없음→🙏양보→💪추가→없음 순환 (팀당 🙏 1명·💪 1명 독립 유지)
 function _tapConditionPlayer(team,name){
   const curName=(state.identity&&state.identity.name)||'';
   if(_autoDrawSession&&_autoDrawSession.owner!==curName) return;
-  if(team==='A'){
-    if(_conditionBadA===name){ _conditionBadA=null; _conditionGoodA=name; }
-    else if(_conditionGoodA===name){ _conditionGoodA=null; }
-    else { _conditionBadA=null; _conditionGoodA=null; _conditionBadA=name; }
+  let bad=team==='A'?_conditionBadA:_conditionBadB;
+  let good=team==='A'?_conditionGoodA:_conditionGoodB;
+  if(bad===name){
+    bad=null; good=name; // 🙏→💪 전환 (기존 💪가 다른 사람이면 자동 교체)
+  } else if(good===name){
+    good=null; // 💪→없음
   } else {
-    if(_conditionBadB===name){ _conditionBadB=null; _conditionGoodB=name; }
-    else if(_conditionGoodB===name){ _conditionGoodB=null; }
-    else { _conditionBadB=null; _conditionGoodB=null; _conditionBadB=name; }
+    bad=name; // 없음→🙏 (기존 🙏 교체, 💪는 그대로 유지)
   }
+  if(team==='A'){ _conditionBadA=bad; _conditionGoodA=good; }
+  else          { _conditionBadB=bad; _conditionGoodB=good; }
   _renderTeamAssign();
   _saveAutoDrawSession();
 }
