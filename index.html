@@ -1806,12 +1806,12 @@ const firebaseConfig = {
       <span class="modal-round">✏️ 대진 수정</span>
       <button class="modal-close" onclick="closeDrawEditModal()">✕</button>
     </div>
-    <div id="draw-edit-scroll" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px 24px">
+    <div id="draw-edit-scroll" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px 16px">
       <div id="draw-edit-inner"></div>
     </div>
-    <div style="flex-shrink:0;padding:12px 16px;border-top:1px solid #e2e8f0;display:flex;gap:8px">
-      <button onclick="closeDrawEditModal()" style="flex:1;padding:12px;background:#f1f5f9;border:none;border-radius:12px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;color:#475569">취소</button>
-      <button onclick="_applyDrawEdits()" style="flex:2;padding:12px;background:linear-gradient(135deg,#2563eb,#1e40af);color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit">✅ 수정 저장</button>
+    <div style="flex-shrink:0;padding:9px 14px;border-top:1px solid #e2e8f0;display:flex;gap:8px">
+      <button onclick="closeDrawEditModal()" style="flex:1;padding:10px;background:#f1f5f9;border:none;border-radius:11px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;color:#475569">취소</button>
+      <button onclick="_applyDrawEdits()" style="flex:2;padding:10px;background:linear-gradient(135deg,#2563eb,#1e40af);color:#fff;border:none;border-radius:11px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit">✅ 수정 저장</button>
     </div>
   </div>
 </div>
@@ -2436,7 +2436,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v693';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v694';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수'];         // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5534,8 +5534,8 @@ function _openDrawEditModal(){
   const teamLabel=mySide==='A'?(capA?capA+'팀':'A팀'):(capB?capB+'팀':'B팀');
   const teamBadgeColor=mySide==='A'?'#eff6ff':'#fdf2f8';
   const teamBorderColor=mySide==='A'?'#3b82f6':'#ec4899';
-  const selStyle='font-size:0.92rem;font-weight:700;padding:7px 5px;border:1.5px solid #e2e8f0;border-radius:9px;background:#fff;width:90px;color:#1e293b;font-family:inherit;flex-shrink:0';
-  let html=`<div style="background:${teamBadgeColor};border:1.5px solid ${teamBorderColor};border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:0.9rem;font-weight:800;color:${teamColor}">${mySide==='A'?'🔵':'🔴'} ${teamLabel} 출전 선수</div>`;
+  const selStyle='font-size:0.78rem;font-weight:700;padding:4px 3px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;width:76px;color:#1e293b;font-family:inherit;flex-shrink:0';
+  let html=`<div style="background:${teamBadgeColor};border:1.5px solid ${teamBorderColor};border-radius:8px;padding:5px 10px;margin-bottom:8px;font-size:0.78rem;font-weight:800;color:${teamColor}">${mySide==='A'?'🔵':'🔴'} ${teamLabel} 출전 선수</div>`;
   for(const r of d.roundNums){
     for(let c=1;c<=d.courtCount;c++){
       const card=d.roundMap[r][c];
@@ -5560,22 +5560,18 @@ function _openDrawEditModal(){
         const optHtml=opts.map(n=>`<option value="${n}"${n===val?' selected':''}>${n}</option>`).join('');
         return `<select data-card="${cardId}" data-slot="${slot}" onchange="_onDrawEditChange(this)" style="${selStyle}">${optHtml}</select>`;
       };
-      html+=`<div style="display:flex;align-items:center;gap:7px;padding:8px 0;border-bottom:1px solid #f1f5f9">
-        <div style="min-width:78px;flex-shrink:0">
-          <div style="font-size:0.85rem;font-weight:800;color:#334155">제${r}경기 ${c}코트</div>
-          <div style="font-size:0.82rem;font-weight:800;color:${tColor[card.matchType]};margin-top:1px">${tIcon[card.matchType]} ${tName[card.matchType]}</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:5px;flex:1;min-width:0">
-          <span id="dedot-${cardId}-0" style="width:10px;height:10px;border-radius:50%;background:${col0};flex-shrink:0"></span>
-          ${mkSel(p0,opts0,'0')}
-          <span style="color:#94a3b8;font-weight:400;font-size:0.9rem;flex-shrink:0">-</span>
-          <span id="dedot-${cardId}-1" style="width:10px;height:10px;border-radius:50%;background:${col1};flex-shrink:0"></span>
-          ${mkSel(p1,opts1,'1')}
-        </div>
+      html+=`<div style="display:flex;align-items:center;gap:5px;padding:5px 0;border-bottom:1px solid #f1f5f9">
+        <span style="font-size:0.72rem;font-weight:800;color:#475569;white-space:nowrap;flex-shrink:0;min-width:62px">제${r}경기 ${c}코트</span>
+        <span style="font-size:0.72rem;font-weight:800;color:${tColor[card.matchType]};white-space:nowrap;flex-shrink:0">${tIcon[card.matchType]}${tName[card.matchType]}</span>
+        <span id="dedot-${cardId}-0" style="width:8px;height:8px;border-radius:50%;background:${col0};flex-shrink:0"></span>
+        ${mkSel(p0,opts0,'0')}
+        <span style="color:#94a3b8;font-size:0.8rem;flex-shrink:0">-</span>
+        <span id="dedot-${cardId}-1" style="width:8px;height:8px;border-radius:50%;background:${col1};flex-shrink:0"></span>
+        ${mkSel(p1,opts1,'1')}
       </div>`;
     }
   }
-  html+=`<div id="draw-edit-participation-wrap" style="margin-top:14px;padding-top:12px;border-top:2px solid #e2e8f0"></div>`;
+  html+=`<div id="draw-edit-participation-wrap" style="margin-top:10px;padding-top:10px;border-top:1.5px solid #e2e8f0"></div>`;
   document.getElementById('draw-edit-inner').innerHTML=html;
   _updateDrawEditParticipation();
   document.getElementById('draw-edit-modal').classList.add('open');
@@ -5605,15 +5601,15 @@ function _updateDrawEditParticipation(){
   const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
   const teamNames=mySide==='A'?d.teamANames:d.teamBNames;
   const teamPlayers=d.attendees.filter(p=>teamNames.includes(p.name));
-  let t=`<div style="font-size:0.88rem;font-weight:800;color:#1e293b;margin-bottom:8px">📊 선수별 참여 현황</div>`;
-  t+=`<table style="width:100%;border-collapse:collapse;font-size:0.82rem"><thead><tr style="border-bottom:2px solid #e2e8f0">
-    <th style="text-align:left;padding:5px 4px;font-size:0.78rem;color:#64748b;font-weight:700">선수</th>`;
-  for(const r of d.roundNums){t+=`<th style="padding:5px 3px;color:#64748b;font-size:0.72rem;font-weight:700;text-align:center">제${r}</th>`;}
-  t+=`<th style="padding:5px 4px;color:#64748b;font-weight:700;text-align:right;font-size:0.78rem">합계</th></tr></thead><tbody>`;
+  let t=`<div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">📊 선수별 참여 현황</div>`;
+  t+=`<table style="width:100%;border-collapse:collapse;font-size:0.75rem"><thead><tr style="border-bottom:1.5px solid #e2e8f0">
+    <th style="text-align:left;padding:4px 3px;font-size:0.72rem;color:#64748b;font-weight:700">선수</th>`;
+  for(const r of d.roundNums){t+=`<th style="padding:4px 2px;color:#64748b;font-size:0.68rem;font-weight:700;text-align:center">제${r}</th>`;}
+  t+=`<th style="padding:4px 3px;color:#64748b;font-weight:700;text-align:right;font-size:0.72rem">합계</th></tr></thead><tbody>`;
   teamPlayers.forEach(p=>{
     const col=colorMap[p.name]||'#64748b';
     let games=0;
-    t+=`<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:6px 4px;font-weight:800;color:${col};white-space:nowrap">${p.name}</td>`;
+    t+=`<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:4px 3px;font-weight:800;color:${col};white-space:nowrap">${p.name}</td>`;
     for(const r of d.roundNums){
       let icon='';
       for(let c=1;c<=d.courtCount;c++){
@@ -5622,9 +5618,9 @@ function _updateDrawEditParticipation(){
         const cur=cid&&edits[cid]?edits[cid]:(mySide==='A'?[...card.team0]:[...card.team1]);
         if(cur.includes(p.name)){icon=tIcon[card.matchType];games++;break;}
       }
-      t+=`<td style="text-align:center;padding:6px 3px">${icon||'<span style="color:#e2e8f0;font-size:0.65rem">—</span>'}</td>`;
+      t+=`<td style="text-align:center;padding:4px 2px">${icon||'<span style="color:#e2e8f0;font-size:0.6rem">—</span>'}</td>`;
     }
-    t+=`<td style="text-align:right;padding:6px 4px;font-weight:800;color:#1e293b">${games}</td></tr>`;
+    t+=`<td style="text-align:right;padding:4px 3px;font-weight:800;color:#1e293b">${games}</td></tr>`;
   });
   t+=`</tbody></table>`;
   wrap.innerHTML=t;
