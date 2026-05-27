@@ -2463,7 +2463,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v747';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v748';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9355,7 +9355,9 @@ function cycleNotVotedWarnTest() {
   if (!isAdmin()) return;
   const cur = parseInt(localStorage.getItem('jmt_poll_warn_test') ?? '-1', 10);
   const next = (cur + 1) % 4;
-  localStorage.setItem('jmt_poll_warn_test', String(next));
+  // 0으로 돌아오면 오버라이드 해제 → 요일 자동감지로 복귀
+  if (next === 0) localStorage.removeItem('jmt_poll_warn_test');
+  else localStorage.setItem('jmt_poll_warn_test', String(next));
   renderCheckinPage();
 }
 
