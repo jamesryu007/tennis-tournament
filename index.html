@@ -2453,7 +2453,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v720';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v721';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12061,48 +12061,48 @@ async function notifyBetNonParticipants(betId) {
 function renderBetComments(betId, bet, myName) {
   const comments = bet.comments ? Object.entries(bet.comments).sort((a,b)=>a[1].at>b[1].at?1:-1) : [];
   const myIdentity = myName || '';
+  const fmt = at => at ? new Date(at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+
   const cmtHtml = comments.map(([cid, c]) => {
     const isMe = c.author === myIdentity;
     const replies = c.replies ? Object.values(c.replies).sort((a,b)=>(a.at||'').localeCompare(b.at||'')) : [];
-    const replyHtml = replies.map(r => {
-      const rt = r.at ? new Date(r.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
-      return `<div style="display:flex;gap:4px;margin-top:4px;padding-left:8px;border-left:2px solid #e2e8f0;align-items:flex-start">
-        <span style="color:#94a3b8;font-size:0.7rem;flex-shrink:0;margin-top:2px">↩</span>
-        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.6rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${(r.author||'?')[0]}</span>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:0.68rem;font-weight:700;color:#64748b">${r.author}</span>
-            <span style="font-size:0.65rem;color:#94a3b8">${rt}</span>
-          </div>
-          <div style="font-size:0.75rem;color:#1e293b;background:#f1f5f9;border-radius:7px;padding:4px 7px;word-break:break-word;margin-top:2px">${escHtml(r.text)}</div>
-        </div>
-      </div>`;
-    }).join('');
-    return `<div style="margin-bottom:6px;display:flex;gap:6px;align-items:flex-start">
-      <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.72rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:1px">${(c.author||'?')[0]}</span>
+    const replyHtml = replies.map(r => `<div class="comment-reply-item" style="display:flex;gap:7px;align-items:flex-start;margin-top:6px">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.62rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:1px">${(r.author||'?')[0]}</span>
       <div style="flex:1;min-width:0">
-        <span style="font-size:0.7rem;font-weight:700;color:${isMe?'#2563eb':'#64748b'}">${c.author}</span>
-        <div id="bet-cmt-text-${betId}-${cid}" style="font-size:0.78rem;color:#1e293b;background:${isMe?'#eff6ff':'#f8fafc'};border-radius:8px;padding:5px 8px;word-break:break-word;margin-top:2px">${escHtml(c.text)}</div>
-        <div style="display:flex;gap:6px;margin-top:3px">
-          ${isMe ? `<button onclick="editBetComment('${betId}','${cid}')" style="font-size:0.65rem;padding:1px 6px;border-radius:5px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">수정</button>` : ''}
-          <button onclick="toggleBetReplyInput('${betId}','${cid}')" style="font-size:0.65rem;padding:1px 6px;border-radius:5px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">↩ 답글</button>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span class="comment-author" style="font-size:0.7rem">${r.author}</span>
+          <span class="comment-at">${fmt(r.at)}</span>
         </div>
-        ${replyHtml}
-        <div id="bet-reply-input-${betId}-${cid}" style="display:none;margin-top:5px">
-          <div style="display:flex;gap:6px">
-            <input id="bet-reply-text-${betId}-${cid}" type="text" placeholder="답글 입력..." style="flex:1;font-size:0.78rem;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:8px;outline:none;font-family:inherit" onkeydown="if(event.key==='Enter')postBetReply('${betId}','${cid}')">
-            <button onclick="postBetReply('${betId}','${cid}')" style="font-size:0.75rem;padding:5px 10px;border-radius:8px;border:none;background:#2563eb;color:#fff;font-weight:700;cursor:pointer">전송</button>
-          </div>
+        <div class="comment-text" style="font-size:0.8rem">${escHtml(r.text)}</div>
+      </div>
+    </div>`).join('');
+    return `<div class="comment-item">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.75rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(c.author||'?')[0]}</span>
+        <span class="comment-author"${isMe?' style="color:#2563eb"':''}>${c.author}</span>
+        <span class="comment-at" style="margin-left:auto">${fmt(c.at)}</span>
+      </div>
+      <div id="bet-cmt-text-${betId}-${cid}" class="comment-text">${escHtml(c.text)}</div>
+      ${replyHtml}
+      <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
+        <button onclick="toggleBetReplyInput('${betId}','${cid}')" style="font-size:0.72rem;padding:2px 8px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;-webkit-tap-highlight-color:transparent">↩ 답글</button>
+        ${isMe ? `<button onclick="editBetComment('${betId}','${cid}')" style="font-size:0.72rem;padding:2px 8px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;margin-left:auto">수정</button>` : ''}
+      </div>
+      <div id="bet-reply-input-${betId}-${cid}" style="display:none;margin-top:6px">
+        <div style="display:flex;gap:6px">
+          <input id="bet-reply-text-${betId}-${cid}" type="text" placeholder="답글 입력..." style="flex:1;font-size:0.78rem;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:8px;outline:none;font-family:inherit" onkeydown="if(event.key==='Enter')postBetReply('${betId}','${cid}')">
+          <button onclick="postBetReply('${betId}','${cid}')" style="font-size:0.75rem;padding:5px 10px;border-radius:8px;border:none;background:#2563eb;color:#fff;font-weight:700;cursor:pointer">전송</button>
         </div>
       </div>
     </div>`;
   }).join('');
+
   return `
-    <div style="margin-top:10px;padding-top:8px;border-top:1px solid #f1f5f9">
-      ${comments.length ? `<div style="margin-bottom:6px">${cmtHtml}</div>` : ''}
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9">
+      ${comments.length ? `<div style="margin-bottom:4px">${cmtHtml}</div>` : '<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:8px 0">첫 댓글을 남겨보세요 ✏️</p>'}
       ${myIdentity ? `
-        <div style="margin-top:6px">
-          <div style="font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:6px">댓글쓰기</div>
+        <div style="margin-top:8px;border-top:1px solid #f1f5f9;padding-top:12px">
+          <div style="font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:8px">댓글쓰기</div>
           <textarea id="bet-cmt-${betId}" placeholder="댓글 입력" rows="2"
             style="width:100%;box-sizing:border-box;font-size:0.82rem;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;outline:none;resize:none;background:#f8fafc;line-height:1.5;font-family:inherit"
             oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
@@ -20285,45 +20285,40 @@ function _mpCommentsHtml(poll) {
 
   const items = commArr.map(c => {
     const replies = c.replies ? Object.values(c.replies).sort((a,b)=>(a.at||'').localeCompare(b.at||'')) : [];
-    return `<div class="comment-item" id="mp-comment-${c._key}" style="display:flex;gap:6px;align-items:flex-start">
-      <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.72rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:1px">${(c.author||'?')[0]}</span>
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span class="comment-author">${c.author}</span>
-          <div style="display:flex;align-items:center;gap:6px">
-            ${c.author === me ? `<button onclick="editMpComment('${c._key}')" style="font-size:0.68rem;padding:2px 7px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">수정</button>` : ''}
-            <span class="comment-at">${fmt(c.at)}</span>
+    return `<div class="comment-item" id="mp-comment-${c._key}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.75rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(c.author||'?')[0]}</span>
+        <span class="comment-author">${c.author}</span>
+        <span class="comment-at" style="margin-left:auto">${fmt(c.at)}</span>
+      </div>
+      <div class="comment-text" id="mp-cmt-text-${c._key}">${c.text.replace(/</g,'&lt;')}</div>
+      ${replies.map(r=>`<div class="comment-reply-item" style="display:flex;gap:7px;align-items:flex-start;margin-top:6px">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.62rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:1px">${(r.author||'?')[0]}</span>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+            <span class="comment-author" style="font-size:0.7rem">${r.author}</span>
+            <span class="comment-at">${fmt(r.at)}</span>
           </div>
+          <div class="comment-text" style="font-size:0.8rem">${r.text.replace(/</g,'&lt;')}</div>
         </div>
-        <div class="comment-text" id="mp-cmt-text-${c._key}">${c.text.replace(/</g,'&lt;')}</div>
-        ${replies.map(r=>`<div class="reply-item" style="display:flex;gap:4px;align-items:flex-start">
-          <span style="color:#94a3b8;font-size:0.7rem;flex-shrink:0;margin-top:2px">↩</span>
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.6rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${(r.author||'?')[0]}</span>
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span class="comment-author" style="font-size:0.68rem">${r.author}</span>
-              <span class="comment-at">${fmt(r.at)}</span>
-            </div>
-            <div class="comment-text" style="font-size:0.8rem">${r.text.replace(/</g,'&lt;')}</div>
-          </div>
-        </div>`).join('')}
-        <div style="margin-top:4px">
-          <button class="btn btn-outline btn-sm" style="font-size:0.7rem;padding:3px 8px;box-shadow:none;color:#1e293b;border-color:#94a3b8" onclick="mpToggleReplyInput('${c._key}')">↩ 답글</button>
-        </div>
-        <div id="mp-reply-input-${c._key}" class="reply-input-row" style="display:none">
-          <input type="text" id="mp-reply-text-${c._key}" placeholder="답글 입력..." style="flex:1;font-size:0.83rem" onkeydown="if(event.key==='Enter')mpAddReply('${c._key}')">
-          <button class="btn btn-primary btn-sm" onclick="mpAddReply('${c._key}')">전송</button>
-        </div>
+      </div>`).join('')}
+      <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
+        <button style="font-size:0.72rem;padding:2px 8px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="mpToggleReplyInput('${c._key}')">↩ 답글</button>
+        ${c.author === me ? `<button onclick="editMpComment('${c._key}')" style="font-size:0.72rem;padding:2px 8px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;margin-left:auto">수정</button>` : ''}
+      </div>
+      <div id="mp-reply-input-${c._key}" class="reply-input-row" style="display:none;margin-top:6px">
+        <input type="text" id="mp-reply-text-${c._key}" placeholder="답글 입력..." style="flex:1;font-size:0.83rem" onkeydown="if(event.key==='Enter')mpAddReply('${c._key}')">
+        <button class="btn btn-primary btn-sm" onclick="mpAddReply('${c._key}')">전송</button>
       </div>
     </div>`;
-  }).join('') || '<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:8px 0">첫 댓글을 남겨보세요!</p>';
+  }).join('') || '<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:12px 0">첫 댓글을 남겨보세요 ✏️</p>';
 
   return `<div class="card">
     <div class="card-title" style="margin-bottom:6px">💬 댓글</div>
     <div class="divider"></div>
     ${items}
-    <div style="margin-top:6px">
-      <div style="font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:6px">댓글쓰기</div>
+    <div style="margin-top:8px;border-top:1px solid #f1f5f9;padding-top:12px">
+      <div style="font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:8px">댓글쓰기</div>
       <textarea id="mp-comment-input" placeholder="댓글 입력" rows="2"
         style="width:100%;box-sizing:border-box;font-size:0.82rem;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;outline:none;resize:none;background:#f8fafc;line-height:1.5;font-family:inherit"
         oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
