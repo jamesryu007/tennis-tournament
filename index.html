@@ -2462,7 +2462,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v740';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v741';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -18999,8 +18999,8 @@ function _bzRenderMessages(phase, forceBottom) {
     const imgSrc = m.imageUrl || m.imageData || '';
     const _photos = m.photos && m.photos.length ? m.photos : null;
     const bubbleRadius = `${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}`;
-    const bubbleBg = isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : 'linear-gradient(135deg,#f5f3ff,#ede9fe)';
-    const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#c4b5fd'}`;
+    const bubbleBg = isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : _bzIsBot ? 'linear-gradient(135deg,#f5f3ff,#ede9fe)' : '#ffffff';
+    const bubbleBorder = `1px solid ${isMine ? 'transparent' : _bzIsBot ? '#c4b5fd' : '#e2e8f0'}`;
     const bubble = m.videoUrl
       ? `<div data-bzbubble="1" style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
           ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" ${m.thumbUrl ? `poster="${m.thumbUrl}"` : ''} style="max-width:240px;width:100%;border-radius:10px;display:block;background:#000;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false"></video>
@@ -19056,7 +19056,7 @@ function _bzRenderMessages(phase, forceBottom) {
       : `<div data-bzbubble="1" onclick="bzMsgTap('${keyEsc}')" style="max-width:75%;padding:8px 12px;border-radius:${bubbleRadius};background:${bubbleBg};color:${isMine ? '#fff' : '#1e293b'};font-size:0.93rem;border:${bubbleBorder};word-break:break-word;white-space:pre-wrap;cursor:pointer;-webkit-tap-highlight-color:transparent">${replyBox}${_bzLinkify(m.text)}</div>`;
     const _noticeText = m.type === 'notice' ? ((m.noticeTitle ? m.noticeTitle + '\n' : '') + _bzStripHtml(m.noticeContent || '')) : '';
     window._bzMsgMeta[m._key] = { alias: m.alias, text: _noticeText || m.text || '', realName: m.realName || '', isMine, hasUrl, mediaType: m.videoUrl ? 'video' : _photos ? 'photos' : (m.imageUrl || m.imageData) ? 'image' : m.type === 'restaurant' ? 'restaurant' : m.type === 'notice' ? 'notice' : '', noticeId: m.noticeId || '' };
-    const dateSepHtml = _bzShowDateSep[i] ? `<div style="text-align:center;padding:10px 0 4px"><span style="background:#fde68a;color:#92400e;font-size:0.7rem;padding:3px 14px;border-radius:20px;font-weight:600">${_bzFormatDateLabel(m.ts)}</span></div>` : '';
+    const dateSepHtml = _bzShowDateSep[i] ? `<div style="text-align:center;padding:10px 0 4px"><span style="background:#e2e8f0;color:#64748b;font-size:0.7rem;padding:3px 14px;border-radius:20px;font-weight:600">${_bzFormatDateLabel(m.ts)}</span></div>` : '';
     const timeHtml = _bzShowTime[i] ? `<span data-bztime="1" style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;align-self:flex-end;padding-bottom:2px">${_bzFormatTime(m.ts)}</span>` : '';
     const showName = _bzShowName[i];
     const msgMargin = showName ? '10px' : '0';
@@ -19075,7 +19075,7 @@ function _bzRenderMessages(phase, forceBottom) {
               ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzIsBot?'linear-gradient(135deg,#7c3aed,#5b21b6)':_bzNameColor};color:#fff;font-size:${_bzIsBot?'0.75':'0.85'}rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${_bzIsBot?'🤖':m.alias[0]}</span>`
               : `<span style="width:22px;flex-shrink:0"></span>`}
             <div style="flex:1;min-width:0">
-              ${showName ? `<div style="font-size:0.78rem;color:#92400e;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>` : ''}
+              ${showName ? `<div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>` : ''}
               <div style="display:flex;align-items:flex-end;gap:4px">
                 ${bubble}${timeHtml}${replyBtn}${deleteBtn}
               </div>
@@ -19209,7 +19209,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     // 날짜 구분선: 직전 메시지와 날짜가 다를 때
     const _mPrev = _mIdx > 0 ? newMsgs[_mIdx - 1] : lastRendered;
     const _showDateSep = !_mPrev ? !_bzRenderedMsgKeys.size : (() => { const d = new Date(m.ts), pd = new Date(_mPrev.ts); return d.getFullYear() !== pd.getFullYear() || d.getMonth() !== pd.getMonth() || d.getDate() !== pd.getDate(); })();
-    const _dateSepHtml = _showDateSep ? `<div style="text-align:center;padding:10px 0 4px"><span style="background:#fde68a;color:#92400e;font-size:0.7rem;padding:3px 14px;border-radius:20px;font-weight:600">${_bzFormatDateLabel(m.ts)}</span></div>` : '';
+    const _dateSepHtml = _showDateSep ? `<div style="text-align:center;padding:10px 0 4px"><span style="background:#e2e8f0;color:#64748b;font-size:0.7rem;padding:3px 14px;border-radius:20px;font-weight:600">${_bzFormatDateLabel(m.ts)}</span></div>` : '';
     const _showName = _showDateSep || !_mPrev || _mPrev.alias !== m.alias;
     const realOfAlias = m.realName || aliasToReal[m.alias] || m.alias;
     const showRealNames = phase === 'revealed' || !!(_bzState && _bzState.showRealNames);
@@ -19265,8 +19265,8 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const imgSrc = m.imageUrl || m.imageData || '';
     const _photos = m.photos && m.photos.length ? m.photos : null;
     const bubbleRadius = `${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}`;
-    const bubbleBg = isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : 'linear-gradient(135deg,#f5f3ff,#ede9fe)';
-    const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#c4b5fd'}`;
+    const bubbleBg = isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : _bzIsBot ? 'linear-gradient(135deg,#f5f3ff,#ede9fe)' : '#ffffff';
+    const bubbleBorder = `1px solid ${isMine ? 'transparent' : _bzIsBot ? '#c4b5fd' : '#e2e8f0'}`;
     const bubble = m.videoUrl
       ? `<div data-bzbubble="1" style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
           ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" ${m.thumbUrl ? `poster="${m.thumbUrl}"` : ''} style="max-width:240px;width:100%;border-radius:10px;display:block;background:#000;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false"></video>
@@ -19338,7 +19338,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
               ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:${_bzIsBot?'linear-gradient(135deg,#7c3aed,#5b21b6)':_bzNameColor};color:#fff;font-size:${_bzIsBot?'0.75':'0.85'}rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${_bzIsBot?'🤖':m.alias[0]}</span>`
               : `<span style="width:22px;flex-shrink:0"></span>`}
             <div style="flex:1;min-width:0">
-              ${_showName ? `<div style="font-size:0.78rem;color:#92400e;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>` : ''}
+              ${_showName ? `<div style="font-size:0.78rem;color:#64748b;font-weight:600;padding:0 2px 2px 0">${senderLabel}</div>` : ''}
               <div style="display:flex;align-items:flex-end;gap:4px">
                 ${bubble}<span data-bztime="1" style="font-size:0.68rem;color:#94a3b8;white-space:nowrap;flex-shrink:0;align-self:flex-end;padding-bottom:2px">${_bzFormatTime(m.ts)}</span>${replyBtn}${deleteBtn}
               </div>
