@@ -2463,7 +2463,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v746';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v747';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9565,24 +9565,36 @@ function renderCheckinPage() {
   }
   if(notVoted.length) {
     const _wl = _getNotVotedWarnLevel(isOpen);
-    // 레벨별 스타일 정의
+    // 레벨별 헤더 스타일 (레벨 0·1은 pill을 성별 색상으로 개별 렌더)
     const _wCfg = [
-      // 0: 기본
-      { icon:'⏳', borderColor:'#cbd5e1', hdrColor:'#64748b', chipBg:'transparent', chipBorder:'#e2e8f0', chipColor:'#94a3b8', chipOpacity:'0.5', shake:false, label:'' },
-      // 1: ⚠️ 수요일 — 노란 경고
-      { icon:'⚠️', borderColor:'#f59e0b', hdrColor:'#b45309', chipBg:'#fefce8', chipBorder:'#fde047', chipColor:'#854d0e', chipOpacity:'1', shake:false, label:'경고' },
+      // 0: 기본 — 성별 pill (참석과 동일)
+      { icon:'⏳', borderColor:'#cbd5e1', hdrColor:'#64748b', uniformChip:false, shake:false, label:'' },
+      // 1: ⚠️ 수요일 — 헤더만 경고, pill은 성별 그대로
+      { icon:'⚠️', borderColor:'#f59e0b', hdrColor:'#b45309', uniformChip:false, shake:false, label:'경고' },
       // 2: 🔴 목요일 — 빨간 경고
-      { icon:'🔴', borderColor:'#ef4444', hdrColor:'#dc2626', chipBg:'#fee2e2', chipBorder:'#fca5a5', chipColor:'#dc2626', chipOpacity:'1', shake:false, label:'위험' },
-      // 3: 🚨 금요일 — 알람 + shake
-      { icon:'🚨', borderColor:'#dc2626', hdrColor:'#dc2626', chipBg:'#dc2626', chipBorder:'#dc2626', chipColor:'#ffffff', chipOpacity:'1', shake:true, label:'마감임박!' },
+      { icon:'🔴', borderColor:'#ef4444', hdrColor:'#dc2626', uniformChip:true, chipBg:'#fee2e2', chipBorder:'#fca5a5', chipColor:'#dc2626', shake:false, label:'위험' },
+      // 3: 🚨 금요일 — 채운 빨강 + shake
+      { icon:'🚨', borderColor:'#dc2626', hdrColor:'#dc2626', uniformChip:true, chipBg:'#dc2626', chipBorder:'#dc2626', chipColor:'#ffffff', shake:true, label:'마감임박!' },
     ][_wl];
+    // 성별 기반 pill 렌더 (레벨 0·1)
+    const _nvChip = m => {
+      if (_wCfg.uniformChip) {
+        return `<div class="poll-chip" style="background:${_wCfg.chipBg};border-color:${_wCfg.chipBorder}"><span class="poll-chip-name" style="color:${_wCfg.chipColor}">${m.name}</span></div>`;
+      }
+      const isMale = m.gender === 'male';
+      const isFemale = m.gender === 'female';
+      const bg     = isMale ? '#dbeafe' : isFemale ? '#fce7f3' : '#f8fafc';
+      const color  = isMale ? '#1d4ed8' : isFemale ? '#be185d' : '#475569';
+      const border = isMale ? '#bfdbfe' : isFemale ? '#fbcfe8' : '#e2e8f0';
+      return `<div class="poll-chip" style="background:${bg};border-color:${border}"><span class="poll-chip-name" style="color:${color}">${m.name}</span></div>`;
+    };
     const _wLabel = _wCfg.label ? `<span style="font-size:0.68rem;font-weight:800;background:${_wCfg.borderColor};color:#fff;border-radius:6px;padding:1px 6px;margin-left:6px">${_wCfg.label}</span>` : '';
     const _wShake = _wCfg.shake ? `animation:warn-shake 0.6s ease 3` : '';
     const _hdrOnclick = isAdmin() && isOpen ? `onclick="cycleNotVotedWarnTest()" style="cursor:pointer"` : '';
-    html += `<div class="poll-group" style="${_wShake}">
-      <div class="poll-group-hdr" style="border-left:3px solid ${_wCfg.borderColor};padding-left:8px;justify-content:space-between" ${_hdrOnclick}><span style="color:${_wCfg.hdrColor};font-weight:700">${_wCfg.icon} ${isOpen?'미투표':'미투표'}${_wLabel}</span><span style="color:#94a3b8;font-weight:400;margin-left:4px;flex:1">${notVoted.length}명</span>${isAdmin() && isOpen ? `<button onclick="event.stopPropagation();sendCheckinPressurePush()" style="font-size:0.7rem;font-weight:700;background:#fef9c3;color:#b45309;border:1.5px solid #fde68a;border-radius:8px;padding:3px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">📣 투표요청</button>` : ''}</div>
+    html += `<div class="poll-group" style="margin-top:12px;${_wShake}">
+      <div class="poll-group-hdr" style="border-left:3px solid ${_wCfg.borderColor};padding-left:8px;justify-content:space-between" ${_hdrOnclick}><span style="color:${_wCfg.hdrColor};font-weight:700">${_wCfg.icon} 미투표${_wLabel}</span><span style="color:#94a3b8;font-weight:400;margin-left:4px;flex:1">${notVoted.length}명</span>${isAdmin() && isOpen ? `<button onclick="event.stopPropagation();sendCheckinPressurePush()" style="font-size:0.7rem;font-weight:700;background:#fef9c3;color:#b45309;border:1.5px solid #fde68a;border-radius:8px;padding:3px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">📣 투표요청</button>` : ''}</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;padding-bottom:4px">
-        ${notVoted.map(m=>`<div class="poll-chip" style="opacity:${_wCfg.chipOpacity};background:${_wCfg.chipBg};border-color:${_wCfg.chipBorder}"><span class="poll-chip-name" style="color:${_wCfg.chipColor}">${m.name}</span>${_wl===0?gBadge(m):''}</div>`).join('')}
+        ${notVoted.map(m => _nvChip(m)).join('')}
       </div>
     </div>`;
   }
