@@ -2462,7 +2462,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v741';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v742';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9407,20 +9407,22 @@ function renderCheckinPage() {
   const mBadge = name => { const m=state.members.find(mb=>mb.name===name); return m?gBadge(m):''; };
   const mColor = name => _getMemberColor(name);
 
-  const voterGroup = (voters, label, accentColor) => {
+  const _circled = n => { const s='①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉑㉒㉓㉔㉕㉖㉗㉘㉙㉚'; return n>=1&&n<=30?s[n-1]:String(n); };
+  const _chipHtml = (name, gender, idx) => {
+    const isMale = gender === 'male';
+    const isFemale = gender === 'female';
+    const bg     = isMale ? '#dbeafe' : isFemale ? '#fce7f3' : '#f8fafc';
+    const color  = isMale ? '#1d4ed8' : isFemale ? '#be185d' : '#475569';
+    const border = isMale ? '#bfdbfe' : isFemale ? '#fbcfe8' : '#e2e8f0';
+    return `<div class="poll-chip" style="background:${bg};border-color:${border}"><span style="font-size:0.72rem;font-weight:800;color:${color};flex-shrink:0;margin-right:1px">${_circled(idx)}</span><span class="poll-chip-name" style="color:${color}">${name}</span></div>`;
+  };
+  const voterGroup = (voters, label, accentColor, startIdx) => {
     if (!voters.length) return '';
-    const sorted = [...voters].sort((a, b) => {
-      const gA = (state.members.find(m => m.name === a.name) || {}).gender || '';
-      const gB = (state.members.find(m => m.name === b.name) || {}).gender || '';
-      const rA = gA === 'male' ? 0 : gA === 'female' ? 1 : 2;
-      const rB = gB === 'male' ? 0 : gB === 'female' ? 1 : 2;
-      if (rA !== rB) return rA - rB;
-      return (a.votedAt || '').localeCompare(b.votedAt || '');
-    });
+    const sorted = [...voters].sort((a, b) => (a.votedAt || '').localeCompare(b.votedAt || ''));
     return `<div class="poll-group">
       <div class="poll-group-hdr" style="border-left:3px solid ${accentColor};padding-left:8px">${label} <span style="color:#94a3b8;font-weight:400;margin-left:2px">${voters.length}명</span></div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;padding-bottom:4px">
-        ${sorted.map(v=>`<div class="poll-chip"><span class="poll-chip-name">${v.name}</span>${mBadge(v.name)}</div>`).join('')}
+        ${sorted.map((v, i) => { const mb=state.members.find(m=>m.name===v.name); return _chipHtml(v.name, mb?mb.gender:'', startIdx+i+1); }).join('')}
       </div>
     </div>`;
   };
@@ -9520,15 +9522,20 @@ function renderCheckinPage() {
       : `<button class="btn btn-success btn-full" style="margin:8px 0 10px" onclick="createBracketFromPoll()">🎾 ${totalAttending}명으로 확정되어 모임만들기로 토스</button>`)
     :''}`;
   }
-  html += voterGroup(attendVoters,   '✅ 참석', '#16a34a');
-  html += voterGroup(lateVoters,     '⏰ 늦참', '#d97706');
-  html += voterGroup(absentVoters,   '❌ 불참', '#dc2626');
-  html += voterGroup(undecidedVoters,'🤔 미정', '#7c3aed');
+  const _attendStart  = 0;
+  const _lateStart    = attendVoters.length;
+  const _absentStart  = _lateStart + lateVoters.length;
+  const _guestStart   = _absentStart + absentVoters.length;
+  html += voterGroup(attendVoters,   '✅ 참석', '#16a34a', _attendStart);
+  html += voterGroup(lateVoters,     '⏰ 늦참', '#d97706', _lateStart);
+  html += voterGroup(absentVoters,   '❌ 불참', '#dc2626', _absentStart);
+  html += voterGroup(undecidedVoters,'🤔 미정', '#7c3aed', _guestStart + guestEntries.length);
   if(guestEntries.length) {
+    const _sortedGuests = [...guestEntries].sort((a,b)=>((a[1].addedAt||'').localeCompare(b[1].addedAt||'')));
     html += `<div class="poll-group">
       <div class="poll-group-hdr" style="border-left:3px solid #a855f7;padding-left:8px">👤 게스트 <span style="color:#94a3b8;font-weight:400;margin-left:2px">${guestEntries.length}명</span></div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;padding-bottom:4px">
-        ${guestEntries.map(([k,g])=>`<div class="poll-chip"><span class="poll-chip-name">${g.name}</span>${gBadge(g)}</div>`).join('')}
+        ${_sortedGuests.map(([k,g],i)=>_chipHtml(g.name, g.gender, _guestStart+i+1)).join('')}
       </div>
     </div>`;
   }
