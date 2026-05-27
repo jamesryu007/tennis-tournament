@@ -521,6 +521,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .sub-tab:active { transform: translateY(1px); opacity: 0.75; }
 .sub-tab.active { background: #ffffff; color: #2563eb; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
 .sub-tab.active:active { transform: translateY(1px); box-shadow: none; opacity: 0.9; }
+/* 행모 서브탭: 배너 아래 다크 배경 */
+#page-setup .sub-tabs { background: transparent; }
+#page-setup .sub-tab { color: rgba(255,255,255,0.55); font-size:0.8rem; }
+#page-setup .sub-tab.active { background: rgba(255,255,255,0.92); color: #2563eb; box-shadow: 0 1px 6px rgba(0,0,0,0.15); }
 
 /* ── BRACKET ── */
 .bracket-container { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 2px 0 10px; }
@@ -995,7 +999,17 @@ const firebaseConfig = {
 
 <!-- ══ PAGE: 대회만들기 ══ -->
 <div class="page" id="page-setup">
-  <div class="sub-tabs" style="margin-bottom:10px">
+  <!-- 행모 헤더 배너 -->
+  <div class="rank-banner" style="margin-bottom:0;border-radius:16px 16px 0 0;padding:13px 16px 11px">
+    <div style="display:flex;justify-content:space-between;align-items:center;position:relative">
+      <div id="setup-banner-text">
+        <div class="rank-banner-title" style="text-align:left;font-size:0.96rem">🗳️ 머든 정하기</div>
+        <div class="rank-banner-sub">날짜 · 장소 · 메뉴 투표로 결정하기</div>
+      </div>
+      <button id="mp-create-btn" onclick="openMpCreateModal()" style="display:none;padding:6px 14px;border-radius:20px;border:none;background:rgba(255,255,255,0.18);color:#fff;font-size:0.78rem;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;backdrop-filter:blur(4px)">+ 투표</button>
+    </div>
+  </div>
+  <div class="sub-tabs" style="margin-bottom:12px;border-radius:0 0 12px 12px;background:rgba(55,40,120,0.85);padding:4px 4px 4px">
     <div class="sub-tab active" id="stab-meeting" onclick="switchSetupTab('meeting')">🗳️ 머든 정하기</div>
     <div class="sub-tab" id="stab-bet" onclick="switchSetupTab('bet')">🎲 무조건 내기</div>
     <div class="sub-tab" id="stab-create" onclick="switchSetupTab('create')">🏆 경기 진행</div>
@@ -1153,9 +1167,6 @@ const firebaseConfig = {
 
   <!-- 머든 정하기 패널 -->
   <div id="setup-panel-meeting">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
-      <button id="mp-create-btn" onclick="openMpCreateModal()" style="display:none;padding:8px 18px;border-radius:20px;border:none;background:#2563eb;color:#fff;font-size:0.82rem;font-weight:700;cursor:pointer">🗳️ 투표 만들기</button>
-    </div>
     <div id="mp-polls-list">
       <div class="card"><p style="text-align:center;color:#94a3b8;padding:20px 0">로딩 중...</p></div>
     </div>
@@ -2442,7 +2453,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v719';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v720';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12744,6 +12755,22 @@ function switchSetupTab(tab) {
     if (panel) panel.style.display = t === tab ? 'block' : 'none';
     if (stab)  stab.className = 'sub-tab' + (t === tab ? ' active' : '');
   });
+  // 배너 텍스트 업데이트
+  const bannerText = document.getElementById('setup-banner-text');
+  const createBtn  = document.getElementById('mp-create-btn');
+  if (bannerText) {
+    const _bannerMap = {
+      meeting: ['🗳️ 머든 정하기', '날짜 · 장소 · 메뉴 투표로 결정하기'],
+      bet:     ['🎲 무조건 내기', '릴레이 풍선 · 폭탄 · 사다리 게임'],
+      create:  ['🏆 경기 진행',   '대진표 만들고 토너먼트 운영하기'],
+    };
+    const [title, sub] = _bannerMap[tab] || _bannerMap.meeting;
+    bannerText.innerHTML = `<div class="rank-banner-title" style="text-align:left;font-size:0.96rem">${title}</div><div class="rank-banner-sub">${sub}</div>`;
+  }
+  if (createBtn) {
+    const hasId = !!(state.identity && state.identity.name);
+    createBtn.style.display = (tab === 'meeting' && hasId) ? 'block' : 'none';
+  }
   if (tab === 'meeting') renderMeetingPoll();
   if (tab === 'bet') betRenderHome();
 }
@@ -19326,7 +19353,7 @@ function renderMpPollList() {
   const isMgr = isManager();
   const btn = document.getElementById('mp-create-btn');
   const hasIdentity = !!(state.identity && state.identity.name);
-  if (btn) btn.style.display = hasIdentity ? 'flex' : 'none';
+  if (btn) btn.style.display = hasIdentity ? 'block' : 'none';
 
   const polls = Object.entries(_mpPolls || {});
   if (!polls.length) {
@@ -19339,8 +19366,9 @@ function renderMpPollList() {
   el.innerHTML = polls.map(([pollId, poll]) => {
     const isOpen = poll.status === 'open';
     const statusLabel = isOpen ? '진행 중' : '마감';
-    const statusColor = isOpen ? '#22c55e' : '#94a3b8';
+    const statusColor = isOpen ? '#16a34a' : '#94a3b8';
     const statusBg    = isOpen ? '#f0fdf4' : '#f8fafc';
+    const accentColor = isOpen ? '#22c55e' : '#e2e8f0';
     const votes = poll.votes || {};
     const voteCount = Object.keys(votes).length;
     let closesStr = '';
@@ -19349,22 +19377,24 @@ function renderMpPollList() {
       if (remaining > 0) {
         const h = Math.floor(remaining / 3600000);
         const d = Math.floor(h / 24);
-        closesStr = d > 0 ? `⏰ ${d}일 ${h % 24}시간 남음` : h > 0 ? `⏰ ${h}시간 남음` : '⏰ 곧 마감';
+        closesStr = d > 0 ? `${d}일 ${h % 24}시간 남음` : h > 0 ? `${h}시간 남음` : '곧 마감';
       } else {
-        closesStr = '⏰ 마감 시간 도달';
+        closesStr = '마감 시간 도달';
       }
     }
-    // 선두 항목 계산
     const leadingStr = _mpLeadingLabel(poll, votes);
-    return `<div class="card" onclick="openMpDetailModal('${pollId}')" style="cursor:pointer;padding:14px 16px;margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-        <div style="font-weight:700;font-size:0.92rem;color:#1e293b;flex:1">${poll.title||'제목 없음'}</div>
-        <span style="font-size:0.72rem;font-weight:700;color:${statusColor};background:${statusBg};border:1.5px solid ${statusColor};border-radius:20px;padding:2px 8px;white-space:nowrap;margin-left:8px">${statusLabel}</span>
-      </div>
-      <div style="font-size:0.78rem;color:#64748b;display:flex;gap:8px;flex-wrap:wrap;align-items:baseline">
-        <span>👥 ${voteCount}명 참여</span>
-        ${leadingStr ? `<span style="color:#2563eb;font-weight:700">🔥 ${leadingStr} 유력</span>` : ''}
-        ${closesStr ? `<span>${closesStr}</span>` : ''}
+    return `<div onclick="openMpDetailModal('${pollId}')" style="cursor:pointer;margin-bottom:8px;border-radius:14px;background:#fff;border:1px solid #e8ecf0;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.05);display:flex">
+      <div style="width:4px;background:${accentColor};flex-shrink:0"></div>
+      <div style="padding:13px 14px;flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+          <div style="font-weight:800;font-size:0.93rem;color:#1e293b;flex:1;line-height:1.3">${poll.title||'제목 없음'}</div>
+          <span style="font-size:0.7rem;font-weight:700;color:${statusColor};background:${statusBg};border-radius:20px;padding:3px 9px;margin-left:8px;flex-shrink:0">${statusLabel}</span>
+        </div>
+        <div style="font-size:0.77rem;color:#64748b;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <span>👥 ${voteCount}명 참여</span>
+          ${leadingStr ? `<span style="color:#2563eb;font-weight:700">🔥 ${leadingStr} 유력</span>` : ''}
+          ${closesStr ? `<span style="color:#f59e0b;font-weight:600">⏰ ${closesStr}</span>` : ''}
+        </div>
       </div>
     </div>`;
   }).join('');
