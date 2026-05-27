@@ -2463,7 +2463,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v749';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v750';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9619,12 +9619,17 @@ function renderCheckinPage() {
         </select>
       </div>
       <button class="btn btn-outline btn-full" onclick="addPollGuest()">+ 게스트 추가</button>
-      ${guestEntries.length?`<div style="margin-top:8px">${guestEntries.map(([k,g])=>`
-        <div class="poll-voter" style="margin-bottom:4px">
-          ${gBadge(g)}<span style="flex:1">${g.name}</span>
+      ${guestEntries.length?`<div style="margin-top:8px">${guestEntries.map(([k,g])=>{
+        const _isMale = (g.gender==='female'?'female':'male')==='male';
+        const _bg     = _isMale ? '#dbeafe' : '#fce7f3';
+        const _border = _isMale ? '#bfdbfe' : '#fbcfe8';
+        const _color  = _isMale ? '#1d4ed8' : '#be185d';
+        return `<div style="display:flex;align-items:center;gap:8px;background:${_bg};border:1px solid ${_border};border-radius:20px;padding:5px 10px;margin-bottom:6px">
+          <span style="font-size:0.75rem;font-weight:800;color:${_color}">${_isMale?'남':'여'}</span>
+          <span style="flex:1;font-size:0.85rem;font-weight:600;color:${_color}">${g.name}</span>
           ${g.ntrp?`<span class="badge badge-ntrp" style="margin-right:4px">NTRP ${g.ntrp}</span>`:''}
           <button class="btn btn-danger btn-sm" onclick="removePollGuest('${k}')">삭제</button>
-        </div>`).join('')}</div>`:''}
+        </div>`;}).join('')}</div>`:''}
     </div>`;
   }
 
