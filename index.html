@@ -2462,7 +2462,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v739';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v740';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -18999,8 +18999,8 @@ function _bzRenderMessages(phase, forceBottom) {
     const imgSrc = m.imageUrl || m.imageData || '';
     const _photos = m.photos && m.photos.length ? m.photos : null;
     const bubbleRadius = `${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}`;
-    const bubbleBg = isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : _bzIsBot ? 'linear-gradient(135deg,#f5f3ff,#ede9fe)' : '#ffffff';
-    const bubbleBorder = `1px solid ${isMine ? 'transparent' : _bzIsBot ? '#c4b5fd' : '#fde68a'}`;
+    const bubbleBg = isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : 'linear-gradient(135deg,#f5f3ff,#ede9fe)';
+    const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#c4b5fd'}`;
     const bubble = m.videoUrl
       ? `<div data-bzbubble="1" style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
           ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" ${m.thumbUrl ? `poster="${m.thumbUrl}"` : ''} style="max-width:240px;width:100%;border-radius:10px;display:block;background:#000;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false"></video>
@@ -19265,8 +19265,8 @@ function _bzIncrementalUpdateMessages(newMessages) {
     const imgSrc = m.imageUrl || m.imageData || '';
     const _photos = m.photos && m.photos.length ? m.photos : null;
     const bubbleRadius = `${isMine ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}`;
-    const bubbleBg = isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : _bzIsBot ? 'linear-gradient(135deg,#f5f3ff,#ede9fe)' : '#ffffff';
-    const bubbleBorder = `1px solid ${isMine ? 'transparent' : _bzIsBot ? '#c4b5fd' : '#fde68a'}`;
+    const bubbleBg = isMine ? 'linear-gradient(135deg,#f59e0b,#d97706)' : 'linear-gradient(135deg,#f5f3ff,#ede9fe)';
+    const bubbleBorder = `1px solid ${isMine ? 'transparent' : '#c4b5fd'}`;
     const bubble = m.videoUrl
       ? `<div data-bzbubble="1" style="max-width:80%;padding:4px;border-radius:${bubbleRadius};background:${bubbleBg};border:${bubbleBorder}">
           ${replyBox}<video src="${m.videoUrl}" controls playsinline preload="metadata" ${m.thumbUrl ? `poster="${m.thumbUrl}"` : ''} style="max-width:240px;width:100%;border-radius:10px;display:block;background:#000;-webkit-touch-callout:none;user-select:none" oncontextmenu="return false"></video>
