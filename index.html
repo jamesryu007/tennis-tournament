@@ -315,7 +315,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .rank-year-btn.active { background:#4c1d95; border-color:#4c1d95; color:#fff; box-shadow:0 3px 0 #3b0764; }
 .rank-year-btn.active:active { transform:translateY(2px); box-shadow:0 1px 0 #3b0764; }
 /* 토글 */
-.rank-toggle { display:flex; background:rgba(55,40,120,0.85); border-radius:12px; padding:4px; margin-bottom:16px; gap:0; }
+.rank-toggle { display:flex; background:rgba(55,40,120,0.85); border-radius:0 0 12px 12px; padding:4px; margin-bottom:16px; gap:0; }
 .rank-toggle-btn { flex:1; text-align:center; padding:9px; font-size:0.85rem; font-weight:700; border-radius:8px; cursor:pointer; color:rgba(255,255,255,0.55); transition:all 0.08s; -webkit-tap-highlight-color:transparent; }
 .rank-toggle-btn:active { transform:translateY(1px); opacity:0.8; }
 .rank-toggle-btn.active { background:rgba(255,255,255,0.92); color:#2563eb; box-shadow:0 1px 6px rgba(0,0,0,0.15); }
@@ -1980,17 +1980,9 @@ const firebaseConfig = {
       <div id="rank-year-row" class="rank-year-row" style="margin:0"></div>
     </div>
   </div>
-  <!-- 모임 사진 프레임 (탭하면 랜덤 변경) -->
-  <div onclick="changeTeamPhotoRandom()" style="margin-bottom:14px;border-radius:0;overflow:hidden;box-shadow:0 4px 20px rgba(37,99,235,0.13),0 1px 4px rgba(0,0,0,0.08);background:#111827;cursor:pointer;-webkit-tap-highlight-color:transparent">
-    <div style="position:relative;">
-      <img id="team-photo" src="" alt="자미터 테니스 모임" style="width:100%;display:block;height:180px;object-fit:cover;object-position:center center;">
-      <div style="position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(to top,rgba(15,23,42,0.72),transparent);pointer-events:none;"></div>
-      <div style="position:absolute;bottom:0;left:0;right:0;padding:8px 14px;">
-        <div style="color:rgba(255,255,255,0.7);font-size:0.7rem;text-shadow:0 1px 3px rgba(0,0,0,0.4)">탭하면 사진이 바뀌어요 👆</div>
-      </div>
-    </div>
-  </div>
-  <div id="ranking-panel" style="padding:4px 0">
+  <!-- 숨김 (사진 변경 함수 호환용) -->
+  <img id="team-photo" src="" alt="" style="display:none">
+  <div id="ranking-panel" style="padding:0">
     <div class="rank-toggle">
       <div class="rank-toggle-btn active" id="rtog-player" onclick="setRankingMode('player')">개인 랭킹</div>
       <div class="rank-toggle-btn" id="rtog-pair" onclick="setRankingMode('pair')">팀페어 랭킹</div>
@@ -2466,7 +2458,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v726';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v727';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
