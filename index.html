@@ -144,28 +144,35 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .stat-col-silver .stat-col-num { color:#475569; }
 
 /* ── POLL / 출첵 ── */
-.vote-btn-group { display:flex; gap:8px; margin:4px 0 0; }
-.vote-btn { flex:1; padding:12px 6px; border-radius:12px; border:2px solid transparent; cursor:pointer; font-family:inherit; transition:transform 0.08s,box-shadow 0.08s; user-select:none; text-align:center; }
-.vote-btn:active { transform:translateY(3px); }
-.vote-btn.attend { background:#dcfce7; color:#16a34a; border-color:#86efac; box-shadow:0 4px 0 #86efac; }
-.vote-btn.attend.active { background:#16a34a; color:#fff; border-color:#15803d; box-shadow:0 4px 0 #15803d; }
-.vote-btn.late { background:#fef3c7; color:#b45309; border-color:#fcd34d; box-shadow:0 4px 0 #fcd34d; }
-.vote-btn.late.active { background:#d97706; color:#fff; border-color:#92400e; box-shadow:0 4px 0 #92400e; }
-.vote-btn.absent { background:#fee2e2; color:#dc2626; border-color:#fca5a5; box-shadow:0 4px 0 #fca5a5; }
-.vote-btn.absent.active { background:#dc2626; color:#fff; border-color:#991b1b; box-shadow:0 4px 0 #991b1b; }
-.vote-btn.undecided { background:#f3e8ff; color:#7c3aed; border-color:#c4b5fd; box-shadow:0 4px 0 #c4b5fd; }
-.vote-btn.undecided.active { background:#7c3aed; color:#fff; border-color:#5b21b6; box-shadow:0 4px 0 #5b21b6; }
-.poll-group { margin-bottom:10px; }
-.poll-group-hdr { font-size:0.72rem; font-weight:700; color:#64748b; padding:5px 0 4px; border-bottom:1px solid #e2e8f0; margin-bottom:5px; display:flex; align-items:center; gap:5px; }
+.vote-btn-group { display:flex; gap:8px; margin:8px 0 0; }
+.vote-btn { flex:1; padding:14px 4px 12px; border-radius:14px; border:2px solid transparent; cursor:pointer; font-family:inherit; transition:all 0.12s; user-select:none; text-align:center; -webkit-tap-highlight-color:transparent; position:relative; }
+.vote-btn:active { transform:scale(0.95); }
+.vote-btn .vote-check { position:absolute; top:5px; right:6px; font-size:0.6rem; font-weight:900; opacity:0; transition:opacity 0.12s; }
+.vote-btn.active .vote-check { opacity:1; }
+.vote-btn.attend { background:#f0fdf4; color:#16a34a; border-color:#bbf7d0; }
+.vote-btn.attend.active { background:#16a34a; color:#fff; border-color:#15803d; }
+.vote-btn.late { background:#fffbeb; color:#b45309; border-color:#fde68a; }
+.vote-btn.late.active { background:#d97706; color:#fff; border-color:#92400e; }
+.vote-btn.absent { background:#fff1f2; color:#dc2626; border-color:#fecdd3; }
+.vote-btn.absent.active { background:#dc2626; color:#fff; border-color:#991b1b; }
+.vote-btn.undecided { background:#faf5ff; color:#7c3aed; border-color:#ddd6fe; }
+.vote-btn.undecided.active { background:#7c3aed; color:#fff; border-color:#5b21b6; }
+.poll-group { margin-bottom:12px; }
+.poll-group-hdr { font-size:0.72rem; font-weight:700; color:#475569; padding:5px 8px; border-radius:8px; background:#f1f5f9; margin-bottom:7px; display:flex; align-items:center; gap:5px; }
+.poll-chip { display:inline-flex; align-items:center; gap:5px; background:#fff; border:1px solid #e2e8f0; border-radius:20px; padding:4px 10px 4px 4px; margin:2px; }
+.poll-chip-avatar { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; color:#fff; font-size:0.68rem; font-weight:900; flex-shrink:0; line-height:1; }
+.poll-chip-name { font-size:0.82rem; font-weight:600; color:#1e293b; }
 .poll-voter { display:flex; align-items:center; gap:7px; padding:6px 10px; background:#f8fafc; border-radius:8px; margin-bottom:4px; font-size:0.85rem; }
-.poll-summary-row { display:flex; gap:7px; flex-wrap:wrap; margin:8px 0 4px; }
-.poll-pill { padding:4px 10px; border-radius:20px; font-size:0.72rem; font-weight:700; }
+.poll-summary-row { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 6px; }
+.poll-pill { padding:6px 12px; border-radius:20px; font-size:0.73rem; font-weight:700; display:inline-flex; align-items:center; gap:4px; }
 .poll-pill.attend { background:#dcfce7; color:#16a34a; }
 .poll-pill.late { background:#fef3c7; color:#b45309; }
 .poll-pill.absent { background:#fee2e2; color:#dc2626; }
 .poll-pill.guest { background:#ede9fe; color:#7c3aed; }
 .poll-pill.undecided { background:#f3e8ff; color:#7c3aed; }
 .poll-pill.notvoted { background:#f1f5f9; color:#64748b; }
+.checkin-progress { height:5px; background:#e2e8f0; border-radius:3px; overflow:hidden; margin:6px 0 2px; }
+.checkin-progress-fill { height:100%; border-radius:3px; transition:width 0.4s ease; }
 .comment-item { padding:8px 10px; border-radius:10px; background:#f8fafc; margin-bottom:6px; }
 .comment-author { font-size:0.72rem; font-weight:700; color:#2563eb; }
 .comment-text { font-size:0.85rem; color:#1e293b; margin-top:2px; word-break:break-word; }
@@ -2433,7 +2440,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v717';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v718';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9375,22 +9382,30 @@ function renderCheckinPage() {
 
   const gBadge = g => `<span class="badge ${g.gender==='male'?'badge-male':'badge-female'}" style="font-size:0.6rem">${g.gender==='male'?'남':'여'}</span>`;
   const mBadge = name => { const m=state.members.find(mb=>mb.name===name); return m?gBadge(m):''; };
+  const mColor = name => _getMemberColor(name);
 
-  const voterGroup = (voters, label) => voters.length ? `
+  const voterGroup = (voters, label, accentColor) => voters.length ? `
     <div class="poll-group">
-      <div class="poll-group-hdr">${label} <span style="color:#94a3b8;font-weight:400">(${voters.length}명)</span></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
-        ${voters.map(v=>`<div class="poll-voter" style="padding:5px 8px">${mBadge(v.name)}<span style="flex:1;font-size:0.82rem">${v.name}</span></div>`).join('')}
+      <div class="poll-group-hdr" style="border-left:3px solid ${accentColor};padding-left:8px;background:transparent">${label} <span style="color:#94a3b8;font-weight:400;margin-left:2px">${voters.length}명</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">
+        ${voters.map(v=>`<div class="poll-chip"><span class="poll-chip-avatar" style="background:${mColor(v.name)}">${v.name[0]}</span><span class="poll-chip-name">${v.name}</span>${mBadge(v.name)}</div>`).join('')}
       </div>
     </div>` : '';
+
+  const totalMembers = state.members.length;
+  const votedCount = votes.length;
+  const votePct = totalMembers > 0 ? Math.round(votedCount / totalMembers * 100) : 0;
 
   let html = '';
 
   // Header
-  html += `<div style="margin-bottom:10px">
-    <div class="rank-banner" style="border-radius:16px 16px 0 0;margin-bottom:0;padding:11px 14px;display:flex;justify-content:space-between;align-items:center">
-      <div style="font-size:0.98rem;font-weight:900;color:#fff">✋ ${satLabel}${meetingNum ? ` ${meetingNum}번째` : ''} 모임 출첵</div>
-      <div style="display:flex;align-items:center;gap:6px">
+  html += `<div class="card" style="margin-bottom:10px;padding:14px 16px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+      <div>
+        <div style="font-size:1.05rem;font-weight:900;color:#1e293b">🎾 ${satLabel}${meetingNum ? ` <span style="font-size:0.8rem;font-weight:600;color:#64748b">${meetingNum}번째</span>` : ''} 모임</div>
+        <div style="font-size:0.75rem;color:#64748b;margin-top:3px">${isOpen?'📅 마감: 금요일 정오 12:00':'✅ 투표 마감 · 참석 예정 '+totalAttending+'명'}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         ${isAdmin() ? `
           ${!isOpen ? `<button onclick="forceOpenCheckin()" style="font-size:0.7rem;font-weight:700;background:#dcfce7;color:#16a34a;border:1.5px solid #86efac;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">🔓 강제오픈</button>` : ''}
           ${isOpen ? `<button onclick="forceCloseCheckin()" style="font-size:0.7rem;font-weight:700;background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">🔒 강제마감</button>` : ''}
@@ -9398,9 +9413,10 @@ function renderCheckinPage() {
         <span class="status-badge ${isOpen?'badge-active':'badge-done'}">${isOpen?'진행중':'마감'}</span>
       </div>
     </div>
-    <div style="background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 16px 16px;padding:8px 14px">
-      <div style="font-size:0.75rem;color:#64748b">${isOpen?'📅 마감: 금요일 정오 12:00':'✅ 투표 마감 · 참석 예정 '+totalAttending+'명'}</div>
+    <div class="checkin-progress">
+      <div class="checkin-progress-fill" style="width:${votePct}%;background:${votePct>=80?'#22c55e':votePct>=50?'#f59e0b':'#94a3b8'}"></div>
     </div>
+    <div style="font-size:0.7rem;color:#94a3b8;text-align:right;margin-top:3px">전체 ${totalMembers}명 중 ${votedCount}명 투표완료 (${votePct}%)</div>
   </div>`;
 
   // Vote buttons (open only)
@@ -9410,24 +9426,28 @@ function renderCheckinPage() {
       ${!myName?`<p style="font-size:0.8rem;color:#94a3b8;margin-bottom:8px">접속자를 선택하면 투표할 수 있습니다</p>`:''}
       <div class="vote-btn-group">
         <button class="vote-btn attend${myVote==='attend'?' active':''}" onclick="castVote('attend')">
-          <div style="font-size:1.3rem">✅</div>
-          <div style="font-size:0.8rem;font-weight:700;margin-top:3px">참석</div>
-          <div style="font-size:0.7rem;margin-top:1px;opacity:0.8">${attendVoters.length}명</div>
+          <span class="vote-check">✓</span>
+          <div style="font-size:1.6rem">✅</div>
+          <div style="font-size:0.8rem;font-weight:700;margin-top:5px">참석</div>
+          <div style="font-size:0.7rem;margin-top:2px;opacity:0.75">${attendVoters.length}명</div>
         </button>
         <button class="vote-btn late${myVote==='late'?' active':''}" onclick="castVote('late')">
-          <div style="font-size:1.3rem">⏰</div>
-          <div style="font-size:0.8rem;font-weight:700;margin-top:3px">늦참</div>
-          <div style="font-size:0.7rem;margin-top:1px;opacity:0.8">${lateVoters.length}명</div>
+          <span class="vote-check">✓</span>
+          <div style="font-size:1.6rem">⏰</div>
+          <div style="font-size:0.8rem;font-weight:700;margin-top:5px">늦참</div>
+          <div style="font-size:0.7rem;margin-top:2px;opacity:0.75">${lateVoters.length}명</div>
         </button>
         <button class="vote-btn absent${myVote==='absent'?' active':''}" onclick="castVote('absent')">
-          <div style="font-size:1.3rem">❌</div>
-          <div style="font-size:0.8rem;font-weight:700;margin-top:3px">불참</div>
-          <div style="font-size:0.7rem;margin-top:1px;opacity:0.8">${absentVoters.length}명</div>
+          <span class="vote-check">✓</span>
+          <div style="font-size:1.6rem">❌</div>
+          <div style="font-size:0.8rem;font-weight:700;margin-top:5px">불참</div>
+          <div style="font-size:0.7rem;margin-top:2px;opacity:0.75">${absentVoters.length}명</div>
         </button>
         <button class="vote-btn undecided${myVote==='undecided'?' active':''}" onclick="castVote('undecided')">
-          <div style="font-size:1.3rem">🤔</div>
-          <div style="font-size:0.8rem;font-weight:700;margin-top:3px">미정</div>
-          <div style="font-size:0.7rem;margin-top:1px;opacity:0.8">${undecidedVoters.length}명</div>
+          <span class="vote-check">✓</span>
+          <div style="font-size:1.6rem">🤔</div>
+          <div style="font-size:0.8rem;font-weight:700;margin-top:5px">미정</div>
+          <div style="font-size:0.7rem;margin-top:2px;opacity:0.75">${undecidedVoters.length}명</div>
         </button>
       </div>
     </div>`;
@@ -9437,36 +9457,51 @@ function renderCheckinPage() {
   html += `<div class="card">`;
   if(!isOpen) {
     html += `<div class="card-title">📊 투표 결과</div>
-    <div class="poll-summary-row">
-      <span class="poll-pill attend">✅ 참석 ${attendVoters.length}명</span>
-      <span class="poll-pill late">⏰ 늦참 ${lateVoters.length}명</span>
-      <span class="poll-pill absent">❌ 불참 ${absentVoters.length}명</span>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0 12px">
+      <div style="background:#f0fdf4;border-radius:12px;padding:10px 8px;text-align:center">
+        <div style="font-size:1.4rem">✅</div>
+        <div style="font-size:1.1rem;font-weight:900;color:#16a34a;margin-top:2px">${attendVoters.length}</div>
+        <div style="font-size:0.68rem;color:#16a34a;font-weight:600">참석</div>
+      </div>
+      <div style="background:#fffbeb;border-radius:12px;padding:10px 8px;text-align:center">
+        <div style="font-size:1.4rem">⏰</div>
+        <div style="font-size:1.1rem;font-weight:900;color:#d97706;margin-top:2px">${lateVoters.length}</div>
+        <div style="font-size:0.68rem;color:#d97706;font-weight:600">늦참</div>
+      </div>
+      <div style="background:#fff1f2;border-radius:12px;padding:10px 8px;text-align:center">
+        <div style="font-size:1.4rem">❌</div>
+        <div style="font-size:1.1rem;font-weight:900;color:#dc2626;margin-top:2px">${absentVoters.length}</div>
+        <div style="font-size:0.68rem;color:#dc2626;font-weight:600">불참</div>
+      </div>
+    </div>
+    ${undecidedVoters.length||guestEntries.length||notVoted.length?`<div class="poll-summary-row">
       ${undecidedVoters.length?`<span class="poll-pill undecided">🤔 미정 ${undecidedVoters.length}명</span>`:''}
       ${guestEntries.length?`<span class="poll-pill guest">👤 게스트 ${guestEntries.length}명</span>`:''}
       ${notVoted.length?`<span class="poll-pill notvoted">❓ 미투표 ${notVoted.length}명</span>`:''}
-    </div>
+    </div>`:''}
+    <div style="background:#eff6ff;border-radius:10px;padding:8px 12px;font-size:0.8rem;font-weight:700;color:#1d4ed8;margin-bottom:8px">🎾 참석 예정 총 ${totalAttending}명</div>
     ${totalAttending>=4&&isAdmin()?(pd.bracketCreated
       ? `<button class="btn btn-full" style="margin:8px 0 10px;background:#94a3b8;cursor:not-allowed" disabled>✅ 이미 모임만들기로 보냈습니다</button>`
       : `<button class="btn btn-success btn-full" style="margin:8px 0 10px" onclick="createBracketFromPoll()">🎾 ${totalAttending}명으로 확정되어 모임만들기로 토스</button>`)
     :''}`;
   }
-  html += voterGroup(attendVoters,   '✅ 참석');
-  html += voterGroup(lateVoters,     '⏰ 늦참');
-  html += voterGroup(absentVoters,   '❌ 불참');
-  html += voterGroup(undecidedVoters,'🤔 미정');
+  html += voterGroup(attendVoters,   '✅ 참석', '#16a34a');
+  html += voterGroup(lateVoters,     '⏰ 늦참', '#d97706');
+  html += voterGroup(absentVoters,   '❌ 불참', '#dc2626');
+  html += voterGroup(undecidedVoters,'🤔 미정', '#7c3aed');
   if(guestEntries.length) {
     html += `<div class="poll-group">
-      <div class="poll-group-hdr">👤 게스트 <span style="color:#94a3b8;font-weight:400">(${guestEntries.length}명)</span></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
-        ${guestEntries.map(([k,g])=>`<div class="poll-voter" style="padding:5px 8px">${gBadge(g)}<span style="flex:1;font-size:0.82rem">${g.name}</span></div>`).join('')}
+      <div class="poll-group-hdr" style="border-left:3px solid #7c3aed;padding-left:8px;background:transparent">👤 게스트 <span style="color:#94a3b8;font-weight:400;margin-left:2px">${guestEntries.length}명</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">
+        ${guestEntries.map(([k,g])=>`<div class="poll-chip"><span class="poll-chip-avatar" style="background:#7c3aed">${g.name[0]}</span><span class="poll-chip-name">${g.name}</span>${gBadge(g)}</div>`).join('')}
       </div>
     </div>`;
   }
   if(notVoted.length) {
     html += `<div class="poll-group">
-      <div class="poll-group-hdr" style="color:#94a3b8;display:flex;align-items:center;justify-content:space-between">${isOpen?'⏳ 미투표':'❓ 미투표'} <span style="font-weight:400">(${notVoted.length}명)</span>${isAdmin() && isOpen ? `<button onclick="sendCheckinPressurePush()" style="font-size:0.7rem;font-weight:700;background:#fef9c3;color:#b45309;border:1.5px solid #fde68a;border-radius:8px;padding:3px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">📣 투표요청</button>` : ''}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
-        ${notVoted.map(m=>`<div class="poll-voter" style="opacity:0.45;padding:5px 8px">${gBadge(m)}<span style="flex:1;font-size:0.82rem">${m.name}</span></div>`).join('')}
+      <div class="poll-group-hdr" style="border-left:3px solid #cbd5e1;padding-left:8px;background:transparent;justify-content:space-between">${isOpen?'⏳ 미투표':'❓ 미투표'} <span style="color:#94a3b8;font-weight:400;margin-left:2px;flex:1">${notVoted.length}명</span>${isAdmin() && isOpen ? `<button onclick="sendCheckinPressurePush()" style="font-size:0.7rem;font-weight:700;background:#fef9c3;color:#b45309;border:1.5px solid #fde68a;border-radius:8px;padding:3px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">📣 투표요청</button>` : ''}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">
+        ${notVoted.map(m=>`<div class="poll-chip" style="opacity:0.45"><span class="poll-chip-avatar" style="background:${mColor(m.name)}">${m.name[0]}</span><span class="poll-chip-name">${m.name}</span>${gBadge(m)}</div>`).join('')}
       </div>
     </div>`;
   }
