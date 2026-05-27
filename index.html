@@ -794,47 +794,6 @@ const firebaseConfig = {
     </div>
   </div>
 
-  <!-- ══ DEV TEST: GS 컬러 테스트 (배포 전 제거) ══ -->
-  <div id="gs-color-test" style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px">
-    <!-- Roland Garros — 연 테라코타 -->
-    <div style="background:linear-gradient(135deg,#FDE8DF,#F5D0C0);border:1.5px solid #C25228;border-radius:14px;padding:12px 14px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <span style="background:#C25228;color:#fff;font-size:0.88rem;font-weight:900;padding:4px 14px;border-radius:10px;letter-spacing:2px;font-style:italic">🏆 Grand Slam</span>
-      </div>
-      <div style="font-size:1rem;font-weight:800;color:#5C1A08;margin-bottom:3px">Roland Garros · Paris</div>
-      <div style="font-size:0.8rem;color:#7C3010">📅 2026-05-18 ~ 2026-06-08</div>
-      <div style="font-size:0.8rem;color:#7C3010">🏟 Stade Roland Garros</div>
-    </div>
-    <!-- Australian Open — 연 퍼플→블루 -->
-    <div style="background:linear-gradient(135deg,#EDE5F5,#E0F0FB);border:1.5px solid #8A56A4;border-radius:14px;padding:12px 14px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <span style="background:#8A56A4;color:#fff;font-size:0.88rem;font-weight:900;padding:4px 14px;border-radius:10px;letter-spacing:2px;font-style:italic">🏆 Grand Slam</span>
-      </div>
-      <div style="font-size:1rem;font-weight:800;color:#3B1860;margin-bottom:3px">Australian Open · Melbourne</div>
-      <div style="font-size:0.8rem;color:#4B2870">📅 2026-01-12 ~ 2026-01-26</div>
-      <div style="font-size:0.8rem;color:#4B2870">🏟 Melbourne Park</div>
-    </div>
-    <!-- US Open — 연 블루→그린 -->
-    <div style="background:linear-gradient(135deg,#E5EBF5,#E5EFF0);border:1.5px solid #1A4384;border-radius:14px;padding:12px 14px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <span style="background:#1A4384;color:#fff;font-size:0.88rem;font-weight:900;padding:4px 14px;border-radius:10px;letter-spacing:2px;font-style:italic">🏆 Grand Slam</span>
-      </div>
-      <div style="font-size:1rem;font-weight:800;color:#0F2650;margin-bottom:3px">US Open · New York</div>
-      <div style="font-size:0.8rem;color:#1A3C20">📅 2026-08-24 ~ 2026-09-07</div>
-      <div style="font-size:0.8rem;color:#1A3C20">🏟 USTA Billie Jean King</div>
-    </div>
-    <!-- Wimbledon — 연 그린→퍼플 -->
-    <div style="background:linear-gradient(135deg,#E0F0E8,#EBE5F5);border:1.5px solid #006633;border-radius:14px;padding:12px 14px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <span style="background:#006633;color:#fff;font-size:0.88rem;font-weight:900;padding:4px 14px;border-radius:10px;letter-spacing:2px;font-style:italic">🏆 Grand Slam</span>
-      </div>
-      <div style="font-size:1rem;font-weight:800;color:#1A3D1A;margin-bottom:3px">Wimbledon · London</div>
-      <div style="font-size:0.8rem;color:#2D1A4D">📅 2026-06-29 ~ 2026-07-12</div>
-      <div style="font-size:0.8rem;color:#2D1A4D">🏟 All England Club</div>
-    </div>
-  </div>
-  <!-- ══ /DEV TEST ══ -->
-
   <!-- 대진표 탭 -->
   <div id="atp-panel-draw" class="atp-panel">
     <div id="atp-draw-content" class="card">
@@ -2503,7 +2462,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v734';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v735';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -10714,10 +10673,10 @@ const TIER_STYLE = {
 };
 // ── 그랜드 슬램 대회별 고유 색상 ─────────────────────────────────
 const GS_STYLE = {
-  'roland garros': { bg:'linear-gradient(135deg,#C25228,#B34E24)', border:'#C25228', color:'#fff', badge:'🏆 Grand Slam', badgeBg:'#C25228', badgeColor:'#fff' },
-  'australian open': { bg:'linear-gradient(135deg,#8A56A4,#4BA9E4)', border:'#4BA9E4', color:'#fff', badge:'🏆 Grand Slam', badgeBg:'#8A56A4', badgeColor:'#fff' },
-  'us open':        { bg:'linear-gradient(135deg,#1A4384,#3C613C)', border:'#1A4384', color:'#fff', badge:'🏆 Grand Slam', badgeBg:'#1A4384', badgeColor:'#fff' },
-  'wimbledon':      { bg:'linear-gradient(135deg,#006633,#452265)', border:'#452265', color:'#fff', badge:'🏆 Grand Slam', badgeBg:'#006633', badgeColor:'#fff' },
+  'roland garros':  { bg:'linear-gradient(135deg,#FDE8DF,#F5D0C0)', border:'#C25228', color:'#5C1A08', badge:'🏆 Grand Slam', badgeBg:'#C25228', badgeColor:'#fff' },
+  'australian open':{ bg:'linear-gradient(135deg,#EDE5F5,#E0F0FB)', border:'#8A56A4', color:'#3B1860', badge:'🏆 Grand Slam', badgeBg:'#8A56A4', badgeColor:'#fff' },
+  'us open':        { bg:'linear-gradient(135deg,#E5EBF5,#E5EFF0)', border:'#1A4384', color:'#0F2650', badge:'🏆 Grand Slam', badgeBg:'#1A4384', badgeColor:'#fff' },
+  'wimbledon':      { bg:'linear-gradient(135deg,#E0F0E8,#EBE5F5)', border:'#006633', color:'#1A3D1A', badge:'🏆 Grand Slam', badgeBg:'#006633', badgeColor:'#fff' },
 };
 function getGsStyle(t) {
   if ((t.tier || '') !== 'grandslam') return null;
