@@ -2462,7 +2462,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v744';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v745';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9421,7 +9421,8 @@ function renderCheckinPage() {
     const bg     = isMale ? '#dbeafe' : isFemale ? '#fce7f3' : '#f8fafc';
     const color  = isMale ? '#1d4ed8' : isFemale ? '#be185d' : '#475569';
     const border = isMale ? '#bfdbfe' : isFemale ? '#fbcfe8' : '#e2e8f0';
-    return `<div class="poll-chip" style="background:${bg};border-color:${border}"><span style="font-size:1.05rem;font-weight:800;color:${color};flex-shrink:0;margin-right:3px">${_circled(idx)}</span><span class="poll-chip-name" style="color:${color}">${name}</span></div>`;
+    // Unicode 원문자는 iOS에서 일부 번호가 얇게 렌더링 → CSS 채운 원 배지로 일관성 확보
+    return `<div class="poll-chip" style="background:${bg};border-color:${border}"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:1.55rem;height:1.55rem;border-radius:50%;background:${color};font-size:0.88rem;font-weight:800;color:#fff;flex-shrink:0;margin-right:4px;line-height:1">${idx}</span><span class="poll-chip-name" style="color:${color}">${name}</span></div>`;
   };
   const voterGroup = (voters, label, accentColor) => {
     if (!voters.length) return '';
