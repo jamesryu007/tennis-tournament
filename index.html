@@ -2462,7 +2462,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v732';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v733';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -10671,6 +10671,21 @@ const TIER_STYLE = {
   atp500:    { bg: 'linear-gradient(135deg,#dbeafe,#bfdbfe)', border: '#3b82f6', color: '#1e3a8a', badge: 'ATP 500',       badgeBg: '#3b82f6', badgeColor: '#fff' },
   atp250:    { bg: 'linear-gradient(135deg,#f1f5f9,#e2e8f0)', border: '#94a3b8', color: '#334155', badge: 'ATP 250',       badgeBg: '#94a3b8', badgeColor: '#fff' },
 };
+// ── 그랜드 슬램 대회별 고유 색상 ─────────────────────────────────
+const GS_STYLE = {
+  'roland garros': { bg:'linear-gradient(135deg,#C25228,#B34E24)', border:'#C25228', color:'#fff', badge:'🏆 Grand Slam', badgeBg:'#C25228', badgeColor:'#fff' },
+  'australian open': { bg:'linear-gradient(135deg,#8A56A4,#4BA9E4)', border:'#4BA9E4', color:'#fff', badge:'🏆 Grand Slam', badgeBg:'#8A56A4', badgeColor:'#fff' },
+  'us open':        { bg:'linear-gradient(135deg,#1A4384,#3C613C)', border:'#1A4384', color:'#fff', badge:'🏆 Grand Slam', badgeBg:'#1A4384', badgeColor:'#fff' },
+  'wimbledon':      { bg:'linear-gradient(135deg,#006633,#452265)', border:'#452265', color:'#fff', badge:'🏆 Grand Slam', badgeBg:'#006633', badgeColor:'#fff' },
+};
+function getGsStyle(t) {
+  if ((t.tier || '') !== 'grandslam') return null;
+  const name = (t.displayName || t.name || '').toLowerCase();
+  for (const key of Object.keys(GS_STYLE)) {
+    if (name.includes(key)) return GS_STYLE[key];
+  }
+  return null;
+}
 
 // ── 경기장 정보 하드코딩 매핑 ─────────────────────────────────────
 const VENUE_MAP = {
@@ -10760,7 +10775,7 @@ function getVenueInfo(t) {
 
 function renderTourneyInfoHtml(t, ended) {
   const tier   = t.tier || 'atp250';
-  const style  = TIER_STYLE[tier] || TIER_STYLE.atp250;
+  const style  = getGsStyle(t) || TIER_STYLE[tier] || TIER_STYLE.atp250;
   const startDate = t.startDate ? t.startDate.split('T')[0] : '';
   const endDate   = t.endDate   ? t.endDate.split('T')[0]   : '';
   const displayName = t.displayName || t.name || '';
@@ -10879,11 +10894,12 @@ function renderAtpDrawPanel() {
     return;
   }
 
-  renderRoundDrawPanel(el, drawMatches, drawTier);
+  const drawTourney = useGS ? atpState.lastGrandSlam : atpState.tournamentInfo;
+  renderRoundDrawPanel(el, drawMatches, drawTier, drawTourney);
 }
 
 // ── 라운드 탭 대진표 (GS / ATP1000 / ATP500) ──────────────────────
-function renderRoundDrawPanel(el, matches, tier) {
+function renderRoundDrawPanel(el, matches, tier, tourney) {
   // 라운드별 그룹핑
   const roundGroups = {};
   matches.forEach(m => {
@@ -10921,7 +10937,7 @@ function renderRoundDrawPanel(el, matches, tier) {
   }
 
   const sel = atpState.gsRoundTab;
-  const ts = TIER_STYLE[tier] || TIER_STYLE['atp250'];
+  const ts = (tourney ? getGsStyle(tourney) : null) || TIER_STYLE[tier] || TIER_STYLE['atp250'];
   const selBg = ts.badgeBg;
 
   // 라운드 탭 + 화살표 (트리 진행 방향 표현)
@@ -11010,11 +11026,12 @@ function switchRoundTab(roundKey) {
   const useGS = atpState.lastGrandSlam && (!atpState.tournamentInfo || !atpState.tournamentInfo.name);
   const drawMatches = useGS ? (atpState.lastGrandSlam.matches || []) : atpState.matches;
   const tier = useGS ? 'grandslam' : (atpState.tournamentInfo && atpState.tournamentInfo.tier);
-  renderRoundDrawPanel(el, drawMatches, tier);
+  const tourney = useGS ? atpState.lastGrandSlam : atpState.tournamentInfo;
+  renderRoundDrawPanel(el, drawMatches, tier, tourney);
 }
 // 하위 호환
 function switchGsRoundTab(r) { switchRoundTab(r); }
-function renderGsDrawPanel(el, matches) { renderRoundDrawPanel(el, matches, 'grandslam'); }
+function renderGsDrawPanel(el, matches) { renderRoundDrawPanel(el, matches, 'grandslam', atpState.lastGrandSlam); }
 
 // ── 경기 행 렌더 헬퍼 ────────────────────────────────────────────
 function toKSTStr(dateStr) {
