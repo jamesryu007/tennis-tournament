@@ -2458,7 +2458,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v728';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v729';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8092,8 +8092,7 @@ async function renderAttendanceRanking() {
   const podItems = stats.slice(0, Math.min(3, stats.length));
   const podCls = ['p1','p2','p3'], medals = ['🥇','🥈','🥉'];
 
-  let html = ``;
-  <div class="rank-podium">
+  let html = `<div class="rank-podium">
     ${podItems.map((p, i) => {
       const isMe = p.name === myName;
       const g = getGender(p.name), nc = g==='male'?'#1e40af':g==='female'?'#9d174d':'#1e293b';
