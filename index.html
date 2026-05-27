@@ -1973,9 +1973,9 @@ const firebaseConfig = {
   <!-- 랭킹 헤더 배너 -->
   <div class="rank-banner" style="border-radius:16px 16px 0 0;margin-bottom:0;padding:12px 16px 10px">
     <div style="display:flex;align-items:center;justify-content:space-between">
-      <div>
+      <div style="display:flex;align-items:center;gap:8px">
         <div class="rank-banner-title" style="text-align:left;font-size:0.96rem">🏆 랭킹</div>
-        <div class="rank-banner-sub">자미터 멤버 성적 & 출석 현황</div>
+        <button onclick="document.getElementById(_rankingMode==='attendance'?'att-info-modal':'rank-info-modal').classList.add('open')" style="width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.75rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:serif">i</button>
       </div>
       <div id="rank-year-row" class="rank-year-row" style="margin:0"></div>
     </div>
@@ -2458,7 +2458,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v729';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v730';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
