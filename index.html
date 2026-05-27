@@ -157,9 +157,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .vote-btn.absent.active { background:#dc2626; color:#fff; border-color:#991b1b; }
 .vote-btn.undecided { background:#faf5ff; color:#7c3aed; border-color:#ddd6fe; }
 .vote-btn.undecided.active { background:#7c3aed; color:#fff; border-color:#5b21b6; }
-.poll-group { margin-bottom:12px; }
-.poll-group-hdr { font-size:0.72rem; font-weight:700; color:#475569; padding:5px 8px; border-radius:8px; background:#f1f5f9; margin-bottom:7px; display:flex; align-items:center; gap:5px; }
-.poll-chip { display:inline-flex; align-items:center; gap:5px; background:#fff; border:1px solid #e2e8f0; border-radius:20px; padding:4px 10px 4px 4px; margin:2px; }
+.poll-group { margin-bottom:0; padding:14px 0 0; border-top:1px solid #f1f5f9; }
+.poll-group:first-child { border-top:none; padding-top:4px; }
+.poll-group-hdr { font-size:0.73rem; font-weight:800; color:#475569; padding:0 0 8px; margin-bottom:0; display:flex; align-items:center; gap:5px; }
+.poll-chip { display:inline-flex; align-items:center; gap:4px; background:#fff; border:1px solid #e2e8f0; border-radius:20px; padding:5px 10px; margin:2px; }
 .poll-chip-avatar { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; color:#fff; font-size:0.68rem; font-weight:900; flex-shrink:0; line-height:1; }
 .poll-chip-name { font-size:0.82rem; font-weight:600; color:#1e293b; }
 .poll-voter { display:flex; align-items:center; gap:7px; padding:6px 10px; background:#f8fafc; border-radius:8px; margin-bottom:4px; font-size:0.85rem; }
@@ -173,9 +174,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .poll-pill.notvoted { background:#f1f5f9; color:#64748b; }
 .checkin-progress { height:5px; background:#e2e8f0; border-radius:3px; overflow:hidden; margin:6px 0 2px; }
 .checkin-progress-fill { height:100%; border-radius:3px; transition:width 0.4s ease; }
-.comment-item { padding:8px 10px; border-radius:10px; background:#f8fafc; margin-bottom:6px; }
-.comment-author { font-size:0.72rem; font-weight:700; color:#2563eb; }
-.comment-text { font-size:0.85rem; color:#1e293b; margin-top:2px; word-break:break-word; }
+.comment-item { padding:10px 12px; border-radius:12px; background:#f8fafc; border:1px solid #f1f5f9; margin-bottom:8px; }
+.comment-author { font-size:0.75rem; font-weight:800; color:#1e293b; }
+.comment-text { font-size:0.85rem; color:#334155; margin-top:4px; word-break:break-word; line-height:1.5; }
+.comment-reply-item { margin-top:8px; padding:8px 10px; background:#fff; border:1px solid #e2e8f0; border-radius:10px; border-left:3px solid #cbd5e1; }
 .comment-at { font-size:0.62rem; color:#94a3b8; }
 .comment-reactions { display:flex; gap:6px; margin-top:5px; }
 .reaction-btn { display:inline-flex; align-items:center; gap:3px; font-size:0.72rem; padding:2px 7px; border-radius:20px; border:1.5px solid #e2e8f0; background:#fff; cursor:pointer; color:#64748b; transition:all 0.15s; }
@@ -2440,7 +2442,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v718';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v719';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9384,13 +9386,23 @@ function renderCheckinPage() {
   const mBadge = name => { const m=state.members.find(mb=>mb.name===name); return m?gBadge(m):''; };
   const mColor = name => _getMemberColor(name);
 
-  const voterGroup = (voters, label, accentColor) => voters.length ? `
-    <div class="poll-group">
-      <div class="poll-group-hdr" style="border-left:3px solid ${accentColor};padding-left:8px;background:transparent">${label} <span style="color:#94a3b8;font-weight:400;margin-left:2px">${voters.length}명</span></div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px">
-        ${voters.map(v=>`<div class="poll-chip"><span class="poll-chip-avatar" style="background:${mColor(v.name)}">${v.name[0]}</span><span class="poll-chip-name">${v.name}</span>${mBadge(v.name)}</div>`).join('')}
+  const voterGroup = (voters, label, accentColor) => {
+    if (!voters.length) return '';
+    const sorted = [...voters].sort((a, b) => {
+      const gA = (state.members.find(m => m.name === a.name) || {}).gender || '';
+      const gB = (state.members.find(m => m.name === b.name) || {}).gender || '';
+      const rA = gA === 'male' ? 0 : gA === 'female' ? 1 : 2;
+      const rB = gB === 'male' ? 0 : gB === 'female' ? 1 : 2;
+      if (rA !== rB) return rA - rB;
+      return (a.votedAt || '').localeCompare(b.votedAt || '');
+    });
+    return `<div class="poll-group">
+      <div class="poll-group-hdr" style="border-left:3px solid ${accentColor};padding-left:8px">${label} <span style="color:#94a3b8;font-weight:400;margin-left:2px">${voters.length}명</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;padding-bottom:4px">
+        ${sorted.map(v=>`<div class="poll-chip"><span class="poll-chip-name">${v.name}</span>${mBadge(v.name)}</div>`).join('')}
       </div>
-    </div>` : '';
+    </div>`;
+  };
 
   const totalMembers = state.members.length;
   const votedCount = votes.length;
@@ -9399,24 +9411,26 @@ function renderCheckinPage() {
   let html = '';
 
   // Header
-  html += `<div class="card" style="margin-bottom:10px;padding:14px 16px">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+  html += `<div class="rank-banner" style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
       <div>
-        <div style="font-size:1.05rem;font-weight:900;color:#1e293b">🎾 ${satLabel}${meetingNum ? ` <span style="font-size:0.8rem;font-weight:600;color:#64748b">${meetingNum}번째</span>` : ''} 모임</div>
-        <div style="font-size:0.75rem;color:#64748b;margin-top:3px">${isOpen?'📅 마감: 금요일 정오 12:00':'✅ 투표 마감 · 참석 예정 '+totalAttending+'명'}</div>
+        <div class="rank-banner-title" style="font-size:1rem;text-align:left">✋ ${satLabel}${meetingNum ? ` ${meetingNum}번째` : ''} 모임 출첵</div>
+        <div class="rank-banner-sub">${isOpen ? '📅 금요일 정오 마감' : '✅ 투표 마감 · 참석 예정 '+totalAttending+'명'}</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         ${isAdmin() ? `
-          ${!isOpen ? `<button onclick="forceOpenCheckin()" style="font-size:0.7rem;font-weight:700;background:#dcfce7;color:#16a34a;border:1.5px solid #86efac;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">🔓 강제오픈</button>` : ''}
-          ${isOpen ? `<button onclick="forceCloseCheckin()" style="font-size:0.7rem;font-weight:700;background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">🔒 강제마감</button>` : ''}
+          ${!isOpen ? `<button onclick="forceOpenCheckin()" style="font-size:0.7rem;font-weight:700;background:rgba(220,252,231,0.9);color:#16a34a;border:none;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">🔓 강제오픈</button>` : ''}
+          ${isOpen ? `<button onclick="forceCloseCheckin()" style="font-size:0.7rem;font-weight:700;background:rgba(254,226,226,0.9);color:#dc2626;border:none;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">🔒 강제마감</button>` : ''}
         ` : ''}
         <span class="status-badge ${isOpen?'badge-active':'badge-done'}">${isOpen?'진행중':'마감'}</span>
       </div>
     </div>
-    <div class="checkin-progress">
-      <div class="checkin-progress-fill" style="width:${votePct}%;background:${votePct>=80?'#22c55e':votePct>=50?'#f59e0b':'#94a3b8'}"></div>
+    <div style="margin-top:10px">
+      <div style="height:5px;background:rgba(255,255,255,0.2);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${votePct}%;background:rgba(255,255,255,0.85);border-radius:3px;transition:width 0.4s ease"></div>
+      </div>
+      <div style="font-size:0.68rem;color:rgba(255,255,255,0.65);text-align:right;margin-top:3px">${totalMembers}명 중 ${votedCount}명 투표 (${votePct}%)</div>
     </div>
-    <div style="font-size:0.7rem;color:#94a3b8;text-align:right;margin-top:3px">전체 ${totalMembers}명 중 ${votedCount}명 투표완료 (${votePct}%)</div>
   </div>`;
 
   // Vote buttons (open only)
@@ -9491,17 +9505,17 @@ function renderCheckinPage() {
   html += voterGroup(undecidedVoters,'🤔 미정', '#7c3aed');
   if(guestEntries.length) {
     html += `<div class="poll-group">
-      <div class="poll-group-hdr" style="border-left:3px solid #7c3aed;padding-left:8px;background:transparent">👤 게스트 <span style="color:#94a3b8;font-weight:400;margin-left:2px">${guestEntries.length}명</span></div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px">
-        ${guestEntries.map(([k,g])=>`<div class="poll-chip"><span class="poll-chip-avatar" style="background:#7c3aed">${g.name[0]}</span><span class="poll-chip-name">${g.name}</span>${gBadge(g)}</div>`).join('')}
+      <div class="poll-group-hdr" style="border-left:3px solid #a855f7;padding-left:8px">👤 게스트 <span style="color:#94a3b8;font-weight:400;margin-left:2px">${guestEntries.length}명</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;padding-bottom:4px">
+        ${guestEntries.map(([k,g])=>`<div class="poll-chip"><span class="poll-chip-name">${g.name}</span>${gBadge(g)}</div>`).join('')}
       </div>
     </div>`;
   }
   if(notVoted.length) {
     html += `<div class="poll-group">
-      <div class="poll-group-hdr" style="border-left:3px solid #cbd5e1;padding-left:8px;background:transparent;justify-content:space-between">${isOpen?'⏳ 미투표':'❓ 미투표'} <span style="color:#94a3b8;font-weight:400;margin-left:2px;flex:1">${notVoted.length}명</span>${isAdmin() && isOpen ? `<button onclick="sendCheckinPressurePush()" style="font-size:0.7rem;font-weight:700;background:#fef9c3;color:#b45309;border:1.5px solid #fde68a;border-radius:8px;padding:3px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">📣 투표요청</button>` : ''}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px">
-        ${notVoted.map(m=>`<div class="poll-chip" style="opacity:0.45"><span class="poll-chip-avatar" style="background:${mColor(m.name)}">${m.name[0]}</span><span class="poll-chip-name">${m.name}</span>${gBadge(m)}</div>`).join('')}
+      <div class="poll-group-hdr" style="border-left:3px solid #cbd5e1;padding-left:8px;justify-content:space-between">${isOpen?'⏳ 미투표':'❓ 미투표'} <span style="color:#94a3b8;font-weight:400;margin-left:2px;flex:1">${notVoted.length}명</span>${isAdmin() && isOpen ? `<button onclick="sendCheckinPressurePush()" style="font-size:0.7rem;font-weight:700;background:#fef9c3;color:#b45309;border:1.5px solid #fde68a;border-radius:8px;padding:3px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">📣 투표요청</button>` : ''}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;padding-bottom:4px">
+        ${notVoted.map(m=>`<div class="poll-chip" style="opacity:0.45"><span class="poll-chip-name">${m.name}</span>${gBadge(m)}</div>`).join('')}
       </div>
     </div>`;
   }
@@ -9546,45 +9560,40 @@ function renderCheckinPage() {
       const loveRx = rx['love'] || {};
       const loveCnt = Object.keys(loveRx).length;
       const loveActive = me && loveRx[me] ? ' active' : '';
-      const heartBtn = `<button class="reaction-btn${loveActive}" onclick="toggleReaction('${c._key}','love')" style="border:none;background:none;padding:1px 3px;font-size:0.82rem;cursor:pointer;line-height:1">❤️${loveCnt>0?' '+loveCnt:''}</button>`;
-      return `<div class="comment-item" id="comment-${c._key}" style="display:flex;gap:6px;align-items:flex-start">
-        <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.72rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:1px">${(c.author||'?')[0]}</span>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span class="comment-author">${c.author}</span>
-            <div style="display:flex;align-items:center;gap:4px">
-              ${heartBtn}
-              ${c.author === me ? `<button onclick="editPollComment('${c._key}')" style="font-size:0.68rem;padding:2px 7px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">수정</button>` : ''}
-              <span class="comment-at">${t}</span>
-            </div>
-          </div>
-          <div class="comment-text" id="poll-cmt-text-${c._key}">${c.text.replace(/</g,'&lt;')}</div>
-          ${replies.map(r=>{
-            const rt=r.at?new Date(r.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
-            return `<div class="reply-item" style="display:flex;gap:4px;align-items:flex-start">
-              <span style="color:#94a3b8;font-size:0.7rem;flex-shrink:0;margin-top:2px">↩</span>
-              <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.6rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${(r.author||'?')[0]}</span>
-              <div style="flex:1;min-width:0">
-                <div style="display:flex;justify-content:space-between;align-items:center">
-                  <span class="comment-author" style="font-size:0.68rem">${r.author}</span>
-                  <span class="comment-at">${rt}</span>
-                </div>
-                <div class="comment-text" style="font-size:0.8rem">${r.text.replace(/</g,'&lt;')}</div>
+      const heartBtn = `<button class="reaction-btn${loveActive}" onclick="toggleReaction('${c._key}','love')" style="border:none;background:none;padding:2px 4px;font-size:0.85rem;cursor:pointer;line-height:1;border-radius:6px;${loveActive?' background:#fff1f2;':''}">${loveActive?'❤️':'🤍'}${loveCnt>0?' '+loveCnt:''}</button>`;
+      return `<div class="comment-item" id="comment-${c._key}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.75rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(c.author||'?')[0]}</span>
+          <span class="comment-author">${c.author}</span>
+          <span class="comment-at" style="margin-left:auto">${t}</span>
+        </div>
+        <div class="comment-text" id="poll-cmt-text-${c._key}">${c.text.replace(/</g,'&lt;')}</div>
+        ${replies.map(r=>{
+          const rt=r.at?new Date(r.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+          return `<div class="comment-reply-item" style="display:flex;gap:7px;align-items:flex-start;margin-top:6px">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.62rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:1px">${(r.author||'?')[0]}</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+                <span class="comment-author" style="font-size:0.7rem">${r.author}</span>
+                <span class="comment-at">${rt}</span>
               </div>
-            </div>`;
-          }).join('')}
-          <div style="margin-top:4px">
-            <button class="btn btn-outline btn-sm" style="font-size:0.7rem;padding:3px 8px;box-shadow:none;color:#1e293b;border-color:#94a3b8" onclick="toggleReplyInput('${c._key}')">↩ 답글</button>
-          </div>
-          <div id="reply-input-${c._key}" class="reply-input-row" style="display:none">
-            <input type="text" id="reply-text-${c._key}" placeholder="답글 입력..." style="flex:1;font-size:0.83rem" onkeydown="if(event.key==='Enter')addReply('${c._key}','${c.author}')">
-            <button class="btn btn-primary btn-sm" onclick="addReply('${c._key}','${c.author}')">전송</button>
-          </div>
+              <div class="comment-text" style="font-size:0.8rem">${r.text.replace(/</g,'&lt;')}</div>
+            </div>
+          </div>`;
+        }).join('')}
+        <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
+          ${heartBtn}
+          <button style="font-size:0.72rem;padding:2px 8px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="toggleReplyInput('${c._key}')">↩ 답글</button>
+          ${c.author === me ? `<button onclick="editPollComment('${c._key}')" style="font-size:0.72rem;padding:2px 8px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;margin-left:auto">수정</button>` : ''}
+        </div>
+        <div id="reply-input-${c._key}" class="reply-input-row" style="display:none;margin-top:6px">
+          <input type="text" id="reply-text-${c._key}" placeholder="답글 입력..." style="flex:1;font-size:0.83rem" onkeydown="if(event.key==='Enter')addReply('${c._key}','${c.author}')">
+          <button class="btn btn-primary btn-sm" onclick="addReply('${c._key}','${c.author}')">전송</button>
         </div>
       </div>`;
-    }).join(''):'<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:8px 0">첫 댓글을 남겨보세요!</p>'}
-    <div style="margin-top:6px">
-      <div style="font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:6px">댓글쓰기</div>
+    }).join(''):'<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:12px 0">첫 댓글을 남겨보세요 ✏️</p>'}
+    <div style="margin-top:8px;border-top:1px solid #f1f5f9;padding-top:12px">
+      <div style="font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:8px">댓글쓰기</div>
       <textarea id="poll-comment-input" placeholder="댓글 입력" rows="2"
         style="width:100%;box-sizing:border-box;font-size:0.82rem;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;outline:none;resize:none;background:#f8fafc;line-height:1.5;font-family:inherit"
         oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
