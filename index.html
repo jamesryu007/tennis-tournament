@@ -2458,7 +2458,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v727';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v728';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7812,7 +7812,7 @@ async function renderRankingTab(){
     });
 
     _pairRankShareData = pairs;
-    let html=`<div class="rank-banner" style="position:relative"><div class="rank-banner-title">🏆 자미터 팀페어 랭킹</div><div class="rank-banner-sub">총 ${pairs.length}팀 등록 · 클릭하면 상대 전적을 볼 수 있어요</div><div style="position:absolute;top:50%;right:10px;transform:translateY(-50%);display:flex;gap:6px;align-items:center"><button onclick="document.getElementById('rank-info-modal').classList.add('open')" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">i</button>${isAdmin()?`<button onclick="shareRanking('pair')" style="display:inline-flex;align-items:center;gap:3px;padding:4px 9px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.4);background:rgba(255,255,255,0.15);color:#fff;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> 공유</button>`:''}</div></div>`;
+    let html=``;
 
     // 베이글 아이콘: 캐시 우선 (없으면 아이콘 없이 즉시 렌더, 백그라운드 로드 후 재렌더)
     const _allBagelStats = _bagelStatsCache[_selectedRankYear] || null;
@@ -7937,7 +7937,7 @@ async function renderRankingTab(){
     }
 
     _playerRankShareData = players;
-    let html=`<div class="rank-banner" style="position:relative"><div class="rank-banner-title">🏆 자미터 개인 랭킹</div><div class="rank-banner-sub">총 ${players.length}명 등록 · 클릭하면 상대 전적을 볼 수 있어요</div><div style="position:absolute;top:50%;right:10px;transform:translateY(-50%);display:flex;gap:6px;align-items:center"><button onclick="document.getElementById('rank-info-modal').classList.add('open')" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">i</button>${isAdmin()?`<button onclick="shareRanking('player')" style="display:inline-flex;align-items:center;gap:3px;padding:4px 9px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.4);background:rgba(255,255,255,0.15);color:#fff;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> 공유</button>`:''}</div></div>`;
+    let html=``;
 
     const podItems=players.slice(0,Math.min(3,players.length));
     const podCls=['p1','p2','p3'],medals=['🥇','🥈','🥉'];
@@ -8092,11 +8092,7 @@ async function renderAttendanceRanking() {
   const podItems = stats.slice(0, Math.min(3, stats.length));
   const podCls = ['p1','p2','p3'], medals = ['🥇','🥈','🥉'];
 
-  let html = `<div class="rank-banner" style="position:relative">
-    <div class="rank-banner-title">🏃 출석 랭킹</div>
-    <div class="rank-banner-sub">전체 ${total}회 기준</div>
-    <button onclick="document.getElementById('att-info-modal').classList.add('open')" style="position:absolute;top:50%;right:14px;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center">i</button>
-  </div>
+  let html = ``;
   <div class="rank-podium">
     ${podItems.map((p, i) => {
       const isMe = p.name === myName;
