@@ -1598,7 +1598,7 @@ const firebaseConfig = {
       </div>
 
       <!-- 채팅 영역 — 순백 계열로 대화 구역 명확히 구분 -->
-      <div id="bz-chat-area" style="flex:1;min-height:60px;background:#fffdf5;overflow-y:auto;padding:12px 14px;margin:0;display:flex;flex-direction:column;gap:6px;overflow-anchor:none">
+      <div id="bz-chat-area" style="flex:1;min-height:60px;background:#ffffff;overflow-y:auto;padding:12px 14px;margin:0;display:flex;flex-direction:column;gap:6px;overflow-anchor:none">
         <div id="bz-chat-empty" style="text-align:center;color:#94a3b8;font-size:0.82rem;padding:30px 0">아직 대화가 없습니다.<br>가명을 선택하고 첫 메시지를 남겨보세요!</div>
       </div>
       <div id="bz-photo-grid" style="display:none;flex:1 1 auto;overflow-y:auto;background:#f0f4fb"></div>
@@ -2462,7 +2462,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v737';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v738';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
