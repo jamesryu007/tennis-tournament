@@ -1979,7 +1979,7 @@ const firebaseConfig = {
           <div class="rank-banner-title" style="text-align:left;font-size:0.96rem">🏆 자미터 랭킹</div>
           <button onclick="document.getElementById(_rankingMode==='attendance'?'att-info-modal':'rank-info-modal').classList.add('open')" style="width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.75rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:serif">i</button>
         </div>
-        <div class="rank-banner-sub">재미와 열정이 있는 공간, 사랑하는 사람들의 모임</div>
+        <div class="rank-banner-sub" id="rank-hint-text">클릭하면 상대 전적을 볼 수 있어요.</div>
       </div>
       <div id="rank-year-row" class="rank-year-row" style="margin:0"></div>
     </div>
@@ -2462,7 +2462,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v731';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v732';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7696,6 +7696,12 @@ function setRankingMode(mode){
   document.getElementById('rtog-pair').className='rank-toggle-btn'+(mode==='pair'?' active':'');
   document.getElementById('rtog-player').className='rank-toggle-btn'+(mode==='player'?' active':'');
   document.getElementById('rtog-attendance').className='rank-toggle-btn'+(mode==='attendance'?' active':'');
+  const hintEl=document.getElementById('rank-hint-text');
+  if(hintEl){
+    if(mode==='player') hintEl.textContent='클릭하면 상대 전적을 볼 수 있어요.';
+    else if(mode==='pair') hintEl.textContent='클릭하면 만만한 상대와 베이글 기록을 볼 수 있어요.';
+    else hintEl.textContent='';
+  }
   renderRankYearRow();
   if(mode==='attendance') renderAttendanceRanking();
   else renderRankingTab();
@@ -9432,12 +9438,12 @@ function renderCheckinPage() {
         <div class="rank-banner-title" style="font-size:1rem;text-align:left">✋ ${satLabel}${meetingNum ? ` ${meetingNum}번째` : ''} 모임 출첵</div>
         <div class="rank-banner-sub">${isOpen ? '📅 금요일 정오 마감' : '✅ 투표 마감 · 참석 예정 '+totalAttending+'명'}</div>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+        <span class="status-badge ${isOpen?'badge-active':'badge-done'}">${isOpen?'진행중':'마감'}</span>
         ${isAdmin() ? `
           ${!isOpen ? `<button onclick="forceOpenCheckin()" style="font-size:0.7rem;font-weight:700;background:rgba(220,252,231,0.9);color:#16a34a;border:none;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">🔓 강제오픈</button>` : ''}
           ${isOpen ? `<button onclick="forceCloseCheckin()" style="font-size:0.7rem;font-weight:700;background:rgba(254,226,226,0.9);color:#dc2626;border:none;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">🔒 강제마감</button>` : ''}
         ` : ''}
-        <span class="status-badge ${isOpen?'badge-active':'badge-done'}">${isOpen?'진행중':'마감'}</span>
       </div>
     </div>
     <div style="margin-top:10px">
