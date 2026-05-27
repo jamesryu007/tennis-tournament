@@ -315,10 +315,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .rank-year-btn.active { background:#4c1d95; border-color:#4c1d95; color:#fff; box-shadow:0 3px 0 #3b0764; }
 .rank-year-btn.active:active { transform:translateY(2px); box-shadow:0 1px 0 #3b0764; }
 /* 토글 */
-.rank-toggle { display:flex; background:linear-gradient(135deg,#4c1d95,#6d28d9); border-radius:12px; padding:4px; margin-bottom:16px; gap:4px; }
-.rank-toggle-btn { flex:1; text-align:center; padding:9px; font-size:0.85rem; font-weight:700; border-radius:9px; cursor:pointer; color:rgba(255,255,255,0.5); transition:all 0.08s; -webkit-tap-highlight-color:transparent; }
+.rank-toggle { display:flex; background:rgba(55,40,120,0.85); border-radius:12px; padding:4px; margin-bottom:16px; gap:0; }
+.rank-toggle-btn { flex:1; text-align:center; padding:9px; font-size:0.85rem; font-weight:700; border-radius:8px; cursor:pointer; color:rgba(255,255,255,0.55); transition:all 0.08s; -webkit-tap-highlight-color:transparent; }
 .rank-toggle-btn:active { transform:translateY(1px); opacity:0.8; }
-.rank-toggle-btn.active { background:rgba(255,255,255,0.18); color:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.25); }
+.rank-toggle-btn.active { background:rgba(255,255,255,0.92); color:#2563eb; box-shadow:0 1px 6px rgba(0,0,0,0.15); }
 .rank-toggle-btn.active:active { transform:translateY(1px); box-shadow:0 1px 3px rgba(0,0,0,0.2); }
 /* 헤더 배너 */
 .rank-banner { background:linear-gradient(135deg,#4c1d95,#7c3aed,#1d4ed8); border-radius:16px; padding:14px 16px 12px; margin-bottom:14px; text-align:center; position:relative; overflow:hidden; }
@@ -391,9 +391,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .rank-detail-row:last-child { border-bottom:none; }
 /* ── 오늘의 경기 페이지 헤더 ── */
 /* ── 오늘의 기록 서브탭 ─────────────────────────────────────────── */
-.matches-subtab-bar { display:flex; gap:0; background:#f1f5f9; border-radius:12px; padding:3px; margin:0 12px 10px; }
-.matches-subtab { flex:1; padding:8px 4px; border:none; background:transparent; border-radius:9px; font-size:0.82rem; font-weight:700; color:#64748b; cursor:pointer; font-family:inherit; transition:background 0.15s,color 0.15s; -webkit-tap-highlight-color:transparent; }
-.matches-subtab.active { background:#fff; color:#2563eb; box-shadow:0 1px 4px rgba(0,0,0,0.12); }
+.matches-subtab-bar { display:flex; gap:0; background:rgba(55,40,120,0.85); border-radius:0 0 12px 12px; padding:4px; margin:0 0 12px; }
+.matches-subtab { flex:1; padding:8px 4px; border:none; background:transparent; border-radius:8px; font-size:0.82rem; font-weight:700; color:rgba(255,255,255,0.55); cursor:pointer; font-family:inherit; transition:background 0.15s,color 0.15s; -webkit-tap-highlight-color:transparent; }
+.matches-subtab.active { background:rgba(255,255,255,0.92); color:#2563eb; box-shadow:0 1px 6px rgba(0,0,0,0.15); }
 /* ── 사진 그리드 ─────────────────────────────────────────────────── */
 .photo-grid { display:grid; grid-template-columns:1fr 1fr; gap:3px; padding:0 12px 12px; }
 .photo-item { position:relative; aspect-ratio:1; border-radius:10px; overflow:hidden; background:#f1f5f9; cursor:pointer; -webkit-tap-highlight-color:transparent; }
@@ -410,7 +410,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 #pv-content { flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0 8px;touch-action:pinch-zoom; }
 #pv-content img { width:100%;height:100%;object-fit:contain;border-radius:4px;transform-origin:center; }
 #pv-content video { width:100%;height:100%;object-fit:contain; }
-.daily-page-header { background:linear-gradient(135deg,#4c1d95,#7c3aed,#1d4ed8); border-radius:16px; padding:18px 16px 14px; margin:0 0 12px; position:relative; overflow:hidden; }
+.daily-page-header { background:linear-gradient(135deg,#4c1d95,#7c3aed,#1d4ed8); border-radius:16px 16px 0 0; padding:18px 16px 14px; margin:0 0 0; position:relative; overflow:hidden; }
 .daily-page-header::before { content:''; position:absolute; top:-25px;right:-25px; width:90px;height:90px; background:rgba(255,255,255,0.07); border-radius:50%; pointer-events:none; }
 .daily-page-header::after { content:''; position:absolute; bottom:-30px;left:-10px; width:110px;height:110px; background:rgba(255,255,255,0.05); border-radius:50%; pointer-events:none; }
 .daily-page-title { font-size:1.1rem; font-weight:900; color:#fff; letter-spacing:0.08em; text-shadow:0 1px 6px rgba(0,0,0,0.25); position:relative; }
@@ -1970,19 +1970,27 @@ const firebaseConfig = {
 
 <!-- ══ PAGE: 랭킹 ══ -->
 <div class="page" id="page-history">
+  <!-- 랭킹 헤더 배너 -->
+  <div class="rank-banner" style="border-radius:16px 16px 0 0;margin-bottom:0;padding:12px 16px 10px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div class="rank-banner-title" style="text-align:left;font-size:0.96rem">🏆 랭킹</div>
+        <div class="rank-banner-sub">자미터 멤버 성적 & 출석 현황</div>
+      </div>
+      <div id="rank-year-row" class="rank-year-row" style="margin:0"></div>
+    </div>
+  </div>
   <!-- 모임 사진 프레임 (탭하면 랜덤 변경) -->
-  <div onclick="changeTeamPhotoRandom()" style="margin-bottom:14px;border-radius:18px;overflow:hidden;box-shadow:0 4px 20px rgba(37,99,235,0.13),0 1px 4px rgba(0,0,0,0.08);background:#111827;border:1px solid #e2e8f0;cursor:pointer;-webkit-tap-highlight-color:transparent">
+  <div onclick="changeTeamPhotoRandom()" style="margin-bottom:14px;border-radius:0;overflow:hidden;box-shadow:0 4px 20px rgba(37,99,235,0.13),0 1px 4px rgba(0,0,0,0.08);background:#111827;cursor:pointer;-webkit-tap-highlight-color:transparent">
     <div style="position:relative;">
-      <img id="team-photo" src="" alt="자미터 테니스 모임" style="width:100%;display:block;height:220px;object-fit:contain;object-position:center center;">
-      <div style="position:absolute;bottom:0;left:0;right:0;height:72px;background:linear-gradient(to top,rgba(15,23,42,0.72),transparent);pointer-events:none;"></div>
-      <div style="position:absolute;bottom:0;left:0;right:0;padding:10px 14px;">
-        <div style="color:#fff;font-size:0.82rem;font-weight:700;letter-spacing:0.3px;text-shadow:0 1px 4px rgba(0,0,0,0.4)">🎾 자미터 테니스</div>
-        <div style="color:rgba(255,255,255,0.8);font-size:0.68rem;margin-top:1px;text-shadow:0 1px 3px rgba(0,0,0,0.4)">재미와 열정이 있는 공간, 사랑하는 사람들의 모임</div>
+      <img id="team-photo" src="" alt="자미터 테니스 모임" style="width:100%;display:block;height:180px;object-fit:contain;object-position:center center;">
+      <div style="position:absolute;bottom:0;left:0;right:0;height:60px;background:linear-gradient(to top,rgba(15,23,42,0.72),transparent);pointer-events:none;"></div>
+      <div style="position:absolute;bottom:0;left:0;right:0;padding:8px 14px;">
+        <div style="color:rgba(255,255,255,0.7);font-size:0.7rem;text-shadow:0 1px 3px rgba(0,0,0,0.4)">탭하면 사진이 바뀌어요 👆</div>
       </div>
     </div>
   </div>
   <div id="ranking-panel" style="padding:4px 0">
-    <div class="rank-year-row" id="rank-year-row"></div>
     <div class="rank-toggle">
       <div class="rank-toggle-btn active" id="rtog-player" onclick="setRankingMode('player')">개인 랭킹</div>
       <div class="rank-toggle-btn" id="rtog-pair" onclick="setRankingMode('pair')">팀페어 랭킹</div>
@@ -2458,7 +2466,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v724';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v725';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
