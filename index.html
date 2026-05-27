@@ -47,7 +47,7 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
 /* ── ATP LIVE ── */
 .atp-tab {
   transition: background 0.15s, color 0.15s, box-shadow 0.15s, transform 0.08s;
-  flex: 1; padding: 10px 4px; font-size: 0.78rem; font-weight: 600;
+  flex: 1; padding: 8px 4px; font-size: 0.78rem; font-weight: 600;
   background: #f1f5f9; color: #94a3b8; border: none; cursor: pointer;
   position: relative;
 }
@@ -59,11 +59,17 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
   font-weight: 800 !important;
   box-shadow: inset 0 -3px 0 rgba(0,0,0,0.15);
 }
-.atp-match-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:0.82rem; }
+/* 행모/LIVE 배너 아래 다크 탭 */
+#atp-tab-container .atp-tab { background:transparent !important; color:rgba(255,255,255,0.55) !important; font-size:0.8rem; border-radius:8px !important; }
+#atp-tab-container .atp-tab.active { background:rgba(255,255,255,0.92) !important; color:#2563eb !important; box-shadow:0 1px 6px rgba(0,0,0,0.15); font-weight:800 !important; border-radius:8px !important; }
+#atp-tab-container .atp-tab:not(:last-child) { border-right:none !important; }
+.atp-match-row { display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1f5f9; font-size:0.82rem; gap:4px; }
 .atp-match-row:last-child { border-bottom:none; }
-.atp-player { flex:1; font-weight:600; color:#1e293b; }
-.atp-player.winner { color:#2563eb; }
-.atp-score { font-size:0.75rem; color:#64748b; text-align:center; min-width:80px; }
+.atp-player { flex:1; font-weight:600; color:#64748b; line-height:1.35; }
+.atp-player.winner { color:#1e293b; font-weight:800; }
+.atp-score { font-size:0.75rem; color:#94a3b8; text-align:right; min-width:72px; }
+.atp-score .win-score { color:#1e293b; font-weight:700; }
+.bet-card { border:1px solid #e8ecf0; border-radius:14px; margin-bottom:8px; overflow:hidden; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.05); display:flex; }
 .atp-round-label { font-size:0.72rem; font-weight:700; color:#94a3b8; padding:8px 0 4px; letter-spacing:0.3px; }
 .fav-btn { border-radius:20px; padding:5px 12px; font-size:0.78rem; font-weight:600; cursor:pointer; border:1.5px solid #e2e8f0; background:#fff; color:#64748b; transition:all 0.12s; box-shadow:0 3px 0 rgba(0,0,0,0.08); }
 .fav-btn:active { transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,0.06); }
@@ -144,31 +150,40 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .stat-col-silver .stat-col-num { color:#475569; }
 
 /* ── POLL / 출첵 ── */
-.vote-btn-group { display:flex; gap:8px; margin:4px 0 0; }
-.vote-btn { flex:1; padding:12px 6px; border-radius:12px; border:2px solid transparent; cursor:pointer; font-family:inherit; transition:transform 0.08s,box-shadow 0.08s; user-select:none; text-align:center; }
-.vote-btn:active { transform:translateY(3px); }
-.vote-btn.attend { background:#dcfce7; color:#16a34a; border-color:#86efac; box-shadow:0 4px 0 #86efac; }
-.vote-btn.attend.active { background:#16a34a; color:#fff; border-color:#15803d; box-shadow:0 4px 0 #15803d; }
-.vote-btn.late { background:#fef3c7; color:#b45309; border-color:#fcd34d; box-shadow:0 4px 0 #fcd34d; }
-.vote-btn.late.active { background:#d97706; color:#fff; border-color:#92400e; box-shadow:0 4px 0 #92400e; }
-.vote-btn.absent { background:#fee2e2; color:#dc2626; border-color:#fca5a5; box-shadow:0 4px 0 #fca5a5; }
-.vote-btn.absent.active { background:#dc2626; color:#fff; border-color:#991b1b; box-shadow:0 4px 0 #991b1b; }
-.vote-btn.undecided { background:#f3e8ff; color:#7c3aed; border-color:#c4b5fd; box-shadow:0 4px 0 #c4b5fd; }
-.vote-btn.undecided.active { background:#7c3aed; color:#fff; border-color:#5b21b6; box-shadow:0 4px 0 #5b21b6; }
-.poll-group { margin-bottom:10px; }
-.poll-group-hdr { font-size:0.72rem; font-weight:700; color:#64748b; padding:5px 0 4px; border-bottom:1px solid #e2e8f0; margin-bottom:5px; display:flex; align-items:center; gap:5px; }
+.vote-btn-group { display:flex; gap:8px; margin:8px 0 0; }
+.vote-btn { flex:1; padding:14px 4px 12px; border-radius:14px; border:2px solid transparent; cursor:pointer; font-family:inherit; transition:all 0.12s; user-select:none; text-align:center; -webkit-tap-highlight-color:transparent; position:relative; }
+.vote-btn:active { transform:scale(0.95); }
+.vote-btn .vote-check { position:absolute; top:5px; right:6px; font-size:0.6rem; font-weight:900; opacity:0; transition:opacity 0.12s; }
+.vote-btn.active .vote-check { opacity:1; }
+.vote-btn.attend { background:#f0fdf4; color:#16a34a; border-color:#bbf7d0; }
+.vote-btn.attend.active { background:#16a34a; color:#fff; border-color:#15803d; }
+.vote-btn.late { background:#fffbeb; color:#b45309; border-color:#fde68a; }
+.vote-btn.late.active { background:#d97706; color:#fff; border-color:#92400e; }
+.vote-btn.absent { background:#fff1f2; color:#dc2626; border-color:#fecdd3; }
+.vote-btn.absent.active { background:#dc2626; color:#fff; border-color:#991b1b; }
+.vote-btn.undecided { background:#faf5ff; color:#7c3aed; border-color:#ddd6fe; }
+.vote-btn.undecided.active { background:#7c3aed; color:#fff; border-color:#5b21b6; }
+.poll-group { margin-bottom:0; padding:14px 0 0; border-top:1px solid #f1f5f9; }
+.poll-group:first-child { border-top:none; padding-top:4px; }
+.poll-group-hdr { font-size:0.73rem; font-weight:800; color:#475569; padding:0 0 8px; margin-bottom:0; display:flex; align-items:center; gap:5px; }
+.poll-chip { display:inline-flex; align-items:center; gap:4px; background:#fff; border:1px solid #e2e8f0; border-radius:20px; padding:5px 10px; margin:2px; }
+.poll-chip-avatar { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; color:#fff; font-size:0.68rem; font-weight:900; flex-shrink:0; line-height:1; }
+.poll-chip-name { font-size:0.82rem; font-weight:600; color:#1e293b; }
 .poll-voter { display:flex; align-items:center; gap:7px; padding:6px 10px; background:#f8fafc; border-radius:8px; margin-bottom:4px; font-size:0.85rem; }
-.poll-summary-row { display:flex; gap:7px; flex-wrap:wrap; margin:8px 0 4px; }
-.poll-pill { padding:4px 10px; border-radius:20px; font-size:0.72rem; font-weight:700; }
+.poll-summary-row { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 6px; }
+.poll-pill { padding:6px 12px; border-radius:20px; font-size:0.73rem; font-weight:700; display:inline-flex; align-items:center; gap:4px; }
 .poll-pill.attend { background:#dcfce7; color:#16a34a; }
 .poll-pill.late { background:#fef3c7; color:#b45309; }
 .poll-pill.absent { background:#fee2e2; color:#dc2626; }
 .poll-pill.guest { background:#ede9fe; color:#7c3aed; }
 .poll-pill.undecided { background:#f3e8ff; color:#7c3aed; }
 .poll-pill.notvoted { background:#f1f5f9; color:#64748b; }
-.comment-item { padding:8px 10px; border-radius:10px; background:#f8fafc; margin-bottom:6px; }
-.comment-author { font-size:0.72rem; font-weight:700; color:#2563eb; }
-.comment-text { font-size:0.85rem; color:#1e293b; margin-top:2px; word-break:break-word; }
+.checkin-progress { height:5px; background:#e2e8f0; border-radius:3px; overflow:hidden; margin:6px 0 2px; }
+.checkin-progress-fill { height:100%; border-radius:3px; transition:width 0.4s ease; }
+.comment-item { padding:10px 12px; border-radius:12px; background:#f8fafc; border:1px solid #f1f5f9; margin-bottom:8px; }
+.comment-author { font-size:0.75rem; font-weight:800; color:#1e293b; }
+.comment-text { font-size:0.85rem; color:#334155; margin-top:4px; word-break:break-word; line-height:1.5; }
+.comment-reply-item { margin-top:8px; padding:8px 10px; background:#fff; border:1px solid #e2e8f0; border-radius:10px; border-left:3px solid #cbd5e1; }
 .comment-at { font-size:0.62rem; color:#94a3b8; }
 .comment-reactions { display:flex; gap:6px; margin-top:5px; }
 .reaction-btn { display:inline-flex; align-items:center; gap:3px; font-size:0.72rem; padding:2px 7px; border-radius:20px; border:1.5px solid #e2e8f0; background:#fff; cursor:pointer; color:#64748b; transition:all 0.15s; }
@@ -300,10 +315,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .rank-year-btn.active { background:#4c1d95; border-color:#4c1d95; color:#fff; box-shadow:0 3px 0 #3b0764; }
 .rank-year-btn.active:active { transform:translateY(2px); box-shadow:0 1px 0 #3b0764; }
 /* 토글 */
-.rank-toggle { display:flex; background:linear-gradient(135deg,#4c1d95,#6d28d9); border-radius:12px; padding:4px; margin-bottom:16px; gap:4px; }
-.rank-toggle-btn { flex:1; text-align:center; padding:9px; font-size:0.85rem; font-weight:700; border-radius:9px; cursor:pointer; color:rgba(255,255,255,0.5); transition:all 0.08s; -webkit-tap-highlight-color:transparent; }
+.rank-toggle { display:flex; background:rgba(55,40,120,0.85); border-radius:0 0 12px 12px; padding:4px; margin-bottom:16px; gap:0; }
+.rank-toggle-btn { flex:1; text-align:center; padding:9px; font-size:0.85rem; font-weight:700; border-radius:8px; cursor:pointer; color:rgba(255,255,255,0.55); transition:all 0.08s; -webkit-tap-highlight-color:transparent; }
 .rank-toggle-btn:active { transform:translateY(1px); opacity:0.8; }
-.rank-toggle-btn.active { background:rgba(255,255,255,0.18); color:#fff; box-shadow:0 2px 8px rgba(0,0,0,0.25); }
+.rank-toggle-btn.active { background:rgba(255,255,255,0.92); color:#2563eb; box-shadow:0 1px 6px rgba(0,0,0,0.15); }
 .rank-toggle-btn.active:active { transform:translateY(1px); box-shadow:0 1px 3px rgba(0,0,0,0.2); }
 /* 헤더 배너 */
 .rank-banner { background:linear-gradient(135deg,#4c1d95,#7c3aed,#1d4ed8); border-radius:16px; padding:14px 16px 12px; margin-bottom:14px; text-align:center; position:relative; overflow:hidden; }
@@ -376,9 +391,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .rank-detail-row:last-child { border-bottom:none; }
 /* ── 오늘의 경기 페이지 헤더 ── */
 /* ── 오늘의 기록 서브탭 ─────────────────────────────────────────── */
-.matches-subtab-bar { display:flex; gap:0; background:#f1f5f9; border-radius:12px; padding:3px; margin:0 12px 10px; }
-.matches-subtab { flex:1; padding:8px 4px; border:none; background:transparent; border-radius:9px; font-size:0.82rem; font-weight:700; color:#64748b; cursor:pointer; font-family:inherit; transition:background 0.15s,color 0.15s; -webkit-tap-highlight-color:transparent; }
-.matches-subtab.active { background:#fff; color:#2563eb; box-shadow:0 1px 4px rgba(0,0,0,0.12); }
+.matches-subtab-bar { display:flex; gap:0; background:rgba(55,40,120,0.85); border-radius:0 0 12px 12px; padding:4px; margin:0 0 12px; }
+.matches-subtab { flex:1; padding:8px 4px; border:none; background:transparent; border-radius:8px; font-size:0.82rem; font-weight:700; color:rgba(255,255,255,0.55); cursor:pointer; font-family:inherit; transition:background 0.15s,color 0.15s; -webkit-tap-highlight-color:transparent; }
+.matches-subtab.active { background:rgba(255,255,255,0.92); color:#2563eb; box-shadow:0 1px 6px rgba(0,0,0,0.15); }
 /* ── 사진 그리드 ─────────────────────────────────────────────────── */
 .photo-grid { display:grid; grid-template-columns:1fr 1fr; gap:3px; padding:0 12px 12px; }
 .photo-item { position:relative; aspect-ratio:1; border-radius:10px; overflow:hidden; background:#f1f5f9; cursor:pointer; -webkit-tap-highlight-color:transparent; }
@@ -395,7 +410,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 #pv-content { flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0 8px;touch-action:pinch-zoom; }
 #pv-content img { width:100%;height:100%;object-fit:contain;border-radius:4px;transform-origin:center; }
 #pv-content video { width:100%;height:100%;object-fit:contain; }
-.daily-page-header { background:linear-gradient(135deg,#4c1d95,#7c3aed,#1d4ed8); border-radius:16px; padding:18px 16px 14px; margin:0 0 12px; position:relative; overflow:hidden; }
+.daily-page-header { background:linear-gradient(135deg,#4c1d95,#7c3aed,#1d4ed8); border-radius:16px 16px 0 0; padding:18px 16px 14px; margin:0 0 0; position:relative; overflow:hidden; }
 .daily-page-header::before { content:''; position:absolute; top:-25px;right:-25px; width:90px;height:90px; background:rgba(255,255,255,0.07); border-radius:50%; pointer-events:none; }
 .daily-page-header::after { content:''; position:absolute; bottom:-30px;left:-10px; width:110px;height:110px; background:rgba(255,255,255,0.05); border-radius:50%; pointer-events:none; }
 .daily-page-title { font-size:1.1rem; font-weight:900; color:#fff; letter-spacing:0.08em; text-shadow:0 1px 6px rgba(0,0,0,0.25); position:relative; }
@@ -512,6 +527,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .sub-tab:active { transform: translateY(1px); opacity: 0.75; }
 .sub-tab.active { background: #ffffff; color: #2563eb; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
 .sub-tab.active:active { transform: translateY(1px); box-shadow: none; opacity: 0.9; }
+/* 행모 서브탭: 배너 아래 다크 배경 */
+#page-setup .sub-tabs { background: transparent; }
+#page-setup .sub-tab { color: rgba(255,255,255,0.55); font-size:0.8rem; }
+#page-setup .sub-tab.active { background: rgba(255,255,255,0.92); color: #2563eb; box-shadow: 0 1px 6px rgba(0,0,0,0.15); }
 
 /* ── BRACKET ── */
 .bracket-container { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 2px 0 10px; }
@@ -753,26 +772,26 @@ const firebaseConfig = {
 <!-- ══ PAGE: ATPLive ══ -->
 <div class="page" id="page-atp" style="font-size:106%">
 
-  <!-- 대회 정보 프레임 -->
-  <div id="atp-tournament-card" style="margin-bottom:10px">
-    <div class="rank-banner" style="margin-bottom:0;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;padding:12px 16px">
+  <!-- 대회 정보 + 탭 통합 블록 -->
+  <div id="atp-tournament-card" style="margin-bottom:12px">
+    <div class="rank-banner" style="margin-bottom:0;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;padding:18px 16px 14px">
       <div>
         <div style="display:flex;align-items:center;gap:8px"><span class="live-badge live-badge-lg">LIVE</span><i style="font-size:0.82rem;font-weight:400;font-style:italic;color:rgba(255,255,255,0.85)">Dive into the global <span style="color:#ef4444;font-weight:700">live</span>!</i></div>
       </div>
       <button onclick="openFavPlayerModal()" style="background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.4);border-radius:20px;padding:4px 11px;font-size:0.75rem;font-weight:700;color:#fff;cursor:pointer">⭐ Ranking</button>
     </div>
-    <div style="background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 16px 16px;padding:12px 14px">
+    <!-- 탭: 헤더 바로 아래 연결 -->
+    <div id="atp-tab-container" style="display:flex;background:rgba(55,40,120,0.85);padding:4px;border-radius:0 0 12px 12px">
+      <button class="atp-tab active" id="atp-tab-draw" onclick="switchAtpTab('draw')">🎾 대진표</button>
+      <button class="atp-tab"        id="atp-tab-bet"  onclick="switchAtpTab('bet')">🎯 베팅</button>
+      <button class="atp-tab"        id="atp-tab-news" onclick="switchAtpTab('news')">🔥 <span style="color:#fca5a5">Hot</span> News<span id="news-new-badge" style="display:none;margin-left:4px;background:#ef4444;color:#fff;font-size:0.6rem;font-weight:800;padding:1px 5px;border-radius:8px;vertical-align:middle;line-height:1.5">NEW</span></button>
+    </div>
+    <!-- 대회 카드: 서브탭 아래 -->
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-top:12px;padding:10px 14px">
       <div id="atp-tourney-info">
-        <div id="atp-loading-msg" style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.85rem">대회 정보를 불러오는 중...<br><button id="atp-loading-retry" onclick="triggerAtpRefresh()" style="display:none;margin-top:10px;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6px 16px;font-size:0.8rem;cursor:pointer">🔄 직접 가져오기</button></div>
+        <div id="atp-loading-msg" style="text-align:center;padding:12px 0;color:#94a3b8;font-size:0.85rem">대회 정보를 불러오는 중...<br><button id="atp-loading-retry" onclick="triggerAtpRefresh()" style="display:none;margin-top:10px;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6px 16px;font-size:0.8rem;cursor:pointer">🔄 직접 가져오기</button></div>
       </div>
     </div>
-  </div>
-
-  <!-- 내부 탭: 대진표 / 베팅 -->
-  <div style="display:flex;border-radius:12px;overflow:hidden;border:1.5px solid #e2e8f0;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.06)">
-    <button class="atp-tab active" id="atp-tab-draw" onclick="switchAtpTab('draw')">🎾 대진표</button>
-    <button class="atp-tab"        id="atp-tab-bet"  onclick="switchAtpTab('bet')">🎯 베팅</button>
-    <button class="atp-tab"        id="atp-tab-news" onclick="switchAtpTab('news')">🔥 <span style="color:#ef4444">Hot</span> News<span id="news-new-badge" style="display:none;margin-left:4px;background:#ef4444;color:#fff;font-size:0.6rem;font-weight:800;padding:1px 5px;border-radius:8px;vertical-align:middle;line-height:1.5">NEW</span></button>
   </div>
 
   <!-- 대진표 탭 -->
@@ -986,7 +1005,17 @@ const firebaseConfig = {
 
 <!-- ══ PAGE: 대회만들기 ══ -->
 <div class="page" id="page-setup">
-  <div class="sub-tabs" style="margin-bottom:10px">
+  <!-- 행모 헤더 배너 -->
+  <div class="rank-banner" style="margin-bottom:0;border-radius:16px 16px 0 0;padding:18px 16px 14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;position:relative">
+      <div id="setup-banner-text">
+        <div class="rank-banner-title" style="text-align:left;font-size:0.96rem">🗳️ 머든 정하기</div>
+        <div class="rank-banner-sub">날짜 · 장소 · 메뉴 투표로 결정하기</div>
+      </div>
+      <button id="mp-create-btn" onclick="openMpCreateModal()" style="display:none;padding:6px 14px;border-radius:20px;border:none;background:rgba(255,255,255,0.18);color:#fff;font-size:0.78rem;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;backdrop-filter:blur(4px)">+ 투표</button>
+    </div>
+  </div>
+  <div class="sub-tabs" style="margin-bottom:12px;border-radius:0 0 12px 12px;background:rgba(55,40,120,0.85);padding:4px 4px 4px">
     <div class="sub-tab active" id="stab-meeting" onclick="switchSetupTab('meeting')">🗳️ 머든 정하기</div>
     <div class="sub-tab" id="stab-bet" onclick="switchSetupTab('bet')">🎲 무조건 내기</div>
     <div class="sub-tab" id="stab-create" onclick="switchSetupTab('create')">🏆 경기 진행</div>
@@ -1144,9 +1173,6 @@ const firebaseConfig = {
 
   <!-- 머든 정하기 패널 -->
   <div id="setup-panel-meeting">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
-      <button id="mp-create-btn" onclick="openMpCreateModal()" style="display:none;padding:8px 18px;border-radius:20px;border:none;background:#2563eb;color:#fff;font-size:0.82rem;font-weight:700;cursor:pointer">🗳️ 투표 만들기</button>
-    </div>
     <div id="mp-polls-list">
       <div class="card"><p style="text-align:center;color:#94a3b8;padding:20px 0">로딩 중...</p></div>
     </div>
@@ -1945,19 +1971,22 @@ const firebaseConfig = {
 
 <!-- ══ PAGE: 랭킹 ══ -->
 <div class="page" id="page-history">
-  <!-- 모임 사진 프레임 (탭하면 랜덤 변경) -->
-  <div onclick="changeTeamPhotoRandom()" style="margin-bottom:14px;border-radius:18px;overflow:hidden;box-shadow:0 4px 20px rgba(37,99,235,0.13),0 1px 4px rgba(0,0,0,0.08);background:#111827;border:1px solid #e2e8f0;cursor:pointer;-webkit-tap-highlight-color:transparent">
-    <div style="position:relative;">
-      <img id="team-photo" src="" alt="자미터 테니스 모임" style="width:100%;display:block;height:220px;object-fit:contain;object-position:center center;">
-      <div style="position:absolute;bottom:0;left:0;right:0;height:72px;background:linear-gradient(to top,rgba(15,23,42,0.72),transparent);pointer-events:none;"></div>
-      <div style="position:absolute;bottom:0;left:0;right:0;padding:10px 14px;">
-        <div style="color:#fff;font-size:0.82rem;font-weight:700;letter-spacing:0.3px;text-shadow:0 1px 4px rgba(0,0,0,0.4)">🎾 자미터 테니스</div>
-        <div style="color:rgba(255,255,255,0.8);font-size:0.68rem;margin-top:1px;text-shadow:0 1px 3px rgba(0,0,0,0.4)">재미와 열정이 있는 공간, 사랑하는 사람들의 모임</div>
+  <!-- 랭킹 헤더 배너 -->
+  <div class="rank-banner" style="border-radius:16px 16px 0 0;margin-bottom:0;padding:18px 16px 14px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="rank-banner-title" style="text-align:left;font-size:0.96rem">🏆 자미터 랭킹</div>
+          <button onclick="document.getElementById(_rankingMode==='attendance'?'att-info-modal':'rank-info-modal').classList.add('open')" style="width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.75rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:serif">i</button>
+        </div>
+        <div class="rank-banner-sub" id="rank-hint-text">클릭하면 상대 전적을 볼 수 있어요.</div>
       </div>
+      <div id="rank-year-row" class="rank-year-row" style="margin:0"></div>
     </div>
   </div>
-  <div id="ranking-panel" style="padding:4px 0">
-    <div class="rank-year-row" id="rank-year-row"></div>
+  <!-- 숨김 (사진 변경 함수 호환용) -->
+  <img id="team-photo" src="" alt="" style="display:none">
+  <div id="ranking-panel" style="padding:0">
     <div class="rank-toggle">
       <div class="rank-toggle-btn active" id="rtog-player" onclick="setRankingMode('player')">개인 랭킹</div>
       <div class="rank-toggle-btn" id="rtog-pair" onclick="setRankingMode('pair')">팀페어 랭킹</div>
@@ -2433,7 +2462,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v717';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v735';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7667,6 +7696,12 @@ function setRankingMode(mode){
   document.getElementById('rtog-pair').className='rank-toggle-btn'+(mode==='pair'?' active':'');
   document.getElementById('rtog-player').className='rank-toggle-btn'+(mode==='player'?' active':'');
   document.getElementById('rtog-attendance').className='rank-toggle-btn'+(mode==='attendance'?' active':'');
+  const hintEl=document.getElementById('rank-hint-text');
+  if(hintEl){
+    if(mode==='player') hintEl.textContent='클릭하면 상대 전적을 볼 수 있어요.';
+    else if(mode==='pair') hintEl.textContent='클릭하면 만만한 상대와 베이글 기록을 볼 수 있어요.';
+    else hintEl.textContent='';
+  }
   renderRankYearRow();
   if(mode==='attendance') renderAttendanceRanking();
   else renderRankingTab();
@@ -7787,7 +7822,7 @@ async function renderRankingTab(){
     });
 
     _pairRankShareData = pairs;
-    let html=`<div class="rank-banner" style="position:relative"><div class="rank-banner-title">🏆 자미터 팀페어 랭킹</div><div class="rank-banner-sub">총 ${pairs.length}팀 등록 · 클릭하면 상대 전적을 볼 수 있어요</div><div style="position:absolute;top:50%;right:10px;transform:translateY(-50%);display:flex;gap:6px;align-items:center"><button onclick="document.getElementById('rank-info-modal').classList.add('open')" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">i</button>${isAdmin()?`<button onclick="shareRanking('pair')" style="display:inline-flex;align-items:center;gap:3px;padding:4px 9px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.4);background:rgba(255,255,255,0.15);color:#fff;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> 공유</button>`:''}</div></div>`;
+    let html=`<div style="text-align:center;font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;padding:12px 0 6px">─ ${_selectedRankYear} 시즌 · ${pairs.length}팀 ─</div>`;
 
     // 베이글 아이콘: 캐시 우선 (없으면 아이콘 없이 즉시 렌더, 백그라운드 로드 후 재렌더)
     const _allBagelStats = _bagelStatsCache[_selectedRankYear] || null;
@@ -7912,7 +7947,7 @@ async function renderRankingTab(){
     }
 
     _playerRankShareData = players;
-    let html=`<div class="rank-banner" style="position:relative"><div class="rank-banner-title">🏆 자미터 개인 랭킹</div><div class="rank-banner-sub">총 ${players.length}명 등록 · 클릭하면 상대 전적을 볼 수 있어요</div><div style="position:absolute;top:50%;right:10px;transform:translateY(-50%);display:flex;gap:6px;align-items:center"><button onclick="document.getElementById('rank-info-modal').classList.add('open')" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">i</button>${isAdmin()?`<button onclick="shareRanking('player')" style="display:inline-flex;align-items:center;gap:3px;padding:4px 9px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.4);background:rgba(255,255,255,0.15);color:#fff;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg> 공유</button>`:''}</div></div>`;
+    let html=`<div style="text-align:center;font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;padding:12px 0 6px">─ ${_selectedRankYear} 시즌 · ${players.length}명 ─</div>`;
 
     const podItems=players.slice(0,Math.min(3,players.length));
     const podCls=['p1','p2','p3'],medals=['🥇','🥈','🥉'];
@@ -8067,12 +8102,7 @@ async function renderAttendanceRanking() {
   const podItems = stats.slice(0, Math.min(3, stats.length));
   const podCls = ['p1','p2','p3'], medals = ['🥇','🥈','🥉'];
 
-  let html = `<div class="rank-banner" style="position:relative">
-    <div class="rank-banner-title">🏃 출석 랭킹</div>
-    <div class="rank-banner-sub">전체 ${total}회 기준</div>
-    <button onclick="document.getElementById('att-info-modal').classList.add('open')" style="position:absolute;top:50%;right:14px;transform:translateY(-50%);width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.8rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center">i</button>
-  </div>
-  <div class="rank-podium">
+  let html = `<div style="text-align:center;font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;padding:12px 0 6px">─ ${_selectedRankYear} 시즌 · 전체 ${total}회 기준 ─</div><div class="rank-podium">
     ${podItems.map((p, i) => {
       const isMe = p.name === myName;
       const g = getGender(p.name), nc = g==='male'?'#1e40af':g==='female'?'#9d174d':'#1e293b';
@@ -9375,31 +9405,52 @@ function renderCheckinPage() {
 
   const gBadge = g => `<span class="badge ${g.gender==='male'?'badge-male':'badge-female'}" style="font-size:0.6rem">${g.gender==='male'?'남':'여'}</span>`;
   const mBadge = name => { const m=state.members.find(mb=>mb.name===name); return m?gBadge(m):''; };
+  const mColor = name => _getMemberColor(name);
 
-  const voterGroup = (voters, label) => voters.length ? `
-    <div class="poll-group">
-      <div class="poll-group-hdr">${label} <span style="color:#94a3b8;font-weight:400">(${voters.length}명)</span></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
-        ${voters.map(v=>`<div class="poll-voter" style="padding:5px 8px">${mBadge(v.name)}<span style="flex:1;font-size:0.82rem">${v.name}</span></div>`).join('')}
+  const voterGroup = (voters, label, accentColor) => {
+    if (!voters.length) return '';
+    const sorted = [...voters].sort((a, b) => {
+      const gA = (state.members.find(m => m.name === a.name) || {}).gender || '';
+      const gB = (state.members.find(m => m.name === b.name) || {}).gender || '';
+      const rA = gA === 'male' ? 0 : gA === 'female' ? 1 : 2;
+      const rB = gB === 'male' ? 0 : gB === 'female' ? 1 : 2;
+      if (rA !== rB) return rA - rB;
+      return (a.votedAt || '').localeCompare(b.votedAt || '');
+    });
+    return `<div class="poll-group">
+      <div class="poll-group-hdr" style="border-left:3px solid ${accentColor};padding-left:8px">${label} <span style="color:#94a3b8;font-weight:400;margin-left:2px">${voters.length}명</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;padding-bottom:4px">
+        ${sorted.map(v=>`<div class="poll-chip"><span class="poll-chip-name">${v.name}</span>${mBadge(v.name)}</div>`).join('')}
       </div>
-    </div>` : '';
+    </div>`;
+  };
+
+  const totalMembers = state.members.length;
+  const votedCount = votes.length;
+  const votePct = totalMembers > 0 ? Math.round(votedCount / totalMembers * 100) : 0;
 
   let html = '';
 
   // Header
-  html += `<div style="margin-bottom:10px">
-    <div class="rank-banner" style="border-radius:16px 16px 0 0;margin-bottom:0;padding:11px 14px;display:flex;justify-content:space-between;align-items:center">
-      <div style="font-size:0.98rem;font-weight:900;color:#fff">✋ ${satLabel}${meetingNum ? ` ${meetingNum}번째` : ''} 모임 출첵</div>
-      <div style="display:flex;align-items:center;gap:6px">
-        ${isAdmin() ? `
-          ${!isOpen ? `<button onclick="forceOpenCheckin()" style="font-size:0.7rem;font-weight:700;background:#dcfce7;color:#16a34a;border:1.5px solid #86efac;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">🔓 강제오픈</button>` : ''}
-          ${isOpen ? `<button onclick="forceCloseCheckin()" style="font-size:0.7rem;font-weight:700;background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">🔒 강제마감</button>` : ''}
-        ` : ''}
+  html += `<div class="rank-banner" style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div class="rank-banner-title" style="font-size:1rem;text-align:left">✋ ${satLabel}${meetingNum ? ` ${meetingNum}번째` : ''} 모임 출첵</div>
+        <div class="rank-banner-sub">${isOpen ? '📅 금요일 정오 마감' : '✅ 투표 마감 · 참석 예정 '+totalAttending+'명'}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
         <span class="status-badge ${isOpen?'badge-active':'badge-done'}">${isOpen?'진행중':'마감'}</span>
+        ${isAdmin() ? `
+          ${!isOpen ? `<button onclick="forceOpenCheckin()" style="font-size:0.7rem;font-weight:700;background:rgba(220,252,231,0.9);color:#16a34a;border:none;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">🔓 강제오픈</button>` : ''}
+          ${isOpen ? `<button onclick="forceCloseCheckin()" style="font-size:0.7rem;font-weight:700;background:rgba(254,226,226,0.9);color:#dc2626;border:none;border-radius:8px;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">🔒 강제마감</button>` : ''}
+        ` : ''}
       </div>
     </div>
-    <div style="background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 16px 16px;padding:8px 14px">
-      <div style="font-size:0.75rem;color:#64748b">${isOpen?'📅 마감: 금요일 정오 12:00':'✅ 투표 마감 · 참석 예정 '+totalAttending+'명'}</div>
+    <div style="margin-top:10px">
+      <div style="height:5px;background:rgba(255,255,255,0.2);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${votePct}%;background:rgba(255,255,255,0.85);border-radius:3px;transition:width 0.4s ease"></div>
+      </div>
+      <div style="font-size:0.68rem;color:rgba(255,255,255,0.65);text-align:right;margin-top:3px">${totalMembers}명 중 ${votedCount}명 투표 (${votePct}%)</div>
     </div>
   </div>`;
 
@@ -9410,24 +9461,28 @@ function renderCheckinPage() {
       ${!myName?`<p style="font-size:0.8rem;color:#94a3b8;margin-bottom:8px">접속자를 선택하면 투표할 수 있습니다</p>`:''}
       <div class="vote-btn-group">
         <button class="vote-btn attend${myVote==='attend'?' active':''}" onclick="castVote('attend')">
-          <div style="font-size:1.3rem">✅</div>
-          <div style="font-size:0.8rem;font-weight:700;margin-top:3px">참석</div>
-          <div style="font-size:0.7rem;margin-top:1px;opacity:0.8">${attendVoters.length}명</div>
+          <span class="vote-check">✓</span>
+          <div style="font-size:1.6rem">✅</div>
+          <div style="font-size:0.8rem;font-weight:700;margin-top:5px">참석</div>
+          <div style="font-size:0.7rem;margin-top:2px;opacity:0.75">${attendVoters.length}명</div>
         </button>
         <button class="vote-btn late${myVote==='late'?' active':''}" onclick="castVote('late')">
-          <div style="font-size:1.3rem">⏰</div>
-          <div style="font-size:0.8rem;font-weight:700;margin-top:3px">늦참</div>
-          <div style="font-size:0.7rem;margin-top:1px;opacity:0.8">${lateVoters.length}명</div>
+          <span class="vote-check">✓</span>
+          <div style="font-size:1.6rem">⏰</div>
+          <div style="font-size:0.8rem;font-weight:700;margin-top:5px">늦참</div>
+          <div style="font-size:0.7rem;margin-top:2px;opacity:0.75">${lateVoters.length}명</div>
         </button>
         <button class="vote-btn absent${myVote==='absent'?' active':''}" onclick="castVote('absent')">
-          <div style="font-size:1.3rem">❌</div>
-          <div style="font-size:0.8rem;font-weight:700;margin-top:3px">불참</div>
-          <div style="font-size:0.7rem;margin-top:1px;opacity:0.8">${absentVoters.length}명</div>
+          <span class="vote-check">✓</span>
+          <div style="font-size:1.6rem">❌</div>
+          <div style="font-size:0.8rem;font-weight:700;margin-top:5px">불참</div>
+          <div style="font-size:0.7rem;margin-top:2px;opacity:0.75">${absentVoters.length}명</div>
         </button>
         <button class="vote-btn undecided${myVote==='undecided'?' active':''}" onclick="castVote('undecided')">
-          <div style="font-size:1.3rem">🤔</div>
-          <div style="font-size:0.8rem;font-weight:700;margin-top:3px">미정</div>
-          <div style="font-size:0.7rem;margin-top:1px;opacity:0.8">${undecidedVoters.length}명</div>
+          <span class="vote-check">✓</span>
+          <div style="font-size:1.6rem">🤔</div>
+          <div style="font-size:0.8rem;font-weight:700;margin-top:5px">미정</div>
+          <div style="font-size:0.7rem;margin-top:2px;opacity:0.75">${undecidedVoters.length}명</div>
         </button>
       </div>
     </div>`;
@@ -9437,36 +9492,51 @@ function renderCheckinPage() {
   html += `<div class="card">`;
   if(!isOpen) {
     html += `<div class="card-title">📊 투표 결과</div>
-    <div class="poll-summary-row">
-      <span class="poll-pill attend">✅ 참석 ${attendVoters.length}명</span>
-      <span class="poll-pill late">⏰ 늦참 ${lateVoters.length}명</span>
-      <span class="poll-pill absent">❌ 불참 ${absentVoters.length}명</span>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0 12px">
+      <div style="background:#f0fdf4;border-radius:12px;padding:10px 8px;text-align:center">
+        <div style="font-size:1.4rem">✅</div>
+        <div style="font-size:1.1rem;font-weight:900;color:#16a34a;margin-top:2px">${attendVoters.length}</div>
+        <div style="font-size:0.68rem;color:#16a34a;font-weight:600">참석</div>
+      </div>
+      <div style="background:#fffbeb;border-radius:12px;padding:10px 8px;text-align:center">
+        <div style="font-size:1.4rem">⏰</div>
+        <div style="font-size:1.1rem;font-weight:900;color:#d97706;margin-top:2px">${lateVoters.length}</div>
+        <div style="font-size:0.68rem;color:#d97706;font-weight:600">늦참</div>
+      </div>
+      <div style="background:#fff1f2;border-radius:12px;padding:10px 8px;text-align:center">
+        <div style="font-size:1.4rem">❌</div>
+        <div style="font-size:1.1rem;font-weight:900;color:#dc2626;margin-top:2px">${absentVoters.length}</div>
+        <div style="font-size:0.68rem;color:#dc2626;font-weight:600">불참</div>
+      </div>
+    </div>
+    ${undecidedVoters.length||guestEntries.length||notVoted.length?`<div class="poll-summary-row">
       ${undecidedVoters.length?`<span class="poll-pill undecided">🤔 미정 ${undecidedVoters.length}명</span>`:''}
       ${guestEntries.length?`<span class="poll-pill guest">👤 게스트 ${guestEntries.length}명</span>`:''}
       ${notVoted.length?`<span class="poll-pill notvoted">❓ 미투표 ${notVoted.length}명</span>`:''}
-    </div>
+    </div>`:''}
+    <div style="background:#eff6ff;border-radius:10px;padding:8px 12px;font-size:0.8rem;font-weight:700;color:#1d4ed8;margin-bottom:8px">🎾 참석 예정 총 ${totalAttending}명</div>
     ${totalAttending>=4&&isAdmin()?(pd.bracketCreated
       ? `<button class="btn btn-full" style="margin:8px 0 10px;background:#94a3b8;cursor:not-allowed" disabled>✅ 이미 모임만들기로 보냈습니다</button>`
       : `<button class="btn btn-success btn-full" style="margin:8px 0 10px" onclick="createBracketFromPoll()">🎾 ${totalAttending}명으로 확정되어 모임만들기로 토스</button>`)
     :''}`;
   }
-  html += voterGroup(attendVoters,   '✅ 참석');
-  html += voterGroup(lateVoters,     '⏰ 늦참');
-  html += voterGroup(absentVoters,   '❌ 불참');
-  html += voterGroup(undecidedVoters,'🤔 미정');
+  html += voterGroup(attendVoters,   '✅ 참석', '#16a34a');
+  html += voterGroup(lateVoters,     '⏰ 늦참', '#d97706');
+  html += voterGroup(absentVoters,   '❌ 불참', '#dc2626');
+  html += voterGroup(undecidedVoters,'🤔 미정', '#7c3aed');
   if(guestEntries.length) {
     html += `<div class="poll-group">
-      <div class="poll-group-hdr">👤 게스트 <span style="color:#94a3b8;font-weight:400">(${guestEntries.length}명)</span></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
-        ${guestEntries.map(([k,g])=>`<div class="poll-voter" style="padding:5px 8px">${gBadge(g)}<span style="flex:1;font-size:0.82rem">${g.name}</span></div>`).join('')}
+      <div class="poll-group-hdr" style="border-left:3px solid #a855f7;padding-left:8px">👤 게스트 <span style="color:#94a3b8;font-weight:400;margin-left:2px">${guestEntries.length}명</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;padding-bottom:4px">
+        ${guestEntries.map(([k,g])=>`<div class="poll-chip"><span class="poll-chip-name">${g.name}</span>${gBadge(g)}</div>`).join('')}
       </div>
     </div>`;
   }
   if(notVoted.length) {
     html += `<div class="poll-group">
-      <div class="poll-group-hdr" style="color:#94a3b8;display:flex;align-items:center;justify-content:space-between">${isOpen?'⏳ 미투표':'❓ 미투표'} <span style="font-weight:400">(${notVoted.length}명)</span>${isAdmin() && isOpen ? `<button onclick="sendCheckinPressurePush()" style="font-size:0.7rem;font-weight:700;background:#fef9c3;color:#b45309;border:1.5px solid #fde68a;border-radius:8px;padding:3px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">📣 투표요청</button>` : ''}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
-        ${notVoted.map(m=>`<div class="poll-voter" style="opacity:0.45;padding:5px 8px">${gBadge(m)}<span style="flex:1;font-size:0.82rem">${m.name}</span></div>`).join('')}
+      <div class="poll-group-hdr" style="border-left:3px solid #cbd5e1;padding-left:8px;justify-content:space-between">${isOpen?'⏳ 미투표':'❓ 미투표'} <span style="color:#94a3b8;font-weight:400;margin-left:2px;flex:1">${notVoted.length}명</span>${isAdmin() && isOpen ? `<button onclick="sendCheckinPressurePush()" style="font-size:0.7rem;font-weight:700;background:#fef9c3;color:#b45309;border:1.5px solid #fde68a;border-radius:8px;padding:3px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">📣 투표요청</button>` : ''}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;padding-bottom:4px">
+        ${notVoted.map(m=>`<div class="poll-chip" style="opacity:0.45"><span class="poll-chip-name">${m.name}</span>${gBadge(m)}</div>`).join('')}
       </div>
     </div>`;
   }
@@ -9511,45 +9581,40 @@ function renderCheckinPage() {
       const loveRx = rx['love'] || {};
       const loveCnt = Object.keys(loveRx).length;
       const loveActive = me && loveRx[me] ? ' active' : '';
-      const heartBtn = `<button class="reaction-btn${loveActive}" onclick="toggleReaction('${c._key}','love')" style="border:none;background:none;padding:1px 3px;font-size:0.82rem;cursor:pointer;line-height:1">❤️${loveCnt>0?' '+loveCnt:''}</button>`;
-      return `<div class="comment-item" id="comment-${c._key}" style="display:flex;gap:6px;align-items:flex-start">
-        <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.72rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:1px">${(c.author||'?')[0]}</span>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span class="comment-author">${c.author}</span>
-            <div style="display:flex;align-items:center;gap:4px">
-              ${heartBtn}
-              ${c.author === me ? `<button onclick="editPollComment('${c._key}')" style="font-size:0.68rem;padding:2px 7px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">수정</button>` : ''}
-              <span class="comment-at">${t}</span>
-            </div>
-          </div>
-          <div class="comment-text" id="poll-cmt-text-${c._key}">${c.text.replace(/</g,'&lt;')}</div>
-          ${replies.map(r=>{
-            const rt=r.at?new Date(r.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
-            return `<div class="reply-item" style="display:flex;gap:4px;align-items:flex-start">
-              <span style="color:#94a3b8;font-size:0.7rem;flex-shrink:0;margin-top:2px">↩</span>
-              <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.6rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${(r.author||'?')[0]}</span>
-              <div style="flex:1;min-width:0">
-                <div style="display:flex;justify-content:space-between;align-items:center">
-                  <span class="comment-author" style="font-size:0.68rem">${r.author}</span>
-                  <span class="comment-at">${rt}</span>
-                </div>
-                <div class="comment-text" style="font-size:0.8rem">${r.text.replace(/</g,'&lt;')}</div>
+      const heartBtn = `<button class="reaction-btn${loveActive}" onclick="toggleReaction('${c._key}','love')" style="border:none;background:none;padding:2px 4px;font-size:0.85rem;cursor:pointer;line-height:1;border-radius:6px;${loveActive?' background:#fff1f2;':''}">${loveActive?'❤️':'🤍'}${loveCnt>0?' '+loveCnt:''}</button>`;
+      return `<div class="comment-item" id="comment-${c._key}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.75rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(c.author||'?')[0]}</span>
+          <span class="comment-author">${c.author}</span>
+          <span class="comment-at" style="margin-left:auto">${t}</span>
+        </div>
+        <div class="comment-text" id="poll-cmt-text-${c._key}">${c.text.replace(/</g,'&lt;')}</div>
+        ${replies.map(r=>{
+          const rt=r.at?new Date(r.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+          return `<div class="comment-reply-item" style="display:flex;gap:7px;align-items:flex-start;margin-top:6px">
+            <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.62rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:1px">${(r.author||'?')[0]}</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+                <span class="comment-author" style="font-size:0.7rem">${r.author}</span>
+                <span class="comment-at">${rt}</span>
               </div>
-            </div>`;
-          }).join('')}
-          <div style="margin-top:4px">
-            <button class="btn btn-outline btn-sm" style="font-size:0.7rem;padding:3px 8px;box-shadow:none;color:#1e293b;border-color:#94a3b8" onclick="toggleReplyInput('${c._key}')">↩ 답글</button>
-          </div>
-          <div id="reply-input-${c._key}" class="reply-input-row" style="display:none">
-            <input type="text" id="reply-text-${c._key}" placeholder="답글 입력..." style="flex:1;font-size:0.83rem" onkeydown="if(event.key==='Enter')addReply('${c._key}','${c.author}')">
-            <button class="btn btn-primary btn-sm" onclick="addReply('${c._key}','${c.author}')">전송</button>
-          </div>
+              <div class="comment-text" style="font-size:0.8rem">${r.text.replace(/</g,'&lt;')}</div>
+            </div>
+          </div>`;
+        }).join('')}
+        <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
+          ${heartBtn}
+          <button style="font-size:0.72rem;padding:2px 8px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="toggleReplyInput('${c._key}')">↩ 답글</button>
+          ${c.author === me ? `<button onclick="editPollComment('${c._key}')" style="font-size:0.72rem;padding:2px 8px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;margin-left:auto">수정</button>` : ''}
+        </div>
+        <div id="reply-input-${c._key}" class="reply-input-row" style="display:none;margin-top:6px">
+          <input type="text" id="reply-text-${c._key}" placeholder="답글 입력..." style="flex:1;font-size:0.83rem" onkeydown="if(event.key==='Enter')addReply('${c._key}','${c.author}')">
+          <button class="btn btn-primary btn-sm" onclick="addReply('${c._key}','${c.author}')">전송</button>
         </div>
       </div>`;
-    }).join(''):'<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:8px 0">첫 댓글을 남겨보세요!</p>'}
-    <div style="margin-top:6px">
-      <div style="font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:6px">댓글쓰기</div>
+    }).join(''):'<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:12px 0">첫 댓글을 남겨보세요 ✏️</p>'}
+    <div style="margin-top:8px;border-top:1px solid #f1f5f9;padding-top:12px">
+      <div style="font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:8px">댓글쓰기</div>
       <textarea id="poll-comment-input" placeholder="댓글 입력" rows="2"
         style="width:100%;box-sizing:border-box;font-size:0.82rem;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;outline:none;resize:none;background:#f8fafc;line-height:1.5;font-family:inherit"
         oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
@@ -10606,6 +10671,21 @@ const TIER_STYLE = {
   atp500:    { bg: 'linear-gradient(135deg,#dbeafe,#bfdbfe)', border: '#3b82f6', color: '#1e3a8a', badge: 'ATP 500',       badgeBg: '#3b82f6', badgeColor: '#fff' },
   atp250:    { bg: 'linear-gradient(135deg,#f1f5f9,#e2e8f0)', border: '#94a3b8', color: '#334155', badge: 'ATP 250',       badgeBg: '#94a3b8', badgeColor: '#fff' },
 };
+// ── 그랜드 슬램 대회별 고유 색상 ─────────────────────────────────
+const GS_STYLE = {
+  'roland garros':  { bg:'linear-gradient(135deg,#FDE8DF,#F5D0C0)', border:'#C25228', color:'#5C1A08', badge:'🏆 Grand Slam', badgeBg:'#C25228', badgeColor:'#fff' },
+  'australian open':{ bg:'linear-gradient(135deg,#EDE5F5,#E0F0FB)', border:'#8A56A4', color:'#3B1860', badge:'🏆 Grand Slam', badgeBg:'#8A56A4', badgeColor:'#fff' },
+  'us open':        { bg:'linear-gradient(135deg,#E5EBF5,#E5EFF0)', border:'#1A4384', color:'#0F2650', badge:'🏆 Grand Slam', badgeBg:'#1A4384', badgeColor:'#fff' },
+  'wimbledon':      { bg:'linear-gradient(135deg,#E0F0E8,#EBE5F5)', border:'#006633', color:'#1A3D1A', badge:'🏆 Grand Slam', badgeBg:'#006633', badgeColor:'#fff' },
+};
+function getGsStyle(t) {
+  if ((t.tier || '') !== 'grandslam') return null;
+  const name = (t.displayName || t.name || '').toLowerCase();
+  for (const key of Object.keys(GS_STYLE)) {
+    if (name.includes(key)) return GS_STYLE[key];
+  }
+  return null;
+}
 
 // ── 경기장 정보 하드코딩 매핑 ─────────────────────────────────────
 const VENUE_MAP = {
@@ -10695,7 +10775,7 @@ function getVenueInfo(t) {
 
 function renderTourneyInfoHtml(t, ended) {
   const tier   = t.tier || 'atp250';
-  const style  = TIER_STYLE[tier] || TIER_STYLE.atp250;
+  const style  = getGsStyle(t) || TIER_STYLE[tier] || TIER_STYLE.atp250;
   const startDate = t.startDate ? t.startDate.split('T')[0] : '';
   const endDate   = t.endDate   ? t.endDate.split('T')[0]   : '';
   const displayName = t.displayName || t.name || '';
@@ -10814,11 +10894,12 @@ function renderAtpDrawPanel() {
     return;
   }
 
-  renderRoundDrawPanel(el, drawMatches, drawTier);
+  const drawTourney = useGS ? atpState.lastGrandSlam : atpState.tournamentInfo;
+  renderRoundDrawPanel(el, drawMatches, drawTier, drawTourney);
 }
 
 // ── 라운드 탭 대진표 (GS / ATP1000 / ATP500) ──────────────────────
-function renderRoundDrawPanel(el, matches, tier) {
+function renderRoundDrawPanel(el, matches, tier, tourney) {
   // 라운드별 그룹핑
   const roundGroups = {};
   matches.forEach(m => {
@@ -10856,7 +10937,7 @@ function renderRoundDrawPanel(el, matches, tier) {
   }
 
   const sel = atpState.gsRoundTab;
-  const ts = TIER_STYLE[tier] || TIER_STYLE['atp250'];
+  const ts = (tourney ? getGsStyle(tourney) : null) || TIER_STYLE[tier] || TIER_STYLE['atp250'];
   const selBg = ts.badgeBg;
 
   // 라운드 탭 + 화살표 (트리 진행 방향 표현)
@@ -10945,11 +11026,12 @@ function switchRoundTab(roundKey) {
   const useGS = atpState.lastGrandSlam && (!atpState.tournamentInfo || !atpState.tournamentInfo.name);
   const drawMatches = useGS ? (atpState.lastGrandSlam.matches || []) : atpState.matches;
   const tier = useGS ? 'grandslam' : (atpState.tournamentInfo && atpState.tournamentInfo.tier);
-  renderRoundDrawPanel(el, drawMatches, tier);
+  const tourney = useGS ? atpState.lastGrandSlam : atpState.tournamentInfo;
+  renderRoundDrawPanel(el, drawMatches, tier, tourney);
 }
 // 하위 호환
 function switchGsRoundTab(r) { switchRoundTab(r); }
-function renderGsDrawPanel(el, matches) { renderRoundDrawPanel(el, matches, 'grandslam'); }
+function renderGsDrawPanel(el, matches) { renderRoundDrawPanel(el, matches, 'grandslam', atpState.lastGrandSlam); }
 
 // ── 경기 행 렌더 헬퍼 ────────────────────────────────────────────
 function toKSTStr(dateStr) {
@@ -10980,25 +11062,29 @@ function renderMatchRow(m) {
   const p2Name  = m.player2Name || 'TBD';
   const wta     = isWtaMatch(m);
 
+  const p1Win = m.player1Winner && isDone;
+  const p2Win = m.player2Winner && isDone;
   return `
     <div class="atp-match-row">
       <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:4px;margin-bottom:1px">
-          ${wta ? '<span style="font-size:0.58rem;font-weight:800;background:#fce7f3;color:#be185d;border-radius:4px;padding:1px 5px;flex-shrink:0">WTA</span>' : ''}
+        ${wta ? '<div style="margin-bottom:3px"><span style="font-size:0.58rem;font-weight:800;background:#fce7f3;color:#be185d;border-radius:4px;padding:1px 5px">WTA</span></div>' : ''}
+        <div style="display:flex;align-items:center;gap:5px">
+          <div style="width:3px;height:16px;border-radius:2px;flex-shrink:0;background:${p1Win?'#22c55e':'transparent'}"></div>
+          <div class="atp-player ${p1Win?'winner':''}" style="${fav1?'color:#f59e0b':''}">
+            ${p1Name}${m.player1Country?` <span style="font-size:0.63rem;color:#94a3b8;font-weight:400">${m.player1Country}</span>`:''}
+          </div>
         </div>
-        <div class="atp-player ${m.player1Winner ? 'winner' : ''}" style="${fav1 ? 'color:#f59e0b;font-weight:800' : ''}">
-          ${p1Name}${m.player1Country ? ` <span style="font-size:0.65rem;color:#94a3b8">${m.player1Country}</span>` : ''}
-          ${m.player1Winner && isDone ? ' <span style="font-size:0.65rem;color:#22c55e">✓</span>' : ''}
-        </div>
-        <div class="atp-player ${m.player2Winner ? 'winner' : ''}" style="margin-top:3px;${fav2 ? 'color:#f59e0b;font-weight:800' : ''}">
-          ${p2Name}${m.player2Country ? ` <span style="font-size:0.65rem;color:#94a3b8">${m.player2Country}</span>` : ''}
-          ${m.player2Winner && isDone ? ' <span style="font-size:0.65rem;color:#22c55e">✓</span>' : ''}
+        <div style="display:flex;align-items:center;gap:5px;margin-top:4px">
+          <div style="width:3px;height:16px;border-radius:2px;flex-shrink:0;background:${p2Win?'#22c55e':'transparent'}"></div>
+          <div class="atp-player ${p2Win?'winner':''}" style="${fav2?'color:#f59e0b':''}">
+            ${p2Name}${m.player2Country?` <span style="font-size:0.63rem;color:#94a3b8;font-weight:400">${m.player2Country}</span>`:''}
+          </div>
         </div>
       </div>
       <div class="atp-score">
         ${isDone
-          ? `<div style="font-size:0.72rem">${score1}</div><div style="font-size:0.72rem">${score2}</div>`
-          : `<div style="font-size:0.68rem;color:#64748b;line-height:1.5">${toKSTStr(m.date)}</div>`
+          ? `<div class="${p1Win?'win-score':''}">${score1}</div><div class="${p2Win?'win-score':''}" style="margin-top:4px">${score2}</div>`
+          : `<div style="font-size:0.68rem;color:#64748b;line-height:1.5;text-align:right">${toKSTStr(m.date)}</div>`
         }
       </div>
     </div>`;
@@ -11071,8 +11157,8 @@ function renderBetCard(betId, bet, myName) {
     }
   }
   const statusLabel = isOpen
-    ? `<span style="font-size:0.68rem;color:#22c55e;font-weight:700;margin-left:6px">● OPEN</span>${countdownHtml}`
-    : '<span style="font-size:0.68rem;color:#94a3b8;font-weight:700;margin-left:6px">● CLOSED</span>';
+    ? `<span style="font-size:0.7rem;font-weight:700;padding:2px 9px;border-radius:20px;background:#dcfce7;color:#16a34a;margin-left:5px">OPEN</span>${countdownHtml}`
+    : `<span style="font-size:0.7rem;font-weight:700;padding:2px 9px;border-radius:20px;background:${hasResult?'#fef9c3':'#f1f5f9'};color:${hasResult?'#92400e':'#94a3b8'};margin-left:5px">${hasResult?'결과완료':'마감'}</span>`;
   const closeBtn = isAdmin() && isOpen
     ? `<button onclick="closeBet('${betId}')" style="background:#fee2e2;border:1px solid #fecaca;border-radius:8px;padding:3px 10px;font-size:0.7rem;font-weight:700;color:#dc2626;cursor:pointer">베팅 Close</button>`
     : '';
@@ -11091,22 +11177,25 @@ function renderBetCard(betId, bet, myName) {
     : renderMatchBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAll);
 
   const _shareIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>`;
-  const cardBorderColor = isOpen ? '#22c55e' : (hasResult ? '#f59e0b' : '#94a3b8');
+  const cardBorderColor = isOpen ? '#22c55e' : (hasResult ? '#f59e0b' : '#cbd5e1');
   return `
-    <div class="bet-card" id="bet-card-${betId}" style="position:relative;border-color:${cardBorderColor}">
-      <div style="position:absolute;top:8px;right:10px;display:flex;gap:5px;align-items:center">
-        ${deleteBtn || ''}
-        <button onclick="shareBetCard('${betId}')" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;font-size:0.75rem;font-weight:600;cursor:pointer;line-height:1" title="공유">${_shareIconSvg} 공유</button>
+    <div class="bet-card" id="bet-card-${betId}">
+      <div style="width:4px;background:${cardBorderColor};flex-shrink:0"></div>
+      <div style="flex:1;min-width:0;padding:12px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:7px;gap:6px">
+          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;flex:1">${typeLabel}${statusLabel}</div>
+          <div style="display:flex;gap:5px;align-items:center;flex-shrink:0">
+            ${closeBtn}
+            ${deleteBtn || ''}
+            <button onclick="shareBetCard('${betId}')" style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;border:1px solid #e2e8f0;background:#f8fafc;color:#475569;font-size:0.72rem;font-weight:600;cursor:pointer;line-height:1">${_shareIconSvg} 공유</button>
+          </div>
+        </div>
+        <div style="font-size:0.9rem;font-weight:800;color:#1e293b;margin-bottom:5px">${bet.matchName || bet.tournamentName || '베팅'}</div>
+        ${bet.stake ? `<div style="font-size:0.75rem;color:#92400e;background:#fef3c7;border-radius:8px;padding:4px 9px;margin-bottom:8px;display:inline-block">🎯 ${bet.stake}</div>` : ''}
+        ${innerHtml}
+        ${settleBtn}${settleOpenBtn}
+        ${renderBetComments(betId, bet, myName)}
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;${deleteBtn ? 'padding-right:120px' : 'padding-right:68px'}">
-        <div>${typeLabel}${statusLabel}</div>
-        ${closeBtn}
-      </div>
-      <div style="font-size:0.9rem;font-weight:800;color:#1e293b;margin-bottom:4px">${bet.matchName || bet.tournamentName || '베팅'}</div>
-      ${bet.stake ? `<div style="font-size:0.75rem;color:#92400e;background:#fef3c7;border-radius:8px;padding:4px 9px;margin-bottom:8px;display:inline-block">🎯 ${bet.stake}</div>` : ''}
-      ${innerHtml}
-      ${settleBtn}${settleOpenBtn}
-      ${renderBetComments(betId, bet, myName)}
     </div>`;
 }
 
@@ -12006,48 +12095,48 @@ async function notifyBetNonParticipants(betId) {
 function renderBetComments(betId, bet, myName) {
   const comments = bet.comments ? Object.entries(bet.comments).sort((a,b)=>a[1].at>b[1].at?1:-1) : [];
   const myIdentity = myName || '';
+  const fmt = at => at ? new Date(at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+
   const cmtHtml = comments.map(([cid, c]) => {
     const isMe = c.author === myIdentity;
     const replies = c.replies ? Object.values(c.replies).sort((a,b)=>(a.at||'').localeCompare(b.at||'')) : [];
-    const replyHtml = replies.map(r => {
-      const rt = r.at ? new Date(r.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
-      return `<div style="display:flex;gap:4px;margin-top:4px;padding-left:8px;border-left:2px solid #e2e8f0;align-items:flex-start">
-        <span style="color:#94a3b8;font-size:0.7rem;flex-shrink:0;margin-top:2px">↩</span>
-        <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.6rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${(r.author||'?')[0]}</span>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="font-size:0.68rem;font-weight:700;color:#64748b">${r.author}</span>
-            <span style="font-size:0.65rem;color:#94a3b8">${rt}</span>
-          </div>
-          <div style="font-size:0.75rem;color:#1e293b;background:#f1f5f9;border-radius:7px;padding:4px 7px;word-break:break-word;margin-top:2px">${escHtml(r.text)}</div>
-        </div>
-      </div>`;
-    }).join('');
-    return `<div style="margin-bottom:6px;display:flex;gap:6px;align-items:flex-start">
-      <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.72rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:1px">${(c.author||'?')[0]}</span>
+    const replyHtml = replies.map(r => `<div class="comment-reply-item" style="display:flex;gap:7px;align-items:flex-start;margin-top:6px">
+      <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.62rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:1px">${(r.author||'?')[0]}</span>
       <div style="flex:1;min-width:0">
-        <span style="font-size:0.7rem;font-weight:700;color:${isMe?'#2563eb':'#64748b'}">${c.author}</span>
-        <div id="bet-cmt-text-${betId}-${cid}" style="font-size:0.78rem;color:#1e293b;background:${isMe?'#eff6ff':'#f8fafc'};border-radius:8px;padding:5px 8px;word-break:break-word;margin-top:2px">${escHtml(c.text)}</div>
-        <div style="display:flex;gap:6px;margin-top:3px">
-          ${isMe ? `<button onclick="editBetComment('${betId}','${cid}')" style="font-size:0.65rem;padding:1px 6px;border-radius:5px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">수정</button>` : ''}
-          <button onclick="toggleBetReplyInput('${betId}','${cid}')" style="font-size:0.65rem;padding:1px 6px;border-radius:5px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">↩ 답글</button>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+          <span class="comment-author" style="font-size:0.7rem">${r.author}</span>
+          <span class="comment-at">${fmt(r.at)}</span>
         </div>
-        ${replyHtml}
-        <div id="bet-reply-input-${betId}-${cid}" style="display:none;margin-top:5px">
-          <div style="display:flex;gap:6px">
-            <input id="bet-reply-text-${betId}-${cid}" type="text" placeholder="답글 입력..." style="flex:1;font-size:0.78rem;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:8px;outline:none;font-family:inherit" onkeydown="if(event.key==='Enter')postBetReply('${betId}','${cid}')">
-            <button onclick="postBetReply('${betId}','${cid}')" style="font-size:0.75rem;padding:5px 10px;border-radius:8px;border:none;background:#2563eb;color:#fff;font-weight:700;cursor:pointer">전송</button>
-          </div>
+        <div class="comment-text" style="font-size:0.8rem">${escHtml(r.text)}</div>
+      </div>
+    </div>`).join('');
+    return `<div class="comment-item">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.75rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(c.author||'?')[0]}</span>
+        <span class="comment-author"${isMe?' style="color:#2563eb"':''}>${c.author}</span>
+        <span class="comment-at" style="margin-left:auto">${fmt(c.at)}</span>
+      </div>
+      <div id="bet-cmt-text-${betId}-${cid}" class="comment-text">${escHtml(c.text)}</div>
+      ${replyHtml}
+      <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
+        <button onclick="toggleBetReplyInput('${betId}','${cid}')" style="font-size:0.72rem;padding:2px 8px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;-webkit-tap-highlight-color:transparent">↩ 답글</button>
+        ${isMe ? `<button onclick="editBetComment('${betId}','${cid}')" style="font-size:0.72rem;padding:2px 8px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;margin-left:auto">수정</button>` : ''}
+      </div>
+      <div id="bet-reply-input-${betId}-${cid}" style="display:none;margin-top:6px">
+        <div style="display:flex;gap:6px">
+          <input id="bet-reply-text-${betId}-${cid}" type="text" placeholder="답글 입력..." style="flex:1;font-size:0.78rem;padding:5px 8px;border:1.5px solid #e2e8f0;border-radius:8px;outline:none;font-family:inherit" onkeydown="if(event.key==='Enter')postBetReply('${betId}','${cid}')">
+          <button onclick="postBetReply('${betId}','${cid}')" style="font-size:0.75rem;padding:5px 10px;border-radius:8px;border:none;background:#2563eb;color:#fff;font-weight:700;cursor:pointer">전송</button>
         </div>
       </div>
     </div>`;
   }).join('');
+
   return `
-    <div style="margin-top:10px;padding-top:8px;border-top:1px solid #f1f5f9">
-      ${comments.length ? `<div style="margin-bottom:6px">${cmtHtml}</div>` : ''}
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9">
+      ${comments.length ? `<div style="margin-bottom:4px">${cmtHtml}</div>` : '<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:8px 0">첫 댓글을 남겨보세요 ✏️</p>'}
       ${myIdentity ? `
-        <div style="margin-top:6px">
-          <div style="font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:6px">댓글쓰기</div>
+        <div style="margin-top:8px;border-top:1px solid #f1f5f9;padding-top:12px">
+          <div style="font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:8px">댓글쓰기</div>
           <textarea id="bet-cmt-${betId}" placeholder="댓글 입력" rows="2"
             style="width:100%;box-sizing:border-box;font-size:0.82rem;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;outline:none;resize:none;background:#f8fafc;line-height:1.5;font-family:inherit"
             oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
@@ -12700,6 +12789,22 @@ function switchSetupTab(tab) {
     if (panel) panel.style.display = t === tab ? 'block' : 'none';
     if (stab)  stab.className = 'sub-tab' + (t === tab ? ' active' : '');
   });
+  // 배너 텍스트 업데이트
+  const bannerText = document.getElementById('setup-banner-text');
+  const createBtn  = document.getElementById('mp-create-btn');
+  if (bannerText) {
+    const _bannerMap = {
+      meeting: ['🗳️ 머든 정하기', '날짜 · 장소 · 메뉴 투표로 결정하기'],
+      bet:     ['🎲 무조건 내기', '릴레이 풍선 · 폭탄 · 사다리 게임'],
+      create:  ['🏆 경기 진행',   '대진표 만들고 토너먼트 운영하기'],
+    };
+    const [title, sub] = _bannerMap[tab] || _bannerMap.meeting;
+    bannerText.innerHTML = `<div class="rank-banner-title" style="text-align:left;font-size:0.96rem">${title}</div><div class="rank-banner-sub">${sub}</div>`;
+  }
+  if (createBtn) {
+    const hasId = !!(state.identity && state.identity.name);
+    createBtn.style.display = (tab === 'meeting' && hasId) ? 'block' : 'none';
+  }
   if (tab === 'meeting') renderMeetingPoll();
   if (tab === 'bet') betRenderHome();
 }
@@ -19282,7 +19387,7 @@ function renderMpPollList() {
   const isMgr = isManager();
   const btn = document.getElementById('mp-create-btn');
   const hasIdentity = !!(state.identity && state.identity.name);
-  if (btn) btn.style.display = hasIdentity ? 'flex' : 'none';
+  if (btn) btn.style.display = hasIdentity ? 'block' : 'none';
 
   const polls = Object.entries(_mpPolls || {});
   if (!polls.length) {
@@ -19295,8 +19400,9 @@ function renderMpPollList() {
   el.innerHTML = polls.map(([pollId, poll]) => {
     const isOpen = poll.status === 'open';
     const statusLabel = isOpen ? '진행 중' : '마감';
-    const statusColor = isOpen ? '#22c55e' : '#94a3b8';
+    const statusColor = isOpen ? '#16a34a' : '#94a3b8';
     const statusBg    = isOpen ? '#f0fdf4' : '#f8fafc';
+    const accentColor = isOpen ? '#22c55e' : '#e2e8f0';
     const votes = poll.votes || {};
     const voteCount = Object.keys(votes).length;
     let closesStr = '';
@@ -19305,22 +19411,24 @@ function renderMpPollList() {
       if (remaining > 0) {
         const h = Math.floor(remaining / 3600000);
         const d = Math.floor(h / 24);
-        closesStr = d > 0 ? `⏰ ${d}일 ${h % 24}시간 남음` : h > 0 ? `⏰ ${h}시간 남음` : '⏰ 곧 마감';
+        closesStr = d > 0 ? `${d}일 ${h % 24}시간 남음` : h > 0 ? `${h}시간 남음` : '곧 마감';
       } else {
-        closesStr = '⏰ 마감 시간 도달';
+        closesStr = '마감 시간 도달';
       }
     }
-    // 선두 항목 계산
     const leadingStr = _mpLeadingLabel(poll, votes);
-    return `<div class="card" onclick="openMpDetailModal('${pollId}')" style="cursor:pointer;padding:14px 16px;margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-        <div style="font-weight:700;font-size:0.92rem;color:#1e293b;flex:1">${poll.title||'제목 없음'}</div>
-        <span style="font-size:0.72rem;font-weight:700;color:${statusColor};background:${statusBg};border:1.5px solid ${statusColor};border-radius:20px;padding:2px 8px;white-space:nowrap;margin-left:8px">${statusLabel}</span>
-      </div>
-      <div style="font-size:0.78rem;color:#64748b;display:flex;gap:8px;flex-wrap:wrap;align-items:baseline">
-        <span>👥 ${voteCount}명 참여</span>
-        ${leadingStr ? `<span style="color:#2563eb;font-weight:700">🔥 ${leadingStr} 유력</span>` : ''}
-        ${closesStr ? `<span>${closesStr}</span>` : ''}
+    return `<div onclick="openMpDetailModal('${pollId}')" style="cursor:pointer;margin-bottom:8px;border-radius:14px;background:#fff;border:1px solid #e8ecf0;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.05);display:flex">
+      <div style="width:4px;background:${accentColor};flex-shrink:0"></div>
+      <div style="padding:13px 14px;flex:1;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+          <div style="font-weight:800;font-size:0.93rem;color:#1e293b;flex:1;line-height:1.3">${poll.title||'제목 없음'}</div>
+          <span style="font-size:0.7rem;font-weight:700;color:${statusColor};background:${statusBg};border-radius:20px;padding:3px 9px;margin-left:8px;flex-shrink:0">${statusLabel}</span>
+        </div>
+        <div style="font-size:0.77rem;color:#64748b;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <span>👥 ${voteCount}명 참여</span>
+          ${leadingStr ? `<span style="color:#2563eb;font-weight:700">🔥 ${leadingStr} 유력</span>` : ''}
+          ${closesStr ? `<span style="color:#f59e0b;font-weight:600">⏰ ${closesStr}</span>` : ''}
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -20211,45 +20319,40 @@ function _mpCommentsHtml(poll) {
 
   const items = commArr.map(c => {
     const replies = c.replies ? Object.values(c.replies).sort((a,b)=>(a.at||'').localeCompare(b.at||'')) : [];
-    return `<div class="comment-item" id="mp-comment-${c._key}" style="display:flex;gap:6px;align-items:flex-start">
-      <span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.72rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:1px">${(c.author||'?')[0]}</span>
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span class="comment-author">${c.author}</span>
-          <div style="display:flex;align-items:center;gap:6px">
-            ${c.author === me ? `<button onclick="editMpComment('${c._key}')" style="font-size:0.68rem;padding:2px 7px;border-radius:6px;border:1px solid #e2e8f0;background:#f8fafc;color:#64748b;cursor:pointer">수정</button>` : ''}
-            <span class="comment-at">${fmt(c.at)}</span>
+    return `<div class="comment-item" id="mp-comment-${c._key}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.75rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(c.author||'?')[0]}</span>
+        <span class="comment-author">${c.author}</span>
+        <span class="comment-at" style="margin-left:auto">${fmt(c.at)}</span>
+      </div>
+      <div class="comment-text" id="mp-cmt-text-${c._key}">${c.text.replace(/</g,'&lt;')}</div>
+      ${replies.map(r=>`<div class="comment-reply-item" style="display:flex;gap:7px;align-items:flex-start;margin-top:6px">
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.62rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:1px">${(r.author||'?')[0]}</span>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+            <span class="comment-author" style="font-size:0.7rem">${r.author}</span>
+            <span class="comment-at">${fmt(r.at)}</span>
           </div>
+          <div class="comment-text" style="font-size:0.8rem">${r.text.replace(/</g,'&lt;')}</div>
         </div>
-        <div class="comment-text" id="mp-cmt-text-${c._key}">${c.text.replace(/</g,'&lt;')}</div>
-        ${replies.map(r=>`<div class="reply-item" style="display:flex;gap:4px;align-items:flex-start">
-          <span style="color:#94a3b8;font-size:0.7rem;flex-shrink:0;margin-top:2px">↩</span>
-          <span style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:${_getMemberColor(r.author)};color:#fff;font-size:0.6rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif;margin-top:2px">${(r.author||'?')[0]}</span>
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span class="comment-author" style="font-size:0.68rem">${r.author}</span>
-              <span class="comment-at">${fmt(r.at)}</span>
-            </div>
-            <div class="comment-text" style="font-size:0.8rem">${r.text.replace(/</g,'&lt;')}</div>
-          </div>
-        </div>`).join('')}
-        <div style="margin-top:4px">
-          <button class="btn btn-outline btn-sm" style="font-size:0.7rem;padding:3px 8px;box-shadow:none;color:#1e293b;border-color:#94a3b8" onclick="mpToggleReplyInput('${c._key}')">↩ 답글</button>
-        </div>
-        <div id="mp-reply-input-${c._key}" class="reply-input-row" style="display:none">
-          <input type="text" id="mp-reply-text-${c._key}" placeholder="답글 입력..." style="flex:1;font-size:0.83rem" onkeydown="if(event.key==='Enter')mpAddReply('${c._key}')">
-          <button class="btn btn-primary btn-sm" onclick="mpAddReply('${c._key}')">전송</button>
-        </div>
+      </div>`).join('')}
+      <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
+        <button style="font-size:0.72rem;padding:2px 8px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="mpToggleReplyInput('${c._key}')">↩ 답글</button>
+        ${c.author === me ? `<button onclick="editMpComment('${c._key}')" style="font-size:0.72rem;padding:2px 8px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;margin-left:auto">수정</button>` : ''}
+      </div>
+      <div id="mp-reply-input-${c._key}" class="reply-input-row" style="display:none;margin-top:6px">
+        <input type="text" id="mp-reply-text-${c._key}" placeholder="답글 입력..." style="flex:1;font-size:0.83rem" onkeydown="if(event.key==='Enter')mpAddReply('${c._key}')">
+        <button class="btn btn-primary btn-sm" onclick="mpAddReply('${c._key}')">전송</button>
       </div>
     </div>`;
-  }).join('') || '<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:8px 0">첫 댓글을 남겨보세요!</p>';
+  }).join('') || '<p style="font-size:0.8rem;color:#94a3b8;text-align:center;padding:12px 0">첫 댓글을 남겨보세요 ✏️</p>';
 
   return `<div class="card">
     <div class="card-title" style="margin-bottom:6px">💬 댓글</div>
     <div class="divider"></div>
     ${items}
-    <div style="margin-top:6px">
-      <div style="font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:6px">댓글쓰기</div>
+    <div style="margin-top:8px;border-top:1px solid #f1f5f9;padding-top:12px">
+      <div style="font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:8px">댓글쓰기</div>
       <textarea id="mp-comment-input" placeholder="댓글 입력" rows="2"
         style="width:100%;box-sizing:border-box;font-size:0.82rem;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;outline:none;resize:none;background:#f8fafc;line-height:1.5;font-family:inherit"
         oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
