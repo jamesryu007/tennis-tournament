@@ -342,17 +342,17 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .rank-pod.p2 .rank-pod-medal { font-size:1.82rem; }
 .rank-pod.p3 .rank-pod-medal { font-size:1.65rem; }
 .rank-pod-nick    { font-weight:900; color:#1e293b; margin:6px 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.rank-pod.p1 .rank-pod-nick { font-size:0.88rem; }
-.rank-pod.p2 .rank-pod-nick { font-size:0.92rem; }
-.rank-pod.p3 .rank-pod-nick { font-size:0.85rem; }
-.rank-pod-members { font-size:0.6rem; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:4px; }
+.rank-pod.p1 .rank-pod-nick { font-size:1.02rem; }
+.rank-pod.p2 .rank-pod-nick { font-size:0.96rem; }
+.rank-pod.p3 .rank-pod-nick { font-size:0.9rem; }
+.rank-pod-members { font-size:0.74rem; color:#475569; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:4px; }
 .rank-pod-wr   { font-weight:900; margin-top:4px; }
 .rank-pod.p1 .rank-pod-wr { font-size:1.25rem; }
 .rank-pod.p2 .rank-pod-wr { font-size:1.1rem; }
-.rank-pod.p3 .rank-pod-wr { font-size:0.9rem; }
+.rank-pod.p3 .rank-pod-wr { font-size:0.95rem; }
 .rank-pod-wr.hot  { color:#15803d; }
 .rank-pod-wr.cold { color:#dc2626; }
-.rank-pod-wl   { font-size:0.62rem; color:#64748b; font-weight:700; }
+.rank-pod-wl   { font-size:0.78rem; color:#475569; font-weight:700; }
 .rank-pod-bar  { height:4px; border-radius:2px; background:rgba(0,0,0,0.1); margin-top:6px; overflow:hidden; }
 .rank-pod-bar-fill { height:100%; border-radius:2px; }
 .rank-pod.p1 .rank-pod-bar-fill { background:linear-gradient(90deg,#f59e0b,#d97706); }
@@ -2463,7 +2463,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v759';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v760';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
