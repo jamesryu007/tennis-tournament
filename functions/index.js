@@ -2332,11 +2332,12 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
         }
       });
 
-      // pair 표시명
+      // pair 표시명 — 닉네임 있어도 선수 이름 병기 (파트너 파악용)
       const getPairDispB = (key) => {
         const ps = pairStats[key] || {};
-        if (ps.nickname) return ps.nickname;
-        return (ps.players || key.split('_')).join('+');
+        const players = (ps.players || key.split('_')).join('+');
+        if (ps.nickname) return `${ps.nickname}(${players})`;
+        return players;
       };
 
       // 언급된 멤버 추출 (matchMentionedNames + firstName 매칭)
