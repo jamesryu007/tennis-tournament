@@ -2463,7 +2463,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v755';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v757';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7740,14 +7740,29 @@ async function renderRankingTab(){
       </div>`;
     }
     const title=mode==='pair'?'📊 만만한 팀 전적 순위':'📊 만만한 선수 전적 순위';
-    const vs=Object.entries(vsData).filter(([k,v])=>(v.wins||0)+(v.draws||0)+(v.losses||0)>=1)
+    // player mode: 본인 총 게임수의 20% 미만 상대 제외
+    const _myStats=mode==='player'?(stats[_selectedRankKey]||{}):{};
+    const _myTotal=(_myStats.wins||0)+Math.max(0,_myStats.draws||0)+(_myStats.losses||0);
+    const _minGames=mode==='player'&&_myTotal>0?_myTotal*0.2:1;
+    const vsRaw=Object.entries(vsData)
+      .filter(([,v])=>{const dr=Math.max(0,v.draws||0);return (v.wins||0)+dr+(v.losses||0)>=_minGames;})
       .map(([k,v])=>{
-        const w=v.wins||0,dr=v.draws||0,l=v.losses||0;
+        const w=v.wins||0,dr=Math.max(0,v.draws||0),l=v.losses||0;
         const vr=Math.round(effWr(w,dr,l));
         if(mode==='pair'){const op=stats[k]||{};return{disp:getPairDisplayName(op.players||k.split('_'),op.nickname),wins:w,draws:dr,losses:l,wr:vr};}
         const og=getGender(k),oc=og==='male'?'#2563eb':og==='female'?'#db2777':'#1e293b';
-        return{disp:`<span style="color:${oc};font-weight:600">${k}</span>`,wins:w,draws:dr,losses:l,wr:vr};
-      }).sort((a,b)=>b.wr-a.wr||b.wins-a.wins);
+        return{disp:`<span style="color:${oc};font-weight:600">${k}</span>`,wins:w,draws:dr,losses:l,wr:vr,gender:og};
+      });
+    const _sortFn=(a,b)=>b.wr-a.wr||b.wins-a.wins;
+    let vs;
+    if(mode==='player'){
+      const _sg=getGender(_selectedRankKey);
+      const _same=vsRaw.filter(v=>v.gender===_sg).sort(_sortFn);
+      const _diff=vsRaw.filter(v=>v.gender!==_sg).sort(_sortFn);
+      vs=[..._same,..._diff];
+    } else {
+      vs=vsRaw.sort(_sortFn);
+    }
     return `<div class="rank-detail" style="${style}">${tabsHtml}<div class="rank-detail-title">${title}</div>${
       vs.length?vs.map(v=>`<div class="rank-detail-row"><span style="flex:1">${v.disp}</span><span style="color:#16a34a;font-weight:700;min-width:28px">${v.wins}승</span>${v.draws?`<span style="color:#f59e0b;font-weight:700;min-width:24px">${v.draws}무</span>`:''}<span style="color:#dc2626;font-weight:700;min-width:28px">${v.losses}패</span><span style="font-size:0.82rem;font-weight:800;min-width:38px;text-align:right;color:${v.wr>=50?'#16a34a':'#dc2626'}">${v.wr}%</span></div>`).join('')
       :'<p style="font-size:0.78rem;color:#94a3b8;text-align:center;margin:4px 0 0">상대 기록 없음</p>'
