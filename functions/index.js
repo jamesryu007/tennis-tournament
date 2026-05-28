@@ -2026,7 +2026,7 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
     : null;
 
   // 최근 경기 — 경기/랭킹 관련 질문일 때만 포함 (토큰 절약)
-  const hasMatchQuery = /경기|승|패|랭킹|순위|점수|결과|대결|복식|파트너|이겼|이긴|싸워|상대|전적|누구.*이겼|몇번|몇승|몇패|성적|만만한/.test(question);
+  const hasMatchQuery = /경기|승|패|랭킹|순위|점수|결과|대결|복식|파트너|이겼|이긴|싸워|상대|전적|누구.*이겼|몇번|몇승|몇패|성적|만만한|베이글/.test(question);
   let recentMatches = null;
   let matchMentionedNames = [];
   if (hasMatchQuery) {
@@ -2187,7 +2187,7 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
     } catch(_) {}
   }
 
-  // 만만한 상대 전적 — playerMatchups 실제 데이터 주입
+  // 만만한 상대 전적 — playerMatchups / pairMatchups 실제 데이터 주입
   const hasMatchupQuery = /만만한|가장 쉬운 상대|잘 이기는/.test(question);
   let matchupCtx = '';
   if (hasMatchupQuery) {
@@ -2197,7 +2197,7 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
       const genderMap = {};
       memberObjs2.forEach(m => { genderMap[m.name] = m.gender; });
 
-      // 언급된 선수 추출: 풀네임(matchMentionedNames) → firstName 포함 여부 → senderName 순 fallback
+      // 언급된 선수 추출: 풀네임 → firstName 포함 여부
       let targetNames = [...matchMentionedNames];
       if (targetNames.length === 0) {
         const fnMatches = memberObjs2
@@ -2205,9 +2205,55 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
           .map(m => m.name);
         targetNames = [...new Set(fnMatches)];
       }
-      if (targetNames.length === 0) targetNames = [senderName];
 
-      for (const targetName of targetNames) {
+      // ── 페어 matchup: 2명 이상 언급 시 pairMatchups 조회 ──
+      if (targetNames.length >= 2) {
+        const pairKey = [...targetNames].sort().join('_');
+        const pairVsSnap = await db.ref(`jmt/pairMatchups/${year}/${pairKey}`).once('value');
+        const pairVsRaw = pairVsSnap.val() || {};
+        if (Object.keys(pairVsRaw).length) {
+          // 페어 표시명 헬퍼
+          const getPairDisp = (key) => {
+            const ps = pairStats[key] || {};
+            if (ps.nickname) return ps.nickname;
+            const players = ps.players || key.split('_');
+            return players.join('+');
+          };
+          const myPairStats = pairStats[pairKey] || {};
+          const myPairTotal = (myPairStats.wins||0) + Math.max(0, myPairStats.draws||0) + (myPairStats.losses||0);
+
+          const pairOpps = Object.entries(pairVsRaw)
+            .filter(([, v]) => {
+              const d = Math.max(0, v.draws||0);
+              return (v.wins||0) + d + (v.losses||0) >= 2; // 최소 2게임
+            })
+            .map(([oppKey, v]) => {
+              const w = v.wins||0, d = Math.max(0, v.draws||0), l = v.losses||0;
+              const t = w + d + l;
+              const wr = t ? Math.round((w + d * 0.5) / t * 100) : 0;
+              return { disp: getPairDisp(oppKey), wins: w, draws: d, losses: l, wr };
+            })
+            .sort((a, b) => b.wr - a.wr || b.wins - a.wins);
+
+          const formatPairGrp = (grp) => {
+            let rank = 1;
+            return grp.map((o, i) => {
+              if (i > 0 && (o.wr !== grp[i-1].wr || o.wins !== grp[i-1].wins)) rank = i + 1;
+              const isTied = grp.filter(x => x.wr === o.wr && x.wins === o.wins).length > 1;
+              const rankStr = isTied ? `공동${rank}위` : `${rank}위`;
+              const wdl = o.draws ? `${o.wins}승 ${o.draws}무 ${o.losses}패` : `${o.wins}승 ${o.losses}패`;
+              return `  ${rankStr} ${o.disp}: ${wdl} (승률 ${o.wr}%)`;
+            }).join('\n');
+          };
+
+          const targetDisp = getPairDisp(pairKey);
+          matchupCtx += `\n[${targetDisp} 팀 상대 전적 (${year}년) — 만만한 순위]\n${formatPairGrp(pairOpps)}\n⚠️ 반드시 위 데이터만 인용. 없는 전적 지어내기 금지.`;
+        }
+      }
+
+      // ── 개인 matchup: 1명 언급(또는 fallback senderName) ──
+      const playerTargets = targetNames.length >= 2 ? [] : (targetNames.length === 1 ? targetNames : [senderName]);
+      for (const targetName of playerTargets) {
         const vsSnap = await db.ref(`jmt/playerMatchups/${year}/${targetName}`).once('value');
         const vsRaw = vsSnap.val() || {};
         if (!Object.keys(vsRaw).length) continue;
@@ -2257,6 +2303,91 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
     } catch(_) {}
   }
 
+  // 베이글 전적 — jmt/matches에서 6:0 세트 스캔
+  const hasBagelQuery = /베이글/.test(question);
+  let bagelCtx = '';
+  if (hasBagelQuery) {
+    try {
+      const toArr2 = v => Array.isArray(v) ? v : Object.values(v || {});
+      const memberObjs3 = Object.values(members).filter(m => m.name && !m.isGuest);
+      const _fn3 = n => n && n.length >= 3 ? n.slice(1) : n;
+
+      // 전체 올해 경기 스캔 (recentRaw = 최근 200경기)
+      const bagelEvents = [];
+      Object.values(recentRaw).forEach(m => {
+        if (!m.team0 || !m.team1) return;
+        if (m.date && !String(m.date).startsWith(String(year))) return;
+        const t0 = toArr2(m.team0), t1 = toArr2(m.team1);
+        if (t0.length !== 2 || t1.length !== 2) return;
+        const sets = m.sets ? (Array.isArray(m.sets) ? m.sets : Object.values(m.sets)) : [];
+        const pk0 = [...t0].sort().join('_'), pk1 = [...t1].sort().join('_');
+        sets.forEach(s => {
+          const s0 = parseInt(s.s0), s1 = parseInt(s.s1);
+          if (s0 === 6 && s1 === 0) bagelEvents.push({ date: m.date || '?', giver: pk0, receiver: pk1 });
+          if (s0 === 0 && s1 === 6) bagelEvents.push({ date: m.date || '?', giver: pk1, receiver: pk0 });
+        });
+        if (!sets.length && m.score0 != null && m.score1 != null) {
+          if (parseInt(m.score0) === 6 && parseInt(m.score1) === 0) bagelEvents.push({ date: m.date || '?', giver: pk0, receiver: pk1 });
+          if (parseInt(m.score0) === 0 && parseInt(m.score1) === 6) bagelEvents.push({ date: m.date || '?', giver: pk1, receiver: pk0 });
+        }
+      });
+
+      // pair 표시명 — 닉네임 있어도 선수 이름 병기 (파트너 파악용)
+      const getPairDispB = (key) => {
+        const ps = pairStats[key] || {};
+        const players = (ps.players || key.split('_')).join('+');
+        if (ps.nickname) return `${ps.nickname}(${players})`;
+        return players;
+      };
+
+      // 언급된 멤버 추출 (matchMentionedNames + firstName 매칭)
+      let bagelTargetNames = [...matchMentionedNames];
+      if (bagelTargetNames.length === 0) {
+        const fnB = memberObjs3.filter(m => { const fn = _fn3(m.name); return fn && fn.length >= 2 && question.includes(fn); }).map(m => m.name);
+        bagelTargetNames = [...new Set(fnB)];
+      }
+
+      if (bagelTargetNames.length >= 2) {
+        // 특정 팀페어 베이글 전적
+        const pairKeyB = [...bagelTargetNames].sort().join('_');
+        const given = bagelEvents.filter(e => e.giver === pairKeyB).sort((a,b) => b.date.localeCompare(a.date));
+        const received = bagelEvents.filter(e => e.receiver === pairKeyB).sort((a,b) => b.date.localeCompare(a.date));
+        const dispB = getPairDispB(pairKeyB);
+        let bLines = `[${dispB} 베이글 전적 (${year}년)]\n`;
+        bLines += given.length
+          ? `🥯 베이글 먹인 기록 (${given.length}건):\n` + given.map(e => `  ${e.date} — vs ${getPairDispB(e.receiver)}`).join('\n') + '\n'
+          : '🥯 베이글 먹인 기록: 없음\n';
+        bLines += received.length
+          ? `😵 베이글 먹은 기록 (${received.length}건):\n` + received.map(e => `  ${e.date} — ${getPairDispB(e.giver)}에게`).join('\n')
+          : '😵 베이글 먹은 기록: 없음';
+        bagelCtx = `\n${bLines}\n⚠️ 반드시 위 데이터만 인용.`;
+      } else {
+        // 전체 베이글 순위
+        const givenCount = {}, receivedCount = {};
+        bagelEvents.forEach(e => {
+          givenCount[e.giver] = (givenCount[e.giver] || 0) + 1;
+          receivedCount[e.receiver] = (receivedCount[e.receiver] || 0) + 1;
+        });
+        const givenRank = Object.entries(givenCount).sort((a,b) => b[1]-a[1]).slice(0, 8);
+        const receivedRank = Object.entries(receivedCount).sort((a,b) => b[1]-a[1]).slice(0, 8);
+        let bLines = `[${year}년 베이글 순위 — 전체 ${bagelEvents.length}건]\n`;
+        bLines += `🥯 베이글 가장 많이 먹인 팀 (상세):\n`;
+        givenRank.forEach(([k, n], i) => {
+          const detail = bagelEvents.filter(e => e.giver === k).sort((a,b) => a.date.localeCompare(b.date));
+          bLines += `  ${i+1}위 ${getPairDispB(k)}: ${n}개\n`;
+          detail.forEach(e => { bLines += `    - ${e.date} vs ${getPairDispB(e.receiver)}\n`; });
+        });
+        bLines += `😵 베이글 가장 많이 먹은 팀 (상세):\n`;
+        receivedRank.forEach(([k, n], i) => {
+          const detail = bagelEvents.filter(e => e.receiver === k).sort((a,b) => a.date.localeCompare(b.date));
+          bLines += `  ${i+1}위 ${getPairDispB(k)}: ${n}개\n`;
+          detail.forEach(e => { bLines += `    - ${e.date} — ${getPairDispB(e.giver)}에게\n`; });
+        });
+        bagelCtx = `\n${bLines}⚠️ 반드시 위 데이터만 인용.`;
+      }
+    } catch(_) {}
+  }
+
   const systemPrompt = `너는 자미터 테니스 동호회 전용 AI 도우미 "제이"야.
 올해 30살이 된 천재 여자야. 모르는 게 없고, 유머도 넘쳐!
 
@@ -2294,7 +2425,7 @@ ${checkinCtx}
 
 [자미터 단골맛집 — 서울/강남권 위주, 다른 지역 질문엔 이 목록 사용 금지]
 ${restaurantCtx}
-${weatherCtx}${airCtx}${locationCtx}${matchupCtx}
+${weatherCtx}${airCtx}${locationCtx}${matchupCtx}${bagelCtx}
 현재 한국 시각: ${(() => { const d = new Date(new Date().toLocaleString('en-US', {timeZone:'Asia/Seoul'})); return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 ${'일월화수목금토'.split('')[d.getDay()]}요일 ${d.getHours()}시 ${d.getMinutes()}분`; })()}
 현재 질문자: ${senderName}
 ${senderPairSummary ? `[${senderName} 관련 페어 전체 — 파트너/짝 질문 시 이 목록 기준으로 답변]\n${senderPairSummary}` : ''}${fortuneCtx}`;

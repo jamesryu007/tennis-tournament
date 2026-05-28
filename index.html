@@ -2463,7 +2463,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v757';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v758';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7743,7 +7743,7 @@ async function renderRankingTab(){
     // player mode: 본인 총 게임수의 20% 미만 상대 제외
     const _myStats=mode==='player'?(stats[_selectedRankKey]||{}):{};
     const _myTotal=(_myStats.wins||0)+Math.max(0,_myStats.draws||0)+(_myStats.losses||0);
-    const _minGames=mode==='player'&&_myTotal>0?_myTotal*0.2:1;
+    const _minGames=mode==='player'&&_myTotal>0?_myTotal*0.2:2;
     const vsRaw=Object.entries(vsData)
       .filter(([,v])=>{const dr=Math.max(0,v.draws||0);return (v.wins||0)+dr+(v.losses||0)>=_minGames;})
       .map(([k,v])=>{
