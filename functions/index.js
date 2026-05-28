@@ -2371,9 +2371,19 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
         const givenRank = Object.entries(givenCount).sort((a,b) => b[1]-a[1]).slice(0, 8);
         const receivedRank = Object.entries(receivedCount).sort((a,b) => b[1]-a[1]).slice(0, 8);
         let bLines = `[${year}년 베이글 순위 — 전체 ${bagelEvents.length}건]\n`;
-        bLines += `🥯 베이글 가장 많이 먹인 팀:\n` + givenRank.map(([k,n], i) => `  ${i+1}위 ${getPairDispB(k)}: ${n}개`).join('\n') + '\n';
-        bLines += `😵 베이글 가장 많이 먹은 팀:\n` + receivedRank.map(([k,n], i) => `  ${i+1}위 ${getPairDispB(k)}: ${n}개`).join('\n');
-        bagelCtx = `\n${bLines}\n⚠️ 반드시 위 데이터만 인용.`;
+        bLines += `🥯 베이글 가장 많이 먹인 팀 (상세):\n`;
+        givenRank.forEach(([k, n], i) => {
+          const detail = bagelEvents.filter(e => e.giver === k).sort((a,b) => a.date.localeCompare(b.date));
+          bLines += `  ${i+1}위 ${getPairDispB(k)}: ${n}개\n`;
+          detail.forEach(e => { bLines += `    - ${e.date} vs ${getPairDispB(e.receiver)}\n`; });
+        });
+        bLines += `😵 베이글 가장 많이 먹은 팀 (상세):\n`;
+        receivedRank.forEach(([k, n], i) => {
+          const detail = bagelEvents.filter(e => e.receiver === k).sort((a,b) => a.date.localeCompare(b.date));
+          bLines += `  ${i+1}위 ${getPairDispB(k)}: ${n}개\n`;
+          detail.forEach(e => { bLines += `    - ${e.date} — ${getPairDispB(e.giver)}에게\n`; });
+        });
+        bagelCtx = `\n${bLines}⚠️ 반드시 위 데이터만 인용.`;
       }
     } catch(_) {}
   }
