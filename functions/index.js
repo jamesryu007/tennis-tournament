@@ -2014,8 +2014,19 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
     return `${i+1}위 ${p.players.join('+')||p.key}: ${p.wins}승 ${p.losses}패 (승률 ${wr}%)`;
   }).join('\n');
 
+  // 질문자 포함 페어 전체 — "내 짝/파트너" 질문 시 누락 방지
+  const senderPairs = [...prQ, ...prU].filter(p =>
+    (p.players && p.players.includes(senderName)) || (p.key && p.key.includes(senderName))
+  ).sort((a,b) => effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+  const senderPairSummary = senderPairs.length
+    ? senderPairs.map(p => {
+        const wr = Math.round(effWr(p.wins, p.draws, p.losses));
+        return `  ${p.players.join('+')||p.key}: ${p.wins}승 ${p.losses}패 (승률 ${wr}%)`;
+      }).join('\n')
+    : null;
+
   // 최근 경기 — 경기/랭킹 관련 질문일 때만 포함 (토큰 절약)
-  const hasMatchQuery = /경기|승|패|랭킹|순위|점수|결과|대결|복식|파트너|이겼|이긴|싸워|상대|전적|누구.*이겼|몇번|몇승|몇패/.test(question);
+  const hasMatchQuery = /경기|승|패|랭킹|순위|점수|결과|대결|복식|파트너|이겼|이긴|싸워|상대|전적|누구.*이겼|몇번|몇승|몇패|성적|만만한/.test(question);
   let recentMatches = null;
   let matchMentionedNames = [];
   if (hasMatchQuery) {
@@ -2162,6 +2173,82 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
 
   const fortuneCtx = ''; // 운세는 룰베이스(_botFortune)에서 처리 — LLM 개입 없음
 
+  // 배차/동선 관련 쿼리 — memberLocations 주입
+  const hasCarpoolQuery = /배차|카풀|카풀|동선|루트|출발|태워|합승|차량|몇명|몇 명|같이.*가|함께.*가|누가.*가까|어디.*사|집.*어디|거주|사는곳|사는 곳|동네/.test(question);
+  let locationCtx = '';
+  if (hasCarpoolQuery) {
+    try {
+      const locSnap = await db.ref('jmt/memberLocations').once('value');
+      const locData = locSnap.val() || {};
+      const locLines = Object.entries(locData)
+        .map(([name, v]) => `  ${name}: ${v.area}${v.address ? ` (${v.address})` : ''}`)
+        .join('\n');
+      if (locLines) locationCtx = `\n[멤버 거주지 — 배차/동선 질문 시 이 데이터 기준으로 답변]\n${locLines}`;
+    } catch(_) {}
+  }
+
+  // 만만한 상대 전적 — playerMatchups 실제 데이터 주입
+  const hasMatchupQuery = /만만한|가장 쉬운 상대|잘 이기는/.test(question);
+  let matchupCtx = '';
+  if (hasMatchupQuery) {
+    try {
+      const memberObjs2 = Object.values(members).filter(m => m.name && !m.isGuest);
+      const _fn2 = n => n && n.length >= 3 ? n.slice(1) : n;
+      const genderMap = {};
+      memberObjs2.forEach(m => { genderMap[m.name] = m.gender; });
+
+      // 언급된 선수 추출: 풀네임(matchMentionedNames) → firstName 포함 여부 → senderName 순 fallback
+      let targetNames = [...matchMentionedNames];
+      if (targetNames.length === 0) {
+        const fnMatches = memberObjs2
+          .filter(m => { const fn = _fn2(m.name); return fn && fn.length >= 2 && question.includes(fn); })
+          .map(m => m.name);
+        targetNames = [...new Set(fnMatches)];
+      }
+      if (targetNames.length === 0) targetNames = [senderName];
+
+      for (const targetName of targetNames) {
+        const vsSnap = await db.ref(`jmt/playerMatchups/${year}/${targetName}`).once('value');
+        const vsRaw = vsSnap.val() || {};
+        if (!Object.keys(vsRaw).length) continue;
+
+        const targetGender = genderMap[targetName] || 'unknown';
+        const opponents = Object.entries(vsRaw)
+          .filter(([, v]) => (v.wins||0)+(v.draws||0)+(v.losses||0) >= 1)
+          .map(([opp, v]) => {
+            const w = v.wins||0, d = v.draws||0, l = v.losses||0;
+            const t = w + d + l;
+            const wr = t ? Math.round((w + d * 0.5) / t * 100) : 0;
+            return { name: opp, wins: w, draws: d, losses: l, wr, gender: genderMap[opp] || 'unknown' };
+          });
+
+        const sortFn = (a, b) => b.wr - a.wr || b.wins - a.wins;
+        const sameGrp = opponents.filter(o => o.gender === targetGender).sort(sortFn);
+        const diffGrp = opponents.filter(o => o.gender !== targetGender).sort(sortFn);
+
+        const formatGrp = (grp) => {
+          let rank = 1;
+          return grp.map((o, i) => {
+            if (i > 0 && (o.wr !== grp[i-1].wr || o.wins !== grp[i-1].wins)) rank = i + 1;
+            const isTied = grp.filter(x => x.wr === o.wr && x.wins === o.wins).length > 1;
+            const rankStr = isTied ? `공동${rank}위` : `${rank}위`;
+            const wdl = o.draws ? `${o.wins}승 ${o.draws}무 ${o.losses}패` : `${o.wins}승 ${o.losses}패`;
+            return `  ${rankStr} ${o.name}: ${wdl} (승률 ${o.wr}%)`;
+          }).join('\n');
+        };
+
+        const sameLabel = targetGender === 'male' ? '남자 상대' : targetGender === 'female' ? '여자 상대' : '상대';
+        const diffLabel = targetGender === 'male' ? '여자 상대' : targetGender === 'female' ? '남자 상대' : '기타';
+
+        let lines = '';
+        if (sameGrp.length) lines += `▶ ${sameLabel}\n${formatGrp(sameGrp)}\n`;
+        if (diffGrp.length) lines += `▶ ${diffLabel}\n${formatGrp(diffGrp)}`;
+
+        matchupCtx += `\n[${targetName} 상대 전적 (${year}년) — 만만한 순위]\n${lines.trim()}\n⚠️ 반드시 위 데이터만 인용. 없는 전적 지어내기 금지.`;
+      }
+    } catch(_) {}
+  }
+
   const systemPrompt = `너는 자미터 테니스 동호회 전용 AI 도우미 "제이"야.
 올해 30살이 된 천재 여자야. 모르는 게 없고, 유머도 넘쳐!
 
@@ -2172,6 +2259,8 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
 - 멤버 부를 때 성(姓) 제외하고 이름만: "지원 오빠", "지은 언니" (성씨 붙이기 금지 — "유지원 오빠" ❌)
 - 멤버 호칭은 아래 [호칭 목록] 기준 (이름으로 성별 추측 금지)
 - 답변 마무리에 "언제든지 찾아주세요", "도움이 필요하시면" 같은 상투적 클로징 문구 사용 금지
+- 답변 첫 줄에 상대방 호칭(예: "지원 오빠,", "지은 언니,", "승수 오빠!")으로 시작 금지 — 바로 본문으로 시작
+- 최고/최적 파트너 질문 시 반드시 [질문자 관련 페어] 섹션의 승률 순서 기준으로 1위부터 답변 — 전체 페어 랭킹 순서와 혼동 금지
 
 [자미터 전용 데이터]
 - 아래 제공된 랭킹·경기기록·출첵·단골맛집은 자미터 실제 데이터야
@@ -2197,8 +2286,10 @@ ${checkinCtx}
 
 [자미터 단골맛집 — 서울/강남권 위주, 다른 지역 질문엔 이 목록 사용 금지]
 ${restaurantCtx}
-${weatherCtx}${airCtx}
-현재 질문자: ${senderName}${fortuneCtx}`;
+${weatherCtx}${airCtx}${locationCtx}${matchupCtx}
+현재 한국 시각: ${(() => { const d = new Date(new Date().toLocaleString('en-US', {timeZone:'Asia/Seoul'})); return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 ${'일월화수목금토'.split('')[d.getDay()]}요일 ${d.getHours()}시 ${d.getMinutes()}분`; })()}
+현재 질문자: ${senderName}
+${senderPairSummary ? `[${senderName} 관련 페어 전체 — 파트너/짝 질문 시 이 목록 기준으로 답변]\n${senderPairSummary}` : ''}${fortuneCtx}`;
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return { text: '🤖 제이 API 키가 설정되지 않았어요.' };
