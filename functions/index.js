@@ -2212,11 +2212,19 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
         const vsRaw = vsSnap.val() || {};
         if (!Object.keys(vsRaw).length) continue;
 
+        // 본인 총 게임수 — playerStats 기준 (20% 미만 상대 제외)
+        const myStats = playerStats[targetName] || {};
+        const myTotal = (myStats.wins||0) + Math.max(0, myStats.draws||0) + (myStats.losses||0);
+        const minGames = myTotal > 0 ? myTotal * 0.2 : 1;
+
         const targetGender = genderMap[targetName] || 'unknown';
         const opponents = Object.entries(vsRaw)
-          .filter(([, v]) => (v.wins||0)+(v.draws||0)+(v.losses||0) >= 1)
+          .filter(([, v]) => {
+            const d = Math.max(0, v.draws||0);
+            return (v.wins||0) + d + (v.losses||0) >= minGames;
+          })
           .map(([opp, v]) => {
-            const w = v.wins||0, d = v.draws||0, l = v.losses||0;
+            const w = v.wins||0, d = Math.max(0, v.draws||0), l = v.losses||0;
             const t = w + d + l;
             const wr = t ? Math.round((w + d * 0.5) / t * 100) : 0;
             return { name: opp, wins: w, draws: d, losses: l, wr, gender: genderMap[opp] || 'unknown' };
