@@ -2463,7 +2463,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v761';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v762';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7770,8 +7770,8 @@ async function renderRankingTab(){
       :'<p style="font-size:0.78rem;color:#94a3b8;text-align:center;margin:4px 0 0">상대 기록 없음</p>'
     }</div>`;
   }
-  function mkListItem(key,rankNum,name,wins,draws,losses,isSel,detHtml,isUnqualified){
-    const wr=Math.round(effWr(wins,draws,losses));
+  function mkListItem(key,rankNum,name,wins,draws,losses,isSel,detHtml,isUnqualified,overrideWr){
+    const wr=overrideWr!=null?overrideWr:Math.round(effWr(wins,draws,losses));
     const rc=isUnqualified?'unqualified':rankNum<10?'top10':rankNum<20?'top20':'other';
     const wdl=draws?`${wins}승 <span style="color:#f59e0b">${draws}무</span> ${losses}패`:`${wins}승 ${losses}패`;
     return `<div class="rank-item ${rc}${isSel?' selected':''}" onclick="toggleRankDetail('${key}')">
@@ -7876,13 +7876,14 @@ async function renderRankingTab(){
       const nick=p.nickname||autoNick;
       const wdl=p.draws?`${p.wins}승 ${p.draws}무 ${p.losses}패`:`${p.wins}승 ${p.losses}패`;
       const podBagelIcon=_bagelIcon(p.key);
+      const podWr=Math.round(pairBayesWr(p.wins,p.draws,p.losses));
       html+=`<div class="rank-pod ${podCls[i]}${isSel?' selected':''}" onclick="toggleRankDetail('${p.key}')">
         <div class="rank-pod-medal">${medals[(p.rank||1)-1]||medals[i]}</div>
         <div class="rank-pod-nick">${nick}${podBagelIcon}</div>
         <div class="rank-pod-members">${a}-${b}</div>
-        <div class="rank-pod-wr ${wr>=50?'hot':'cold'}">${wr}%</div>
+        <div class="rank-pod-wr ${podWr>=50?'hot':'cold'}">${podWr}%</div>
         <div class="rank-pod-wl">${wdl}</div>
-        <div class="rank-pod-bar"><div class="rank-pod-bar-fill" style="width:${wr}%"></div></div>
+        <div class="rank-pod-bar"><div class="rank-pod-bar-fill" style="width:${podWr}%"></div></div>
       </div>`;
     });
     html+=`</div>`;
@@ -7906,7 +7907,8 @@ async function renderRankingTab(){
         const det=isSel?mkDetail(vsData,stats,'pair',true,bagelData):'';
         const bagelIcon=_bagelIcon(p.key);
         const disp=`<span>${getPairDisplayName(p.players,p.nickname)}${bagelIcon}</span>`;
-        return mkListItem(p.key,p.rank,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified);
+        const pBayesWr=Math.round(pairBayesWr(p.wins,p.draws,p.losses));
+        return mkListItem(p.key,p.rank,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified,pBayesWr);
       }).join('');
     }
     el.innerHTML=html;
