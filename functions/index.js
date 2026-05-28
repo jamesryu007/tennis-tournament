@@ -2187,7 +2187,7 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
     } catch(_) {}
   }
 
-  // 만만한 상대 전적 — playerMatchups 실제 데이터 주입
+  // 만만한 상대 전적 — playerMatchups / pairMatchups 실제 데이터 주입
   const hasMatchupQuery = /만만한|가장 쉬운 상대|잘 이기는/.test(question);
   let matchupCtx = '';
   if (hasMatchupQuery) {
@@ -2197,7 +2197,7 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
       const genderMap = {};
       memberObjs2.forEach(m => { genderMap[m.name] = m.gender; });
 
-      // 언급된 선수 추출: 풀네임(matchMentionedNames) → firstName 포함 여부 → senderName 순 fallback
+      // 언급된 선수 추출: 풀네임 → firstName 포함 여부
       let targetNames = [...matchMentionedNames];
       if (targetNames.length === 0) {
         const fnMatches = memberObjs2
@@ -2205,9 +2205,55 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
           .map(m => m.name);
         targetNames = [...new Set(fnMatches)];
       }
-      if (targetNames.length === 0) targetNames = [senderName];
 
-      for (const targetName of targetNames) {
+      // ── 페어 matchup: 2명 이상 언급 시 pairMatchups 조회 ──
+      if (targetNames.length >= 2) {
+        const pairKey = [...targetNames].sort().join('_');
+        const pairVsSnap = await db.ref(`jmt/pairMatchups/${year}/${pairKey}`).once('value');
+        const pairVsRaw = pairVsSnap.val() || {};
+        if (Object.keys(pairVsRaw).length) {
+          // 페어 표시명 헬퍼
+          const getPairDisp = (key) => {
+            const ps = pairStats[key] || {};
+            if (ps.nickname) return ps.nickname;
+            const players = ps.players || key.split('_');
+            return players.join('+');
+          };
+          const myPairStats = pairStats[pairKey] || {};
+          const myPairTotal = (myPairStats.wins||0) + Math.max(0, myPairStats.draws||0) + (myPairStats.losses||0);
+
+          const pairOpps = Object.entries(pairVsRaw)
+            .filter(([, v]) => {
+              const d = Math.max(0, v.draws||0);
+              return (v.wins||0) + d + (v.losses||0) >= 2; // 최소 2게임
+            })
+            .map(([oppKey, v]) => {
+              const w = v.wins||0, d = Math.max(0, v.draws||0), l = v.losses||0;
+              const t = w + d + l;
+              const wr = t ? Math.round((w + d * 0.5) / t * 100) : 0;
+              return { disp: getPairDisp(oppKey), wins: w, draws: d, losses: l, wr };
+            })
+            .sort((a, b) => b.wr - a.wr || b.wins - a.wins);
+
+          const formatPairGrp = (grp) => {
+            let rank = 1;
+            return grp.map((o, i) => {
+              if (i > 0 && (o.wr !== grp[i-1].wr || o.wins !== grp[i-1].wins)) rank = i + 1;
+              const isTied = grp.filter(x => x.wr === o.wr && x.wins === o.wins).length > 1;
+              const rankStr = isTied ? `공동${rank}위` : `${rank}위`;
+              const wdl = o.draws ? `${o.wins}승 ${o.draws}무 ${o.losses}패` : `${o.wins}승 ${o.losses}패`;
+              return `  ${rankStr} ${o.disp}: ${wdl} (승률 ${o.wr}%)`;
+            }).join('\n');
+          };
+
+          const targetDisp = getPairDisp(pairKey);
+          matchupCtx += `\n[${targetDisp} 팀 상대 전적 (${year}년) — 만만한 순위]\n${formatPairGrp(pairOpps)}\n⚠️ 반드시 위 데이터만 인용. 없는 전적 지어내기 금지.`;
+        }
+      }
+
+      // ── 개인 matchup: 1명 언급(또는 fallback senderName) ──
+      const playerTargets = targetNames.length >= 2 ? [] : (targetNames.length === 1 ? targetNames : [senderName]);
+      for (const targetName of playerTargets) {
         const vsSnap = await db.ref(`jmt/playerMatchups/${year}/${targetName}`).once('value');
         const vsRaw = vsSnap.val() || {};
         if (!Object.keys(vsRaw).length) continue;
