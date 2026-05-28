@@ -1978,7 +1978,7 @@ const firebaseConfig = {
       <div>
         <div style="display:flex;align-items:center;gap:8px">
           <div class="rank-banner-title" style="text-align:left;font-size:0.96rem">🏆 자미터 랭킹</div>
-          <button onclick="document.getElementById(_rankingMode==='attendance'?'att-info-modal':'rank-info-modal').classList.add('open')" style="width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.75rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:serif">i</button>
+          <button onclick="document.getElementById(_rankingMode==='attendance'?'att-info-modal':_rankingMode==='pair'?'pair-info-modal':'rank-info-modal').classList.add('open')" style="width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.75rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:serif">i</button>
         </div>
         <div class="rank-banner-sub" id="rank-hint-text">클릭하면 상대 전적을 볼 수 있어요.</div>
       </div>
@@ -2463,7 +2463,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v760';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v761';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7678,8 +7678,10 @@ async function loadRankingTop3(){
     .filter(p=>p.wins+p.draws+p.losses>=1);
   const t3PairAvg=t3PairRaw.length?t3PairRaw.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/t3PairRaw.length:0;
   const t3PairTh=t3PairAvg*0.5;
-  const t3PairQ=t3PairRaw.filter(p=>p.wins+p.draws+p.losses>=t3PairTh).sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
-  const t3PairU=t3PairRaw.filter(p=>p.wins+p.draws+p.losses<t3PairTh).sort((a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins;});
+  const _t3PAlpha=t3PairAvg/2;
+  const _t3PBayes=(w,d,l)=>{const t=w+(d||0)+l;return t?((w+(d||0)*0.5+_t3PAlpha)/(t+2*_t3PAlpha)*100):50;};
+  const t3PairQ=t3PairRaw.filter(p=>p.wins+p.draws+p.losses>=t3PairTh).sort((a,b)=>_t3PBayes(b.wins,b.draws,b.losses)-_t3PBayes(a.wins,a.draws,a.losses)||b.wins-a.wins);
+  const t3PairU=t3PairRaw.filter(p=>p.wins+p.draws+p.losses<t3PairTh).sort((a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||_t3PBayes(b.wins,b.draws,b.losses)-_t3PBayes(a.wins,a.draws,a.losses)||b.wins-a.wins;});
   state._pairTop3=[...t3PairQ,...t3PairU].slice(0,3);
 
   const t3PlRaw=Object.entries(plData)
@@ -7822,19 +7824,22 @@ async function renderRankingTab(){
     if(!pairsRaw.length){el.innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>경기 기록이 없습니다</p></div>';return;}
     const pairAvgG=pairsRaw.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/pairsRaw.length;
     const pairThresh=pairAvgG*0.5;
-    const sortFnQ=(a,b)=>{const ra=effWr(a.wins,a.draws,a.losses),rb=effWr(b.wins,b.draws,b.losses);return rb-ra||b.wins-a.wins;};
-    const sortFnU=(a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins;};
+    // 베이지안 보정: α = 평균경기수 / 2 (가변 — 시즌 진행에 따라 자동 조정)
+    const _pAlpha=pairAvgG/2;
+    const pairBayesWr=(w,d,l)=>{const t=w+(d||0)+l;return t?((w+(d||0)*0.5+_pAlpha)/(t+2*_pAlpha)*100):50;};
+    const sortFnQ=(a,b)=>pairBayesWr(b.wins,b.draws,b.losses)-pairBayesWr(a.wins,a.draws,a.losses)||b.wins-a.wins;
+    const sortFnU=(a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||pairBayesWr(b.wins,b.draws,b.losses)-pairBayesWr(a.wins,a.draws,a.losses)||b.wins-a.wins;};
     const pairsQ=pairsRaw.filter(p=>p.wins+p.draws+p.losses>=pairThresh).sort(sortFnQ).map(p=>({...p,qualified:true}));
     const pairsU=pairsRaw.filter(p=>p.wins+p.draws+p.losses<pairThresh).sort(sortFnU).map(p=>({...p,qualified:false}));
     const pairs=[...pairsQ,...pairsU];
     if(!pairs.length){el.innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>경기 기록이 없습니다</p></div>';return;}
 
-    // 동순위 계산
+    // 동순위 계산 (베이지안 보정 승률 기준)
     pairs.forEach((p,i)=>{
       if(i===0){p.rank=1;return;}
       const prev=pairs[i-1];
-      const wr=Math.round(effWr(p.wins,p.draws,p.losses)),pwr=Math.round(effWr(prev.wins,prev.draws,prev.losses));
-      p.rank=(wr===pwr&&p.wins===prev.wins&&p.qualified===prev.qualified)?prev.rank:i+1;
+      const bw=Math.round(pairBayesWr(p.wins,p.draws,p.losses)),pbw=Math.round(pairBayesWr(prev.wins,prev.draws,prev.losses));
+      p.rank=(bw===pbw&&p.wins===prev.wins&&p.qualified===prev.qualified)?prev.rank:i+1;
     });
 
     _pairRankShareData = pairs;
@@ -12765,8 +12770,8 @@ async function triggerAtpRefresh() {
   <div style="background:#fff;border-radius:20px;padding:24px 20px 20px;max-width:360px;width:92%;max-height:80vh;overflow-y:auto;position:relative">
     <button onclick="document.getElementById('rank-info-modal').classList.remove('open')"
       style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:1.3rem;color:#94a3b8;cursor:pointer">✕</button>
-    <div style="font-size:1rem;font-weight:900;color:#4c1d95;margin-bottom:14px">🏆 자미터 랭킹 알고리즘</div>
-    <p style="font-size:0.78rem;color:#475569;margin:0 0 12px">개인랭킹과 팀페어랭킹은 동일한 알고리즘 적용</p>
+    <div style="font-size:1rem;font-weight:900;color:#4c1d95;margin-bottom:14px">🏆 개인 랭킹 알고리즘</div>
+    <p style="font-size:0.78rem;color:#475569;margin:0 0 12px">개인 랭킹 순위 산정 기준</p>
 
     <div style="background:#f8fafc;border-radius:12px;padding:12px 14px;margin-bottom:14px">
       <div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">📐 유효승률 공식</div>
@@ -12789,6 +12794,51 @@ async function triggerAtpRefresh() {
       <div style="font-size:0.75rem;color:#475569;line-height:1.7">
         <span style="color:#16a34a;font-weight:700">자격자:</span> 유효승률 → 총 승수<br>
         <span style="color:#94a3b8;font-weight:700">비자격자:</span> 총 경기수 → 유효승률 → 총 승수
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="pair-info-modal" onclick="if(event.target===this)this.classList.remove('open')"
+  class="modal-overlay" style="align-items:center">
+  <div style="background:#fff;border-radius:20px;padding:24px 20px 20px;max-width:360px;width:92%;max-height:80vh;overflow-y:auto;position:relative">
+    <button onclick="document.getElementById('pair-info-modal').classList.remove('open')"
+      style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:1.3rem;color:#94a3b8;cursor:pointer">✕</button>
+    <div style="font-size:1rem;font-weight:900;color:#4c1d95;margin-bottom:14px">🤝 팀페어 랭킹 알고리즘</div>
+    <p style="font-size:0.78rem;color:#475569;margin:0 0 12px">팀페어는 경기수가 적어 단순 승률 비교 시 왜곡 가능. 베이지안 보정 승률로 순위 산정.</p>
+
+    <div style="background:#f8fafc;border-radius:12px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">📐 베이지안 보정 승률 공식</div>
+      <div style="font-size:0.82rem;color:#2563eb;font-weight:700;font-family:monospace">(승 + α) ÷ (전체경기 + 2α) × 100</div>
+      <div style="font-size:0.72rem;color:#64748b;margin-top:6px;line-height:1.6">
+        α = 전체 팀페어 평균 경기수 ÷ 2<br>
+        (시즌 진행에 따라 α 자동 증가)
+      </div>
+    </div>
+
+    <div style="background:#eff6ff;border-radius:12px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:0.75rem;font-weight:800;color:#1e293b;margin-bottom:6px">💡 α의 의미</div>
+      <div style="font-size:0.73rem;color:#475569;line-height:1.7">
+        실제 경기 전 <span style="font-weight:700">α승·α패를 미리 했다고 가정</span><br>
+        경기수 적을수록 50% 방향으로 보정<br>
+        경기수 많을수록 실제 승률에 수렴
+      </div>
+    </div>
+
+    <div style="margin-bottom:12px">
+      <div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">1단계 · 자격 분리</div>
+      <div style="font-size:0.75rem;color:#475569;line-height:1.6">
+        기준선 = 전체 평균 경기수 × 0.5<br>
+        <span style="color:#16a34a;font-weight:700">✓ 자격자</span> — 경기수 ≥ 기준선 (상위 노출)<br>
+        <span style="color:#94a3b8;font-weight:700">✗ 비자격자</span> — 경기수 &lt; 기준선 (하위 회색 표시)
+      </div>
+    </div>
+
+    <div>
+      <div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">2단계 · 정렬</div>
+      <div style="font-size:0.75rem;color:#475569;line-height:1.7">
+        <span style="color:#16a34a;font-weight:700">자격자:</span> 베이지안 보정 승률 → 총 승수<br>
+        <span style="color:#94a3b8;font-weight:700">비자격자:</span> 총 경기수 → 베이지안 보정 승률 → 총 승수
       </div>
     </div>
   </div>
