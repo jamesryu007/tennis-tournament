@@ -2026,7 +2026,7 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
     : null;
 
   // 최근 경기 — 경기/랭킹 관련 질문일 때만 포함 (토큰 절약)
-  const hasMatchQuery = /경기|승|패|랭킹|순위|점수|결과|대결|복식|파트너|이겼|이긴|싸워|상대|전적|누구.*이겼|몇번|몇승|몇패|성적|만만한/.test(question);
+  const hasMatchQuery = /경기|승|패|랭킹|순위|점수|결과|대결|복식|파트너|이겼|이긴|싸워|상대|전적|누구.*이겼|몇번|몇승|몇패|성적|만만한|베이글/.test(question);
   let recentMatches = null;
   let matchMentionedNames = [];
   if (hasMatchQuery) {
@@ -2303,6 +2303,80 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
     } catch(_) {}
   }
 
+  // 베이글 전적 — jmt/matches에서 6:0 세트 스캔
+  const hasBagelQuery = /베이글/.test(question);
+  let bagelCtx = '';
+  if (hasBagelQuery) {
+    try {
+      const toArr2 = v => Array.isArray(v) ? v : Object.values(v || {});
+      const memberObjs3 = Object.values(members).filter(m => m.name && !m.isGuest);
+      const _fn3 = n => n && n.length >= 3 ? n.slice(1) : n;
+
+      // 전체 올해 경기 스캔 (recentRaw = 최근 200경기)
+      const bagelEvents = [];
+      Object.values(recentRaw).forEach(m => {
+        if (!m.team0 || !m.team1) return;
+        if (m.date && !String(m.date).startsWith(String(year))) return;
+        const t0 = toArr2(m.team0), t1 = toArr2(m.team1);
+        if (t0.length !== 2 || t1.length !== 2) return;
+        const sets = m.sets ? (Array.isArray(m.sets) ? m.sets : Object.values(m.sets)) : [];
+        const pk0 = [...t0].sort().join('_'), pk1 = [...t1].sort().join('_');
+        sets.forEach(s => {
+          const s0 = parseInt(s.s0), s1 = parseInt(s.s1);
+          if (s0 === 6 && s1 === 0) bagelEvents.push({ date: m.date || '?', giver: pk0, receiver: pk1 });
+          if (s0 === 0 && s1 === 6) bagelEvents.push({ date: m.date || '?', giver: pk1, receiver: pk0 });
+        });
+        if (!sets.length && m.score0 != null && m.score1 != null) {
+          if (parseInt(m.score0) === 6 && parseInt(m.score1) === 0) bagelEvents.push({ date: m.date || '?', giver: pk0, receiver: pk1 });
+          if (parseInt(m.score0) === 0 && parseInt(m.score1) === 6) bagelEvents.push({ date: m.date || '?', giver: pk1, receiver: pk0 });
+        }
+      });
+
+      // pair 표시명
+      const getPairDispB = (key) => {
+        const ps = pairStats[key] || {};
+        if (ps.nickname) return ps.nickname;
+        return (ps.players || key.split('_')).join('+');
+      };
+
+      // 언급된 멤버 추출 (matchMentionedNames + firstName 매칭)
+      let bagelTargetNames = [...matchMentionedNames];
+      if (bagelTargetNames.length === 0) {
+        const fnB = memberObjs3.filter(m => { const fn = _fn3(m.name); return fn && fn.length >= 2 && question.includes(fn); }).map(m => m.name);
+        bagelTargetNames = [...new Set(fnB)];
+      }
+
+      if (bagelTargetNames.length >= 2) {
+        // 특정 팀페어 베이글 전적
+        const pairKeyB = [...bagelTargetNames].sort().join('_');
+        const given = bagelEvents.filter(e => e.giver === pairKeyB).sort((a,b) => b.date.localeCompare(a.date));
+        const received = bagelEvents.filter(e => e.receiver === pairKeyB).sort((a,b) => b.date.localeCompare(a.date));
+        const dispB = getPairDispB(pairKeyB);
+        let bLines = `[${dispB} 베이글 전적 (${year}년)]\n`;
+        bLines += given.length
+          ? `🥯 베이글 먹인 기록 (${given.length}건):\n` + given.map(e => `  ${e.date} — vs ${getPairDispB(e.receiver)}`).join('\n') + '\n'
+          : '🥯 베이글 먹인 기록: 없음\n';
+        bLines += received.length
+          ? `😵 베이글 먹은 기록 (${received.length}건):\n` + received.map(e => `  ${e.date} — ${getPairDispB(e.giver)}에게`).join('\n')
+          : '😵 베이글 먹은 기록: 없음';
+        bagelCtx = `\n${bLines}\n⚠️ 반드시 위 데이터만 인용.`;
+      } else {
+        // 전체 베이글 순위
+        const givenCount = {}, receivedCount = {};
+        bagelEvents.forEach(e => {
+          givenCount[e.giver] = (givenCount[e.giver] || 0) + 1;
+          receivedCount[e.receiver] = (receivedCount[e.receiver] || 0) + 1;
+        });
+        const givenRank = Object.entries(givenCount).sort((a,b) => b[1]-a[1]).slice(0, 8);
+        const receivedRank = Object.entries(receivedCount).sort((a,b) => b[1]-a[1]).slice(0, 8);
+        let bLines = `[${year}년 베이글 순위 — 전체 ${bagelEvents.length}건]\n`;
+        bLines += `🥯 베이글 가장 많이 먹인 팀:\n` + givenRank.map(([k,n], i) => `  ${i+1}위 ${getPairDispB(k)}: ${n}개`).join('\n') + '\n';
+        bLines += `😵 베이글 가장 많이 먹은 팀:\n` + receivedRank.map(([k,n], i) => `  ${i+1}위 ${getPairDispB(k)}: ${n}개`).join('\n');
+        bagelCtx = `\n${bLines}\n⚠️ 반드시 위 데이터만 인용.`;
+      }
+    } catch(_) {}
+  }
+
   const systemPrompt = `너는 자미터 테니스 동호회 전용 AI 도우미 "제이"야.
 올해 30살이 된 천재 여자야. 모르는 게 없고, 유머도 넘쳐!
 
@@ -2340,7 +2414,7 @@ ${checkinCtx}
 
 [자미터 단골맛집 — 서울/강남권 위주, 다른 지역 질문엔 이 목록 사용 금지]
 ${restaurantCtx}
-${weatherCtx}${airCtx}${locationCtx}${matchupCtx}
+${weatherCtx}${airCtx}${locationCtx}${matchupCtx}${bagelCtx}
 현재 한국 시각: ${(() => { const d = new Date(new Date().toLocaleString('en-US', {timeZone:'Asia/Seoul'})); return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 ${'일월화수목금토'.split('')[d.getDay()]}요일 ${d.getHours()}시 ${d.getMinutes()}분`; })()}
 현재 질문자: ${senderName}
 ${senderPairSummary ? `[${senderName} 관련 페어 전체 — 파트너/짝 질문 시 이 목록 기준으로 답변]\n${senderPairSummary}` : ''}${fortuneCtx}`;
