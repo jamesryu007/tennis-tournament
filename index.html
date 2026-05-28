@@ -2463,7 +2463,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v750';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v751';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9450,7 +9450,7 @@ function renderCheckinPage() {
     if (!voters.length) return '';
     const sorted = [...voters].sort((a, b) => (a.votedAt || '').localeCompare(b.votedAt || ''));
     return `<div class="poll-group">
-      <div class="poll-group-hdr" style="border-left:3px solid ${accentColor};padding-left:8px">${label} <span style="color:#94a3b8;font-weight:400;margin-left:2px">${voters.length}명</span></div>
+      <div class="poll-group-hdr" style="border-left:3px solid ${accentColor};background:${accentColor}18;padding:6px 10px;border-radius:8px;margin-bottom:6px;font-size:0.85rem;color:${accentColor}">${label} <span style="color:#94a3b8;font-weight:400;margin-left:2px">${voters.length}명</span></div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;padding-bottom:4px">
         ${sorted.map(v => { const mb=state.members.find(m=>m.name===v.name); return _chipHtml(v.name, mb?mb.gender:'', _voteRank[v.name]||0); }).join('')}
       </div>
@@ -9559,7 +9559,7 @@ function renderCheckinPage() {
   if(guestEntries.length) {
     const _sortedGuests = [...guestEntries].sort((a,b)=>((a[1].addedAt||'').localeCompare(b[1].addedAt||'')));
     html += `<div class="poll-group">
-      <div class="poll-group-hdr" style="border-left:3px solid #a855f7;padding-left:8px">👤 게스트 <span style="color:#94a3b8;font-weight:400;margin-left:2px">${guestEntries.length}명</span></div>
+      <div class="poll-group-hdr" style="border-left:3px solid #a855f7;background:#a855f718;padding:6px 10px;border-radius:8px;margin-bottom:6px;font-size:0.85rem;color:#a855f7">👤 게스트 <span style="color:#94a3b8;font-weight:400;margin-left:2px">${guestEntries.length}명</span></div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;padding-bottom:4px">
         ${_sortedGuests.map(([k,g])=>_chipHtml(g.name, g.gender==='female'?'female':'male', _voteRank[k]||0)).join('')}
       </div>
@@ -9594,7 +9594,7 @@ function renderCheckinPage() {
     const _wShake = _wCfg.shake ? `animation:warn-shake 0.6s ease 3` : '';
     const _hdrOnclick = isAdmin() && isOpen ? `onclick="cycleNotVotedWarnTest()" style="cursor:pointer"` : '';
     html += `<div class="poll-group" style="margin-top:12px;${_wShake}">
-      <div class="poll-group-hdr" style="border-left:3px solid ${_wCfg.borderColor};padding-left:8px;justify-content:space-between" ${_hdrOnclick}><span style="color:${_wCfg.hdrColor};font-weight:700">${_wCfg.icon} 미투표${_wLabel}</span><span style="color:#94a3b8;font-weight:400;margin-left:4px;flex:1">${notVoted.length}명</span>${isAdmin() && isOpen ? `<button onclick="event.stopPropagation();sendCheckinPressurePush()" style="font-size:0.7rem;font-weight:700;background:#fef9c3;color:#b45309;border:1.5px solid #fde68a;border-radius:8px;padding:3px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">📣 투표요청</button>` : ''}</div>
+      <div class="poll-group-hdr" style="border-left:3px solid ${_wCfg.borderColor};background:${_wCfg.borderColor}18;padding:6px 10px;border-radius:8px;margin-bottom:6px;font-size:0.85rem;justify-content:space-between" ${_hdrOnclick}><span style="color:${_wCfg.hdrColor};font-weight:700">${_wCfg.icon} 미투표${_wLabel}</span><span style="color:#94a3b8;font-weight:400;margin-left:4px;flex:1">${notVoted.length}명</span>${isAdmin() && isOpen ? `<button onclick="event.stopPropagation();sendCheckinPressurePush()" style="font-size:0.7rem;font-weight:700;background:#fef9c3;color:#b45309;border:1.5px solid #fde68a;border-radius:8px;padding:3px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent">📣 투표요청</button>` : ''}</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;padding-bottom:4px">
         ${notVoted.map(m => _nvChip(m)).join('')}
       </div>
