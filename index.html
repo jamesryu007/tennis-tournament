@@ -2467,7 +2467,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v766';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v767';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6034,7 +6034,7 @@ function _renderDrawAnalysis(d){
     let _showBtn=false;
     if(d.teamMode){
       const _capA=d.teamANames[0]||'';const _capB=d.teamBNames[0]||'';
-      _showBtn=curName===_capA||curName===_capB||isAdmin();
+      _showBtn=curName===_capA||curName===_capB||isAdmin()||isManager();
     } else {
       _showBtn=isManager()||isAdmin();
     }
