@@ -2467,7 +2467,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v764';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v765';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5656,7 +5656,11 @@ function _openDrawEditModal(){
   if(started){alert('게임이 시작되었으므로, 멤버를 수정할 수 없습니다.');return;}
   const capA=d.teamANames[0]||'';
   const capB=d.teamBNames[0]||'';
-  const mySide=curName===capA?'A':curName===capB?'B':(isAdmin()?'A':null);
+  // 팀장 → 본인 팀 / 팀원 → 소속 팀 / 어느 팀에도 없는 관리자 → A팀 기본
+  const mySide=curName===capA?'A':curName===capB?'B':
+    d.teamANames.includes(curName)?'A':
+    d.teamBNames.includes(curName)?'B':
+    (isAdmin()||isManager()?'A':null);
   if(!mySide){alert('팀장만 수정할 수 있습니다.');return;}
   const teamNames=mySide==='A'?d.teamANames:d.teamBNames;
   const teamMales=d.attendees.filter(p=>teamNames.includes(p.name)&&p.gender==='male').map(p=>p.name);
@@ -5866,7 +5870,11 @@ function _bulkStartTeam(){
   const curName=(state.identity&&state.identity.name)||'';
   const capA=d.teamANames[0]||'';
   const capB=d.teamBNames[0]||'';
-  const mySide=curName===capA?'A':curName===capB?'B':(isAdmin()?'A':null);
+  // 팀장 → 본인 팀 / 팀원 → 소속 팀 / 어느 팀에도 없는 관리자 → A팀 기본
+  const mySide=curName===capA?'A':curName===capB?'B':
+    d.teamANames.includes(curName)?'A':
+    d.teamBNames.includes(curName)?'B':
+    (isAdmin()||isManager()?'A':null);
   if(!mySide){alert('팀장만 일괄시작할 수 있습니다.');return;}
   const cards=Object.entries(_dailyCards).filter(([,c])=>c.phase==='teamSetup'&&c._teamMode);
   const alreadyStarted=Object.values(_dailyCards).some(c=>c._teamMode&&c._round&&c.phase!=='teamSetup');
