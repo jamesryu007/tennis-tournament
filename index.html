@@ -486,6 +486,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .daily-analysis-btn.ready { opacity:1; pointer-events:auto; }
 .daily-analysis-btn:active { transform:scale(0.97); }
 /* ── 자동대진 모달 ── */
+.draw-attendee-pill { display:inline-flex;align-items:center;gap:2px;border-radius:20px;padding:4px 8px 4px 10px;font-size:0.81rem;font-weight:700;margin:2px;transition:opacity 0.15s }
+.draw-attendee-pill.excluded { opacity:0.5;text-decoration:line-through }
+.draw-attendee-pill .pill-x { background:none;border:none;cursor:pointer;padding:0 0 0 2px;line-height:1;font-size:0.72rem;color:#94a3b8;display:flex;align-items:center }
+.draw-attendee-pill .pill-x:active { opacity:0.6 }
 #auto-draw-modal .type-label { font-size:1.05rem; font-weight:800; flex:1; }
 #auto-draw-modal select { font-size:1rem; font-weight:700; padding:9px 10px; border:2px solid #e2e8f0; border-radius:12px; background:#f8fafc; color:#1e293b; font-family:inherit; cursor:pointer; width:115px; flex-shrink:0; }
 #auto-draw-modal .court-row { background:linear-gradient(135deg,rgba(13,148,136,0.07),rgba(16,185,129,0.05)); border-radius:14px; padding:9px 14px; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
@@ -2463,7 +2467,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v762';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v763';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4331,6 +4335,7 @@ function executeDailyCreate(){
 
 // ── 팀 대결 모드 상태 ──────────────────────────────────────────────
 let _autoTeamMode=false;
+let _autoExcludedNames=new Set(); // 관리자가 임시 제외한 참석자 이름
 let _autoTeamA=[];  // A팀 멤버 이름 배열
 let _autoTeamB=[];  // B팀 멤버 이름 배열
 let _conditionBadA=null;  // A팀 양보 선수 (🙏 최소 경기)
@@ -5296,18 +5301,10 @@ function openAutoDrawModal(){
   const assignEl=document.getElementById('auto-team-assign');
   if(assignEl) assignEl.style.display=_autoTeamMode?'':'none';
   if(_autoTeamMode) _renderTeamAssign();
-  // 오늘 참석자 요약 표시
-  const attendees=_getAutoDrawAttendees();
-  const males=attendees.filter(p=>p.gender==='male');
-  const females=attendees.filter(p=>p.gender!=='male');
-  const el=document.getElementById('auto-draw-attendees');
-  if(el){
-    el.innerHTML=attendees.length
-      ? `<b>오늘 참석자 ${attendees.length}명</b> — 남 ${males.length}명 / 여 ${females.length}명<br>` +
-        `<span style="color:#1d4ed8;font-weight:700">♂ ${males.map(p=>p.name).join(', ')}</span><br>` +
-        `<span style="color:#db2777;font-weight:700">♀ ${females.map(p=>p.name).join(', ')}</span>`
-      : '<span style="color:#dc2626">출첵 참석자 정보가 없습니다. 출첵 탭에서 참석자를 확인해주세요.</span>';
-  }
+  // 모달 열릴 때 임시 제외 목록 리셋
+  _autoExcludedNames=new Set();
+  // 오늘 참석자 pill UI 표시
+  _renderAutoDrawAttendeeUI();
   document.getElementById('auto-draw-warn').style.display='none';
   // select 옵션 먼저 채우기 — 리스너가 동기 발화해도 옵션이 준비돼 있어야 함
   autoRecommendGames();
@@ -5364,6 +5361,7 @@ function closeAutoDrawModal(){
     db.ref('jmt/autoDrawSession').off('value',_autoDrawSessionRef);
     _autoDrawSessionRef=null;
   }
+  _autoExcludedNames=new Set();
   document.getElementById('auto-draw-modal').classList.remove('open');
   document.body.style.overflow='';
 }
@@ -6117,25 +6115,73 @@ function _renderDrawAnalysis(d){
   return html;
 }
 
-// 오늘 참석자 목록 (출첵 기준, 멤버+게스트)
-function _getAutoDrawAttendees(){
+// 오늘 참석자 목록 원본 (출첵 기준, 멤버+게스트, 제외 필터 없음)
+function _getAllAutoDrawAttendeesRaw(){
   const votes=state.pollData&&state.pollData.votes
     ?(Array.isArray(state.pollData.votes)?state.pollData.votes:Object.values(state.pollData.votes))
     :[];
   const attendNames=new Set(votes.filter(v=>v.vote==='attend'||v.vote==='late').map(v=>v.name));
-  // 정회원 중 참석자
   const members=state.members
     .filter(m=>attendNames.has(m.name))
     .map(m=>({name:m.name,gender:m.gender||'male',ntrp:m.ntrp||''}));
-  // 게스트 (출첵 게스트)
   const guests=state.pollData&&state.pollData.guests
     ?Object.values(state.pollData.guests).map(g=>({name:g.name,gender:g.gender||'male',ntrp:g.ntrp||''}))
     :[];
-  // 중복 제거
   const seen=new Set(members.map(m=>m.name));
   const all=[...members];
   guests.forEach(g=>{if(!seen.has(g.name)){seen.add(g.name);all.push(g);}});
   return all;
+}
+
+// 오늘 참석자 목록 (출첵 기준, 멤버+게스트) — 관리자 임시제외 적용
+function _getAutoDrawAttendees(){
+  return _getAllAutoDrawAttendeesRaw().filter(p=>!_autoExcludedNames.has(p.name));
+}
+
+// 참석자 pill UI 렌더링 (관리자 전용 X 버튼 포함)
+function _renderAutoDrawAttendeeUI(){
+  const el=document.getElementById('auto-draw-attendees');
+  if(!el) return;
+  const raw=_getAllAutoDrawAttendeesRaw();
+  if(!raw.length){
+    el.innerHTML='<span style="color:#dc2626">출첵 참석자 정보가 없습니다. 출첵 탭에서 참석자를 확인해주세요.</span>';
+    return;
+  }
+  const curName=(state.identity&&state.identity.name)||'';
+  const canEdit=MANAGERS.includes(curName);
+  const active=raw.filter(p=>!_autoExcludedNames.has(p.name));
+  const activeMales=active.filter(p=>p.gender==='male').length;
+  const activeFemales=active.filter(p=>p.gender!=='male').length;
+  const excludedCount=_autoExcludedNames.size;
+  const makePill=(p)=>{
+    const excl=_autoExcludedNames.has(p.name);
+    const isMale=p.gender==='male';
+    const bg=excl?'#f1f5f9':(isMale?'#eff6ff':'#fdf2f8');
+    const color=excl?'#94a3b8':(isMale?'#1d4ed8':'#db2777');
+    const border=excl?'#e2e8f0':(isMale?'#bfdbfe':'#fbcfe8');
+    const xBtn=canEdit
+      ?`<button class="pill-x" onclick="_toggleAutoExclude('${p.name.replace(/'/g,"\\'")}')" title="${excl?'복원':'제외'}">${excl?'↩':'✕'}</button>`
+      :'';
+    return `<span class="draw-attendee-pill${excl?' excluded':''}" style="background:${bg};color:${color};border:1.5px solid ${border}">${p.name}${xBtn}</span>`;
+  };
+  const males=raw.filter(p=>p.gender==='male');
+  const females=raw.filter(p=>p.gender!=='male');
+  const exclNote=excludedCount?`<span style="font-size:0.78rem;color:#dc2626;font-weight:600;margin-left:4px">(${excludedCount}명 제외)</span>`:'';
+  el.innerHTML=
+    `<b>오늘 참석자 ${active.length}명</b> — 남 ${activeMales}명 / 여 ${activeFemales}명${exclNote}` +
+    (canEdit?`<span style="font-size:0.72rem;color:#94a3b8;margin-left:6px">✕ 눌러 제외</span>`:'') +
+    `<div style="margin-top:6px;line-height:1.9">${males.map(makePill).join('')}${females.map(makePill).join('')}</div>`;
+}
+
+// 참석자 임시 제외 토글 (관리자 전용)
+function _toggleAutoExclude(name){
+  const curName=(state.identity&&state.identity.name)||'';
+  if(!MANAGERS.includes(curName)) return;
+  if(_autoExcludedNames.has(name)) _autoExcludedNames.delete(name);
+  else _autoExcludedNames.add(name);
+  _renderAutoDrawAttendeeUI();
+  autoRecommendGames();
+  if(_autoTeamMode) _renderTeamAssign();
 }
 
 // 늦참 멤버 이름 집합 반환
