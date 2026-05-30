@@ -2467,7 +2467,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v768';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v769';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6091,11 +6091,16 @@ function _renderDrawAnalysis(d){
   html+=`<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:13px 15px;margin-bottom:12px;overflow-x:auto">
     <div style="font-size:0.85rem;font-weight:800;color:#1e293b;margin-bottom:10px">📊 선수별 참여 현황</div>`;
   // 테이블 헤더 생성 헬퍼
+  // 개별추가 카드 선수별 게임수 사전 집계
+  const _manualGames={};
+  d.manualCards.forEach(mc=>{[...mc.team0,...mc.team1].forEach(name=>{_manualGames[name]=(_manualGames[name]||0)+1;});});
+  const _hasManual=d.manualCards.length>0;
   const _makePlayerTable=(players,headerHtml,isMyTeamTable)=>{
     let t=`<table style="width:100%;border-collapse:collapse;font-size:0.76rem;min-width:280px;margin-bottom:${d.teamMode?'10px':'0'}">
       <thead><tr style="border-bottom:2px solid #e2e8f0">
         <th style="text-align:left;padding:5px 6px;white-space:nowrap">${headerHtml}</th>`;
     for(const r of d.roundNums){t+=`<th style="padding:5px 3px;color:#64748b;font-size:0.68rem;font-weight:700;text-align:center">제${r}</th>`;}
+    if(_hasManual) t+=`<th style="padding:5px 3px;color:#0891b2;font-size:0.68rem;font-weight:700;text-align:center">추가</th>`;
     t+=`<th style="padding:5px 6px;color:#64748b;font-weight:700;text-align:right">합계</th>
       </tr></thead><tbody>`;
     players.forEach(p=>{
@@ -6111,6 +6116,9 @@ function _renderDrawAnalysis(d){
         else if(card&&!visible){t+=`<td style="text-align:center;padding:6px 3px;color:#cbd5e1;font-size:0.7rem">—</td>`;}
         else{t+=`<td style="text-align:center;padding:6px 3px;color:#e2e8f0;font-size:0.7rem">—</td>`;}
       }
+      const mc=_manualGames[p.name]||0;
+      if(_hasManual) t+=`<td style="text-align:center;padding:6px 3px">${mc?`<span style="font-size:0.72rem;font-weight:700;color:#0891b2">+${mc}</span>`:'<span style="color:#e2e8f0;font-size:0.7rem">—</span>'}</td>`;
+      visibleGames+=mc;
       t+=`<td style="text-align:right;padding:6px 6px;font-weight:800;color:#1e293b">${visibleGames}</td>
       </tr>`;
     });
