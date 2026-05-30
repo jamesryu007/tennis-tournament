@@ -2467,7 +2467,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v767';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v768';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5753,12 +5753,21 @@ function _updateDrawEditParticipation(){
     if(!edits[id]) edits[id]=[null,null,null,null];
     edits[id][slot]=sel.value;
   });
+  // 개별추가 카드에서 선수별 게임수 사전 집계
+  const manualGameCount={};
+  d.manualCards.forEach(mc=>{
+    [...mc.team0,...mc.team1].forEach(name=>{
+      manualGameCount[name]=(manualGameCount[name]||0)+1;
+    });
+  });
+  const hasManual=d.manualCards.length>0;
   // ── 자동배정 모드: 전체 참석자 참여현황
   if(isAutoMode){
     let t=`<div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">📊 선수별 참여 현황</div>`;
     t+=`<table style="width:100%;border-collapse:collapse;font-size:0.75rem"><thead><tr style="border-bottom:1.5px solid #e2e8f0">
       <th style="text-align:left;padding:4px 3px;font-size:0.72rem;color:#64748b;font-weight:700">선수</th>`;
     for(const r of d.roundNums){t+=`<th style="padding:4px 2px;color:#64748b;font-size:0.68rem;font-weight:700;text-align:center">제${r}</th>`;}
+    if(hasManual) t+=`<th style="padding:4px 2px;color:#64748b;font-size:0.68rem;font-weight:700;text-align:center">추가</th>`;
     t+=`<th style="padding:4px 3px;color:#64748b;font-weight:700;text-align:right;font-size:0.72rem">합계</th></tr></thead><tbody>`;
     d.attendees.forEach(p=>{
       const col=colorMap[p.name]||'#64748b';let games=0;
@@ -5773,19 +5782,23 @@ function _updateDrawEditParticipation(){
         }
         t+=`<td style="text-align:center;padding:4px 2px">${icon||'<span style="color:#e2e8f0;font-size:0.6rem">—</span>'}</td>`;
       }
+      const mc=manualGameCount[p.name]||0;
+      if(hasManual) t+=`<td style="text-align:center;padding:4px 2px">${mc?`<span style="font-size:0.72rem;font-weight:700;color:#0891b2">+${mc}</span>`:'<span style="color:#e2e8f0;font-size:0.6rem">—</span>'}</td>`;
+      games+=mc;
       t+=`<td style="text-align:right;padding:4px 3px;font-weight:800;color:#1e293b">${games}</td></tr>`;
     });
     t+=`</tbody></table>`;
     wrap.innerHTML=t;
     return;
   }
-  // ── 팀 대결 모드 (기존 코드)
+  // ── 팀 대결 모드
   const teamNames=mySide==='A'?d.teamANames:d.teamBNames;
   const teamPlayers=d.attendees.filter(p=>teamNames.includes(p.name));
   let t=`<div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">📊 선수별 참여 현황</div>`;
   t+=`<table style="width:100%;border-collapse:collapse;font-size:0.75rem"><thead><tr style="border-bottom:1.5px solid #e2e8f0">
     <th style="text-align:left;padding:4px 3px;font-size:0.72rem;color:#64748b;font-weight:700">선수</th>`;
   for(const r of d.roundNums){t+=`<th style="padding:4px 2px;color:#64748b;font-size:0.68rem;font-weight:700;text-align:center">제${r}</th>`;}
+  if(hasManual) t+=`<th style="padding:4px 2px;color:#64748b;font-size:0.68rem;font-weight:700;text-align:center">추가</th>`;
   t+=`<th style="padding:4px 3px;color:#64748b;font-weight:700;text-align:right;font-size:0.72rem">합계</th></tr></thead><tbody>`;
   teamPlayers.forEach(p=>{
     const col=colorMap[p.name]||'#64748b';
@@ -5801,6 +5814,9 @@ function _updateDrawEditParticipation(){
       }
       t+=`<td style="text-align:center;padding:4px 2px">${icon||'<span style="color:#e2e8f0;font-size:0.6rem">—</span>'}</td>`;
     }
+    const mc=manualGameCount[p.name]||0;
+    if(hasManual) t+=`<td style="text-align:center;padding:4px 2px">${mc?`<span style="font-size:0.72rem;font-weight:700;color:#0891b2">+${mc}</span>`:'<span style="color:#e2e8f0;font-size:0.6rem">—</span>'}</td>`;
+    games+=mc;
     t+=`<td style="text-align:right;padding:4px 3px;font-weight:800;color:#1e293b">${games}</td></tr>`;
   });
   t+=`</tbody></table>`;
