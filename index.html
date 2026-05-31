@@ -912,6 +912,7 @@ const firebaseConfig = {
         <button onclick="selectBetDeadline('winner',120)" class="dl-btn" id="dl-w-120">5일</button>
         <button onclick="selectBetDeadline('winner',144)" class="dl-btn" id="dl-w-144">6일</button>
         <button onclick="selectBetDeadline('winner',168)" class="dl-btn" id="dl-w-168">7일</button>
+        <button onclick="selectBetDeadline('winner',240)" class="dl-btn" id="dl-w-240">10일</button>
       </div>
       <div style="display:flex;gap:8px">
         <button onclick="closeBetOpenModal()" class="btn btn-outline btn-full">취소</button>
@@ -933,6 +934,7 @@ const firebaseConfig = {
         <button onclick="selectBetDeadline('match',120)" class="dl-btn" id="dl-m-120">5일</button>
         <button onclick="selectBetDeadline('match',144)" class="dl-btn" id="dl-m-144">6일</button>
         <button onclick="selectBetDeadline('match',168)" class="dl-btn" id="dl-m-168">7일</button>
+        <button onclick="selectBetDeadline('match',240)" class="dl-btn" id="dl-m-240">10일</button>
       </div>
       <div style="display:flex;gap:8px">
         <button onclick="closeBetOpenModal()" class="btn btn-outline btn-full">취소</button>
@@ -2467,7 +2469,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v769';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v770';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11269,6 +11271,15 @@ function renderMatchRow(m) {
 // ── 토너먼트 참가 선수 목록 (랭킹순 정렬) ───────────────────────
 function getTournamentPlayersSorted() {
   const rankSource = atpState.rankingsFromDb.length ? atpState.rankingsFromDb : ATP_TOP_PLAYERS;
+
+  // 탈락 선수: 완료된 경기(STATUS_FINAL)의 패자 집합
+  const eliminated = new Set();
+  for (const m of atpState.matches) {
+    if (m.status !== 'STATUS_FINAL') continue;
+    if (m.player1Winner && m.player2Name && m.player2Name !== 'TBD') eliminated.add(m.player2Name.toLowerCase());
+    if (m.player2Winner && m.player1Name && m.player1Name !== 'TBD') eliminated.add(m.player1Name.toLowerCase());
+  }
+
   const seen = new Set();
   const players = [];
   for (const m of atpState.matches) {
@@ -11279,9 +11290,10 @@ function getTournamentPlayersSorted() {
       [m.player2Name, m.player2Country, m.player2Id]
     ];
     for (const [name, country, id] of pairs) {
-      if (name && name !== 'TBD' && !seen.has(name.toLowerCase())) {
-        seen.add(name.toLowerCase());
-        const ranked = rankSource.find(p => p.name.toLowerCase() === name.toLowerCase());
+      const key = name && name.toLowerCase();
+      if (name && name !== 'TBD' && !seen.has(key) && !eliminated.has(key)) {
+        seen.add(key);
+        const ranked = rankSource.find(p => p.name.toLowerCase() === key);
         players.push({ name, country, id: id || '', rank: ranked ? ranked.rank : 999 });
       }
     }
@@ -12136,13 +12148,13 @@ let _betDeadlineMatch  = 24;
 function selectBetDeadline(type, hours) {
   if (type === 'winner') {
     _betDeadlineWinner = hours;
-    [24,48,72,96,120,144,168].forEach(h => {
+    [24,48,72,96,120,144,168,240].forEach(h => {
       const el = document.getElementById(`dl-w-${h}`);
       if (el) el.className = 'dl-btn' + (h === hours ? ' active' : '');
     });
   } else {
     _betDeadlineMatch = hours;
-    [24,48,72,96,120,144,168].forEach(h => {
+    [24,48,72,96,120,144,168,240].forEach(h => {
       const el = document.getElementById(`dl-m-${h}`);
       if (el) el.className = 'dl-btn' + (h === hours ? ' active' : '');
     });
