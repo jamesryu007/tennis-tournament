@@ -3417,8 +3417,12 @@ ${statsContext}
       greetingText = `${firstName} ${honorific}, 생일 축하드려요!\n${statLine} 앞으로도 코트에서 빛나는 한 해 되세요! 🎾✨`;
     }
 
-    // 1번 풍선: 생일 이모지
-    await _postBotMsg({ text: `🎂🎉🎈🎊🥳🎁🎀` });
+    // 1번 풍선: 생일 GIF 이미지
+    const _isDevEnv = process.env.GCLOUD_PROJECT === 'jamite-dev';
+    const _birthdayGifUrl = _isDevEnv
+      ? 'https://firebasestorage.googleapis.com/v0/b/jamite-dev.firebasestorage.app/o/photos%2Fassets%2Fbirthday.gif?alt=media'
+      : 'https://firebasestorage.googleapis.com/v0/b/jamite-tennis.firebasestorage.app/o/photos%2Fassets%2Fbirthday.gif?alt=media';
+    await _postBotMsg({ imageUrl: _birthdayGifUrl, imgW: 478, imgH: 454 });
     // 2번 풍선: 축하 메시지 본문
     await _postBotMsg({ text: greetingText });
     console.log(`birthday greeting sent for ${name}`);
