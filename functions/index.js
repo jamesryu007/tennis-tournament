@@ -1570,6 +1570,57 @@ async function _runWeeklyMvp(isDryRun = false, skipMinCheck = false) {
     lines.push(`  "${pick(ATTEND_COMMENTS)}"`);
   }
 
+  // ── 🔮 예측 적중률 (오늘 날짜 기준) ────────────────────────────
+  try {
+    const nowKstP = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    const dateKeyP = `${nowKstP.getFullYear()}-${String(nowKstP.getMonth()+1).padStart(2,'0')}-${String(nowKstP.getDate()).padStart(2,'0')}`;
+    const predSnap = await db.ref(`jmt/predictions/${dateKeyP}`).once('value');
+    const predData = predSnap.val();
+    if (predData) {
+      const allPreds = Object.values(predData);
+      const toArrP2 = v => Array.isArray(v) ? v : (v ? Object.values(v) : []);
+      // 오늘 완료 경기 결과 맵
+      const resultMap = {};
+      thisWeekMatches.forEach(m => {
+        const key = [...toArr(m.team0)].sort().join('_') + '||' + [...toArr(m.team1)].sort().join('_');
+        resultMap[key] = typeof m.winner === 'number' ? m.winner : -1;
+      });
+      const generalPreds = allPreds.filter(p => p.type === 'general');
+      const cardPreds    = allPreds.filter(p => p.type === 'card' || (p.cards && !p.type));
+
+      if (generalPreds.length) {
+        const names = [...new Set(generalPreds.map(p => p.askedBy).filter(Boolean))];
+        lines.push(``, `🔮 대진 생성 전 예측`);
+        lines.push(`  ${names.join(', ')} 등 ${generalPreds.length}건 — 카드 기반 검증 불가`);
+      }
+
+      let hitC = 0, totalC = 0;
+      const cardLines2 = [];
+      cardPreds.forEach(pred => {
+        if (!pred.cards) return;
+        pred.cards.forEach(pc => {
+          if (pc.predictedWinner < 0 || !pc.team0 || !pc.team1) return;
+          const key = [...toArrP2(pc.team0)].sort().join('_') + '||' + [...toArrP2(pc.team1)].sort().join('_');
+          const actual = resultMap[key];
+          if (actual === undefined || actual < 0) return;
+          totalC++;
+          const correct = pc.predictedWinner === actual;
+          if (correct) hitC++;
+          const t0 = toArrP2(pc.team0).join('+'), t1 = toArrP2(pc.team1).join('+');
+          const predTeam   = pc.predictedWinner === 0 ? t0 : t1;
+          const actualTeam = actual === 0 ? t0 : t1;
+          cardLines2.push(`  ${correct ? '✅' : '❌'} ${t0} vs ${t1} → 예측: ${predTeam}(${pc.confidence}%), 실제: ${actualTeam}`);
+        });
+      });
+      if (totalC > 0) {
+        const pct = Math.round(hitC / totalC * 100);
+        lines.push(``, `🎯 대진 기반 예측 적중률`);
+        cardLines2.forEach(l => lines.push(l));
+        lines.push(`  총 ${totalC}경기 중 ${hitC}경기 적중 (${pct}%)`);
+      }
+    }
+  } catch(_) {}
+
   lines.push(``, SEP);
 
   // ── 발송 ────────────────────────────────────────────────────────
