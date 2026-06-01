@@ -1598,15 +1598,17 @@ async function _runWeeklyMvp(isDryRun = false, skipMinCheck = false) {
       const cardLines2 = [];
       cardPreds.forEach(pred => {
         if (!pred.cards) return;
-        pred.cards.forEach(pc => {
-          if (pc.predictedWinner < 0 || !pc.team0 || !pc.team1) return;
-          const key = [...toArrP2(pc.team0)].sort().join('_') + '||' + [...toArrP2(pc.team1)].sort().join('_');
+        const cards2 = toArrP2(pred.cards);
+        cards2.forEach(pc => {
+          if (!pc || pc.predictedWinner < 0 || !pc.team0 || !pc.team1) return;
+          const t0arr = toArrP2(pc.team0), t1arr = toArrP2(pc.team1);
+          const key = [...t0arr].sort().join('_') + '||' + [...t1arr].sort().join('_');
           const actual = resultMap[key];
           if (actual === undefined || actual < 0) return;
           totalC++;
           const correct = pc.predictedWinner === actual;
           if (correct) hitC++;
-          const t0 = toArrP2(pc.team0).join('+'), t1 = toArrP2(pc.team1).join('+');
+          const t0 = t0arr.join('+'), t1 = t1arr.join('+');
           const predTeam   = pc.predictedWinner === 0 ? t0 : t1;
           const actualTeam = actual === 0 ? t0 : t1;
           cardLines2.push(`  ${correct ? '✅' : '❌'} ${t0} vs ${t1} → 예측: ${predTeam}(${pc.confidence}%), 실제: ${actualTeam}`);
@@ -2877,25 +2879,6 @@ async function _botTodayMatch() {
         resultMap[key] = typeof c.winner === 'number' ? c.winner : -1;
       });
 
-      let hit = 0, total = 0;
-      const predLines = [];
-      allPreds.forEach(pred => {
-        if (!pred.cards) return;
-        pred.cards.forEach(pc => {
-          if (pc.predictedWinner < 0 || !pc.team0 || !pc.team1) return;
-          const key = [...pc.team0].sort().join('_') + '||' + [...pc.team1].sort().join('_');
-          const actual = resultMap[key];
-          if (actual === undefined || actual < 0) return;
-          total++;
-          const correct = pc.predictedWinner === actual;
-          if (correct) hit++;
-          const t0 = pc.team0.join('+'), t1 = pc.team1.join('+');
-          const predTeam = pc.predictedWinner === 0 ? t0 : t1;
-          const actualTeam = actual === 0 ? t0 : t1;
-          predLines.push(`  ${correct ? '✅' : '❌'} ${t0} vs ${t1} → 예측: ${predTeam}(${pc.confidence}%), 실제: ${actualTeam}`);
-        });
-      });
-
       // general/card 분리
       const generalPreds = allPreds.filter(p => p.type === 'general');
       const cardPreds = allPreds.filter(p => p.type === 'card' || (p.cards && !p.type));
@@ -2908,20 +2891,22 @@ async function _botTodayMatch() {
         generalSection = `\n\n🔮 대진 생성 전 예측\n  ${names.join(', ')} 등 ${generalPreds.length}건 — 카드 기반 검증 불가`;
       }
 
-      // card 예측 재집계 (cardPreds만 대상)
+      // card 예측 재집계 (cardPreds만 대상) — Firebase 배열→객체 변환 방어
       let hitC = 0, totalC = 0;
       const cardLines2 = [];
       cardPreds.forEach(pred => {
         if (!pred.cards) return;
-        pred.cards.forEach(pc => {
-          if (pc.predictedWinner < 0 || !pc.team0 || !pc.team1) return;
-          const key = [...pc.team0].sort().join('_') + '||' + [...pc.team1].sort().join('_');
+        const cards = toArrR(pred.cards);
+        cards.forEach(pc => {
+          if (!pc || pc.predictedWinner < 0 || !pc.team0 || !pc.team1) return;
+          const t0arr = toArrR(pc.team0), t1arr = toArrR(pc.team1);
+          const key = [...t0arr].sort().join('_') + '||' + [...t1arr].sort().join('_');
           const actual = resultMap[key];
           if (actual === undefined || actual < 0) return;
           totalC++;
           const correct = pc.predictedWinner === actual;
           if (correct) hitC++;
-          const t0 = pc.team0.join('+'), t1 = pc.team1.join('+');
+          const t0 = t0arr.join('+'), t1 = t1arr.join('+');
           const predTeam = pc.predictedWinner === 0 ? t0 : t1;
           const actualTeam = actual === 0 ? t0 : t1;
           cardLines2.push(`  ${correct ? '✅' : '❌'} ${t0} vs ${t1} → 예측: ${predTeam}(${pc.confidence}%), 실제: ${actualTeam}`);
