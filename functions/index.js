@@ -3420,14 +3420,8 @@ ${statsContext}
     // 1번 풍선: 생일 GIF 이미지 (4종 랜덤)
     const _isDevEnv = process.env.GCLOUD_PROJECT === 'jamite-dev';
     const _bucket = _isDevEnv ? 'jamite-dev.firebasestorage.app' : 'jamite-tennis.firebasestorage.app';
-    const _bdayGifs = [
-      { file: 'birthday.gif',  w: 478, h: 454 },
-      { file: 'birthday2.gif', w: 221, h: 221 },
-      { file: 'birthday4.gif', w: 253, h: 200 },
-    ];
-    const _picked = _bdayGifs[Math.floor(Math.random() * _bdayGifs.length)];
-    const _birthdayGifUrl = `https://firebasestorage.googleapis.com/v0/b/${_bucket}/o/photos%2Fassets%2F${_picked.file}?alt=media`;
-    await _postBotMsg({ imageUrl: _birthdayGifUrl, imgW: _picked.w, imgH: _picked.h });
+    const _birthdayGifUrl = `https://firebasestorage.googleapis.com/v0/b/${_bucket}/o/photos%2Fassets%2Fbirthday.gif?alt=media`;
+    await _postBotMsg({ imageUrl: _birthdayGifUrl, imgW: 478, imgH: 454 });
     // 2번 풍선: 축하 메시지 본문
     await _postBotMsg({ text: greetingText });
     console.log(`birthday greeting sent for ${name}`);
