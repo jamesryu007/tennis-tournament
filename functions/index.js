@@ -3299,3 +3299,139 @@ exports.handleBotTriggers = onValueCreated(
     }
   }
 );
+
+// ══ 생일 축하 메시지 — 매일 오전 9:30 자미톡방 전송 ══════════════════
+
+async function _runBirthdayGreeting() {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+  const mmdd = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const year = now.getFullYear();
+
+  // 오늘 생일인 멤버 찾기
+  const membersSnap = await db.ref('jmt/members').once('value');
+  const membersRaw = membersSnap.val() || {};
+  const members = Object.values(membersRaw);
+  const birthdays = members.filter(m => m.birthday && m.birthday.slice(5) === mmdd);
+  if (!birthdays.length) return;
+
+  // 올해 개인/페어 통계 로드
+  const [playerSnap, pairSnap] = await Promise.all([
+    db.ref(`jmt/playerStats/${year}`).once('value'),
+    db.ref(`jmt/pairStats/${year}`).once('value'),
+  ]);
+  const playerStats = playerSnap.val() || {};
+  const pairStats   = pairSnap.val()   || {};
+
+  const effWr = (w, d, l) => { const t = w + (d || 0) + l; return t ? Math.round((w + (d || 0) * 0.5) / t * 100) : 0; };
+  const _fn = name => name && name.length >= 3 ? name.slice(1) : name;
+
+  for (const member of birthdays) {
+    const name = member.name;
+    const gender = member.gender === 'female' ? 'female' : 'male';
+    const honorific = gender === 'female' ? '언니' : '오빠';
+    const firstName = _fn(name);
+
+    // 올해 개인 성적
+    const ps = playerStats[name] || {};
+    const wins = ps.wins || 0, losses = ps.losses || 0, draws = ps.draws || 0;
+    const totalGames = wins + losses + draws;
+    const wr = effWr(wins, draws, losses);
+
+    // 올해 랭킹 계산 (유효승률 기준)
+    const plRaw = Object.entries(playerStats)
+      .map(([n, s]) => ({ name: n, wins: s.wins||0, draws: s.draws||0, losses: s.losses||0 }));
+    const plAvg = plRaw.reduce((s, p) => s + p.wins + p.draws + p.losses, 0) / (plRaw.length || 1);
+    const plTh  = plAvg * 0.5;
+    const plQ   = plRaw.filter(p => p.wins+p.draws+p.losses >= plTh)
+      .sort((a, b) => effWr(b.wins,b.draws,b.losses) - effWr(a.wins,a.draws,a.losses) || b.wins - a.wins);
+    const rankIdx = plQ.findIndex(p => p.name === name);
+    const rankStr = rankIdx >= 0 ? `${rankIdx + 1}위` : '미집계';
+
+    // 최고 파트너 (pairStats에서 해당 멤버 포함, 승률 최고)
+    const pairEntries = Object.entries(pairStats)
+      .filter(([k]) => k.split('_').includes(name))
+      .map(([k, v]) => {
+        const partner = k.split('_').find(n => n !== name) || '';
+        const w = v.wins || 0, d = v.draws || 0, l = v.losses || 0;
+        return { partner, wins: w, draws: d, losses: l, total: w+d+l, wr: effWr(w, d, l) };
+      })
+      .filter(p => p.total >= 2)
+      .sort((a, b) => b.wr - a.wr || b.wins - a.wins);
+    const bestPair = pairEntries[0] || null;
+
+    // 특기 사항 — 올해 최고 성취 요약
+    const highlights = [];
+    if (totalGames >= 5 && wr >= 70) highlights.push(`승률 ${wr}%의 강자`);
+    else if (totalGames >= 5 && wr >= 50) highlights.push(`승률 ${wr}%로 선전 중`);
+    if (wins >= 5) highlights.push(`${wins}승 달성`);
+    if (bestPair) highlights.push(`${bestPair.partner}와 최강 콤비 (${bestPair.wins}승${bestPair.losses ? ' '+bestPair.losses+'패' : ''})`);
+
+    const statsContext = totalGames > 0
+      ? `올해 개인 성적: ${wins}승 ${draws ? draws+'무 ' : ''}${losses}패, 승률 ${wr}%, 현재 랭킹 ${rankStr}\n` +
+        (bestPair ? `최고 파트너: ${bestPair.partner} (${bestPair.wins}승 ${bestPair.losses}패, 페어 승률 ${bestPair.wr}%)\n` : '') +
+        (highlights.length ? `특이사항: ${highlights.join(' / ')}\n` : '')
+      : `올해 아직 경기 기록 없음 (시즌 초반)\n`;
+
+    // GPT로 축하 메시지 생성
+    const apiKey = process.env.OPENAI_API_KEY;
+    let greetingText = '';
+    if (apiKey) {
+      const prompt = `당신은 자미터 테니스 동호회 전용 AI 제이입니다.
+오늘은 ${firstName} ${honorific}의 생일이에요!
+아래 정보를 참고해서 따뜻하고 위트 있는 생일 축하 메시지를 작성해주세요.
+- 멤버 이름: ${name} (호칭: ${firstName} ${honorific})
+- 생일: ${mmdd.replace('-', '월 ')}일
+${statsContext}
+조건:
+- 생일 축하 이모티콘 풍성하게 사용
+- 올해 테니스 성적(승률, 랭킹, 최고 파트너)을 자연스럽게 언급
+- 특이하게 잘한 점이나 인상적인 기록 칭찬
+- 테니스 동호회 특성에 맞는 덕담 (코트에서의 활약, 앞으로의 응원 등)
+- 존댓말, 200자 이내, 상투적 클로징 문구 금지
+- 마지막에 생일 케이크/풍선/파티 이모티콘으로 마무리`;
+
+      try {
+        const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model: 'gpt-4.1-mini',
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 300,
+            temperature: 0.85,
+          }),
+        });
+        const data = await resp.json();
+        greetingText = data.choices?.[0]?.message?.content?.trim() || '';
+        await db.ref('jmt/botUsage/total').transaction(n => (n || 0) + 1);
+      } catch (e) {
+        console.error('birthday greeting GPT error:', e);
+      }
+    }
+
+    // GPT 실패 시 폴백
+    if (!greetingText) {
+      const statLine = totalGames > 0
+        ? `올해 ${wins}승 ${losses}패, 승률 ${wr}%${bestPair ? ` · 최고 파트너 ${bestPair.partner}` : ''}로 멋지게 활약하고 있어요!`
+        : '올해도 코트에서 멋진 활약 기대해요!';
+      greetingText = `🎉🎂 ${name} ${honorific}, 생일 축하드려요! 🎈\n${statLine} 앞으로도 코트에서 빛나는 한 해 되세요! 🎾✨`;
+    }
+
+    await _postBotMsg({ text: greetingText });
+    console.log(`birthday greeting sent for ${name}`);
+  }
+}
+
+exports.birthdayGreeting = onSchedule(
+  { schedule: '30 9 * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    try { await _runBirthdayGreeting(); }
+    catch (e) { console.error('birthdayGreeting error:', e); }
+  }
+);
+
+exports.testBirthdayGreeting = onCall({ region: 'asia-southeast1' }, async (req) => {
+  if (!_BOT_MANAGERS.includes(req.data.senderName || '')) throw new Error('권한 없음');
+  await _runBirthdayGreeting();
+  return { ok: true };
+});
