@@ -3423,7 +3423,6 @@ ${statsContext}
     const _bdayGifs = [
       { file: 'birthday.gif',  w: 478, h: 454 },
       { file: 'birthday2.gif', w: 221, h: 221 },
-      { file: 'birthday3.gif', w: 500, h: 286 },
       { file: 'birthday4.gif', w: 253, h: 200 },
     ];
     const _picked = _bdayGifs[Math.floor(Math.random() * _bdayGifs.length)];
