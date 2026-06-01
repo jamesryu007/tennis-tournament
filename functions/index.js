@@ -2350,7 +2350,7 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
             t1stat ? `    - ${t1stat}` : `    - ${t1} 페어 전적 없음`,
           ].join('\n');
         }).join('\n');
-        predictCtx = `\n[오늘 예정 경기카드 — 스코어 미입력, 예측 대상]\n${cardLines}\n⚠️ 예측 시 반드시 아래 지시 준수:\n- 각 경기마다 예상 승팀과 확률(예: 55:45)을 명시\n- 과거 전적 없으면 개인 랭킹 기반으로 추론\n- 확률은 50:50~75:25 사이로 현실적으로\n- 답변 끝에 반드시 아래 태그를 그대로 포함 (사용자에게는 보이지 않는 내부 태그):\n[__PRED__]{"cards":[${todayPendingCards.map((c,i) => `{"i":${i},"t0":${JSON.stringify(c.team0)},"t1":${JSON.stringify(c.team1)}}`).join(',')}]}[/__PRED__]\n실제 예측 후 위 JSON의 각 카드에 "w":0 또는 "w":1 (예측 승팀 인덱스), "conf":숫자(%) 를 채워서 태그 안에 넣을 것`;
+        predictCtx = `\n[오늘 예정 경기카드 — 스코어 미입력, 예측 대상]\n${cardLines}\n⚠️ 예측 시 반드시 아래 형식 준수 (경기마다 3줄 고정):\n경기N: A+B vs C+D\n페어 승률: A+B XX% vs C+D XX% (전적 없으면 "신생" 표기)\n→ A+B 승리 예상 (XX:XX)\n\n- 확률은 50:50~75:25 사이로 현실적으로\n- 전체 경기 예측 후 한 줄 총평 추가 (예: "전반적으로 A 페어들이 우세해 보여요 🎾")\n- 답변 끝에 반드시 아래 태그를 그대로 포함 (사용자에게는 보이지 않는 내부 태그):\n[__PRED__]{"cards":[${todayPendingCards.map((c,i) => `{"i":${i},"t0":${JSON.stringify(c.team0)},"t1":${JSON.stringify(c.team1)}}`).join(',')}]}[/__PRED__]\n실제 예측 후 위 JSON의 각 카드에 "w":0 또는 "w":1 (예측 승팀 인덱스), "conf":숫자(%) 를 채워서 태그 안에 넣을 것`;
       } else {
         // 카드 없음 — 일반 예측 모드 안내
         predictCtx = `\n[예측 모드 — 오늘 경기카드 없음]\n과거 개인 랭킹·페어 전적 기반으로 확률 예측. 카드가 생성되면 더 구체적인 예측 가능.`;
