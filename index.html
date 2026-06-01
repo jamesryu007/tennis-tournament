@@ -2469,7 +2469,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v773';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v774';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5588,6 +5588,51 @@ function _renderTeamFinalResult(){
   document.getElementById('draw-analysis-scroll').scrollTo({top:99999,behavior:'smooth'});
 }
 
+// ── 자동배정 최종 결과 보기 ──────────────────────────────────────────
+function _renderAutoDrawFinalResult(){
+  const toArr=v=>Array.isArray(v)?v:(v?Object.values(v):[]);
+  const cards=Object.values(_dailyCards).filter(c=>!c._teamMode&&c.phase==='done'&&c.winner>=0);
+  if(!cards.length){alert('완료된 경기가 없습니다.');return;}
+  const sorted=cards.sort((a,b)=>(a.createdAt||a.num||0)-(b.createdAt||b.num||0));
+  let idx=1;
+  const rows=sorted.map(c=>{
+    const t0=toArr(c.team0).join('+');
+    const t1=toArr(c.team1).join('+');
+    const sets=toArr(c.sets);
+    // 세트별 스코어 문자열 (승자 기준 앞에)
+    const scoreStr=sets.map(s=>{
+      const s0=s.s0??0,s1=s.s1??0;
+      return c.winner===0?`${s0}:${s1}`:`${s1}:${s0}`;
+    }).join(', ');
+    const winner=c.winner===0?t0:t1;
+    const loser=c.winner===0?t1:t0;
+    const matchLabel=c._round!=null?`${c._round}R${c._court!=null?' '+c._court+'코트':''}`:`경기${idx++}`;
+    return `<tr style="border-bottom:1px solid #f1f5f9">
+      <td style="padding:6px 6px;font-size:0.72rem;color:#64748b;white-space:nowrap">${matchLabel}</td>
+      <td style="padding:6px 4px;font-size:0.75rem;font-weight:700;color:#1e293b">${winner}</td>
+      <td style="padding:6px 4px;font-size:0.75rem;color:#64748b">vs ${loser}</td>
+      <td style="padding:6px 6px;font-size:0.8rem;font-weight:800;color:#2563eb;white-space:nowrap">${scoreStr}</td>
+    </tr>`;
+  });
+  const el=document.getElementById('draw-analysis-inner');
+  const prev=document.getElementById('auto-draw-final-result');
+  if(prev) prev.remove();
+  el.insertAdjacentHTML('beforeend',`
+    <div id="auto-draw-final-result" style="background:#fff;border:2px solid #2563eb;border-radius:14px;padding:14px 16px;margin-top:12px">
+      <div style="font-size:0.95rem;font-weight:800;color:#1e293b;margin-bottom:10px">📊 경기 결과 (${sorted.length}경기 완료)</div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:2px solid #e2e8f0">
+          <th style="padding:5px 6px;text-align:left;color:#64748b;font-size:0.72rem"></th>
+          <th style="padding:5px 4px;text-align:left;color:#2563eb;font-size:0.72rem">승리</th>
+          <th style="padding:5px 4px;text-align:left;color:#64748b;font-size:0.72rem">패배</th>
+          <th style="padding:5px 6px;text-align:left;color:#64748b;font-size:0.72rem">스코어</th>
+        </tr></thead>
+        <tbody>${rows.join('')}</tbody>
+      </table>
+    </div>`);
+  document.getElementById('draw-analysis-scroll').scrollTo({top:99999,behavior:'smooth'});
+}
+
 // ── 팀장 대진수정 팝업 ───────────────────────────────────────────────
 let _drawEditCtx=null;
 
@@ -6152,7 +6197,9 @@ function _renderDrawAnalysis(d){
   html+=`<div style="text-align:center;font-size:0.75rem;color:#94a3b8;font-weight:600;padding:6px 0 2px">
     총 ${d.autoCards.length}경기 · ${d.roundNums.length}라운드 · ${d.courtCount}코트
   </div>
-  ${d.teamMode?`<button onclick="_renderTeamFinalResult()" style="width:100%;margin-top:10px;padding:13px;background:linear-gradient(135deg,#1e40af,#9d174d);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit">🏆 최종 결과 보기</button>`:''}
+  ${d.teamMode
+    ?`<button onclick="_renderTeamFinalResult()" style="width:100%;margin-top:10px;padding:13px;background:linear-gradient(135deg,#1e40af,#9d174d);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit">🏆 최종 결과 보기</button>`
+    :`<button onclick="_renderAutoDrawFinalResult()" style="width:100%;margin-top:10px;padding:13px;background:#2563eb;color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit">📊 경기 결과 보기</button>`}
   </div>`;
   return html;
 }
