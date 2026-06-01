@@ -3414,9 +3414,12 @@ ${statsContext}
       const statLine = totalGames > 0
         ? `올해 ${wins}승 ${losses}패, 승률 ${wr}%${bestPair ? ` · 최고 파트너 ${bestPair.partner}` : ''}로 멋지게 활약하고 있어요!`
         : '올해도 코트에서 멋진 활약 기대해요!';
-      greetingText = `🎉🎂 ${name} ${honorific}, 생일 축하드려요! 🎈\n${statLine} 앞으로도 코트에서 빛나는 한 해 되세요! 🎾✨`;
+      greetingText = `${firstName} ${honorific}, 생일 축하드려요!\n${statLine} 앞으로도 코트에서 빛나는 한 해 되세요! 🎾✨`;
     }
 
+    // 1번 풍선: 생일 이모지
+    await _postBotMsg({ text: `🎂🎉🎈🎊🥳🎁🎀` });
+    // 2번 풍선: 축하 메시지 본문
     await _postBotMsg({ text: greetingText });
     console.log(`birthday greeting sent for ${name}`);
   }
