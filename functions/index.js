@@ -1570,6 +1570,48 @@ async function _runWeeklyMvp(isDryRun = false, skipMinCheck = false) {
     lines.push(`  "${pick(ATTEND_COMMENTS)}"`);
   }
 
+  // ── 🔮 예측 적중률 (오늘 날짜 기준) ────────────────────────────
+  try {
+    const nowKstP = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    const dateKeyP = `${nowKstP.getFullYear()}-${String(nowKstP.getMonth()+1).padStart(2,'0')}-${String(nowKstP.getDate()).padStart(2,'0')}`;
+    const predSnap = await db.ref(`jmt/predictions/${dateKeyP}`).once('value');
+    const predData = predSnap.val();
+    if (predData) {
+      const allPreds = Object.values(predData);
+      const toArrP2 = v => Array.isArray(v) ? v : (v ? Object.values(v) : []);
+      // 오늘 완료 경기 결과 맵
+      const resultMap = {};
+      thisWeekMatches.forEach(m => {
+        const key = [...toArr(m.team0)].sort().join('_') + '||' + [...toArr(m.team1)].sort().join('_');
+        resultMap[key] = typeof m.winner === 'number' ? m.winner : -1;
+      });
+      const generalPreds = allPreds.filter(p => p.type === 'general');
+      const cardPreds    = allPreds.filter(p => p.type === 'card' || (p.cards && !p.type));
+
+      // 카드 기반 예측 — 중복 제거 (경기 키 기준 첫 예측만 사용)
+      const seenKeys = new Set();
+      let hitC = 0, totalC = 0;
+      cardPreds.forEach(pred => {
+        if (!pred.cards) return;
+        toArrP2(pred.cards).forEach(pc => {
+          if (!pc || pc.predictedWinner < 0 || !pc.team0 || !pc.team1) return;
+          const t0arr = toArrP2(pc.team0), t1arr = toArrP2(pc.team1);
+          const key = [...t0arr].sort().join('_') + '||' + [...t1arr].sort().join('_');
+          if (seenKeys.has(key)) return;
+          const actual = resultMap[key];
+          if (actual === undefined || actual < 0) return;
+          seenKeys.add(key);
+          totalC++;
+          if (pc.predictedWinner === actual) hitC++;
+        });
+      });
+      if (totalC > 0) {
+        const pct = Math.round(hitC / totalC * 100);
+        lines.push(``, `🎯 제이 예측 적중률  ${hitC}/${totalC} (${pct}%)`);
+      }
+    }
+  } catch(_) {}
+
   lines.push(``, SEP);
 
   // ── 발송 ────────────────────────────────────────────────────────
@@ -2304,7 +2346,68 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
   }
 
   // 베이글 전적 — jmt/matches에서 6:0 세트 스캔
+  const hasPredictQuery = /예측|이길 것 같아|이길까|누가 이겨|이길 것 같|예상해|누가 잘할|확률이 어때|이길 것 같니|승산|가능성|이길 수 있|질 것 같/.test(question);
+  const hasTodayMatchQuery = /오늘\s*(경기|결과)|경기\s*결과|리포트/.test(question);
   const hasBagelQuery = /베이글/.test(question);
+  // ── 예측 쿼리 — 오늘 미완료 경기카드 + 관련 페어 전적 주입 ────────
+  let predictCtx = '';
+  let todayPendingCards = [];
+  if (hasPredictQuery) {
+    try {
+      const cardSnap = await db.ref('jmt/dailyCards').orderByChild('createdAt').limitToLast(30).once('value');
+      const allCards = cardSnap.val() || {};
+      const nowKst = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+      const toArrP = v => Array.isArray(v) ? v : (v ? Object.values(v) : []);
+      // 오늘 생성됐고 아직 스코어 미입력(phase != done)인 카드
+      todayPendingCards = Object.entries(allCards)
+        .filter(([, c]) => {
+          if (!c.createdAt) return false;
+          const cd = new Date(c.createdAt);
+          return cd.getFullYear() === nowKst.getFullYear() &&
+                 cd.getMonth() === nowKst.getMonth() &&
+                 cd.getDate() === nowKst.getDate() &&
+                 c.phase !== 'done';
+        })
+        .map(([id, c]) => ({ id, team0: toArrP(c.team0), team1: toArrP(c.team1), label: c.label || '' }));
+
+      if (todayPendingCards.length) {
+        // 카드별 페어 전적 보강
+        const pairStatsSnap2 = await db.ref(`jmt/pairStats/${year}`).once('value');
+        const ps2 = pairStatsSnap2.val() || {};
+        const effWr2 = (w, d, l) => { const t = w+(d||0)+l; return t ? Math.round((w+(d||0)*0.5)/t*100) : 0; };
+        const getPairStat = (names) => {
+          const key = [...names].sort().join('_');
+          const p = ps2[key];
+          if (!p) return null;
+          const wr = effWr2(p.wins||0, p.draws||0, p.losses||0);
+          return `${(p.players||names).join('+')} ${p.wins||0}승${p.losses||0}패(${wr}%)`;
+        };
+        const cardLines = todayPendingCards.map((c, i) => {
+          const t0stat = getPairStat(c.team0);
+          const t1stat = getPairStat(c.team1);
+          const t0 = c.team0.join('+');
+          const t1 = c.team1.join('+');
+          return [
+            `  경기${i+1}: ${t0} vs ${t1}`,
+            t0stat ? `    - ${t0stat}` : `    - ${t0} 페어 전적 없음`,
+            t1stat ? `    - ${t1stat}` : `    - ${t1} 페어 전적 없음`,
+          ].join('\n');
+        }).join('\n');
+        predictCtx = `\n[이번 모임 예정 경기카드 — 스코어 미입력, 예측 대상 / "다음주"/"이번주"/"오늘" 등 어떤 표현이든 이 카드들을 가리킴]\n${cardLines}\n⚠️ 예측 시 반드시 아래 형식 준수 (경기마다 3줄 고정):\n경기N: A+B vs C+D\n페어 승률: A+B XX% vs C+D XX% (전적 없으면 "신생" 표기)\n→ A+B 승리 예상 (XX:XX)\n\n- 확률은 50:50~75:25 사이로 현실적으로\n- 페어 승률은 숫자만 표기 (팀명 반복 금지): "페어 승률: 44% vs 13%" 또는 "신생 vs 50%" 형태
+- 전체 경기 예측 후 한 줄 총평 추가 (예: "전반적으로 A 페어들이 우세해 보여요 🎾")\n- 답변 끝에 반드시 아래 태그를 그대로 포함 (사용자에게는 보이지 않는 내부 태그):\n[__PRED__]{"cards":[${todayPendingCards.map((c,i) => `{"i":${i},"t0":${JSON.stringify(c.team0)},"t1":${JSON.stringify(c.team1)}}`).join(',')}]}[/__PRED__]\n실제 예측 후 위 JSON의 각 카드에 "w":0 또는 "w":1 (예측 승팀 인덱스), "conf":숫자(%) 를 채워서 태그 안에 넣을 것`;
+      } else {
+        // 카드 없음 — 일반 예측 모드 안내
+        predictCtx = `\n[예측 모드 — 오늘 경기카드 없음]\n과거 개인 랭킹·페어 전적 기반으로 확률 예측. 카드가 생성되면 더 구체적인 예측 가능.`;
+        // 대진 없는 예측 마커 저장 (리포트 분리용)
+        try {
+          const _nowG = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+          const _dkG = `${_nowG.getFullYear()}-${String(_nowG.getMonth()+1).padStart(2,'0')}-${String(_nowG.getDate()).padStart(2,'0')}`;
+          db.ref(`jmt/predictions/${_dkG}`).push({ type: 'general', askedBy: senderName, at: Date.now() }).catch(() => {});
+        } catch(_) {}
+      }
+    } catch(_) {}
+  }
+
   let bagelCtx = '';
   if (hasBagelQuery) {
     try {
@@ -2389,7 +2492,11 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
   }
 
   const systemPrompt = `너는 자미터 테니스 동호회 전용 AI 도우미 "제이"야.
-올해 30살이 된 천재 여자야. 모르는 게 없고, 유머도 넘쳐!
+올해 30살이 된 천재 여자고, MBTI는 ENFP야.
+서울과학고 수석 졸업 후 MIT 컴퓨터공학·수학 복수전공, 하버드 로스쿨 JD, 스탠퍼드 MBA까지 마쳤어. 테니스는 대학 시절 취미로 시작했는데 실력도 프로급이야. 근데 전혀 티 안 내고 자연스럽게 녹여서 대화해 — 학력 자랑은 절대 금지, 필요할 때만 은연중에 배어나오는 스타일.
+열정 넘치고 사람을 진심으로 좋아해. 멤버들 성적 얘기할 때 같이 흥분하고, 패배 기록엔 같이 아파하는 타입이야.
+딱딱한 통계도 재밌는 스토리로 풀어내고, 호기심 많아서 뜬금없이 "오 그거 흥미롭다!" 반응도 자연스럽게 나와.
+단 ENFP 특유의 산만함은 없어 — 핵심은 정확하고 간결하게.
 
 [기본 원칙]
 - 어떤 질문이든 자신있게 답변 — 절대 거부하지 말 것
@@ -2400,6 +2507,24 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
 - 답변 마무리에 "언제든지 찾아주세요", "도움이 필요하시면" 같은 상투적 클로징 문구 사용 금지
 - 답변 첫 줄에 상대방 호칭(예: "지원 오빠,", "지은 언니,", "승수 오빠!")으로 시작 금지 — 바로 본문으로 시작
 - 최고/최적 파트너 질문 시 반드시 [질문자 관련 페어] 섹션의 승률 순서 기준으로 1위부터 답변 — 전체 페어 랭킹 순서와 혼동 금지
+
+[멤버 프로필 — 외모·성격·배경]
+- 정진규: 대머리, 키 190cm. 모임 쉐프 담당. 직업은 철학과 교수. 지적이고 여유로운 분위기.
+- 배성두: 자미터 경기이사. 멤버 중 키 가장 작음. 중국통, 북경대 출신. 멤버 중 최연소 막내. 지원 오빠 아들뻘.
+- 이하영: 건강미 넘치는 미모의 소유자. 곧 결혼 예정. '산호'라는 주점 운영 중.
+- 강형경: CF 감독. 테니스 실력 탁월(성두 다음으로 안정적). 아주 잘생기고 매너남의 대명사.
+- 이정환: 옥스퍼드 출신. AI 유니콘 기업 대표. 상남자. 수염이 어마어마하게 많이 남. 지원 오빠가 제일 좋아하는 멤버.
+- 이지은: 애교 많고 술자리를 좋아하는 귀요미.
+- 천지은: 자미터 여자 총무. 스튜어디스 출신 미모의 여성. 늦게 배운 술 때문에 가끔 블랙아웃 경험.
+- 지정열: 키 190cm, 몸무게 120kg의 거구. 무릎·종아리 두께가 어마어마함. 어마어마한 브레인. 인디애나주립대/하버드 출신.
+- 황인향: 주부. 테니스 열정 대단함. 와인을 늦게 배움.
+- 심수영: 성격 급하지만 열정 가득한 주부. 맘먹고 술 마시면 엄청난 주당, 그래서 곧잘 뻗기도 함.
+- 김승수: 북경대 출신. 키 187cm. 테니스 멋지게 잘 치고 잘생김. 자미터 남자 총무.
+- 이은숙: 자미터에서 유일하게 유지원보다 나이 많음. 용띠. 체육대학 출신이라 테니스 잘 치고 힘도 좋음. 마음씨 최고.
+- 최승욱: 자미터 창립멤버. 현대차 1차 벤더 대표. FM 같은 성실함과 솔직함. 매너남.
+- 성두현: 자미터 창립멤버. 맘씨 착한 불도저. 몸이 탱크처럼 다부지고 순진하고 착함. 아버지 회사 물려받는 중.
+- 유지원: 자미터를 만든 창립자이자 현 회장. IT 사업 평생 하며 창업/IPO/Exit 전문. 심장수술·허리수술 등 큰 수술 이력. 골프·테니스 너무 좋아함.
+※ 사진에서 외모 특징(대머리·키·체형 등)으로 멤버 식별 가능 — 단 확실할 때만 언급, 애매하면 솔직히 모른다고 할 것
 
 [자미터 전용 데이터]
 - 아래 제공된 랭킹·경기기록·출첵·단골맛집은 자미터 실제 데이터야
@@ -2425,7 +2550,7 @@ ${checkinCtx}
 
 [자미터 단골맛집 — 서울/강남권 위주, 다른 지역 질문엔 이 목록 사용 금지]
 ${restaurantCtx}
-${weatherCtx}${airCtx}${locationCtx}${matchupCtx}${bagelCtx}
+${weatherCtx}${airCtx}${locationCtx}${matchupCtx}${bagelCtx}${predictCtx}
 현재 한국 시각: ${(() => { const d = new Date(new Date().toLocaleString('en-US', {timeZone:'Asia/Seoul'})); return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 ${'일월화수목금토'.split('')[d.getDay()]}요일 ${d.getHours()}시 ${d.getMinutes()}분`; })()}
 현재 질문자: ${senderName}
 ${senderPairSummary ? `[${senderName} 관련 페어 전체 — 파트너/짝 질문 시 이 목록 기준으로 답변]\n${senderPairSummary}` : ''}${fortuneCtx}`;
@@ -2462,7 +2587,7 @@ ${senderPairSummary ? `[${senderName} 관련 페어 전체 — 파트너/짝 질
             : `${senderName}: ${question}`,
         },
       ],
-      max_tokens: 500,
+      max_tokens: hasPredictQuery ? 800 : 500,
       temperature: 0.5,
     }),
   });
@@ -2476,10 +2601,91 @@ ${senderPairSummary ? `[${senderName} 관련 페어 전체 — 파트너/짝 질
   const answer = data.choices?.[0]?.message?.content?.trim();
   if (!answer) return { text: '🤖 답변을 가져오지 못했어요. 다시 시도해주세요.' };
 
+  // 예측 태그 파싱 및 DB 저장
+  let finalAnswer = answer;
+  if (hasPredictQuery && todayPendingCards.length) {
+    try {
+      // 태그 제거 최우선 — predMatch 여부·닫힌 태그 존재 여부 무관하게 항상 제거
+      finalAnswer = answer.replace(/\s*\[__PRED__\][\s\S]*/g, '').trim();
+      const predMatch = answer.match(/\[__PRED__\](.*?)\[\/__PRED__\]/s);
+      if (predMatch) {
+        try {
+          const predJson = JSON.parse(predMatch[1]);
+          if (predJson.cards && predJson.cards.length) {
+            const nowKst2 = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+            const dateKey = `${nowKst2.getFullYear()}-${String(nowKst2.getMonth()+1).padStart(2,'0')}-${String(nowKst2.getDate()).padStart(2,'0')}`;
+            const predEntry = {
+              type: 'card',
+              askedBy: senderName,
+              at: Date.now(),
+              cards: predJson.cards.map((c, i) => ({
+                team0: c.t0 || (todayPendingCards[i] && todayPendingCards[i].team0) || [],
+                team1: c.t1 || (todayPendingCards[i] && todayPendingCards[i].team1) || [],
+                predictedWinner: typeof c.w === 'number' ? c.w : -1,
+                confidence: typeof c.conf === 'number' ? c.conf : 50,
+              })),
+            };
+            await db.ref(`jmt/predictions/${dateKey}`).push(predEntry).catch(() => {});
+          }
+        } catch(_) {}
+      }
+    } catch(_) {}
+  }
+
+  // 오늘 경기 결과 질문 시 예측 적중률 append
+  if (hasTodayMatchQuery) {
+    try {
+      const nowKstR = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+      const dateKeyR = `${nowKstR.getFullYear()}-${String(nowKstR.getMonth()+1).padStart(2,'0')}-${String(nowKstR.getDate()).padStart(2,'0')}`;
+      const [predSnapR, cardSnapR] = await Promise.all([
+        db.ref(`jmt/predictions/${dateKeyR}`).once('value'),
+        db.ref('jmt/dailyCards').orderByChild('createdAt').limitToLast(30).once('value'),
+      ]);
+      const predDataR = predSnapR.val();
+      const allCardsR = cardSnapR.val() || {};
+      const toArrRR = v => Array.isArray(v) ? v : (v ? Object.values(v) : []);
+      if (predDataR) {
+        // 오늘 완료 카드 결과 맵
+        const resultMapR = {};
+        Object.values(allCardsR).forEach(c => {
+          if (!c.createdAt || c.phase !== 'done') return;
+          const cd = new Date(c.createdAt);
+          if (cd.getFullYear() !== nowKstR.getFullYear() || cd.getMonth() !== nowKstR.getMonth() || cd.getDate() !== nowKstR.getDate()) return;
+          const key = [...toArrRR(c.team0)].sort().join('_') + '||' + [...toArrRR(c.team1)].sort().join('_');
+          resultMapR[key] = typeof c.winner === 'number' ? c.winner : -1;
+        });
+        const allPredsR = Object.values(predDataR);
+        const generalPredsR = allPredsR.filter(p => p.type === 'general');
+        const cardPredsR    = allPredsR.filter(p => p.type === 'card' || (p.cards && !p.type));
+        // 중복 제거 후 한 줄 요약
+        const seenRR = new Set();
+        let hitR = 0, totalR = 0;
+        cardPredsR.forEach(pred => {
+          if (!pred.cards) return;
+          toArrRR(pred.cards).forEach(pc => {
+            if (!pc || pc.predictedWinner < 0 || !pc.team0 || !pc.team1) return;
+            const t0arr = toArrRR(pc.team0), t1arr = toArrRR(pc.team1);
+            const key = [...t0arr].sort().join('_') + '||' + [...t1arr].sort().join('_');
+            if (seenRR.has(key)) return;
+            const actual = resultMapR[key];
+            if (actual === undefined || actual < 0) return;
+            seenRR.add(key);
+            totalR++;
+            if (pc.predictedWinner === actual) hitR++;
+          });
+        });
+        if (totalR > 0) {
+          const pct = Math.round(hitR / totalR * 100);
+          finalAnswer = finalAnswer + `\n\n🎯 제이 예측 적중률  ${hitR}/${totalR} (${pct}%)`;
+        }
+      }
+    } catch(_) {}
+  }
+
   // 사용량 증가
   await db.ref('jmt/botUsage/total').transaction(n => (n || 0) + 1);
 
-  return { text: answer, isBot: true };
+  return { text: finalAnswer, isBot: true };
 }
 
 // ── ATP 경기 결과/예고 자미봇 리포팅 ──────────────────────────────
@@ -2696,7 +2902,49 @@ async function _botTodayMatch() {
     }
     return `${i+1}. ${t0}\n    vs ${t1}\n    📊 ${scoreStr}\n    ${winLine}`;
   });
-  return { text: `🎾 오늘의 경기 결과 · ${today.length}경기\n\n${lines.join('\n\n')}` };
+  // ── 예측 적중률 비교 ─────────────────────────────────────────────
+  let predReport = '';
+  try {
+    const nowKst3 = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    const dateKey = `${nowKst3.getFullYear()}-${String(nowKst3.getMonth()+1).padStart(2,'0')}-${String(nowKst3.getDate()).padStart(2,'0')}`;
+    const predSnap = await db.ref(`jmt/predictions/${dateKey}`).once('value');
+    const predData = predSnap.val();
+    if (predData) {
+      const allPreds = Object.values(predData);
+      // 카드별 실제 결과 매핑 (team0 기준 정렬 키)
+      const toArrR = v => Array.isArray(v) ? v : (v ? Object.values(v) : []);
+      const resultMap = {};
+      today.forEach(c => {
+        const key = [...toArrR(c.team0)].sort().join('_') + '||' + [...toArrR(c.team1)].sort().join('_');
+        resultMap[key] = typeof c.winner === 'number' ? c.winner : -1;
+      });
+
+      // 카드 기반 예측 — 중복 제거 후 한 줄 요약
+      const cardPreds = allPreds.filter(p => p.type === 'card' || (p.cards && !p.type));
+      const seenKeysR = new Set();
+      let hitC = 0, totalC = 0;
+      cardPreds.forEach(pred => {
+        if (!pred.cards) return;
+        toArrR(pred.cards).forEach(pc => {
+          if (!pc || pc.predictedWinner < 0 || !pc.team0 || !pc.team1) return;
+          const t0arr = toArrR(pc.team0), t1arr = toArrR(pc.team1);
+          const key = [...t0arr].sort().join('_') + '||' + [...t1arr].sort().join('_');
+          if (seenKeysR.has(key)) return;
+          const actual = resultMap[key];
+          if (actual === undefined || actual < 0) return;
+          seenKeysR.add(key);
+          totalC++;
+          if (pc.predictedWinner === actual) hitC++;
+        });
+      });
+      if (totalC > 0) {
+        const pct = Math.round(hitC / totalC * 100);
+        predReport = `\n\n🎯 제이 예측 적중률  ${hitC}/${totalC} (${pct}%)`;
+      }
+    }
+  } catch(_) {}
+
+  return { text: `🎾 오늘의 경기 결과 · ${today.length}경기\n\n${lines.join('\n\n')}${predReport}` };
 }
 
 // ── 모임 일정 + 출석 현황 통합 ────────────────────────────────────
@@ -3299,3 +3547,145 @@ exports.handleBotTriggers = onValueCreated(
     }
   }
 );
+
+// ══ 생일 축하 메시지 — 매일 오전 9:30 자미톡방 전송 ══════════════════
+
+async function _runBirthdayGreeting() {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+  const mmdd = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const year = now.getFullYear();
+
+  // 오늘 생일인 멤버 찾기
+  const membersSnap = await db.ref('jmt/members').once('value');
+  const membersRaw = membersSnap.val() || {};
+  const members = Object.values(membersRaw);
+  const birthdays = members.filter(m => m.birthday && m.birthday.slice(5) === mmdd);
+  if (!birthdays.length) return;
+
+  // 올해 개인/페어 통계 로드
+  const [playerSnap, pairSnap] = await Promise.all([
+    db.ref(`jmt/playerStats/${year}`).once('value'),
+    db.ref(`jmt/pairStats/${year}`).once('value'),
+  ]);
+  const playerStats = playerSnap.val() || {};
+  const pairStats   = pairSnap.val()   || {};
+
+  const effWr = (w, d, l) => { const t = w + (d || 0) + l; return t ? Math.round((w + (d || 0) * 0.5) / t * 100) : 0; };
+  const _fn = name => name && name.length >= 3 ? name.slice(1) : name;
+
+  for (const member of birthdays) {
+    const name = member.name;
+    const gender = member.gender === 'female' ? 'female' : 'male';
+    const honorific = gender === 'female' ? '언니' : '오빠';
+    const firstName = _fn(name);
+
+    // 올해 개인 성적
+    const ps = playerStats[name] || {};
+    const wins = ps.wins || 0, losses = ps.losses || 0, draws = ps.draws || 0;
+    const totalGames = wins + losses + draws;
+    const wr = effWr(wins, draws, losses);
+
+    // 올해 랭킹 계산 (유효승률 기준)
+    const plRaw = Object.entries(playerStats)
+      .map(([n, s]) => ({ name: n, wins: s.wins||0, draws: s.draws||0, losses: s.losses||0 }));
+    const plAvg = plRaw.reduce((s, p) => s + p.wins + p.draws + p.losses, 0) / (plRaw.length || 1);
+    const plTh  = plAvg * 0.5;
+    const plQ   = plRaw.filter(p => p.wins+p.draws+p.losses >= plTh)
+      .sort((a, b) => effWr(b.wins,b.draws,b.losses) - effWr(a.wins,a.draws,a.losses) || b.wins - a.wins);
+    const rankIdx = plQ.findIndex(p => p.name === name);
+    const rankStr = rankIdx >= 0 ? `${rankIdx + 1}위` : '미집계';
+
+    // 최고 파트너 (pairStats에서 해당 멤버 포함, 승률 최고)
+    const pairEntries = Object.entries(pairStats)
+      .filter(([k]) => k.split('_').includes(name))
+      .map(([k, v]) => {
+        const partner = k.split('_').find(n => n !== name) || '';
+        const w = v.wins || 0, d = v.draws || 0, l = v.losses || 0;
+        return { partner, wins: w, draws: d, losses: l, total: w+d+l, wr: effWr(w, d, l) };
+      })
+      .filter(p => p.total >= 2)
+      .sort((a, b) => b.wr - a.wr || b.wins - a.wins);
+    const bestPair = pairEntries[0] || null;
+
+    // 특기 사항 — 올해 최고 성취 요약
+    const highlights = [];
+    if (totalGames >= 5 && wr >= 70) highlights.push(`승률 ${wr}%의 강자`);
+    else if (totalGames >= 5 && wr >= 50) highlights.push(`승률 ${wr}%로 선전 중`);
+    if (wins >= 5) highlights.push(`${wins}승 달성`);
+    if (bestPair) highlights.push(`${bestPair.partner}와 최강 콤비 (${bestPair.wins}승${bestPair.losses ? ' '+bestPair.losses+'패' : ''})`);
+
+    const statsContext = totalGames > 0
+      ? `올해 개인 성적: ${wins}승 ${draws ? draws+'무 ' : ''}${losses}패, 승률 ${wr}%, 현재 랭킹 ${rankStr}\n` +
+        (bestPair ? `최고 파트너: ${bestPair.partner} (${bestPair.wins}승 ${bestPair.losses}패, 페어 승률 ${bestPair.wr}%)\n` : '') +
+        (highlights.length ? `특이사항: ${highlights.join(' / ')}\n` : '')
+      : `올해 아직 경기 기록 없음 (시즌 초반)\n`;
+
+    // GPT로 축하 메시지 생성
+    const apiKey = process.env.OPENAI_API_KEY;
+    let greetingText = '';
+    if (apiKey) {
+      const prompt = `당신은 자미터 테니스 동호회 전용 AI 제이입니다.
+오늘은 ${firstName} ${honorific}의 생일이에요!
+아래 정보를 참고해서 따뜻하고 위트 있는 생일 축하 메시지를 작성해주세요.
+- 멤버 이름: ${name} (호칭: ${firstName} ${honorific})
+- 생일: ${mmdd.replace('-', '월 ')}일
+${statsContext}
+조건:
+- 생일 축하 이모티콘 풍성하게 사용
+- 올해 테니스 성적(승률, 랭킹, 최고 파트너)을 자연스럽게 언급
+- 특이하게 잘한 점이나 인상적인 기록 칭찬
+- 테니스 동호회 특성에 맞는 덕담 (코트에서의 활약, 앞으로의 응원 등)
+- 존댓말, 200자 이내, 상투적 클로징 문구 금지
+- 마지막에 생일 케이크/풍선/파티 이모티콘으로 마무리`;
+
+      try {
+        const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model: 'gpt-4.1-mini',
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 300,
+            temperature: 0.85,
+          }),
+        });
+        const data = await resp.json();
+        greetingText = data.choices?.[0]?.message?.content?.trim() || '';
+        await db.ref('jmt/botUsage/total').transaction(n => (n || 0) + 1);
+      } catch (e) {
+        console.error('birthday greeting GPT error:', e);
+      }
+    }
+
+    // GPT 실패 시 폴백
+    if (!greetingText) {
+      const statLine = totalGames > 0
+        ? `올해 ${wins}승 ${losses}패, 승률 ${wr}%${bestPair ? ` · 최고 파트너 ${bestPair.partner}` : ''}로 멋지게 활약하고 있어요!`
+        : '올해도 코트에서 멋진 활약 기대해요!';
+      greetingText = `${firstName} ${honorific}, 생일 축하드려요!\n${statLine} 앞으로도 코트에서 빛나는 한 해 되세요! 🎾✨`;
+    }
+
+    // 1번 풍선: 생일 GIF 이미지 (4종 랜덤)
+    const _isDevEnv = process.env.GCLOUD_PROJECT === 'jamite-dev';
+    const _bucket = _isDevEnv ? 'jamite-dev.firebasestorage.app' : 'jamite-tennis.firebasestorage.app';
+    const _birthdayGifUrl = `https://firebasestorage.googleapis.com/v0/b/${_bucket}/o/photos%2Fassets%2Fbirthday.gif?alt=media`;
+    await _postBotMsg({ imageUrl: _birthdayGifUrl, imgW: 478, imgH: 454 });
+    // 2번 풍선: 축하 메시지 본문
+    await _postBotMsg({ text: greetingText });
+    console.log(`birthday greeting sent for ${name}`);
+  }
+}
+
+exports.birthdayGreeting = onSchedule(
+  { schedule: '0 10 * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    try { await _runBirthdayGreeting(); }
+    catch (e) { console.error('birthdayGreeting error:', e); }
+  }
+);
+
+exports.testBirthdayGreeting = onCall({ region: 'asia-southeast1' }, async (req) => {
+  if (!_BOT_MANAGERS.includes(req.data.senderName || '')) throw new Error('권한 없음');
+  await _runBirthdayGreeting();
+  return { ok: true };
+});

@@ -912,6 +912,7 @@ const firebaseConfig = {
         <button onclick="selectBetDeadline('winner',120)" class="dl-btn" id="dl-w-120">5일</button>
         <button onclick="selectBetDeadline('winner',144)" class="dl-btn" id="dl-w-144">6일</button>
         <button onclick="selectBetDeadline('winner',168)" class="dl-btn" id="dl-w-168">7일</button>
+        <button onclick="selectBetDeadline('winner',240)" class="dl-btn" id="dl-w-240">10일</button>
       </div>
       <div style="display:flex;gap:8px">
         <button onclick="closeBetOpenModal()" class="btn btn-outline btn-full">취소</button>
@@ -933,6 +934,7 @@ const firebaseConfig = {
         <button onclick="selectBetDeadline('match',120)" class="dl-btn" id="dl-m-120">5일</button>
         <button onclick="selectBetDeadline('match',144)" class="dl-btn" id="dl-m-144">6일</button>
         <button onclick="selectBetDeadline('match',168)" class="dl-btn" id="dl-m-168">7일</button>
+        <button onclick="selectBetDeadline('match',240)" class="dl-btn" id="dl-m-240">10일</button>
       </div>
       <div style="display:flex;gap:8px">
         <button onclick="closeBetOpenModal()" class="btn btn-outline btn-full">취소</button>
@@ -2467,7 +2469,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v769';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v778';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5440,9 +5442,16 @@ function _computeDrawAnalysis(){
   const manualCards=Object.values(_dailyCards)
     .filter(d=>!d.matchType&&d.team0&&d.team0.length===2&&d.team1&&d.team1.length===2)
     .sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
-  // 대진표 분석의 참석자 = 실제 카드에 등장한 선수 (임시제외 반영)
+  // 대진표 분석의 참석자 = 실제 카드에 등장한 선수
+  // pollData(출첵)가 초기화돼도 카드 기준으로 보존 — state.members에서 성별 조회
   const _cardPlayerNames=new Set(autoCards.flatMap(c=>[...c.team0,...c.team1]));
-  const attendees=_getAutoDrawAttendees().filter(p=>_cardPlayerNames.has(p.name));
+  const _memberMap=Object.fromEntries((state.members||[]).map(m=>[m.name,m]));
+  const attendees=[..._cardPlayerNames]
+    .filter(n=>!_autoExcludedNames.has(n))
+    .map(n=>{
+      const m=_memberMap[n]||{};
+      return {name:n, gender:m.gender||'male', ntrp:m.ntrp||''};
+    });
   const males=attendees.filter(p=>p.gender==='male');
   const females=attendees.filter(p=>p.gender!=='male');
   const maxRound=Math.max(...autoCards.map(c=>c._round));
@@ -5579,6 +5588,51 @@ function _renderTeamFinalResult(){
   document.getElementById('draw-analysis-scroll').scrollTo({top:99999,behavior:'smooth'});
 }
 
+// ── 자동배정 최종 결과 보기 ──────────────────────────────────────────
+function _renderAutoDrawFinalResult(){
+  const toArr=v=>Array.isArray(v)?v:(v?Object.values(v):[]);
+  const cards=Object.values(_dailyCards).filter(c=>!c._teamMode&&c.phase==='done'&&c.winner>=0);
+  if(!cards.length){alert('완료된 경기가 없습니다.');return;}
+  const sorted=cards.sort((a,b)=>(a.createdAt||a.num||0)-(b.createdAt||b.num||0));
+  let idx=1;
+  const rows=sorted.map(c=>{
+    const t0=toArr(c.team0).join('+');
+    const t1=toArr(c.team1).join('+');
+    const sets=toArr(c.sets);
+    // 세트별 스코어 문자열 (승자 기준 앞에)
+    const scoreStr=sets.map(s=>{
+      const s0=s.s0??0,s1=s.s1??0;
+      return c.winner===0?`${s0}:${s1}`:`${s1}:${s0}`;
+    }).join(', ');
+    const winner=c.winner===0?t0:t1;
+    const loser=c.winner===0?t1:t0;
+    const matchLabel=c._round!=null?`${c._round}R${c._court!=null?' '+c._court+'코트':''}`:`경기${idx++}`;
+    return `<tr style="border-bottom:1px solid #f1f5f9">
+      <td style="padding:6px 6px;font-size:0.72rem;color:#64748b;white-space:nowrap">${matchLabel}</td>
+      <td style="padding:6px 4px;font-size:0.75rem;font-weight:700;color:#1e293b">${winner}</td>
+      <td style="padding:6px 4px;font-size:0.75rem;color:#64748b">vs ${loser}</td>
+      <td style="padding:6px 6px;font-size:0.8rem;font-weight:800;color:#2563eb;white-space:nowrap">${scoreStr}</td>
+    </tr>`;
+  });
+  const el=document.getElementById('draw-analysis-inner');
+  const prev=document.getElementById('auto-draw-final-result');
+  if(prev) prev.remove();
+  el.insertAdjacentHTML('beforeend',`
+    <div id="auto-draw-final-result" style="background:#fff;border:2px solid #2563eb;border-radius:14px;padding:14px 16px;margin-top:12px">
+      <div style="font-size:0.95rem;font-weight:800;color:#1e293b;margin-bottom:10px">📊 경기 결과 (${sorted.length}경기 완료)</div>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:2px solid #e2e8f0">
+          <th style="padding:5px 6px;text-align:left;color:#64748b;font-size:0.72rem"></th>
+          <th style="padding:5px 4px;text-align:left;color:#2563eb;font-size:0.72rem">승리</th>
+          <th style="padding:5px 4px;text-align:left;color:#64748b;font-size:0.72rem">패배</th>
+          <th style="padding:5px 6px;text-align:left;color:#64748b;font-size:0.72rem">스코어</th>
+        </tr></thead>
+        <tbody>${rows.join('')}</tbody>
+      </table>
+    </div>`);
+  document.getElementById('draw-analysis-scroll').scrollTo({top:99999,behavior:'smooth'});
+}
+
 // ── 팀장 대진수정 팝업 ───────────────────────────────────────────────
 let _drawEditCtx=null;
 
@@ -5588,7 +5642,6 @@ function _openDrawEditModal(){
   const curName=(state.identity&&state.identity.name)||'';
   // ── 자동배정 모드
   if(!d.teamMode){
-    if(!isManager()&&!isAdmin()){alert('관리자만 수정할 수 있습니다.');return;}
     const startedAuto=Object.values(_dailyCards).some(c=>c._round&&!c._teamMode&&c.phase!=='setup');
     if(startedAuto){alert('게임이 시작되었으므로, 멤버를 수정할 수 없습니다.');return;}
     const cardKeyMap={};
@@ -5606,7 +5659,7 @@ function _openDrawEditModal(){
     const males=d.attendees.filter(p=>p.gender==='male').map(p=>p.name);
     const females=d.attendees.filter(p=>p.gender!=='male').map(p=>p.name);
     const roundPastels=['#eff6ff','#fdf4ff','#fff7ed','#f0fdf4','#fef2f2','#f0f9ff','#fefce8','#fdf2f8'];
-    const selStyle='font-size:0.75rem;font-weight:700;padding:3px 2px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;width:68px;color:#1e293b;font-family:inherit;flex-shrink:0;text-align:center;text-align-last:center';
+    const selStyle='font-size:0.75rem;font-weight:700;padding:3px 2px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;width:62px;color:#1e293b;font-family:inherit;flex-shrink:0;text-align:center;text-align-last:center';
     const mkSel=(val,opts,cardId,slot)=>{
       const optHtml=opts.map(n=>`<option value="${n}"${n===val?' selected':''}>${n}</option>`).join('');
       return `<select data-card="${cardId}" data-slot="${slot}" onchange="_onDrawEditChange(this)" style="${selStyle}">${optHtml}</select>`;
@@ -5628,9 +5681,8 @@ function _openDrawEditModal(){
         const _dash='<span style="color:#94a3b8;font-size:0.8rem;flex-shrink:0;margin:0 2px">-</span>';
         const _vs='<span style="color:#94a3b8;font-size:0.75rem;font-weight:600;flex-shrink:0;margin:0 4px">vs</span>';
         html+=`<div style="padding:6px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
-          <div style="font-size:0.72rem;font-weight:800;color:#475569;margin-bottom:4px">제${r}경기 ${c}코트</div>
-          <div style="display:flex;align-items:center;flex-wrap:wrap;gap:2px 3px;padding-left:10px">
-            <span style="font-size:0.72rem;font-weight:800;color:${tColor[card.matchType]};white-space:nowrap;flex-shrink:0;margin-right:6px">${tIcon[card.matchType]} ${tName[card.matchType]}</span>
+          <div style="font-size:0.72rem;font-weight:800;color:#475569;margin-bottom:4px">제${r}경기 ${c}코트 <span style="color:${tColor[card.matchType]}">${tIcon[card.matchType]} ${tName[card.matchType]}</span></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;flex-wrap:nowrap">
             <div style="display:flex;align-items:center;flex-shrink:0">
               ${mkSel(a0,opts0,cardId,'0')}${_dash}${mkSel(a1,opts1,cardId,'1')}
             </div>
@@ -6052,7 +6104,9 @@ function _renderDrawAnalysis(d){
       const _capA=d.teamANames[0]||'';const _capB=d.teamBNames[0]||'';
       _showBtn=curName===_capA||curName===_capB||isAdmin()||isManager();
     } else {
-      _showBtn=isManager()||isAdmin();
+      // 자동배정 — 경기 시작 전이면 전체 멤버 허용
+      const _autoStarted=Object.values(_dailyCards).some(c=>c._round&&!c._teamMode&&c.phase!=='setup');
+      _showBtn=!_autoStarted&&!!curName;
     }
     const _isOwner=_autoDrawSession&&_autoDrawSession.owner===curName;
     const _showReset=_isOwner||isAdmin();
@@ -6143,7 +6197,9 @@ function _renderDrawAnalysis(d){
   html+=`<div style="text-align:center;font-size:0.75rem;color:#94a3b8;font-weight:600;padding:6px 0 2px">
     총 ${d.autoCards.length}경기 · ${d.roundNums.length}라운드 · ${d.courtCount}코트
   </div>
-  ${d.teamMode?`<button onclick="_renderTeamFinalResult()" style="width:100%;margin-top:10px;padding:13px;background:linear-gradient(135deg,#1e40af,#9d174d);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit">🏆 최종 결과 보기</button>`:''}
+  ${d.teamMode
+    ?`<button onclick="_renderTeamFinalResult()" style="width:100%;margin-top:10px;padding:13px;background:linear-gradient(135deg,#1e40af,#9d174d);color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit">🏆 최종 결과 보기</button>`
+    :`<button onclick="_renderAutoDrawFinalResult()" style="width:100%;margin-top:10px;padding:13px;background:#2563eb;color:#fff;border:none;border-radius:14px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit">📊 경기 결과 보기</button>`}
   </div>`;
   return html;
 }
@@ -6597,9 +6653,11 @@ async function generateAutoDrawCards(){
         _dailyCards[fbKey]=teamCardData;
         ref.set(teamCardData).catch(fbErr);
       } else {
-        // 일반 모드: 로컬 저장 — 시작 버튼 누를 때 DB push
-        const newId=++_dailyCardCounter;
-        _dailyCards[newId]=Object.assign({},cardData);
+        // 일반 모드: 즉시 DB push (setup 단계) — 제이 예측·다중기기 동기화
+        const ref=db.ref('jmt/dailyCards').push();
+        const fbKey=ref.key;
+        _dailyCards[fbKey]=Object.assign({},cardData);
+        ref.set(cardData).catch(fbErr);
       }
     }
     _saveLocalDailyCards(); // 로컬 카드 localStorage에 보관
@@ -6815,14 +6873,15 @@ function _renderDailyCard(id){
     const bName=captainB?captainB+'팀':'B팀';
     const isCaptainA=_curName===captainA;
     const isCaptainB=_curName===captainB;
-    const isAdmin2=isAdmin(); // 유지원만 전체 공개 (천지은/김승수는 팀장/멤버 역할로 처리)
-    // 가시성: 모든 멤버에게 카드 표시 (팀원 공개 여부는 ready 상태로 제어)
+    const isAdmin2=isAdmin();
     el.style.display='';
     const aReady=d._teamAReady||false;
     const bReady=d._teamBReady||false;
-    // 팀 정보 공개: 내 팀 소속이면 항상 공개 / 상대팀은 양팀 모두 ready 후 공개 / 유지원은 항상 전체 공개
     const isTeamAMember=teamANames.includes(_curName);
     const isTeamBMember=teamBNames.includes(_curName);
+    // 자기 팀 선수 교체: 관리자 또는 해당 팀 소속 멤버
+    const canEditA=!!(isAdmin()||isManager()||isTeamAMember);
+    const canEditB=!!(isAdmin()||isManager()||isTeamBMember);
     const bothReady=aReady&&bReady;
     const showA=bothReady||isAdmin2||isTeamAMember;
     const showB=bothReady||isAdmin2||isTeamBMember;
@@ -6840,7 +6899,7 @@ function _renderDailyCard(id){
     const left=showA
       ?`<div class="dc-team-left">
           <div class="dc-tnick">${aName}${aReady?' ✅':''}</div>
-          <div class="dc-tmembers">${mkPlayers(d.team0,'A',isCaptainA&&!aReady)}</div>
+          <div class="dc-tmembers">${mkPlayers(d.team0,'A',canEditA&&!aReady)}</div>
         </div>`
       :`<div class="dc-team-left" style="opacity:0.5;align-items:center;justify-content:center">
           <div class="dc-tnick" style="font-size:0.8rem">준비 중...</div>
@@ -6848,7 +6907,7 @@ function _renderDailyCard(id){
     const right=showB
       ?`<div class="dc-team-right">
           <div class="dc-tnick">${bName}${bReady?' ✅':''}</div>
-          <div class="dc-tmembers">${mkPlayers(d.team1,'B',isCaptainB&&!bReady)}</div>
+          <div class="dc-tmembers">${mkPlayers(d.team1,'B',canEditB&&!bReady)}</div>
         </div>`
       :`<div class="dc-team-right" style="opacity:0.5;align-items:center;justify-content:center">
           <div class="dc-tnick" style="font-size:0.8rem">준비 중...</div>
@@ -6869,17 +6928,19 @@ function _renderDailyCard(id){
     const t0f=d.team0.length===2,t1f=d.team1.length===2;
     const isParticipant=[...(d.team0||[]),...(d.team1||[])].includes(_curName);
     const canStart=canManage||isParticipant;
+    // 팀대결이면 관리자/생성자만, 자동배정이면 모든 멤버 허용
+    const canEditTeam=d._teamMode?canManage:!!_curName;
     // 팀대결 세션이면 팀 라벨 표시
     const _aLabel=d._teamMode?`🔵 ${(d._teamANames||[])[0]?(d._teamANames[0]+'팀'):'A팀'}`:'팀 A';
     const _bLabel=d._teamMode?`🔴 ${(d._teamBNames||[])[0]?(d._teamBNames[0]+'팀'):'B팀'}`:'팀 B';
     const left=`<div class="dc-team-left">
-      <button class="dc-team-btn${t0f?' filled':''}${canManage?'':' readonly'}"${canManage?`onclick="openDailyPick('${id}',0)"`:' disabled'}>
-        ${t0f?`<div class="dc-tnick">${t0.nick}</div><div class="dc-tmembers">${_hlMemberStr(d.team0,_curName)}</div>`:_aLabel}
+      <button class="dc-team-btn${t0f?' filled':''}${canEditTeam?'':' readonly'}"${canEditTeam?`onclick="openDailyPick('${id}',0)"`:' disabled'}>
+        ${t0f?`<div class="dc-tnick">${t0.nick}${canEditTeam?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div><div class="dc-tmembers">${_hlMemberStr(d.team0,_curName)}</div>`:_aLabel}
       </button>
     </div>`;
     const right=`<div class="dc-team-right">
-      <button class="dc-team-btn${t1f?' filled':''}${canManage?'':' readonly'}"${canManage?`onclick="openDailyPick('${id}',1)"`:' disabled'}>
-        ${t1f?`<div class="dc-tnick">${t1.nick}</div><div class="dc-tmembers">${_hlMemberStr(d.team1,_curName)}</div>`:_bLabel}
+      <button class="dc-team-btn${t1f?' filled':''}${canEditTeam?'':' readonly'}"${canEditTeam?`onclick="openDailyPick('${id}',1)"`:' disabled'}>
+        ${t1f?`<div class="dc-tnick">${t1.nick}${canEditTeam?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div><div class="dc-tmembers">${_hlMemberStr(d.team1,_curName)}</div>`:_bLabel}
       </button>
     </div>`;
     const mid=`<button class="dc-start-btn" onclick="startDailyMatch('${id}')"${t0f&&t1f&&canStart?'':' disabled'}>시작</button>`;
@@ -7114,8 +7175,10 @@ function _teamSwapPlayer(id, side, playerIdx){
   const teamBNames=d._teamBNames||[];
   const captainA=teamANames[0]||'';
   const captainB=teamBNames[0]||'';
-  if(side==='A'&&_curName!==captainA) return;
-  if(side==='B'&&_curName!==captainB) return;
+  const _canSwapA=isAdmin()||isManager()||teamANames.includes(_curName);
+  const _canSwapB=isAdmin()||isManager()||teamBNames.includes(_curName);
+  if(side==='A'&&!_canSwapA) return;
+  if(side==='B'&&!_canSwapB) return;
   const myTeam=side==='A'?[...d.team0]:[...d.team1];
   const current=myTeam[playerIdx];
   const otherInCard=myTeam.filter((_,i)=>i!==playerIdx); // 같은 카드 팀동료 제외
@@ -11269,6 +11332,15 @@ function renderMatchRow(m) {
 // ── 토너먼트 참가 선수 목록 (랭킹순 정렬) ───────────────────────
 function getTournamentPlayersSorted() {
   const rankSource = atpState.rankingsFromDb.length ? atpState.rankingsFromDb : ATP_TOP_PLAYERS;
+
+  // 탈락 선수: 완료된 경기(STATUS_FINAL)의 패자 집합
+  const eliminated = new Set();
+  for (const m of atpState.matches) {
+    if (m.status !== 'STATUS_FINAL') continue;
+    if (m.player1Winner && m.player2Name && m.player2Name !== 'TBD') eliminated.add(m.player2Name.toLowerCase());
+    if (m.player2Winner && m.player1Name && m.player1Name !== 'TBD') eliminated.add(m.player1Name.toLowerCase());
+  }
+
   const seen = new Set();
   const players = [];
   for (const m of atpState.matches) {
@@ -11279,9 +11351,10 @@ function getTournamentPlayersSorted() {
       [m.player2Name, m.player2Country, m.player2Id]
     ];
     for (const [name, country, id] of pairs) {
-      if (name && name !== 'TBD' && !seen.has(name.toLowerCase())) {
-        seen.add(name.toLowerCase());
-        const ranked = rankSource.find(p => p.name.toLowerCase() === name.toLowerCase());
+      const key = name && name.toLowerCase();
+      if (name && name !== 'TBD' && !seen.has(key) && !eliminated.has(key)) {
+        seen.add(key);
+        const ranked = rankSource.find(p => p.name.toLowerCase() === key);
         players.push({ name, country, id: id || '', rank: ranked ? ranked.rank : 999 });
       }
     }
@@ -12136,13 +12209,13 @@ let _betDeadlineMatch  = 24;
 function selectBetDeadline(type, hours) {
   if (type === 'winner') {
     _betDeadlineWinner = hours;
-    [24,48,72,96,120,144,168].forEach(h => {
+    [24,48,72,96,120,144,168,240].forEach(h => {
       const el = document.getElementById(`dl-w-${h}`);
       if (el) el.className = 'dl-btn' + (h === hours ? ' active' : '');
     });
   } else {
     _betDeadlineMatch = hours;
-    [24,48,72,96,120,144,168].forEach(h => {
+    [24,48,72,96,120,144,168,240].forEach(h => {
       const el = document.getElementById(`dl-m-${h}`);
       if (el) el.className = 'dl-btn' + (h === hours ? ' active' : '');
     });
