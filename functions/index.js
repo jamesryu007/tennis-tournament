@@ -2358,6 +2358,7 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
 
   // 베이글 전적 — jmt/matches에서 6:0 세트 스캔
   const hasPredictQuery = /예측|이길 것 같아|이길까|누가 이겨|이길 것 같|예상해|누가 잘할|확률이 어때|이길 것 같니|승산|가능성|이길 수 있|질 것 같/.test(question);
+  const hasTodayMatchQuery = /오늘\s*(경기|결과)|경기\s*결과|리포트/.test(question);
   const hasBagelQuery = /베이글/.test(question);
   // ── 예측 쿼리 — 오늘 미완료 경기카드 + 관련 페어 전적 주입 ────────
   let predictCtx = '';
@@ -2638,6 +2639,66 @@ ${senderPairSummary ? `[${senderName} 관련 페어 전체 — 파트너/짝 질
             await db.ref(`jmt/predictions/${dateKey}`).push(predEntry).catch(() => {});
           }
         } catch(_) {}
+      }
+    } catch(_) {}
+  }
+
+  // 오늘 경기 결과 질문 시 예측 적중률 append
+  if (hasTodayMatchQuery) {
+    try {
+      const nowKstR = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+      const dateKeyR = `${nowKstR.getFullYear()}-${String(nowKstR.getMonth()+1).padStart(2,'0')}-${String(nowKstR.getDate()).padStart(2,'0')}`;
+      const [predSnapR, cardSnapR] = await Promise.all([
+        db.ref(`jmt/predictions/${dateKeyR}`).once('value'),
+        db.ref('jmt/dailyCards').orderByChild('createdAt').limitToLast(30).once('value'),
+      ]);
+      const predDataR = predSnapR.val();
+      const allCardsR = cardSnapR.val() || {};
+      const toArrRR = v => Array.isArray(v) ? v : (v ? Object.values(v) : []);
+      if (predDataR) {
+        // 오늘 완료 카드 결과 맵
+        const resultMapR = {};
+        Object.values(allCardsR).forEach(c => {
+          if (!c.createdAt || c.phase !== 'done') return;
+          const cd = new Date(c.createdAt);
+          if (cd.getFullYear() !== nowKstR.getFullYear() || cd.getMonth() !== nowKstR.getMonth() || cd.getDate() !== nowKstR.getDate()) return;
+          const key = [...toArrRR(c.team0)].sort().join('_') + '||' + [...toArrRR(c.team1)].sort().join('_');
+          resultMapR[key] = typeof c.winner === 'number' ? c.winner : -1;
+        });
+        const allPredsR = Object.values(predDataR);
+        const generalPredsR = allPredsR.filter(p => p.type === 'general');
+        const cardPredsR    = allPredsR.filter(p => p.type === 'card' || (p.cards && !p.type));
+        let generalSectionR = '';
+        let cardSectionR = '';
+        if (generalPredsR.length) {
+          const names = [...new Set(generalPredsR.map(p => p.askedBy).filter(Boolean))];
+          generalSectionR = `\n\n🔮 대진 생성 전 예측\n  ${names.join(', ')} 등 ${generalPredsR.length}건 — 카드 기반 검증 불가`;
+        }
+        let hitR = 0, totalR = 0;
+        const cardLinesR = [];
+        cardPredsR.forEach(pred => {
+          if (!pred.cards) return;
+          toArrRR(pred.cards).forEach(pc => {
+            if (!pc || pc.predictedWinner < 0 || !pc.team0 || !pc.team1) return;
+            const t0arr = toArrRR(pc.team0), t1arr = toArrRR(pc.team1);
+            const key = [...t0arr].sort().join('_') + '||' + [...t1arr].sort().join('_');
+            const actual = resultMapR[key];
+            if (actual === undefined || actual < 0) return;
+            totalR++;
+            const correct = pc.predictedWinner === actual;
+            if (correct) hitR++;
+            const t0 = t0arr.join('+'), t1 = t1arr.join('+');
+            const predTeam   = pc.predictedWinner === 0 ? t0 : t1;
+            const actualTeam = actual === 0 ? t0 : t1;
+            cardLinesR.push(`  ${correct ? '✅' : '❌'} ${t0} vs ${t1} → 예측: ${predTeam}(${pc.confidence}%), 실제: ${actualTeam}`);
+          });
+        });
+        if (totalR > 0) {
+          const pct = Math.round(hitR / totalR * 100);
+          cardSectionR = `\n\n🎯 대진 기반 예측 적중률\n${cardLinesR.join('\n')}\n  총 ${totalR}경기 중 ${hitR}경기 적중 (${pct}%)`;
+        }
+        const predReportR = generalSectionR + cardSectionR;
+        if (predReportR) finalAnswer = finalAnswer + predReportR;
       }
     } catch(_) {}
   }
