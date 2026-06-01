@@ -2563,25 +2563,27 @@ ${senderPairSummary ? `[${senderName} 관련 페어 전체 — 파트너/짝 질
     try {
       const predMatch = answer.match(/\[__PRED__\](.*?)\[\/__PRED__\]/s);
       if (predMatch) {
-        const predJson = JSON.parse(predMatch[1]);
-        if (predJson.cards && predJson.cards.length) {
-          const nowKst2 = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-          const dateKey = `${nowKst2.getFullYear()}-${String(nowKst2.getMonth()+1).padStart(2,'0')}-${String(nowKst2.getDate()).padStart(2,'0')}`;
-          const predEntry = {
-            type: 'card',
-            askedBy: senderName,
-            at: Date.now(),
-            cards: predJson.cards.map((c, i) => ({
-              team0: c.t0 || (todayPendingCards[i] && todayPendingCards[i].team0) || [],
-              team1: c.t1 || (todayPendingCards[i] && todayPendingCards[i].team1) || [],
-              predictedWinner: typeof c.w === 'number' ? c.w : -1,
-              confidence: typeof c.conf === 'number' ? c.conf : 50,
-            })),
-          };
-          await db.ref(`jmt/predictions/${dateKey}`).push(predEntry).catch(() => {});
-        }
-        // 태그는 사용자에게 보이지 않게 제거
-        finalAnswer = answer.replace(/\s*\[__PRED__\].*?\[\/__PRED__\]/s, '').trim();
+        // 태그 제거 최우선 — JSON 파싱 성패 무관하게 항상 실행
+        finalAnswer = answer.replace(/\s*\[__PRED__\][\s\S]*?\[\/__PRED__\]/g, '').trim();
+        try {
+          const predJson = JSON.parse(predMatch[1]);
+          if (predJson.cards && predJson.cards.length) {
+            const nowKst2 = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+            const dateKey = `${nowKst2.getFullYear()}-${String(nowKst2.getMonth()+1).padStart(2,'0')}-${String(nowKst2.getDate()).padStart(2,'0')}`;
+            const predEntry = {
+              type: 'card',
+              askedBy: senderName,
+              at: Date.now(),
+              cards: predJson.cards.map((c, i) => ({
+                team0: c.t0 || (todayPendingCards[i] && todayPendingCards[i].team0) || [],
+                team1: c.t1 || (todayPendingCards[i] && todayPendingCards[i].team1) || [],
+                predictedWinner: typeof c.w === 'number' ? c.w : -1,
+                confidence: typeof c.conf === 'number' ? c.conf : 50,
+              })),
+            };
+            await db.ref(`jmt/predictions/${dateKey}`).push(predEntry).catch(() => {});
+          }
+        } catch(_) {}
       }
     } catch(_) {}
   }
