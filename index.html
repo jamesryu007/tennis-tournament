@@ -2469,7 +2469,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v776';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v777';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6929,16 +6929,18 @@ function _renderDailyCard(id){
     const t0f=d.team0.length===2,t1f=d.team1.length===2;
     const isParticipant=[...(d.team0||[]),...(d.team1||[])].includes(_curName);
     const canStart=canManage||isParticipant;
+    // 팀대결이면 관리자/생성자만, 자동배정이면 모든 멤버 허용
+    const canEditTeam=d._teamMode?canManage:!!_curName;
     // 팀대결 세션이면 팀 라벨 표시
     const _aLabel=d._teamMode?`🔵 ${(d._teamANames||[])[0]?(d._teamANames[0]+'팀'):'A팀'}`:'팀 A';
     const _bLabel=d._teamMode?`🔴 ${(d._teamBNames||[])[0]?(d._teamBNames[0]+'팀'):'B팀'}`:'팀 B';
     const left=`<div class="dc-team-left">
-      <button class="dc-team-btn${t0f?' filled':''}${canManage?'':' readonly'}"${canManage?`onclick="openDailyPick('${id}',0)"`:' disabled'}>
+      <button class="dc-team-btn${t0f?' filled':''}${canEditTeam?'':' readonly'}"${canEditTeam?`onclick="openDailyPick('${id}',0)"`:' disabled'}>
         ${t0f?`<div class="dc-tnick">${t0.nick}</div><div class="dc-tmembers">${_hlMemberStr(d.team0,_curName)}</div>`:_aLabel}
       </button>
     </div>`;
     const right=`<div class="dc-team-right">
-      <button class="dc-team-btn${t1f?' filled':''}${canManage?'':' readonly'}"${canManage?`onclick="openDailyPick('${id}',1)"`:' disabled'}>
+      <button class="dc-team-btn${t1f?' filled':''}${canEditTeam?'':' readonly'}"${canEditTeam?`onclick="openDailyPick('${id}',1)"`:' disabled'}>
         ${t1f?`<div class="dc-tnick">${t1.nick}</div><div class="dc-tmembers">${_hlMemberStr(d.team1,_curName)}</div>`:_bLabel}
       </button>
     </div>`;
