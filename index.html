@@ -2469,7 +2469,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v777';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v778';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5682,7 +5682,7 @@ function _openDrawEditModal(){
         const _vs='<span style="color:#94a3b8;font-size:0.75rem;font-weight:600;flex-shrink:0;margin:0 4px">vs</span>';
         html+=`<div style="padding:6px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
           <div style="font-size:0.72rem;font-weight:800;color:#475569;margin-bottom:4px">제${r}경기 ${c}코트 <span style="color:${tColor[card.matchType]}">${tIcon[card.matchType]} ${tName[card.matchType]}</span></div>
-          <div style="display:flex;align-items:center;gap:2px;padding-left:10px;flex-wrap:nowrap">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;flex-wrap:nowrap">
             <div style="display:flex;align-items:center;flex-shrink:0">
               ${mkSel(a0,opts0,cardId,'0')}${_dash}${mkSel(a1,opts1,cardId,'1')}
             </div>
@@ -6873,16 +6873,15 @@ function _renderDailyCard(id){
     const bName=captainB?captainB+'팀':'B팀';
     const isCaptainA=_curName===captainA;
     const isCaptainB=_curName===captainB;
-    const canEditA=!!(isAdmin()||isManager()||isTeamAMember);
-    const canEditB=!!(isAdmin()||isManager()||isTeamBMember);
-    const isAdmin2=isAdmin(); // 유지원만 전체 공개 (천지은/김승수는 팀장/멤버 역할로 처리)
-    // 가시성: 모든 멤버에게 카드 표시 (팀원 공개 여부는 ready 상태로 제어)
+    const isAdmin2=isAdmin();
     el.style.display='';
     const aReady=d._teamAReady||false;
     const bReady=d._teamBReady||false;
-    // 팀 정보 공개: 내 팀 소속이면 항상 공개 / 상대팀은 양팀 모두 ready 후 공개 / 유지원은 항상 전체 공개
     const isTeamAMember=teamANames.includes(_curName);
     const isTeamBMember=teamBNames.includes(_curName);
+    // 자기 팀 선수 교체: 관리자 또는 해당 팀 소속 멤버
+    const canEditA=!!(isAdmin()||isManager()||isTeamAMember);
+    const canEditB=!!(isAdmin()||isManager()||isTeamBMember);
     const bothReady=aReady&&bReady;
     const showA=bothReady||isAdmin2||isTeamAMember;
     const showB=bothReady||isAdmin2||isTeamBMember;
@@ -6936,12 +6935,12 @@ function _renderDailyCard(id){
     const _bLabel=d._teamMode?`🔴 ${(d._teamBNames||[])[0]?(d._teamBNames[0]+'팀'):'B팀'}`:'팀 B';
     const left=`<div class="dc-team-left">
       <button class="dc-team-btn${t0f?' filled':''}${canEditTeam?'':' readonly'}"${canEditTeam?`onclick="openDailyPick('${id}',0)"`:' disabled'}>
-        ${t0f?`<div class="dc-tnick">${t0.nick}</div><div class="dc-tmembers">${_hlMemberStr(d.team0,_curName)}</div>`:_aLabel}
+        ${t0f?`<div class="dc-tnick">${t0.nick}${canEditTeam?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div><div class="dc-tmembers">${_hlMemberStr(d.team0,_curName)}</div>`:_aLabel}
       </button>
     </div>`;
     const right=`<div class="dc-team-right">
       <button class="dc-team-btn${t1f?' filled':''}${canEditTeam?'':' readonly'}"${canEditTeam?`onclick="openDailyPick('${id}',1)"`:' disabled'}>
-        ${t1f?`<div class="dc-tnick">${t1.nick}</div><div class="dc-tmembers">${_hlMemberStr(d.team1,_curName)}</div>`:_bLabel}
+        ${t1f?`<div class="dc-tnick">${t1.nick}${canEditTeam?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div><div class="dc-tmembers">${_hlMemberStr(d.team1,_curName)}</div>`:_bLabel}
       </button>
     </div>`;
     const mid=`<button class="dc-start-btn" onclick="startDailyMatch('${id}')"${t0f&&t1f&&canStart?'':' disabled'}>시작</button>`;
