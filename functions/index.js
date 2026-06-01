@@ -2354,6 +2354,12 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
       } else {
         // 카드 없음 — 일반 예측 모드 안내
         predictCtx = `\n[예측 모드 — 오늘 경기카드 없음]\n과거 개인 랭킹·페어 전적 기반으로 확률 예측. 카드가 생성되면 더 구체적인 예측 가능.`;
+        // 대진 없는 예측 마커 저장 (리포트 분리용)
+        try {
+          const _nowG = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+          const _dkG = `${_nowG.getFullYear()}-${String(_nowG.getMonth()+1).padStart(2,'0')}-${String(_nowG.getDate()).padStart(2,'0')}`;
+          db.ref(`jmt/predictions/${_dkG}`).push({ type: 'general', askedBy: senderName, at: Date.now() }).catch(() => {});
+        } catch(_) {}
       }
     } catch(_) {}
   }
@@ -2562,6 +2568,7 @@ ${senderPairSummary ? `[${senderName} 관련 페어 전체 — 파트너/짝 질
           const nowKst2 = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
           const dateKey = `${nowKst2.getFullYear()}-${String(nowKst2.getMonth()+1).padStart(2,'0')}-${String(nowKst2.getDate()).padStart(2,'0')}`;
           const predEntry = {
+            type: 'card',
             askedBy: senderName,
             at: Date.now(),
             cards: predJson.cards.map((c, i) => ({
@@ -2835,9 +2842,44 @@ async function _botTodayMatch() {
         });
       });
 
-      if (total > 0) {
-        const pct = Math.round(hit / total * 100);
-        predReport = `\n\n🔮 제이의 예측 적중률\n${predLines.join('\n')}\n총 ${total}경기 중 ${hit}경기 적중 (${pct}%)`;
+      // general/card 분리
+      const generalPreds = allPreds.filter(p => p.type === 'general');
+      const cardPreds = allPreds.filter(p => p.type === 'card' || (p.cards && !p.type));
+
+      let generalSection = '';
+      let cardSection = '';
+
+      if (generalPreds.length) {
+        const names = [...new Set(generalPreds.map(p => p.askedBy).filter(Boolean))];
+        generalSection = `\n\n🔮 대진 생성 전 예측\n  ${names.join(', ')} 등 ${generalPreds.length}건 — 카드 기반 검증 불가`;
+      }
+
+      // card 예측 재집계 (cardPreds만 대상)
+      let hitC = 0, totalC = 0;
+      const cardLines2 = [];
+      cardPreds.forEach(pred => {
+        if (!pred.cards) return;
+        pred.cards.forEach(pc => {
+          if (pc.predictedWinner < 0 || !pc.team0 || !pc.team1) return;
+          const key = [...pc.team0].sort().join('_') + '||' + [...pc.team1].sort().join('_');
+          const actual = resultMap[key];
+          if (actual === undefined || actual < 0) return;
+          totalC++;
+          const correct = pc.predictedWinner === actual;
+          if (correct) hitC++;
+          const t0 = pc.team0.join('+'), t1 = pc.team1.join('+');
+          const predTeam = pc.predictedWinner === 0 ? t0 : t1;
+          const actualTeam = actual === 0 ? t0 : t1;
+          cardLines2.push(`  ${correct ? '✅' : '❌'} ${t0} vs ${t1} → 예측: ${predTeam}(${pc.confidence}%), 실제: ${actualTeam}`);
+        });
+      });
+      if (totalC > 0) {
+        const pct = Math.round(hitC / totalC * 100);
+        cardSection = `\n\n🎯 대진 기반 예측 적중률\n${cardLines2.join('\n')}\n총 ${totalC}경기 중 ${hitC}경기 적중 (${pct}%)`;
+      }
+
+      if (generalSection || cardSection) {
+        predReport = generalSection + cardSection;
       }
     }
   } catch(_) {}
