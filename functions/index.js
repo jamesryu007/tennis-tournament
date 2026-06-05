@@ -37,7 +37,7 @@ async function sendPush(tokens, title, body, tab = 'checkin', commentId = '', be
   const chunks = [];
   for (let i = 0; i < tokens.length; i += 500) chunks.push(tokens.slice(i, i + 500));
   for (const chunk of chunks) {
-    const data = { title, body, tab, ...extraData };
+    const data = { title, body, tab, badgeCount: '1', ...extraData };
     if (commentId) data.commentId = commentId;
     if (betId) data.betId = betId;
     await fcm.sendEachForMulticast({
