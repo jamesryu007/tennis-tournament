@@ -214,14 +214,13 @@ exports.notifyNewComment = onValueCreated(
     if (!comment) return;
     const { author, text } = comment;
     if (!author) return;
-    const tokens = await getAllTokens();
     // 작성자 본인 제외
     const snap = await db.ref('jmt/fcmTokens').once('value');
     const data = snap.val() || {};
     const otherTokens = Object.values(data)
       .filter(v => v.name !== author && v.token)
       .map(v => v.token);
-    await sendPush(otherTokens, `💬 ${author}님이 댓글을 달았습니다`, text, 'checkin', event.params.commentId);
+    await sendPush(otherTokens, `💬 ${author}님이 댓글을 달았습니다`, text || '', 'checkin', event.params.commentId);
   }
 );
 
