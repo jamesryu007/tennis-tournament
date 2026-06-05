@@ -1730,6 +1730,7 @@ const firebaseConfig = {
       <div class="dc-action-row">
         <button class="dc-create-btn" id="daily-create-btn" onclick="executeDailyCreate()">경기 만들기</button>
         <button class="daily-analysis-btn" id="daily-analysis-btn" onclick="openDrawAnalysisModal()">📊 대진표 보기</button>
+        <button onclick="openMatchQueryModal()" style="flex:0 0 auto;border:none;background:linear-gradient(135deg,#0ea5e9,#0284c7);border-radius:16px;color:#fff;font-size:0.78rem;font-weight:800;padding:14px 10px;cursor:pointer;letter-spacing:0.1px;box-shadow:0 4px 14px rgba(14,165,233,0.32);white-space:nowrap;font-family:inherit;-webkit-tap-highlight-color:transparent">🔍 경기<br>조회</button>
         <button id="daily-auto-del-btn" onclick="deleteAllAutoDrawCards()" style="display:none;flex:0 0 auto;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);border-radius:16px;color:#fff;font-size:0.78rem;font-weight:800;padding:14px 10px;cursor:pointer;letter-spacing:0.1px;box-shadow:0 4px 14px rgba(220,38,38,0.32);white-space:nowrap;font-family:inherit">🗑️ 자동대진<br>전체삭제</button>
       </div>
       <div id="daily-match-cards"></div>
@@ -1824,6 +1825,49 @@ const firebaseConfig = {
     </div>
     <div id="draw-analysis-scroll" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px 32px">
       <div id="draw-analysis-inner"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MATCH QUERY MODAL ══ -->
+<div class="modal-overlay" id="match-query-modal">
+  <div class="modal" style="height:88vh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <div class="modal-header" style="flex-shrink:0">
+      <span class="modal-round">🔍 경기 기록 조회</span>
+      <button class="modal-close" onclick="closeMatchQueryModal()">✕</button>
+    </div>
+    <div style="flex-shrink:0;padding:12px 16px 12px;border-bottom:1px solid #f1f5f9">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <div style="flex:1">
+          <div style="font-size:0.72rem;color:#64748b;margin-bottom:3px;font-weight:600">시작일</div>
+          <input type="date" id="mq-date-from" style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:8px 9px;font-size:0.85rem;font-family:inherit;color:#1e293b;background:#fff;box-sizing:border-box">
+        </div>
+        <div style="flex:1">
+          <div style="font-size:0.72rem;color:#64748b;margin-bottom:3px;font-weight:600">종료일</div>
+          <input type="date" id="mq-date-to" style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:8px 9px;font-size:0.85rem;font-family:inherit;color:#1e293b;background:#fff;box-sizing:border-box">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <div style="flex:1">
+          <div style="font-size:0.72rem;color:#64748b;margin-bottom:3px;font-weight:600">선수1</div>
+          <select id="mq-player1" style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:8px 9px;font-size:0.85rem;font-family:inherit;color:#1e293b;background:#fff;box-sizing:border-box">
+            <option value="">전체</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:0.72rem;color:#64748b;margin-bottom:3px;font-weight:600">선수2 (팀페어)</div>
+          <select id="mq-player2" style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:8px 9px;font-size:0.85rem;font-family:inherit;color:#1e293b;background:#fff;box-sizing:border-box">
+            <option value="">-</option>
+          </select>
+        </div>
+        <button onclick="queryMatchHistory()" style="flex:0 0 auto;border:none;background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:10px;color:#fff;font-size:0.9rem;font-weight:800;padding:8px 16px;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;white-space:nowrap">조회</button>
+      </div>
+    </div>
+    <div id="match-query-scroll" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px 32px">
+      <div id="match-query-inner">
+        <p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">조건을 선택하고 조회하세요</p>
+      </div>
     </div>
   </div>
 </div>
@@ -2469,7 +2513,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v778';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v780';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5395,6 +5439,114 @@ function openDrawAnalysisModal(){
 function closeDrawAnalysisModal(){
   document.getElementById('draw-analysis-modal').classList.remove('open');
   document.body.style.overflow = '';
+}
+
+// ── 경기 기록 조회 모달 ──────────────────────────────────────────────
+function openMatchQueryModal(){
+  const today=new Date();
+  const toDateStr=d=>d.toISOString().split('T')[0];
+  const todayStr=toDateStr(today);
+  const monthAgo=new Date(today); monthAgo.setMonth(monthAgo.getMonth()-1);
+  const fromEl=document.getElementById('mq-date-from');
+  const toEl=document.getElementById('mq-date-to');
+  if(fromEl&&!fromEl.value) fromEl.value=toDateStr(monthAgo);
+  if(toEl&&!toEl.value) toEl.value=todayStr;
+  const names=(state.members||[]).map(m=>m.name).filter(Boolean).sort();
+  const opts='<option value="">-</option>'+names.map(n=>`<option value="${n}">${n}</option>`).join('');
+  const sel1=document.getElementById('mq-player1');
+  const sel2=document.getElementById('mq-player2');
+  if(sel1) sel1.innerHTML='<option value="">전체</option>'+names.map(n=>`<option value="${n}">${n}</option>`).join('');
+  if(sel2) sel2.innerHTML=opts;
+  document.getElementById('match-query-inner').innerHTML='<p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">조건을 선택하고 조회하세요</p>';
+  document.body.style.overflow='hidden';
+  document.getElementById('match-query-modal').classList.add('open');
+}
+
+function closeMatchQueryModal(){
+  document.getElementById('match-query-modal').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+async function queryMatchHistory(){
+  const from=(document.getElementById('mq-date-from').value||'').trim();
+  const to=(document.getElementById('mq-date-to').value||'').trim();
+  if(!from||!to){alert('날짜를 선택해주세요.');return;}
+  const p1=(document.getElementById('mq-player1').value||'').trim();
+  const p2=(document.getElementById('mq-player2').value||'').trim();
+  const inner=document.getElementById('match-query-inner');
+  inner.innerHTML='<p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">조회 중…</p>';
+  try{
+    const snap=await db.ref('jmt/matches').orderByChild('date').startAt(from).endAt(to).once('value');
+    const toArr=v=>Array.isArray(v)?v:(v?Object.values(v):[]);
+    let matches=Object.values(snap.val()||{}).filter(m=>m.source==='daily'&&m.sets&&m.winner!==undefined);
+    if(p1&&p2){
+      // 팀페어 — 두 선수가 같은 팀에 있는 경기 (순서 무관)
+      const pairKey=getPairKey(p1,p2);
+      matches=matches.filter(m=>{
+        const t0=toArr(m.team0),t1=toArr(m.team1);
+        return getPairKey(t0[0],t0[1])===pairKey||getPairKey(t1[0],t1[1])===pairKey;
+      });
+    } else if(p1){
+      // 단일 선수
+      matches=matches.filter(m=>toArr(m.team0).includes(p1)||toArr(m.team1).includes(p1));
+    }
+    matches.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    if(!matches.length){
+      inner.innerHTML='<p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">조회 결과가 없습니다</p>';
+      return;
+    }
+    inner.innerHTML=`<div style="font-size:0.8rem;color:#64748b;font-weight:700;margin-bottom:10px">${matches.length}경기</div>`+matches.map(m=>{
+      const t0=toArr(m.team0),t1=toArr(m.team1),sets=toArr(m.sets);
+      const isDraw=m.winner===-1,t0win=m.winner===0,t1win=m.winner===1;
+      const td0=_getTeamDisplay(t0),td1=_getTeamDisplay(t1);
+      const bagelSides=_dailyBagelSides(sets);
+      const scoreItems=sets.map((s,i)=>{
+        const hasTB=s.tb0!=null&&s.tb1!=null;
+        const s0cls=isDraw?' dc-sc-d':t0win?' dc-sc-w':' dc-sc-l';
+        const s1cls=isDraw?' dc-sc-d':t1win?' dc-sc-w':' dc-sc-l';
+        return `<div class="dc-set-item"><span class="dc-set-lbl">${i+1}세트</span>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:1px">
+            <div style="display:flex;align-items:center;gap:2px">
+              <span class="dc-set-sc${s0cls}">${s.s0}</span><span class="dc-sc-sep">:</span><span class="dc-set-sc${s1cls}">${s.s1}</span>
+            </div>
+            ${hasTB?`<div style="font-size:inherit;color:#d97706;font-weight:700;line-height:1.2">(${s.tb0}:${s.tb1})</div>`:''}
+          </div>
+        </div>`;
+      }).join('<div class="dc-set-divider"></div>');
+      const l0Bagel=!isDraw&&bagelSides.has(0)?'<div class="bagel-badge">🥯 베이글!</div>':'';
+      const r1Bagel=!isDraw&&bagelSides.has(1)?'<div class="bagel-badge">🥯 베이글!</div>':'';
+      const l0Emoji=isDraw?'':t0win?'<div class="dc-win-icon">🎉</div>':'<div class="dc-lose-icon">😢</div>';
+      const r1Emoji=isDraw?'':t1win?'<div class="dc-win-icon">🎉</div>':'<div class="dc-lose-icon">😢</div>';
+      const l0Badge=isDraw?'<span class="dc-draw-badge">무승부</span>':t0win?'<span class="dc-win-badge">WIN 🏆</span>':'<span class="dc-lose-badge">LOSE</span>';
+      const r1Badge=isDraw?'<span class="dc-draw-badge">무승부</span>':t1win?'<span class="dc-win-badge">WIN 🏆</span>':'<span class="dc-lose-badge">LOSE</span>';
+      const left=`<div class="dc-team-left${t0win?' win':''}">
+        ${l0Emoji}${l0Bagel}
+        <div class="dc-tnick">${td0.nick}</div>
+        <div class="dc-tmembers">${td0.memberStr}</div>
+        ${l0Badge}
+      </div>`;
+      const mid=`<div style="width:100%;display:flex;flex-direction:column;align-items:center;gap:5px">${scoreItems}</div>`;
+      const right=`<div class="dc-team-right">
+        ${r1Emoji}${r1Bagel}
+        <div class="dc-tnick">${td1.nick}</div>
+        <div class="dc-tmembers">${td1.memberStr}</div>
+        ${r1Badge}
+      </div>`;
+      const bgImg=_winnerBg(m.winner,(m.date||'')+t0.join('')+t1.join(''));
+      const [,mo,dd]=(m.date||'').split('-');
+      const dateLabel=m.date?`${parseInt(mo)}/${parseInt(dd)}`:'';
+      return `<div style="margin-bottom:10px">
+        <div style="font-size:0.72rem;color:#64748b;font-weight:700;margin-bottom:4px;padding-left:2px">📅 ${m.date||''}</div>
+        <div class="dc-card">
+          <div class="dc-card-bg" style="background-image:url('${bgImg}');background-size:cover;background-position:center;background-repeat:no-repeat"></div>
+          <div class="dc-card-header"><div style="flex:1"><span class="dc-num">✅ ${dateLabel} 경기</span></div></div>
+          <div class="dc-body">${left}<div class="dc-mid">${mid}</div>${right}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    inner.innerHTML=`<p style="text-align:center;color:#dc2626;font-size:0.88rem;padding:40px 0">조회 오류: ${e.message||e}</p>`;
+  }
 }
 
 function refreshDrawAnalysis(){
