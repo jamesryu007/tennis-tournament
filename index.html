@@ -1730,6 +1730,7 @@ const firebaseConfig = {
       <div class="dc-action-row">
         <button class="dc-create-btn" id="daily-create-btn" onclick="executeDailyCreate()">경기 만들기</button>
         <button class="daily-analysis-btn" id="daily-analysis-btn" onclick="openDrawAnalysisModal()">📊 대진표 보기</button>
+        <button onclick="openMatchQueryModal()" style="flex:0 0 auto;border:none;background:linear-gradient(135deg,#0ea5e9,#0284c7);border-radius:16px;color:#fff;font-size:0.78rem;font-weight:800;padding:14px 10px;cursor:pointer;letter-spacing:0.1px;box-shadow:0 4px 14px rgba(14,165,233,0.32);white-space:nowrap;font-family:inherit;-webkit-tap-highlight-color:transparent">🔍 경기<br>조회</button>
         <button id="daily-auto-del-btn" onclick="deleteAllAutoDrawCards()" style="display:none;flex:0 0 auto;border:none;background:linear-gradient(135deg,#dc2626,#b91c1c);border-radius:16px;color:#fff;font-size:0.78rem;font-weight:800;padding:14px 10px;cursor:pointer;letter-spacing:0.1px;box-shadow:0 4px 14px rgba(220,38,38,0.32);white-space:nowrap;font-family:inherit">🗑️ 자동대진<br>전체삭제</button>
       </div>
       <div id="daily-match-cards"></div>
@@ -1824,6 +1825,35 @@ const firebaseConfig = {
     </div>
     <div id="draw-analysis-scroll" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px 32px">
       <div id="draw-analysis-inner"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MATCH QUERY MODAL ══ -->
+<div class="modal-overlay" id="match-query-modal">
+  <div class="modal" style="height:88vh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <div class="modal-header" style="flex-shrink:0">
+      <span class="modal-round">🔍 경기 기록 조회</span>
+      <button class="modal-close" onclick="closeMatchQueryModal()">✕</button>
+    </div>
+    <div style="flex-shrink:0;padding:14px 16px 12px;display:flex;gap:8px;align-items:flex-end;border-bottom:1px solid #f1f5f9">
+      <div style="flex:1">
+        <div style="font-size:0.75rem;color:#64748b;margin-bottom:4px;font-weight:600">날짜</div>
+        <input type="date" id="mq-date" style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 10px;font-size:0.9rem;font-family:inherit;color:#1e293b;background:#fff;box-sizing:border-box">
+      </div>
+      <div style="flex:1">
+        <div style="font-size:0.75rem;color:#64748b;margin-bottom:4px;font-weight:600">선수 (선택)</div>
+        <select id="mq-player" style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:9px 10px;font-size:0.9rem;font-family:inherit;color:#1e293b;background:#fff;box-sizing:border-box">
+          <option value="">전체</option>
+        </select>
+      </div>
+      <button onclick="queryMatchHistory()" style="flex:0 0 auto;border:none;background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:10px;color:#fff;font-size:0.9rem;font-weight:800;padding:9px 16px;cursor:pointer;font-family:inherit;-webkit-tap-highlight-color:transparent;white-space:nowrap">조회</button>
+    </div>
+    <div id="match-query-scroll" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px 32px">
+      <div id="match-query-inner">
+        <p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">날짜를 선택하고 조회하세요</p>
+      </div>
     </div>
   </div>
 </div>
@@ -2469,7 +2499,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v778';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v779';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5395,6 +5425,70 @@ function openDrawAnalysisModal(){
 function closeDrawAnalysisModal(){
   document.getElementById('draw-analysis-modal').classList.remove('open');
   document.body.style.overflow = '';
+}
+
+// ── 경기 기록 조회 모달 ──────────────────────────────────────────────
+function openMatchQueryModal(){
+  const today=new Date().toISOString().split('T')[0];
+  const dateEl=document.getElementById('mq-date');
+  if(dateEl&&!dateEl.value) dateEl.value=today;
+  const sel=document.getElementById('mq-player');
+  if(sel){
+    const names=(state.members||[]).map(m=>m.name).filter(Boolean).sort();
+    sel.innerHTML='<option value="">전체</option>'+names.map(n=>`<option value="${n}">${n}</option>`).join('');
+  }
+  document.getElementById('match-query-inner').innerHTML='<p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">날짜를 선택하고 조회하세요</p>';
+  document.body.style.overflow='hidden';
+  document.getElementById('match-query-modal').classList.add('open');
+}
+
+function closeMatchQueryModal(){
+  document.getElementById('match-query-modal').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+async function queryMatchHistory(){
+  const date=(document.getElementById('mq-date').value||'').trim();
+  if(!date){alert('날짜를 선택해주세요.');return;}
+  const player=(document.getElementById('mq-player').value||'').trim();
+  const inner=document.getElementById('match-query-inner');
+  inner.innerHTML='<p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">조회 중…</p>';
+  try{
+    const snap=await db.ref('jmt/matches').orderByChild('date').equalTo(date).once('value');
+    const raw=snap.val()||{};
+    const toArr=v=>Array.isArray(v)?v:(v?Object.values(v):[]);
+    let matches=Object.values(raw).filter(m=>m.source==='daily'&&m.sets&&m.winner!==undefined);
+    if(player) matches=matches.filter(m=>toArr(m.team0).includes(player)||toArr(m.team1).includes(player));
+    if(!matches.length){
+      inner.innerHTML='<p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">해당 날짜에 경기 기록이 없습니다</p>';
+      return;
+    }
+    const [,mo,d]=date.split('-');
+    const badge=(lbl,col,bg)=>`<span style="font-size:0.68rem;font-weight:800;padding:2px 7px;border-radius:6px;color:${col};background:${bg}">${lbl}</span>`;
+    inner.innerHTML=`<div style="font-size:0.8rem;color:#64748b;font-weight:700;margin-bottom:10px">${parseInt(mo)}월 ${parseInt(d)}일 · ${matches.length}경기</div>`+matches.map(m=>{
+      const t0=toArr(m.team0),t1=toArr(m.team1),sets=toArr(m.sets);
+      const isDraw=m.winner===-1,w0=m.winner===0,w1=m.winner===1;
+      const scoreStr=sets.map(s=>{
+        const tb=s.tb0!=null?` (${s.tb0}:${s.tb1})`:'';
+        return `${s.s0}:${s.s1}${tb}`;
+      }).join('  ');
+      const b0=w0?badge('WIN','#fff','#2563eb'):isDraw?badge('무','#fff','#64748b'):badge('LOSE','#94a3b8','#f1f5f9');
+      const b1=w1?badge('WIN','#fff','#2563eb'):isDraw?badge('무','#fff','#64748b'):badge('LOSE','#94a3b8','#f1f5f9');
+      const c0=w0?'#1e40af':isDraw?'#475569':'#94a3b8',c1=w1?'#1e40af':isDraw?'#475569':'#94a3b8';
+      const fw0=w0||isDraw?800:500,fw1=w1||isDraw?800:500;
+      return `<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:12px 14px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span style="font-size:0.85rem;font-weight:${fw0};color:${c0};flex:1">${t0.join(' · ')}</span>${b0}
+        </div>
+        <div style="font-size:0.75rem;color:#94a3b8;font-weight:700;margin-bottom:6px;padding-left:2px">⚡ ${scoreStr}</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:0.85rem;font-weight:${fw1};color:${c1};flex:1">${t1.join(' · ')}</span>${b1}
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    inner.innerHTML=`<p style="text-align:center;color:#dc2626;font-size:0.88rem;padding:40px 0">조회 오류: ${e.message||e}</p>`;
+  }
 }
 
 function refreshDrawAnalysis(){
