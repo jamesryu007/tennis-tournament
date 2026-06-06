@@ -2513,7 +2513,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v782';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v783';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11992,10 +11992,14 @@ function tryAutoSettleBet(betId, bet) {
   let winnerName = null;
 
   if (bet.type === 'winner') {
-    // Final 경기에서 우승자 추출
+    // 베팅된 선수 이름으로 올바른 Final 특정 (남자/여자 결승 혼재 방지)
+    const bettedNames = new Set(Object.values(bet.bets || {}).map(b => b.playerName).filter(Boolean));
     const finalMatch = atpState.matches.find(m => {
       const r = (m.roundName || '').toLowerCase();
-      return (r === 'final' || r === '결승') && !r.includes('semi') && !r.includes('qualify') && m.status === 'STATUS_FINAL';
+      if (!((r === 'final' || r === '결승') && !r.includes('semi') && !r.includes('qualify') && m.status === 'STATUS_FINAL')) return false;
+      // 베팅자가 있으면 그 선수가 이 Final에 포함되어야 함 — 남/여 혼재 방지
+      if (bettedNames.size > 0) return bettedNames.has(m.player1Name) || bettedNames.has(m.player2Name);
+      return true;
     });
     if (finalMatch) {
       winnerName = finalMatch.player1Winner ? finalMatch.player1Name : (finalMatch.player2Winner ? finalMatch.player2Name : null);
