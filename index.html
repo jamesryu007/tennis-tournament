@@ -901,6 +901,11 @@ const firebaseConfig = {
     <!-- 탭 A: 우승자 맞추기 -->
     <div id="bet-open-panel-winner" style="flex:1;overflow-y:auto;padding:14px 18px 20px">
       <div style="font-size:0.78rem;color:#64748b;margin-bottom:12px">현재 토너먼트 우승자를 예측해보세요! 멤버들이 선수 목록에서 1명을 선택합니다.</div>
+      <div style="font-size:0.82rem;font-weight:700;color:#1e293b;margin-bottom:6px">단식 구분</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button id="draw-btn-mens"   onclick="selectBetWinnerDraw('mens')"   style="flex:1;padding:8px 4px;border-radius:12px;border:2px solid #2563eb;background:#2563eb;color:#fff;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit">🎾 남자 단식</button>
+        <button id="draw-btn-womens" onclick="selectBetWinnerDraw('womens')" style="flex:1;padding:8px 4px;border-radius:12px;border:2px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit">🎀 여자 단식</button>
+      </div>
       <div style="font-size:0.82rem;font-weight:700;color:#1e293b;margin-bottom:6px">베팅 내용</div>
       <input type="text" id="bet-winner-stake" placeholder="예: 진팀이 저녁 및 당일 책임지기" style="margin-bottom:12px">
       <div style="font-size:0.82rem;font-weight:700;color:#1e293b;margin-bottom:6px">베팅 마감 시간</div>
@@ -2513,7 +2518,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v783';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v784';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11565,8 +11570,9 @@ function renderBetCard(betId, bet, myName) {
   // ESPN 데이터로 자동 결과 체크
   if (isOpen && !hasResult) tryAutoSettleBet(betId, bet);
 
+  const drawLabel = bet.draw === 'womens' ? ' · 여자 단식' : (bet.draw === 'mens' ? ' · 남자 단식' : '');
   const typeLabel = bet.type === 'winner'
-    ? '<span style="background:#fef3c7;color:#92400e;border-radius:10px;padding:2px 8px;font-size:0.68rem;font-weight:700">🏆 우승자 맞추기</span>'
+    ? `<span style="background:#fef3c7;color:#92400e;border-radius:10px;padding:2px 8px;font-size:0.68rem;font-weight:700">🏆 우승자 맞추기${drawLabel}</span>`
     : '<span style="background:#eff6ff;color:#1d4ed8;border-radius:10px;padding:2px 8px;font-size:0.68rem;font-weight:700">⚔️ 경기 베팅</span>';
   let countdownHtml = '';
   if (isOpen && bet.deadlineAt) {
@@ -11992,13 +11998,13 @@ function tryAutoSettleBet(betId, bet) {
   let winnerName = null;
 
   if (bet.type === 'winner') {
-    // 베팅된 선수 이름으로 올바른 Final 특정 (남자/여자 결승 혼재 방지)
-    const bettedNames = new Set(Object.values(bet.bets || {}).map(b => b.playerName).filter(Boolean));
+    // bet.draw('mens'|'womens')로 남/여 결승 명확히 구분 — ESPN m.gender('men'|'women') 필드 사용
+    const drawGender = bet.draw === 'womens' ? 'women' : 'men';
     const finalMatch = atpState.matches.find(m => {
       const r = (m.roundName || '').toLowerCase();
       if (!((r === 'final' || r === '결승') && !r.includes('semi') && !r.includes('qualify') && m.status === 'STATUS_FINAL')) return false;
-      // 베팅자가 있으면 그 선수가 이 Final에 포함되어야 함 — 남/여 혼재 방지
-      if (bettedNames.size > 0) return bettedNames.has(m.player1Name) || bettedNames.has(m.player2Name);
+      // gender 필드가 있으면 우선 적용, 없으면(구버전 데이터) 통과
+      if (m.gender) return m.gender === drawGender;
       return true;
     });
     if (finalMatch) {
@@ -12384,6 +12390,18 @@ function saveFavPlayers() {
 // ── 베팅 마감 시간 선택 ───────────────────────────────────────────
 let _betDeadlineWinner = 24;
 let _betDeadlineMatch  = 24;
+let _betWinnerDraw     = 'mens'; // 'mens' | 'womens'
+
+function selectBetWinnerDraw(draw) {
+  _betWinnerDraw = draw;
+  const bm = document.getElementById('draw-btn-mens');
+  const bw = document.getElementById('draw-btn-womens');
+  if (!bm || !bw) return;
+  const actStyle   = 'flex:1;padding:8px 4px;border-radius:12px;border:2px solid #2563eb;background:#2563eb;color:#fff;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit';
+  const inactStyle = 'flex:1;padding:8px 4px;border-radius:12px;border:2px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit';
+  bm.style.cssText = draw === 'mens'   ? actStyle : inactStyle;
+  bw.style.cssText = draw === 'womens' ? actStyle : inactStyle;
+}
 
 function selectBetDeadline(type, hours) {
   if (type === 'winner') {
@@ -12404,8 +12422,11 @@ function selectBetDeadline(type, hours) {
 // ── 베팅 오픈 모달 ────────────────────────────────────────────────
 function openBetOpenModal() {
   if (!isAdmin()) { alert('🎰 뱅커만이 베팅을 오픈할 수 있습니다.'); return; }
+  _betWinnerDraw = 'mens';
   switchBetOpenTab('winner');
   document.getElementById('bet-open-modal').classList.add('open');
+  // draw 버튼 초기 상태 동기화 (DOM 렌더 후)
+  setTimeout(() => selectBetWinnerDraw('mens'), 0);
 }
 
 function closeBetOpenModal() {
@@ -12457,6 +12478,7 @@ function submitBetOpenWinner() {
   const deadlineAt = new Date(Date.now() + _betDeadlineWinner * 3600 * 1000).toISOString();
   const bet = {
     type: 'winner',
+    draw: _betWinnerDraw,
     open: true,
     tournamentName,
     stake,
@@ -12465,7 +12487,13 @@ function submitBetOpenWinner() {
     openedAt: new Date().toISOString(),
   };
   db.ref(`jmt/atpBets/${betId}`).set(bet)
-    .then(() => { document.getElementById('bet-winner-stake').value = ''; closeBetOpenModal(); switchAtpTab('bet'); })
+    .then(() => {
+      document.getElementById('bet-winner-stake').value = '';
+      _betWinnerDraw = 'mens';
+      selectBetWinnerDraw('mens');
+      closeBetOpenModal();
+      switchAtpTab('bet');
+    })
     .catch(e => { fbErr(e); alert('저장 실패: ' + (e.message || e)); });
 }
 
