@@ -840,6 +840,12 @@ const firebaseConfig = {
     <div id="fav-selected-bar" style="padding:0 18px 10px;flex-shrink:0;display:none">
       <div style="background:#eff6ff;border-radius:10px;padding:8px 12px;font-size:0.78rem;color:#2563eb;font-weight:600" id="fav-selected-names">선택된 선수 없음</div>
     </div>
+    <div style="padding:0 18px 8px;flex-shrink:0">
+      <div style="display:flex;gap:8px">
+        <button id="fav-draw-btn-mens"   onclick="switchFavModalDraw('mens')"   style="flex:1;padding:7px 4px;border-radius:10px;border:2px solid #2563eb;background:#2563eb;color:#fff;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit">🎾 남자</button>
+        <button id="fav-draw-btn-womens" onclick="switchFavModalDraw('womens')" style="flex:1;padding:7px 4px;border-radius:10px;border:2px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit">🎀 여자</button>
+      </div>
+    </div>
     <div style="padding:0 18px 10px;flex-shrink:0">
       <input type="text" id="fav-search-input" placeholder="🔍 선수 이름 검색..." oninput="filterFavPlayerList(this.value)" style="width:100%;border-radius:10px;border:1.5px solid #e2e8f0;padding:9px 12px;font-size:0.85rem;outline:none">
     </div>
@@ -2518,7 +2524,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v785';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v786';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -10888,7 +10894,9 @@ const atpState = {
   favPlayers: [],       // [{id, name, country}]
   favPlayersTmp: [],    // 모달 임시 선택
   top100: [],           // ESPN 랭킹 100위
-  rankingsFromDb: [],   // Firebase 저장 랭킹 (주 1회 갱신)
+  rankingsFromDb: [],   // Firebase 저장 ATP 랭킹 (주 1회 갱신)
+  wtaRankingsFromDb: [], // Firebase 저장 WTA 랭킹
+  wtaRankingsUpdatedAt: null,
   bets: {},             // betId → bet 객체
   currentTab: 'draw',
   preferBetTab: false,  // 베팅 있는 동안 bet 서브탭 우선
@@ -10942,11 +10950,16 @@ function initAtpListeners() {
     if (document.getElementById('page-atp').classList.contains('active')) renderAtpBetPanel();
   });
 
-  // ATP 세계 랭킹 구독
+  // ATP/WTA 세계 랭킹 구독
   db.ref('jmt/atpRankings').on('value', snap => {
     const d = snap.val();
     atpState.rankingsFromDb = (d && d.players) ? d.players : [];
     atpState.rankingsUpdatedAt = (d && d.updatedAt) ? d.updatedAt : null;
+  });
+  db.ref('jmt/wtaRankings').on('value', snap => {
+    const d = snap.val();
+    atpState.wtaRankingsFromDb = (d && d.players) ? d.players : [];
+    atpState.wtaRankingsUpdatedAt = (d && d.updatedAt) ? d.updatedAt : null;
   });
 
   // ATP 뉴스 구독
@@ -11385,8 +11398,8 @@ function renderRoundDrawPanel(el, matches, tier, tourney) {
   let favPillsHtml = '';
   if (atpState.favPlayers && atpState.favPlayers.length) {
     const pills = atpState.favPlayers.map(p => {
-      const ranked = (atpState.rankingsFromDb.length ? atpState.rankingsFromDb : ATP_TOP_PLAYERS)
-        .find(r => r.name.toLowerCase() === p.name.toLowerCase());
+      const _allRankings = [...(atpState.rankingsFromDb.length ? atpState.rankingsFromDb : ATP_TOP_PLAYERS), ...atpState.wtaRankingsFromDb];
+      const ranked = _allRankings.find(r => r.name.toLowerCase() === p.name.toLowerCase());
       const rankStr = ranked ? `<span style="font-size:0.6rem;opacity:0.7">${ranked.rank}위</span> ` : '';
       return `<span style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:12px;padding:2px 9px;font-size:0.68rem;font-weight:700;display:inline-flex;align-items:center;gap:3px;white-space:nowrap">${rankStr}${p.name}</span>`;
     }).join('');
@@ -11464,6 +11477,9 @@ function toKSTStr(dateStr) {
 
 function isWtaMatch(m) {
   if (!m.player1Name || m.player1Name === 'TBD') return false;
+  // gender 필드 있으면 우선 사용
+  if (m.gender) return m.gender === 'women';
+  // 구버전 데이터 fallback: ATP 랭킹에 없으면 WTA로 판단
   const rankSource = atpState.rankingsFromDb.length ? atpState.rankingsFromDb : ATP_TOP_PLAYERS;
   const p1InAtp = rankSource.some(p => p.name.toLowerCase() === m.player1Name.toLowerCase());
   const p2InAtp = rankSource.some(p => p.name.toLowerCase() === (m.player2Name || '').toLowerCase());
@@ -11510,13 +11526,17 @@ function renderMatchRow(m) {
 
 // ── 베팅 패널 ─────────────────────────────────────────────────────
 // ── 토너먼트 참가 선수 목록 (랭킹순 정렬) ───────────────────────
-function getTournamentPlayersSorted() {
-  const rankSource = atpState.rankingsFromDb.length ? atpState.rankingsFromDb : ATP_TOP_PLAYERS;
+function getTournamentPlayersSorted(draw) {
+  const isWomens = draw === 'womens';
+  const rankSource = isWomens
+    ? atpState.wtaRankingsFromDb
+    : (atpState.rankingsFromDb.length ? atpState.rankingsFromDb : ATP_TOP_PLAYERS);
 
   // 탈락 선수: 완료된 경기(STATUS_FINAL)의 패자 집합
   const eliminated = new Set();
   for (const m of atpState.matches) {
     if (m.status !== 'STATUS_FINAL') continue;
+    if (isWomens !== isWtaMatch(m)) continue; // 성별 불일치 경기 제외
     if (m.player1Winner && m.player2Name && m.player2Name !== 'TBD') eliminated.add(m.player2Name.toLowerCase());
     if (m.player2Winner && m.player1Name && m.player1Name !== 'TBD') eliminated.add(m.player1Name.toLowerCase());
   }
@@ -11524,8 +11544,7 @@ function getTournamentPlayersSorted() {
   const seen = new Set();
   const players = [];
   for (const m of atpState.matches) {
-    // WTA 경기는 베팅 선수 목록에서 제외
-    if (isWtaMatch(m)) continue;
+    if (isWomens !== isWtaMatch(m)) continue; // 성별 불일치 경기 제외
     const pairs = [
       [m.player1Name, m.player1Country, m.player1Id],
       [m.player2Name, m.player2Country, m.player2Id]
@@ -11763,7 +11782,8 @@ function renderWinnerBetCard(betId, bet, myName, myBet, isOpen, hasResult, showA
 }
 
 function renderWinnerBetPlayerList(betId) {
-  const players = getTournamentPlayersSorted();
+  const bet = atpState.bets[betId];
+  const players = getTournamentPlayersSorted(bet ? bet.draw : 'mens');
   if (!players.length) return '<div style="color:#94a3b8;font-size:0.82rem;padding:6px 0">선수 데이터가 없습니다. 🔄 새로고침 후 시도하세요.</div>';
   return `<div style="max-height:180px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:10px">
     ${players.map(p => `
@@ -12172,45 +12192,71 @@ const ATP_TOP_PLAYERS = [
 ];
 
 let _favAllPlayers = [];  // 모달용 전체 선수 목록 캐시
+let _favModalDraw = 'mens'; // 모달 현재 성별 탭
 
-function openFavPlayerModal() {
-  // 현재 등록된 관심선수를 임시 배열로 복사
-  atpState.favPlayersTmp = atpState.favPlayers.map(p => ({ ...p }));
-
-  // 랭킹 기준일 표시
-  const rankDateEl = document.getElementById('fav-ranking-date');
-  if (rankDateEl) {
-    if (atpState.rankingsUpdatedAt) {
-      const d = new Date(atpState.rankingsUpdatedAt);
-      const dateStr = d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
-      rankDateEl.textContent = `📅 랭킹 기준: ${dateStr}`;
-    } else {
-      rankDateEl.textContent = '📅 랭킹 기준: 내부 데이터 (하드코딩)';
-    }
-  }
-
-  // 전체 선수 목록 구성 (DB 랭킹 우선, 없으면 하드코딩 폴백)
-  const rankSource = atpState.rankingsFromDb.length ? atpState.rankingsFromDb : ATP_TOP_PLAYERS;
+function _buildFavAllPlayers() {
+  const isWomens = _favModalDraw === 'womens';
+  const rankSource = isWomens
+    ? atpState.wtaRankingsFromDb
+    : (atpState.rankingsFromDb.length ? atpState.rankingsFromDb : ATP_TOP_PLAYERS);
   const seen = new Set(rankSource.map(p => p.name.toLowerCase()));
   const players = [...rankSource];
   let extraRank = rankSource.length + 1;
   for (const m of atpState.matches) {
+    if (isWomens !== isWtaMatch(m)) continue;
     for (const n of [m.player1Name, m.player2Name]) {
-      if (n && !seen.has(n.toLowerCase())) {
+      if (n && n !== 'TBD' && !seen.has(n.toLowerCase())) {
         seen.add(n.toLowerCase());
         players.push({ rank: extraRank++, name: n, country: m.player1Name === n ? (m.player1Country || '') : (m.player2Country || '') });
       }
     }
   }
   _favAllPlayers = players;
+}
 
-  // 검색창 초기화
+function _updateFavRankingDate() {
+  const rankDateEl = document.getElementById('fav-ranking-date');
+  if (!rankDateEl) return;
+  const isWomens = _favModalDraw === 'womens';
+  const updatedAt = isWomens ? atpState.wtaRankingsUpdatedAt : atpState.rankingsUpdatedAt;
+  if (updatedAt) {
+    const d = new Date(updatedAt);
+    const dateStr = d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+    rankDateEl.textContent = `📅 랭킹 기준: ${dateStr}`;
+  } else {
+    rankDateEl.textContent = isWomens ? '📅 WTA 랭킹 미로드 (새로고침 후 재시도)' : '📅 랭킹 기준: 내부 데이터 (하드코딩)';
+  }
+}
+
+function switchFavModalDraw(draw) {
+  _favModalDraw = draw;
+  const bm = document.getElementById('fav-draw-btn-mens');
+  const bw = document.getElementById('fav-draw-btn-womens');
+  if (bm && bw) {
+    const actStyle   = 'flex:1;padding:7px 4px;border-radius:10px;border:2px solid #2563eb;background:#2563eb;color:#fff;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit';
+    const inactStyle = 'flex:1;padding:7px 4px;border-radius:10px;border:2px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit';
+    bm.style.cssText = draw === 'mens' ? actStyle : inactStyle;
+    bw.style.cssText = draw === 'womens' ? actStyle : inactStyle;
+  }
+  _buildFavAllPlayers();
+  _updateFavRankingDate();
   const searchInput = document.getElementById('fav-search-input');
   if (searchInput) searchInput.value = '';
+  renderFavPlayerList('');
+}
 
+function openFavPlayerModal() {
+  atpState.favPlayersTmp = atpState.favPlayers.map(p => ({ ...p }));
+  _favModalDraw = 'mens';
+  _buildFavAllPlayers();
+  _updateFavRankingDate();
+  const searchInput = document.getElementById('fav-search-input');
+  if (searchInput) searchInput.value = '';
   renderFavPlayerList('');
   updateFavSelectedBar();
   document.getElementById('fav-player-modal').classList.add('open');
+  // 버튼 초기 상태
+  setTimeout(() => switchFavModalDraw('mens'), 0);
 }
 
 function renderFavPlayerList(query) {
