@@ -853,6 +853,13 @@ const firebaseConfig = {
     <div style="padding:12px 18px 20px;flex-shrink:0;border-top:1px solid #f1f5f9">
       <button onclick="saveFavPlayers()" class="btn btn-primary btn-full">저장</button>
     </div>
+    <!-- 저장 완료 확인 화면 -->
+    <div id="fav-confirm-panel" style="display:none;position:absolute;inset:0;background:#fff;border-radius:inherit;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center;gap:16px">
+      <div style="font-size:2.8rem">⭐</div>
+      <div style="font-size:1rem;font-weight:800;color:#1e293b">관심선수 등록 완료!</div>
+      <div id="fav-confirm-names" style="display:flex;flex-direction:column;gap:8px;width:100%;margin-top:4px"></div>
+      <button onclick="closeFavPlayerModal()" style="margin-top:12px;background:#2563eb;border:none;border-radius:14px;color:#fff;font-size:0.9rem;font-weight:700;padding:12px 40px;cursor:pointer;font-family:inherit">✕ 닫기</button>
+    </div>
   </div>
 </div>
 
@@ -2524,7 +2531,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v789';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v790';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12338,6 +12345,8 @@ function updateFavSelectedBar() {
 }
 
 function closeFavPlayerModal() {
+  const panel = document.getElementById('fav-confirm-panel');
+  if (panel) panel.style.display = 'none';
   document.getElementById('fav-player-modal').classList.remove('open');
 }
 
@@ -12444,9 +12453,31 @@ function saveFavPlayers() {
     try { localStorage.setItem(`${LS_FAV_PLAYERS}_${myName}`, JSON.stringify(players)); } catch(e) {}
     if (db) db.ref(`jmt/favPlayers/${myName}`).set(players).catch(fbErr);
   }
-  closeFavPlayerModal();
   renderAtpFavMatches();
   renderAtpDrawPanel();
+
+  // 저장 완료 확인 화면 표시
+  const panel = document.getElementById('fav-confirm-panel');
+  const namesEl = document.getElementById('fav-confirm-names');
+  if (panel && namesEl) {
+    const atpRankSrc = atpState.rankingsFromDb.length ? atpState.rankingsFromDb : ATP_TOP_PLAYERS;
+    namesEl.innerHTML = players.length
+      ? players.map(p => {
+          const isWoman = atpState.wtaRankingsFromDb.some(r => r.name.toLowerCase() === p.name.toLowerCase())
+                       && !atpRankSrc.some(r => r.name.toLowerCase() === p.name.toLowerCase());
+          const allRank = [...atpRankSrc, ...atpState.wtaRankingsFromDb].find(r => r.name.toLowerCase() === p.name.toLowerCase());
+          const rankStr = allRank ? `<span style="font-size:0.72rem;color:#94a3b8">${allRank.rank}위</span>` : '';
+          const color = isWoman ? '#be185d' : '#2563eb';
+          const bg    = isWoman ? '#fdf2f8' : '#eff6ff';
+          const border = isWoman ? '#fbcfe8' : '#bfdbfe';
+          return `<div style="display:flex;align-items:center;justify-content:space-between;background:${bg};border:1.5px solid ${border};border-radius:12px;padding:10px 14px">
+            <span style="font-size:0.9rem;font-weight:700;color:${color}">${p.name}</span>
+            ${rankStr}
+          </div>`;
+        }).join('')
+      : '<div style="color:#94a3b8;font-size:0.85rem">등록된 관심선수가 없습니다.</div>';
+    panel.style.display = 'flex';
+  }
 }
 
 // ── 베팅 마감 시간 선택 ───────────────────────────────────────────
