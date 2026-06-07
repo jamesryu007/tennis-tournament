@@ -853,12 +853,15 @@ const firebaseConfig = {
     <div style="padding:12px 18px 20px;flex-shrink:0;border-top:1px solid #f1f5f9">
       <button onclick="saveFavPlayers()" class="btn btn-primary btn-full">저장</button>
     </div>
-    <!-- 저장 완료 확인 화면 -->
-    <div id="fav-confirm-panel" style="display:none;position:absolute;inset:0;background:#fff;border-radius:inherit;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center;gap:16px">
-      <div style="font-size:2.8rem">⭐</div>
-      <div style="font-size:1rem;font-weight:800;color:#1e293b">관심선수 등록 완료!</div>
-      <div id="fav-confirm-names" style="display:flex;flex-direction:column;gap:8px;width:100%;margin-top:4px"></div>
-      <button onclick="closeFavPlayerModal()" style="margin-top:12px;background:#2563eb;border:none;border-radius:14px;color:#fff;font-size:0.9rem;font-weight:700;padding:12px 40px;cursor:pointer;font-family:inherit">✕ 닫기</button>
+    <!-- 저장 완료 확인 팝업 (작은 오버레이) -->
+    <div id="fav-confirm-panel" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,0.35);border-radius:inherit;align-items:center;justify-content:center;z-index:10">
+      <div style="background:#fff;border-radius:18px;padding:22px 24px;width:calc(100% - 48px);box-shadow:0 8px 32px rgba(0,0,0,0.18);display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:0.95rem;font-weight:800;color:#1e293b">⭐ 관심선수 등록 완료</div>
+          <button onclick="hideFavConfirmPanel()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8;padding:0">✕</button>
+        </div>
+        <div id="fav-confirm-names" style="display:flex;flex-direction:column;gap:7px"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -2531,7 +2534,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v790';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v791';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12344,9 +12347,13 @@ function updateFavSelectedBar() {
   names.innerHTML = '<span style="color:#64748b">⭐ </span>' + nameSpans.join('<span style="color:#94a3b8"> · </span>');
 }
 
-function closeFavPlayerModal() {
+function hideFavConfirmPanel() {
   const panel = document.getElementById('fav-confirm-panel');
   if (panel) panel.style.display = 'none';
+}
+
+function closeFavPlayerModal() {
+  hideFavConfirmPanel();
   document.getElementById('fav-player-modal').classList.remove('open');
 }
 
