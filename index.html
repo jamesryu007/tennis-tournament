@@ -2524,7 +2524,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v787';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v788';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12327,7 +12327,13 @@ function updateFavSelectedBar() {
     return;
   }
   bar.style.display = '';
-  names.textContent = '⭐ ' + atpState.favPlayersTmp.map(p => p.name).join(' · ');
+  const nameSpans = atpState.favPlayersTmp.map((p, i) => {
+    const isWoman = atpState.wtaRankingsFromDb.some(r => r.name.toLowerCase() === p.name.toLowerCase())
+                 && !((atpState.rankingsFromDb.length ? atpState.rankingsFromDb : ATP_TOP_PLAYERS).some(r => r.name.toLowerCase() === p.name.toLowerCase()));
+    const color = isWoman ? '#be185d' : '#2563eb';
+    return `<span style="color:${color};font-weight:700">${p.name}</span>`;
+  });
+  names.innerHTML = '<span style="color:#64748b">⭐ </span>' + nameSpans.join('<span style="color:#94a3b8"> · </span>');
 }
 
 function closeFavPlayerModal() {
