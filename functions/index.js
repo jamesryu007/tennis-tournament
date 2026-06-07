@@ -764,6 +764,13 @@ exports.refreshAtpRankings = onCall({ region: 'asia-southeast1' }, async (req) =
   return { ok };
 });
 
+// WTA 랭킹 즉시 갱신 callable (관리자 전용)
+exports.refreshWtaRankings = onCall({ region: 'asia-southeast1' }, async (req) => {
+  if (!_BOT_MANAGERS.includes(req.data.senderName || '')) throw new Error('권한 없음');
+  const ok = await _fetchAndSaveWtaRankings();
+  return { ok };
+});
+
 // ══ 9. ATP 베팅 오픈 시 전체 알림 (DB 트리거) ═════════════════════
 exports.notifyAtpBetOpen = onValueCreated(
   { ref: 'jmt/atpBets/{betId}', region: 'asia-southeast1' },
@@ -1282,9 +1289,9 @@ exports.notifyFavPlayerMatch = onValueWritten(
   }
 );
 
-// ── ATP 랭킹 fetch 공통 함수 ──────────────────────────────────────
-async function _fetchAndSaveAtpRankings() {
-  const url = 'https://site.api.espn.com/apis/site/v2/sports/tennis/atp/rankings?limit=100';
+// ── 랭킹 fetch 공통 함수 ─────────────────────────────────────────
+async function _fetchAndSaveRankings(tour) {
+  const url = `https://site.api.espn.com/apis/site/v2/sports/tennis/${tour}/rankings?limit=100`;
   const res  = await fetch(url);
   const json = await res.json();
   const entries = (json.rankings && json.rankings[0] && json.rankings[0].ranks) || [];
@@ -1293,18 +1300,29 @@ async function _fetchAndSaveAtpRankings() {
     name:    e.athlete ? `${e.athlete.firstName || ''} ${e.athlete.lastName || ''}`.trim() : '',
     country: e.athlete?.flag?.alt || e.athlete?.flag?.href || '',
   })).filter(p => p.name && p.rank);
-  if (!players.length) { console.warn('fetchAtpRankings: empty result'); return false; }
-  await db.ref('jmt/atpRankings').set({ players, updatedAt: new Date().toISOString() });
-  console.log(`fetchAtpRankings: saved ${players.length} players`);
+  if (!players.length) { console.warn(`fetch${tour.toUpperCase()}Rankings: empty result`); return false; }
+  const key = tour === 'wta' ? 'jmt/wtaRankings' : 'jmt/atpRankings';
+  await db.ref(key).set({ players, updatedAt: new Date().toISOString() });
+  console.log(`fetch${tour.toUpperCase()}Rankings: saved ${players.length} players`);
   return true;
 }
+async function _fetchAndSaveAtpRankings() { return _fetchAndSaveRankings('atp'); }
+async function _fetchAndSaveWtaRankings() { return _fetchAndSaveRankings('wta'); }
 
-// ══ ATP 세계 랭킹 — 매주 월요일 오전 6시 정기 업데이트 ══════════
+// ══ ATP/WTA 세계 랭킹 — 매주 월요일 오전 6시 정기 업데이트 ═══════
 exports.fetchAtpRankings = onSchedule(
   { schedule: '0 6 * * 1', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
   async () => {
     try { await _fetchAndSaveAtpRankings(); }
     catch (e) { console.error('fetchAtpRankings error:', e); }
+  }
+);
+
+exports.fetchWtaRankings = onSchedule(
+  { schedule: '5 6 * * 1', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    try { await _fetchAndSaveWtaRankings(); }
+    catch (e) { console.error('fetchWtaRankings error:', e); }
   }
 );
 
