@@ -409,13 +409,17 @@ async function fetchAndParseAtpData() {
   // 선택된 토너먼트의 경기만 추출
   const matches = [];
   for (const grp of (ev.groupings || [])) {
-    // 복합(ATP+WTA) 대회 대응: grouping 이름으로 성별 판별
+    // 복합(ATP+WTA) 대회 대응: grouping 이름 우선, 없으면 competition type으로 성별 판별
+    // 그랜드슬램처럼 grouping.displayName이 undefined인 경우 comp.type.slug 사용
     const grpName = (grp.displayName || '').toLowerCase();
-    const isWomens = grpName.includes('women') || grpName.includes('female');
+    const grpIsWomens = grpName.includes('women') || grpName.includes('female');
     for (const comp of (grp.competitions || [])) {
       const c = comp.competitors || [];
       const p1 = c[0] || {}, p2 = c[1] || {};
       const st = comp.status || {};
+      const typeSlug = (comp.type?.slug || '').toLowerCase();
+      const typeText = (comp.type?.text || '').toLowerCase();
+      const isWomens = grpIsWomens || typeSlug.includes('women') || typeText.includes('women');
       matches.push({
         id:             comp.id,
         roundName:      comp.round?.displayName || grp.displayName || '',
