@@ -2534,7 +2534,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v791';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v792';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11815,8 +11815,9 @@ function renderWinnerBetPlayerList(betId) {
 // ── Type B: 경기 베팅 카드 ────────────────────────────────────────
 function renderMatchBetCard(betId, bet, myName, myBet, isOpen, hasResult, showAll) {
   const allBetsArr = bet.bets ? Object.entries(bet.bets) : [];
-  const p1Bets = allBetsArr.filter(([, b]) => b.playerId === bet.player1Id || b.playerName === bet.player1Name);
-  const p2Bets = allBetsArr.filter(([, b]) => b.playerId === bet.player2Id || b.playerName === bet.player2Name);
+  // playerName 기준으로만 분리 — playerId가 "undefined" 문자열로 저장되면 양쪽 모두 매칭되는 버그 방지
+  const p1Bets = allBetsArr.filter(([, b]) => b.playerName === bet.player1Name);
+  const p2Bets = allBetsArr.filter(([, b]) => b.playerName === bet.player2Name);
   const totalMatchBets = p1Bets.length + p2Bets.length;
 
   // 경기베팅 순서 계산 (admin용) — hasResult 전에 미리 계산
@@ -12108,8 +12109,8 @@ function settleBetManual(betId) {
   } else {
     // Type B: player1 vs player2
     desc.textContent = `승자를 선택하세요`;
-    const p1Count = Object.values(bet.bets || {}).filter(b => b.playerName === bet.player1Name || b.playerId === bet.player1Id).length;
-    const p2Count = Object.values(bet.bets || {}).filter(b => b.playerName === bet.player2Name || b.playerId === bet.player2Id).length;
+    const p1Count = Object.values(bet.bets || {}).filter(b => b.playerName === bet.player1Name).length;
+    const p2Count = Object.values(bet.bets || {}).filter(b => b.playerName === bet.player2Name).length;
     list.innerHTML = [
       { name: bet.player1Name, id: bet.player1Id, count: p1Count },
       { name: bet.player2Name, id: bet.player2Id, count: p2Count },
@@ -12610,9 +12611,9 @@ function submitBetOpenMatch() {
     open: true,
     matchId: selected.value,
     matchName: `${selected.dataset.round}: ${selected.dataset.p1} vs ${selected.dataset.p2}`,
-    player1Id: selected.dataset.p1id,
+    player1Id: selected.dataset.p1id !== 'undefined' ? (selected.dataset.p1id || '') : '',
     player1Name: selected.dataset.p1,
-    player2Id: selected.dataset.p2id,
+    player2Id: selected.dataset.p2id !== 'undefined' ? (selected.dataset.p2id || '') : '',
     player2Name: selected.dataset.p2,
     stake,
     deadlineAt,
