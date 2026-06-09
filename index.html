@@ -2534,7 +2534,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v792';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v793';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -10951,8 +10951,16 @@ function initAtpListeners() {
   });
 
   // 베팅 구독
+  const _archivedBetIds = new Set();
   db.ref('jmt/atpBets').on('value', snap => {
     atpState.bets = snap.val() || {};
+    // result가 생긴 베팅 자동 아카이브 — CF 정산 후 히스토리 누락 방지
+    for (const [betId, bet] of Object.entries(atpState.bets)) {
+      if (bet.result && !_archivedBetIds.has(betId)) {
+        _archivedBetIds.add(betId);
+        _archiveBetToHistory(betId, {});
+      }
+    }
     if (Object.keys(atpState.bets).length > 0) {
       atpState.preferBetTab = true;
       if (document.getElementById('page-atp').classList.contains('active')) switchAtpTab('bet');
@@ -11602,8 +11610,8 @@ function renderBetCard(betId, bet, myName) {
   const hasResult = !!bet.result;
   const showAll = isAdmin() || !isOpen; // admin 항상, 나머지는 close 후 공개
 
-  // ESPN 데이터로 자동 결과 체크
-  if (isOpen && !hasResult) tryAutoSettleBet(betId, bet);
+  // ESPN 데이터로 자동 결과 체크 — close 여부 무관하게 result 없으면 시도
+  if (!hasResult) tryAutoSettleBet(betId, bet);
 
   const drawLabel = bet.draw === 'womens' ? ' · 여자 단식' : (bet.draw === 'mens' ? ' · 남자 단식' : '');
   const typeLabel = bet.type === 'winner'
