@@ -745,16 +745,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2534,7 +2534,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v792';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v793';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -10951,8 +10951,16 @@ function initAtpListeners() {
   });
 
   // 베팅 구독
+  const _archivedBetIds = new Set();
   db.ref('jmt/atpBets').on('value', snap => {
     atpState.bets = snap.val() || {};
+    // result가 생긴 베팅 자동 아카이브 — CF 정산 후 히스토리 누락 방지
+    for (const [betId, bet] of Object.entries(atpState.bets)) {
+      if (bet.result && !_archivedBetIds.has(betId)) {
+        _archivedBetIds.add(betId);
+        _archiveBetToHistory(betId, {});
+      }
+    }
     if (Object.keys(atpState.bets).length > 0) {
       atpState.preferBetTab = true;
       if (document.getElementById('page-atp').classList.contains('active')) switchAtpTab('bet');
@@ -11602,8 +11610,8 @@ function renderBetCard(betId, bet, myName) {
   const hasResult = !!bet.result;
   const showAll = isAdmin() || !isOpen; // admin 항상, 나머지는 close 후 공개
 
-  // ESPN 데이터로 자동 결과 체크
-  if (isOpen && !hasResult) tryAutoSettleBet(betId, bet);
+  // ESPN 데이터로 자동 결과 체크 — close 여부 무관하게 result 없으면 시도
+  if (!hasResult) tryAutoSettleBet(betId, bet);
 
   const drawLabel = bet.draw === 'womens' ? ' · 여자 단식' : (bet.draw === 'mens' ? ' · 남자 단식' : '');
   const typeLabel = bet.type === 'winner'
