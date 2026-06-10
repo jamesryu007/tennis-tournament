@@ -13479,18 +13479,20 @@ async function triggerAtpRefresh() {
     </div>
     <div style="background:#f0fdf4;border-radius:12px;padding:12px 14px;margin-bottom:12px">
       <div style="font-size:0.78rem;font-weight:800;color:#16a34a;margin-bottom:8px">✅ 출석점수 (80%)</div>
-      <div style="font-size:0.75rem;color:#475569;line-height:1.9">
-        <span style="display:inline-block;width:52px;color:#16a34a;font-weight:700">참석</span> 1.0점<br>
-        <span style="display:inline-block;width:52px;color:#d97706;font-weight:700">늦참</span> 0.8점<br>
-        <span style="display:inline-block;width:52px;color:#94a3b8;font-weight:700">불참 · 미정 · 미투표</span> 0점
+      <div style="font-size:0.75rem;color:#475569">
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #dcfce7"><span style="color:#16a34a;font-weight:700">참석</span><span>1.0점</span></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #dcfce7"><span style="color:#d97706;font-weight:700">늦참</span><span>0.8점</span></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#94a3b8;font-weight:700">불참 · 미정 · 미투표</span><span>0점</span></div>
       </div>
     </div>
     <div style="background:#eff6ff;border-radius:12px;padding:12px 14px;margin-bottom:12px">
       <div style="font-size:0.78rem;font-weight:800;color:#2563eb;margin-bottom:8px">⚡ 순번점수 (20%)</div>
-      <div style="font-size:0.75rem;color:#475569;line-height:1.7">
-        투표한 순서가 빠를수록 높은 점수<br>
-        <span style="color:#2563eb;font-weight:700">1등 = 만점, 꼴찌 = 최소점</span><br>
-        미투표는 0점 · 불참/미정도 순번 인정
+      <div style="font-size:0.74rem;color:#475569;margin-bottom:8px">투표 순서가 빠를수록 높은 점수<br><span style="font-size:0.7rem;color:#94a3b8">불참·미정도 순번 인정 · 미투표만 0점</span></div>
+      <div style="font-size:0.72rem;color:#475569">
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #dbeafe"><span style="color:#2563eb;font-weight:700">1등 투표</span><span style="color:#2563eb;font-weight:700">100%</span></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #dbeafe"><span>중간 투표 (n/2등)</span><span>약 50%</span></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #dbeafe"><span>꼴찌 투표 (n등)</span><span>약 1/n %</span></div>
+        <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#94a3b8">미투표</span><span style="color:#94a3b8">0%</span></div>
       </div>
     </div>
     <div>
