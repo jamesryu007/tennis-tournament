@@ -2544,7 +2544,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v813';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v814';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -18072,7 +18072,7 @@ function _renderNoticeList() {
       const checkListHtml = checkNames.length
         ? `<div style="font-size:0.72rem;color:#16a34a;margin-top:6px;margin-bottom:2px;line-height:1.6">✅ ${checkNames.join(' · ')}</div>`
         : '';
-      const shareBtn = `<button onclick="shareNotice('${id}',${JSON.stringify(n.title||'')})" style="font-size:0.7rem;background:none;color:#64748b;border:1.5px solid #e2e8f0;padding:2px 8px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">🔗 공유</button>`;
+      const shareBtn = `<button onclick="shareNotice('${id}')" style="font-size:0.7rem;background:none;color:#64748b;border:1.5px solid #e2e8f0;padding:2px 8px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">🔗 공유</button>`;
       const mgrBtns = mgr ? `
         <button onclick="sendNoticeToChat('${id}')" style="font-size:0.7rem;background:#2563eb;color:#fff;border:none;padding:3px 9px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">전송</button>
         <button onclick="openNoticeWriteModal('${id}')" style="font-size:0.7rem;background:none;color:#2563eb;border:1.5px solid #93c5fd;padding:2px 8px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit">수정</button>
@@ -18135,13 +18135,18 @@ async function saveNotice() {
     if (btn) { btn.disabled = false; btn.textContent = '저장'; }
   }
 }
-function shareNotice(id, title) {
+function shareNotice(id) {
   const base = location.origin + location.pathname;
   const url = base + '?tab=matches&subScreen=notices&noticeId=' + encodeURIComponent(id);
+  // 공지 제목은 DOM에서 직접 읽음 (HTML onclick 속성 파싱 안전)
+  const el = document.getElementById('notice-item-' + id);
+  const titleEl = el && el.querySelector('[style*="font-weight:800"]');
+  const title = titleEl ? titleEl.textContent.trim() : '공지사항';
+  const shareText = '📢 ' + title + '\n' + url;
   if (navigator.share) {
-    navigator.share({ title: '자미터 공지', text: title || '공지사항', url }).catch(() => {});
+    navigator.share({ text: shareText }).catch(() => {});
   } else {
-    navigator.clipboard && navigator.clipboard.writeText(url).then(() => alert('링크가 복사되었습니다'));
+    navigator.clipboard && navigator.clipboard.writeText(shareText).then(() => alert('링크가 복사되었습니다'));
   }
 }
 function _scrollToNotice(id) {
@@ -19778,11 +19783,11 @@ async function bzMenuShare() {
       if (meta.text) { await navigator.share({ text: meta.text }); return; }
       return;
     }
-    // 텍스트 — 딥링크 URL 포함
+    // 텍스트 — 딥링크 URL을 text에 포함 (카카오톡은 url 파라미터 무시)
     if (meta.text) {
       const base = location.origin + location.pathname;
       const url = base + '?tab=matches&subScreen=banzige&msgId=' + encodeURIComponent(key);
-      await navigator.share({ title: '자미터 자미톡', text: meta.text, url });
+      await navigator.share({ text: meta.text + '\n' + url });
       return;
     }
     // 이미지/영상 — _bzState 캐시에서 동기적으로 확보 (user gesture 유지, fetch 없음)
