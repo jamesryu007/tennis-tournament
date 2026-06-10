@@ -1714,9 +1714,9 @@ const firebaseConfig = {
         <div class="daily-page-title">⚡ 자록</div>
         <div style="font-size:0.95rem;font-weight:800;color:rgba(255,255,255,0.9);letter-spacing:0.04em;text-shadow:0 1px 4px rgba(0,0,0,0.2);position:relative">자미터의 기록</div>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
-        <button onclick="openNoticeModal()" style="background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.4);border-radius:8px;padding:2px 7px;font-size:0.9rem;cursor:pointer;line-height:1.4">📢</button>
+      <div style="display:flex;align-items:center;gap:8px">
         <div id="daily-today-date" style="font-size:0.75rem;font-weight:700;color:rgba(255,255,255,0.85);white-space:nowrap"></div>
+        <button onclick="openNoticeModal()" title="공지사항" style="background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.35);border-radius:50%;width:28px;height:28px;font-size:0.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0">📢</button>
       </div>
     </div>
     <div class="daily-page-sub" style="font-size:0.8rem;margin-top:5px">오늘의 경기 결과와 자미터만의 추억을 기록하세요</div>
@@ -2537,7 +2537,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v805';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v806';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
