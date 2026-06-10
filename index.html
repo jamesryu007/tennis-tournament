@@ -8400,8 +8400,11 @@ async function _getBagelStats(year){
 }
 
 // ── 출석 랭킹 (포인트제) ──────────────────────────────────────────
-// 출석포인트: 참석=1/52, 늦참=0.9/52, 불참=0.5/52, 미정=0.2/52, 미투표=0
-// 순번포인트: k번째 투표 → (전체멤버수-k+1)/100, votedAt 없으면 0
+// 출석포인트(80%): 참석=1.0, 늦참=0.8, 나머지=0 → 전체주 대비 정규화
+// 순번포인트(20%): 투표한 순서 기반, 미투표만 0 (불참/미정도 순번 인정) → 전체주 대비 정규화
+// 총점 = 0.8 × (Σvote_pts / total_weeks) + 0.2 × (Σ(n-k+1)/n / total_weeks)
+let _pollAttStats = []; // 상세 모달에서 재사용
+
 async function renderAttendanceRanking() {
   const el = document.getElementById('ranking-list');
   if (!el || !db) return;
@@ -8409,100 +8412,126 @@ async function renderAttendanceRanking() {
 
   const snap = await db.ref('jmt/poll').once('value');
   const allPolls = snap.val() || {};
-  const total = Object.keys(allPolls).length;
+  const totalWeeks = Object.keys(allPolls).length;
 
-  if (!total) {
+  if (!totalWeeks) {
     el.innerHTML = '<div class="empty-state"><div class="icon">📅</div><p>출석 기록이 없습니다</p></div>';
     return;
   }
 
-  const VOTE_PTS = { attend: 1/52, late: 0.9/52, absent: 0.5/52, undecided: 0.2/52 };
+  const VOTE_PTS = { attend: 1.0, late: 0.8 };
+  const ORDER_ELIGIBLE = new Set(['attend', 'late', 'absent', 'undecided']);
   const members = state.members || [];
-  const n = members.length; // 순번포인트 기준 전체 정회원 수
+  const n = members.length;
   const memberNames = members.map(m => m.name).filter(Boolean);
 
-  // 멤버별 포인트 누적
+  // 멤버별 포인트 누적 + 주차별 투표 기록
   const acc = {};
-  memberNames.forEach(name => { acc[name] = { attPts: 0, ordPts: 0, attendCount: 0, weeks: 0 }; });
+  memberNames.forEach(name => {
+    acc[name] = {
+      attSum: 0, ordSum: 0,
+      attendCnt: 0, lateCnt: 0, absentCnt: 0, undecidedCnt: 0,
+      votedWeeks: 0,
+      weeklyOrdRanks: [], // { weekId, rank, total } 상세 모달용
+    };
+  });
 
   for (const [weekId, poll] of Object.entries(allPolls)) {
     const votesObj = poll.votes || {};
 
-    // votedAt 기준 투표 순서 정렬 (있는 경우만)
-    const sortedVoters = Object.values(votesObj)
-      .filter(v => v.votedAt)
+    // 순번: 투표한 모든 상태(attend/late/absent/undecided) votedAt 기준 정렬
+    const eligible = Object.values(votesObj)
+      .filter(v => v.votedAt && ORDER_ELIGIBLE.has(v.vote))
       .sort((a, b) => a.votedAt.localeCompare(b.votedAt));
     const orderMap = {};
-    sortedVoters.forEach((v, i) => { orderMap[v.name] = i + 1; });
+    eligible.forEach((v, i) => { orderMap[v.name] = i + 1; });
+    const nEligible = eligible.length;
 
     for (const name of memberNames) {
       const key = name.replace(/[.#$[\]/]/g, '_');
       const v = votesObj[key] || votesObj[name] || null;
+      const a = acc[name];
 
-      const attPts = v ? (VOTE_PTS[v.vote] || 0) : 0;
+      a.attSum += v ? (VOTE_PTS[v.vote] || 0) : 0;
+
       let ordPts = 0;
-      if (v && v.votedAt && orderMap[name]) {
-        ordPts = Math.max(0, n - orderMap[name] + 1) / 100;
+      if (v && ORDER_ELIGIBLE.has(v.vote) && orderMap[name]) {
+        const rank = orderMap[name];
+        ordPts = Math.max(0, n - rank + 1) / n;
+        a.weeklyOrdRanks.push({ weekId, rank, nEligible });
       }
+      a.ordSum += ordPts;
 
-      if (!acc[name]) continue;
-      acc[name].attPts += attPts;
-      acc[name].ordPts += ordPts;
-      if (v) acc[name].weeks++;
-      if (v && v.vote === 'attend') acc[name].attendCount++;
+      if (v) a.votedWeeks++;
+      const vt = v && v.vote;
+      if (vt === 'attend')    a.attendCnt++;
+      else if (vt === 'late') a.lateCnt++;
+      else if (vt === 'absent') a.absentCnt++;
+      else if (vt === 'undecided') a.undecidedCnt++;
     }
   }
 
-  // 정렬 (총점 내림차순)
-  const stats = memberNames.map(name => ({
-    name,
-    ...acc[name],
-    total: (acc[name] || { attPts: 0, ordPts: 0 }).attPts + (acc[name] || { attPts: 0, ordPts: 0 }).ordPts,
-  })).sort((a, b) => b.total - a.total || b.attPts - a.attPts);
+  // 정규화 후 최종 점수
+  _pollAttStats = memberNames.map(name => {
+    const a = acc[name];
+    const attNorm = a.attSum / totalWeeks;
+    const ordNorm = a.ordSum / totalWeeks;
+    const score = 0.8 * attNorm + 0.2 * ordNorm;
+    return {
+      name,
+      score,
+      attContrib: 0.8 * attNorm,
+      ordContrib: 0.2 * ordNorm,
+      attNorm, ordNorm,
+      attendCnt: a.attendCnt, lateCnt: a.lateCnt,
+      absentCnt: a.absentCnt, undecidedCnt: a.undecidedCnt,
+      votedWeeks: a.votedWeeks, totalWeeks,
+      weeklyOrdRanks: a.weeklyOrdRanks,
+    };
+  }).sort((a, b) => b.score - a.score || b.attContrib - a.attContrib);
 
   // 동점자 동순위
-  stats.forEach((p, i) => {
+  _pollAttStats.forEach((p, i) => {
     if (i === 0) { p.rank = 1; return; }
-    const prev = stats[i - 1];
-    p.rank = Math.abs(p.total - prev.total) < 0.00001 ? prev.rank : i + 1;
+    const prev = _pollAttStats[i - 1];
+    p.rank = Math.abs(p.score - prev.score) < 0.000001 ? prev.rank : i + 1;
   });
 
   const myName = state.identity && state.identity.name;
-  const podItems = stats.slice(0, Math.min(3, stats.length));
+  const podItems = _pollAttStats.slice(0, Math.min(3, _pollAttStats.length));
   const podCls = ['p1','p2','p3'], medals = ['🥇','🥈','🥉'];
+  const maxScore = _pollAttStats[0].score || 1;
 
-  let html = `<div style="text-align:center;font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;padding:12px 0 6px">─ 전체 ${total}주 누적 · 출석포인트 + 순번포인트 ─</div><div class="rank-podium">
+  let html = `<div style="text-align:center;font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;padding:12px 0 6px">─ 전체 ${totalWeeks}주 누적 · 출석(80%) + 순번(20%) ─</div><div class="rank-podium">
     ${podItems.map((p, i) => {
       const isMe = p.name === myName;
       const g = getGender(p.name), nc = g==='male'?'#1e40af':g==='female'?'#9d174d':'#1e293b';
-      const maxTotal = stats[0].total || 1;
-      return `<div class="rank-pod ${podCls[i]}">
+      return `<div class="rank-pod ${podCls[i]}" onclick="openAttendanceDetail('${p.name.replace(/'/g,"\\'")}')">
         <div class="rank-pod-medal">${medals[p.rank-1]||medals[i]}</div>
         <div class="rank-pod-nick" style="color:${isMe?'#2563eb':nc}">${p.name}</div>
-        <div class="rank-pod-members">${p.total.toFixed(3)}pt</div>
-        <div class="rank-pod-wr hot" style="font-size:0.7rem">${p.attPts.toFixed(2)}+${p.ordPts.toFixed(2)}</div>
-        <div class="rank-pod-wl">${p.attendCount}회 참석 · ${p.weeks}/${total}주</div>
-        <div class="rank-pod-bar"><div class="rank-pod-bar-fill" style="width:${Math.round(p.total/maxTotal*100)}%"></div></div>
+        <div class="rank-pod-members">${(p.score*100).toFixed(1)}점</div>
+        <div class="rank-pod-wr hot" style="font-size:0.7rem">${p.attendCnt}참 ${p.lateCnt}늦 ${p.absentCnt}불</div>
+        <div class="rank-pod-wl">${p.votedWeeks}/${totalWeeks}주 투표</div>
+        <div class="rank-pod-bar"><div class="rank-pod-bar-fill" style="width:${Math.round(p.score/maxScore*100)}%"></div></div>
       </div>`;
     }).join('')}
   </div>`;
 
-  if (stats.length > 3) {
+  if (_pollAttStats.length > 3) {
     html += `<div class="rank-list-label" style="margin-top:8px">─ 4위 이하 ─</div>`;
-    const maxTotal = stats[0].total || 1;
-    html += stats.slice(3).map((p) => {
+    html += _pollAttStats.slice(3).map(p => {
       const isMe = p.name === myName;
       const g = getGender(p.name);
       const nc = g === 'male' ? '#2563eb' : g === 'female' ? '#db2777' : '#1e293b';
-      const barW = Math.round(p.total / maxTotal * 100);
-      return `<div class="rank-item other">
+      const barW = Math.round(p.score / maxScore * 100);
+      return `<div class="rank-item other" onclick="openAttendanceDetail('${p.name.replace(/'/g,"\\'")}')">
         <div class="rank-item-bar"></div>
         <div class="rank-item-body">
           <span class="rank-num">${p.rank}위</span>
           <span class="rank-name" style="color:${isMe?'#2563eb':nc}">${p.name}</span>
-          <span class="rank-stat">${p.attendCount}회 참석</span>
+          <span class="rank-stat">${p.attendCnt}참 ${p.lateCnt}늦 ${p.absentCnt}불</span>
           <div class="rank-wr-col">
-            <span class="rank-winrate" style="color:#1e293b;font-size:0.78rem">${p.total.toFixed(3)}<span style="font-size:0.6rem;color:#94a3b8">pt</span></span>
+            <span class="rank-winrate" style="color:#1e293b;font-size:0.78rem">${(p.score*100).toFixed(1)}<span style="font-size:0.6rem;color:#94a3b8">점</span></span>
             <div class="rank-wr-bar"><div class="rank-wr-bar-fill hot" style="width:${barW}%"></div></div>
           </div>
         </div>
@@ -8511,6 +8540,88 @@ async function renderAttendanceRanking() {
   }
 
   el.innerHTML = html;
+}
+
+// ── 출석 랭킹 멤버 상세 팝업 ────────────────────────────────────────
+function openAttendanceDetail(name) {
+  const p = _pollAttStats.find(x => x.name === name);
+  if (!p) return;
+
+  document.getElementById('att-detail-title').textContent = name + ' 출석 통계';
+
+  const scoreBar = (val, max, color) =>
+    `<div style="flex:1;background:#f1f5f9;border-radius:4px;height:10px;overflow:hidden">
+      <div style="height:100%;border-radius:4px;background:${color};width:${Math.round(val/max*100)}%"></div>
+    </div>`;
+
+  const maxScore = (_pollAttStats[0] && _pollAttStats[0].score) || 1;
+  const totalW = p.totalWeeks;
+  const unvotedCnt = totalW - p.votedWeeks;
+
+  // 순번 통계
+  const ordRanks = p.weeklyOrdRanks;
+  const avgRank = ordRanks.length ? (ordRanks.reduce((s, r) => s + r.rank, 0) / ordRanks.length).toFixed(1) : '-';
+  const bestRank = ordRanks.length ? Math.min(...ordRanks.map(r => r.rank)) : '-';
+
+  const content = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:0.72rem;font-weight:800;color:#94a3b8;letter-spacing:0.06em;margin-bottom:8px">📊 총점</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:1.4rem;font-weight:900;color:#2563eb">${(p.score*100).toFixed(1)}점</span>
+        <span style="font-size:0.72rem;color:#94a3b8">전체 ${p.rank}위</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        ${scoreBar(p.score, maxScore, '#2563eb')}
+      </div>
+    </div>
+
+    <div style="background:#f8fafc;border-radius:12px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:0.72rem;font-weight:800;color:#94a3b8;margin-bottom:10px">✅ 출석점수 기여 — ${(p.attContrib*100).toFixed(1)}점 / 80점 만점</div>
+      ${[
+        ['참석', p.attendCnt, totalW, '#16a34a'],
+        ['늦참', p.lateCnt, totalW, '#d97706'],
+        ['불참', p.absentCnt, totalW, '#dc2626'],
+        ['미정', p.undecidedCnt, totalW, '#94a3b8'],
+        ['미투표', unvotedCnt, totalW, '#e2e8f0'],
+      ].map(([label, cnt, tot, color]) => `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="width:38px;font-size:0.72rem;font-weight:700;color:${color};flex-shrink:0">${label}</span>
+          <span style="width:28px;font-size:0.72rem;color:#475569;text-align:right;flex-shrink:0">${cnt}회</span>
+          <div style="flex:1;background:#f1f5f9;border-radius:4px;height:8px;overflow:hidden">
+            <div style="height:100%;border-radius:4px;background:${color};width:${tot?Math.round(cnt/tot*100):0}%"></div>
+          </div>
+          <span style="width:30px;font-size:0.7rem;color:#94a3b8;text-align:right;flex-shrink:0">${tot?Math.round(cnt/tot*100):0}%</span>
+        </div>`).join('')}
+    </div>
+
+    <div style="background:#eff6ff;border-radius:12px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:0.72rem;font-weight:800;color:#2563eb;margin-bottom:10px">⚡ 순번점수 기여 — ${(p.ordContrib*100).toFixed(1)}점 / 20점 만점</div>
+      <div style="display:flex;gap:12px;margin-bottom:10px">
+        <div style="flex:1;text-align:center;background:#fff;border-radius:10px;padding:8px 0">
+          <div style="font-size:0.65rem;color:#94a3b8;margin-bottom:2px">순번인정 투표</div>
+          <div style="font-size:1.1rem;font-weight:900;color:#2563eb">${ordRanks.length}회</div>
+        </div>
+        <div style="flex:1;text-align:center;background:#fff;border-radius:10px;padding:8px 0">
+          <div style="font-size:0.65rem;color:#94a3b8;margin-bottom:2px">평균 순번</div>
+          <div style="font-size:1.1rem;font-weight:900;color:#7c3aed">${avgRank}위</div>
+        </div>
+        <div style="flex:1;text-align:center;background:#fff;border-radius:10px;padding:8px 0">
+          <div style="font-size:0.65rem;color:#94a3b8;margin-bottom:2px">최고 순번</div>
+          <div style="font-size:1.1rem;font-weight:900;color:#16a34a">${bestRank}위</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:0.72rem;color:#475569;flex-shrink:0">순번점수</span>
+        ${scoreBar(p.ordContrib, 0.2, '#7c3aed')}
+        <span style="font-size:0.7rem;color:#7c3aed;flex-shrink:0">${(p.ordNorm*100).toFixed(0)}%</span>
+      </div>
+    </div>
+
+    <div style="font-size:0.7rem;color:#94a3b8;text-align:center">전체 ${totalW}주 중 ${p.votedWeeks}주 투표</div>
+  `;
+
+  document.getElementById('att-detail-content').innerHTML = content;
+  document.getElementById('att-detail-modal').classList.add('open');
 }
 
 // NTRP 숫자 조회 (없으면 0) — 정회원 및 게스트 모두 조회
@@ -13361,25 +13472,46 @@ async function triggerAtpRefresh() {
     <button onclick="document.getElementById('att-info-modal').classList.remove('open')"
       style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:1.3rem;color:#94a3b8;cursor:pointer">✕</button>
     <div style="font-size:1rem;font-weight:900;color:#4c1d95;margin-bottom:14px">🏃 출석 랭킹 기준</div>
-    <div style="background:#f8fafc;border-radius:12px;padding:12px 14px;margin-bottom:14px">
-      <div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">📐 참석률 공식</div>
-      <div style="font-size:0.82rem;color:#2563eb;font-weight:700;font-family:monospace">(출석 + 늦참) ÷ 전체 모임 횟수 × 100</div>
-      <div style="font-size:0.72rem;color:#64748b;margin-top:4px">출석(attend)과 늦참(late) 모두 참석으로 계산</div>
+    <div style="background:#f8fafc;border-radius:12px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:8px">📐 총점 공식</div>
+      <div style="font-size:0.82rem;color:#2563eb;font-weight:800;font-family:monospace;margin-bottom:4px">총점 = 출석점수(80%) + 순번점수(20%)</div>
+      <div style="font-size:0.7rem;color:#64748b">각 항목은 0~1 범위로 정규화 후 합산</div>
     </div>
-    <div style="margin-bottom:12px">
-      <div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">🏆 순위 결정</div>
+    <div style="background:#f0fdf4;border-radius:12px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:0.78rem;font-weight:800;color:#16a34a;margin-bottom:8px">✅ 출석점수 (80%)</div>
+      <div style="font-size:0.75rem;color:#475569;line-height:1.9">
+        <span style="display:inline-block;width:52px;color:#16a34a;font-weight:700">참석</span> 1.0점<br>
+        <span style="display:inline-block;width:52px;color:#d97706;font-weight:700">늦참</span> 0.8점<br>
+        <span style="display:inline-block;width:52px;color:#94a3b8;font-weight:700">불참 · 미정 · 미투표</span> 0점
+      </div>
+    </div>
+    <div style="background:#eff6ff;border-radius:12px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:0.78rem;font-weight:800;color:#2563eb;margin-bottom:8px">⚡ 순번점수 (20%)</div>
       <div style="font-size:0.75rem;color:#475569;line-height:1.7">
-        1순위 — 참석률(%)<br>
-        2순위 — 동률 시 출석 횟수가 많은 멤버 우선
+        투표한 순서가 빠를수록 높은 점수<br>
+        <span style="color:#2563eb;font-weight:700">1등 = 만점, 꼴찌 = 최소점</span><br>
+        미투표는 0점 · 불참/미정도 순번 인정
       </div>
     </div>
     <div>
       <div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">📌 참고</div>
       <div style="font-size:0.75rem;color:#475569;line-height:1.7">
         게스트는 집계에서 제외됩니다<br>
-        모임 횟수 = 출첵 투표가 생성된 주차 기준
+        누적 기간 = 전체 출첵 주차 기준
       </div>
     </div>
+  </div>
+</div>
+
+<!-- 출석 랭킹 멤버 상세 모달 -->
+<div id="att-detail-modal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet" style="height:72vh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <div style="padding:14px 18px 0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div id="att-detail-title" style="font-size:1rem;font-weight:800;color:#1e293b"></div>
+      <button onclick="document.getElementById('att-detail-modal').classList.remove('open')" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8">✕</button>
+    </div>
+    <div id="att-detail-content" style="flex:1;overflow-y:auto;padding:14px 18px 24px"></div>
   </div>
 </div>
 
