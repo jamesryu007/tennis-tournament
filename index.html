@@ -14,6 +14,13 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="JAMITE">
 <link rel="apple-touch-icon" href="images/icon-192.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="자미터 테니스">
+<meta property="og:title" content="자미터 테니스">
+<meta property="og:description" content="자미터 테니스 동호회">
+<meta property="og:image" content="https://jamite-tennis.web.app/images/icon-512.png">
+<meta property="og:url" content="https://jamite-tennis.web.app">
+<meta name="description" content="자미터 테니스 동호회">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
 /* ── 전역 버튼 눌림 효과 (클래스별 :active가 없는 inline 버튼 커버) ── */
@@ -2537,7 +2544,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v811';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v812';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
