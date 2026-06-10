@@ -2534,7 +2534,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v793';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v794';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9782,15 +9782,20 @@ function renderCheckinPage() {
   ].sort((a, b) => a.ts.localeCompare(b.ts));
   const _voteRank = {};
   _allVotersSorted.forEach((x, i) => { _voteRank[x.key] = i + 1; });
-  const _chipHtml = (name, gender, idx) => {
+  const _voteEmoji = { attend: '✅', late: '⏰', absent: '❌', undecided: '🤔' };
+  const _chipHtml = (name, gender, idx, originalVote) => {
     const isMale = gender === 'male';
     const isFemale = gender === 'female';
     const bg        = isMale ? '#eff6ff' : isFemale ? '#fdf2f8' : '#f8fafc';
     const color     = isMale ? '#1d4ed8' : isFemale ? '#be185d' : '#475569';
     const border    = isMale ? '#dbeafe' : isFemale ? '#fce7f3' : '#e2e8f0';
     const badgeColor = isMale ? '#3b82f6' : isFemale ? '#ec4899' : '#94a3b8';
+    // 변심 뱃지 — 이전 투표 상태 이모지를 pill 우상단에 절대 위치로 표시
+    const prevBadge = originalVote
+      ? `<span style="position:absolute;top:-7px;right:-4px;font-size:0.72rem;line-height:1;z-index:1">${_voteEmoji[originalVote] || ''}</span>`
+      : '';
     // Unicode 원문자는 iOS에서 일부 번호가 얇게 렌더링 → CSS 채운 원 배지로 일관성 확보
-    return `<div class="poll-chip" style="background:${bg};border-color:${border}"><span style="display:inline-flex;align-items:center;justify-content:center;min-width:1.55rem;height:1.55rem;border-radius:50%;background:${badgeColor};font-size:0.88rem;font-weight:800;color:#fff;flex-shrink:0;margin-right:4px;line-height:1">${idx}</span><span class="poll-chip-name" style="color:${color}">${name}</span></div>`;
+    return `<div class="poll-chip" style="position:relative;background:${bg};border-color:${border}">${prevBadge}<span style="display:inline-flex;align-items:center;justify-content:center;min-width:1.55rem;height:1.55rem;border-radius:50%;background:${badgeColor};font-size:0.88rem;font-weight:800;color:#fff;flex-shrink:0;margin-right:4px;line-height:1">${idx}</span><span class="poll-chip-name" style="color:${color}">${name}</span></div>`;
   };
   const voterGroup = (voters, label, accentColor) => {
     if (!voters.length) return '';
@@ -9798,7 +9803,7 @@ function renderCheckinPage() {
     return `<div class="poll-group">
       <div class="poll-group-hdr" style="border-left:3px solid ${accentColor};background:${accentColor}18;padding:6px 10px;border-radius:8px;margin-bottom:6px;font-size:0.85rem;color:${accentColor}">${label} <span style="color:#94a3b8;font-weight:400;margin-left:2px">${voters.length}명</span></div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;padding-bottom:4px">
-        ${sorted.map(v => { const mb=state.members.find(m=>m.name===v.name); return _chipHtml(v.name, mb?mb.gender:'', _voteRank[v.name]||0); }).join('')}
+        ${sorted.map(v => { const mb=state.members.find(m=>m.name===v.name); return _chipHtml(v.name, mb?mb.gender:'', _voteRank[v.name]||0, v.originalVote); }).join('')}
       </div>
     </div>`;
   };
@@ -10041,14 +10046,24 @@ function renderCheckinPage() {
   el.innerHTML = html;
 }
 
-function castVote(vote) {
+async function castVote(vote) {
   const myName = state.identity && state.identity.name;
   if(!myName) { alert('먼저 접속자를 선택하세요.'); return; }
   if(!state.pollState || !state.pollState.weekId) return;
   if(state.pollState.status !== 'open') { alert('투표가 마감되었습니다.'); return; }
   const weekId = state.pollState.weekId;
   const key = myName.replace(/[.#$[\]/]/g, '_');
-  if(db) db.ref(`jmt/poll/${weekId}/votes/${key}`).set({ name: myName, vote, votedAt: new Date().toISOString() }).catch(fbErr);
+  if(!db) return;
+  const snap = await db.ref(`jmt/poll/${weekId}/votes/${key}`).once('value');
+  const existing = snap.val();
+  // 처음 투표 시각 유지 — 변경해도 순번 고정
+  const votedAt = (existing && existing.votedAt) ? existing.votedAt : new Date().toISOString();
+  // originalVote: 처음 투표와 다른 값으로 바꿀 때만 기록, 원래 값으로 돌아오면 삭제
+  const firstVote = existing ? (existing.originalVote || existing.vote) : null;
+  const originalVote = (firstVote && firstVote !== vote) ? firstVote : null;
+  const data = { name: myName, vote, votedAt };
+  if(originalVote) data.originalVote = originalVote;
+  db.ref(`jmt/poll/${weekId}/votes/${key}`).set(data).catch(fbErr);
 }
 
 function addPollGuest() {
