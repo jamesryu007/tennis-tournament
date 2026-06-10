@@ -13,5 +13,11 @@ service firebase.storage {
       allow write: if true;
       allow delete: if true;
     }
+    // 공지사항 첨부 사진
+    match /jmt-notices/{allPaths=**} {
+      allow read: if true;
+      allow write: if true;
+      allow delete: if true;
+    }
   }
 }
