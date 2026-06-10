@@ -2544,7 +2544,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v816';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v817';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -10679,7 +10679,7 @@ function selectIdentity(name) {
   localStorage.setItem(LS_IDENTITY, JSON.stringify(state.identity));
   document.getElementById('identity-modal').classList.remove('open');
   // 푸시 알림으로 진입한 경우 해당 탭으로 이동
-  if (window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen, nid=window._pendingNoticeId, mid=window._pendingMsgId; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; window._pendingNoticeId=null; window._pendingMsgId=null; setTimeout(() => { switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); if(mid) setTimeout(()=>_scrollToBzMsg(mid),800); },300); if(ss==='notices') setTimeout(()=>{ openNoticeModal(); if(nid) setTimeout(()=>_scrollToNotice(nid),700); },400); }, 100); }
+  if (window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen, nid=window._pendingNoticeId, mid=window._pendingMsgId, pid=window._pendingPollId; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; window._pendingNoticeId=null; window._pendingMsgId=null; window._pendingPollId=null; setTimeout(() => { switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); if(mid) setTimeout(()=>_scrollToBzMsg(mid),800); },300); if(ss==='notices') setTimeout(()=>{ openNoticeModal(); if(nid) setTimeout(()=>_scrollToNotice(nid),700); },400); if(ss==='meetingPoll'&&pid) setTimeout(()=>openMpDetailModal(pid),500); }, 100); }
   // FCM: 처음 로그인이면 초기화(권한 요청 포함), 이미 초기화됐으면 토큰 재매핑
   if (!_fcmMessaging) {
     initFCM(true); // 사용자 클릭 제스처 시점이므로 권한 요청 가능
@@ -10939,7 +10939,7 @@ setTimeout(() => { if (!_photoAllItems.length) loadPhotos(); }, 500);
 // FCM 초기화 (접속자 선택 후 실행 — identity 모달 닫힐 때 호출)
 setTimeout(() => {
   if(state.identity) initFCM();
-  if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen, nid=window._pendingNoticeId, mid=window._pendingMsgId; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; window._pendingNoticeId=null; window._pendingMsgId=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); if(mid) setTimeout(()=>_scrollToBzMsg(mid),800); },300); if(ss==='notices') setTimeout(()=>{ openNoticeModal(); if(nid) setTimeout(()=>_scrollToNotice(nid),700); },400); }
+  if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen, nid=window._pendingNoticeId, mid=window._pendingMsgId, pid=window._pendingPollId; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; window._pendingNoticeId=null; window._pendingMsgId=null; window._pendingPollId=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); if(mid) setTimeout(()=>_scrollToBzMsg(mid),800); },300); if(ss==='notices') setTimeout(()=>{ openNoticeModal(); if(nid) setTimeout(()=>_scrollToNotice(nid),700); },400); if(ss==='meetingPoll'&&pid) setTimeout(()=>openMpDetailModal(pid),500); }
 }, 1500);
 document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
 // 랜덤 사진 변경 — 자.만.추. landscape 이미지 우선, 없으면 팀 사진 fallback
@@ -11001,6 +11001,16 @@ changeCheckinPhotoRandom();
       // BZ_REF 등 하위 const가 초기화된 후 실행 (TDZ 방지)
       // _bzInitUnreadListener/HandleShareTarget은 하위 스크립트 블록에 정의 — 파싱 완료 후 실행 보장
       window.addEventListener('load', () => { _bzInitUnreadListener(); _bzHandleShareTarget(); }, { once: true });
+      // KakaoTalk 인앱 브라우저 감지 → Safari 열기 안내 배너
+      if (/KAKAOTALK/i.test(navigator.userAgent)) {
+        window.addEventListener('load', () => {
+          const banner = document.createElement('div');
+          banner.id = 'kakao-browser-banner';
+          banner.style.cssText = 'position:fixed;bottom:80px;left:12px;right:12px;z-index:9900;background:rgba(30,41,59,0.93);color:#fff;border-radius:14px;padding:12px 16px;font-size:0.82rem;line-height:1.6;box-shadow:0 4px 20px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:space-between;gap:10px';
+          banner.innerHTML = '<span>홈화면 앱으로 열려면<br><b>하단 공유 버튼 → Safari에서 열기</b></span><button onclick="document.getElementById(\'kakao-browser-banner\').remove()" style="background:none;border:1.5px solid rgba(255,255,255,0.4);color:#fff;border-radius:8px;padding:5px 10px;font-size:0.78rem;cursor:pointer;white-space:nowrap;flex-shrink:0">닫기</button>';
+          document.body.appendChild(banner);
+        }, { once: true });
+      }
     } else {
       // ── localStorage 폴백 모드 (Firebase 미설정) ───────────────
       setConnStatus(false);
@@ -13368,6 +13378,7 @@ async function triggerAtpRefresh() {
   if (_urlParams.get('tab')) { window._pendingTab = _urlParams.get('tab'); window._pendingCommentId = _urlParams.get('commentId') || null; window._pendingBetId = _urlParams.get('betId') || null; const _iw = _urlParams.get('isWinner'); window._pendingIsWinner = _iw === 'true' ? true : _iw === 'false' ? false : undefined; window._pendingSubScreen = _urlParams.get('subScreen') || null; }
   window._pendingNoticeId = _urlParams.get('noticeId') || null;
   window._pendingMsgId    = _urlParams.get('msgId')    || null;
+  window._pendingPollId   = _urlParams.get('pollId')   || null;
   // iOS PWA는 start_url로 열려 URL 파라미터가 없으므로 SW가 Cache에 저장한 탭 정보를 읽음
   if ('caches' in window && !window._pendingTab) {
     caches.open('jamite-nav').then(c => c.match('/pending-nav')).then(res => {
@@ -13382,6 +13393,7 @@ async function triggerAtpRefresh() {
           window._pendingSubScreen = nav.subScreen || null;
           window._pendingNoticeId = nav.noticeId || null;
           window._pendingMsgId    = nav.msgId    || null;
+          window._pendingPollId   = nav.pollId   || null;
         }
       });
     }).catch(() => {});
@@ -15384,7 +15396,36 @@ async function shareRanking(mode) {
 
 function shareMpVoteCard() {
   const title = (_mpData && _mpData.title) ? `📅 ${_mpData.title}` : '📅 모임 정하기';
-  shareElementAsImage('mp-vote-card', title, 'meeting-poll.png');
+  const base = location.origin + location.pathname;
+  const shareUrl = _mpActivePollId
+    ? base + '?tab=setup&subScreen=meetingPoll&pollId=' + encodeURIComponent(_mpActivePollId)
+    : base;
+  const el = document.getElementById('mp-vote-card');
+  if (!el || typeof html2canvas === 'undefined') {
+    navigator.share && navigator.share({ text: title + '\n' + shareUrl }).catch(() => {});
+    return;
+  }
+  const shareBtn = el.querySelector('[data-share-btn]');
+  if (shareBtn) shareBtn.style.visibility = 'hidden';
+  html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false })
+    .then(canvas => {
+      if (shareBtn) shareBtn.style.visibility = '';
+      canvas.toBlob(blob => {
+        if (!blob) { navigator.share && navigator.share({ text: title + '\n' + shareUrl }).catch(() => {}); return; }
+        const file = new File([blob], 'meeting-poll.png', { type: 'image/png' });
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file], text: shareUrl }).catch(() => {
+            navigator.share({ text: title + '\n' + shareUrl }).catch(() => {});
+          });
+        } else if (navigator.share) {
+          navigator.share({ text: title + '\n' + shareUrl }).catch(() => {});
+        }
+      }, 'image/png');
+    })
+    .catch(() => {
+      if (shareBtn) shareBtn.style.visibility = '';
+      navigator.share && navigator.share({ text: title + '\n' + shareUrl }).catch(() => {});
+    });
 }
 
 function ladderShare() {
@@ -19772,14 +19813,20 @@ async function bzMenuShare() {
     // 공지 카드 — 미리 캡처된 blob 있으면 이미지 공유, 없으면 텍스트로 즉시 공유
     // (await html2canvas 중 user gesture 끊김 방지 — blob 없으면 await 없이 텍스트 공유)
     if (meta.mediaType === 'notice') {
+      const noticeId = meta.noticeId || '';
+      const _nBase = location.origin + location.pathname;
+      const noticeUrl = noticeId ? _nBase + '?tab=matches&subScreen=notices&noticeId=' + encodeURIComponent(noticeId) : '';
+      const noticePreview = (meta.text || '').split('\n')[0].slice(0, 30);
+      const noticeShareText = (noticePreview ? '📢 ' + noticePreview + '\n' : '') + noticeUrl;
       if (_bzNoticeBlobCache) {
         const blob = _bzNoticeBlobCache; _bzNoticeBlobCache = null;
         const file = new File([blob], 'notice.png', { type: 'image/png' });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ files: [file] }); return;
+          await navigator.share({ files: [file], text: noticeUrl || noticePreview }); return;
         }
       }
-      // blob 미준비(캡처 중) 또는 파일 공유 불가 → 텍스트로 즉시 공유
+      // blob 미준비 또는 파일 공유 불가 → 제목+URL 텍스트 공유
+      if (noticeShareText) { await navigator.share({ text: noticeShareText }); return; }
       if (meta.text) { await navigator.share({ text: meta.text }); return; }
       return;
     }
