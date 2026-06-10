@@ -13487,12 +13487,28 @@ async function triggerAtpRefresh() {
     </div>
     <div style="background:#eff6ff;border-radius:12px;padding:12px 14px;margin-bottom:12px">
       <div style="font-size:0.78rem;font-weight:800;color:#2563eb;margin-bottom:8px">⚡ 순번점수 (20%)</div>
-      <div style="font-size:0.74rem;color:#475569;margin-bottom:8px">투표 순서가 빠를수록 높은 점수<br><span style="font-size:0.7rem;color:#94a3b8">불참·미정도 순번 인정 · 미투표만 0점</span></div>
-      <div style="font-size:0.72rem;color:#475569">
-        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #dbeafe"><span style="color:#2563eb;font-weight:700">1등 투표</span><span style="color:#2563eb;font-weight:700">100%</span></div>
-        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #dbeafe"><span>중간 투표 (n/2등)</span><span>약 50%</span></div>
-        <div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #dbeafe"><span>꼴찌 투표 (n등)</span><span>약 1/n %</span></div>
-        <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:#94a3b8">미투표</span><span style="color:#94a3b8">0%</span></div>
+      <div style="font-size:0.74rem;color:#475569;line-height:1.6;margin-bottom:10px">
+        출첵이 열리면 <strong style="color:#2563eb">먼저 투표할수록</strong> 높은 점수<br>
+        참석·늦참·불참·미정 모두 인정 — <strong style="color:#dc2626">아예 투표 안 하면 0점</strong>
+      </div>
+      <div style="background:#fff;border-radius:8px;padding:8px 10px;font-size:0.72rem;color:#475569">
+        <div style="font-size:0.68rem;color:#94a3b8;margin-bottom:5px">예) 정회원 12명인 경우</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <div style="width:7px;height:7px;border-radius:50%;background:#2563eb;flex-shrink:0"></div>
+          <span>1번째 투표 →</span><span style="color:#2563eb;font-weight:700;margin-left:auto">12/12 = 100점</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <div style="width:7px;height:7px;border-radius:50%;background:#7c3aed;flex-shrink:0"></div>
+          <span>6번째 투표 →</span><span style="color:#7c3aed;font-weight:700;margin-left:auto">7/12 ≈ 58점</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+          <div style="width:7px;height:7px;border-radius:50%;background:#94a3b8;flex-shrink:0"></div>
+          <span>12번째 투표 →</span><span style="color:#94a3b8;font-weight:700;margin-left:auto">1/12 ≈ 8점</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:7px;height:7px;border-radius:50%;background:#e2e8f0;flex-shrink:0"></div>
+          <span style="color:#cbd5e1">미투표 →</span><span style="color:#cbd5e1;font-weight:700;margin-left:auto">0점</span>
+        </div>
       </div>
     </div>
     <div>
