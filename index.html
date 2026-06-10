@@ -745,16 +745,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2534,7 +2534,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v794';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v795';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8399,7 +8399,9 @@ async function _getBagelStats(year){
   return _bagelStatsCache[year];
 }
 
-// ── 출석률 랭킹 ───────────────────────────────────────────────────
+// ── 출석 랭킹 (포인트제) ──────────────────────────────────────────
+// 출석포인트: 참석=1/52, 늦참=0.9/52, 불참=0.5/52, 미정=0.2/52, 미투표=0
+// 순번포인트: k번째 투표 → (전체멤버수-k+1)/100, votedAt 없으면 0
 async function renderAttendanceRanking() {
   const el = document.getElementById('ranking-list');
   if (!el || !db) return;
@@ -8407,77 +8409,101 @@ async function renderAttendanceRanking() {
 
   const snap = await db.ref('jmt/poll').once('value');
   const allPolls = snap.val() || {};
-
-  // 멤버별 집계
-  const memberNames = (state.members || []).map(m => m.name).filter(Boolean);
-  const attended = {}; // name → count
   const total = Object.keys(allPolls).length;
-
-  for (const [weekId, poll] of Object.entries(allPolls)) {
-    const votes = poll.votes ? Object.values(poll.votes) : [];
-    for (const v of votes) {
-      if (v.vote === 'attend' || v.vote === 'late') {
-        if (!attended[v.name]) attended[v.name] = 0;
-        attended[v.name]++;
-      }
-    }
-  }
 
   if (!total) {
     el.innerHTML = '<div class="empty-state"><div class="icon">📅</div><p>출석 기록이 없습니다</p></div>';
     return;
   }
 
-  // 멤버만 대상으로 집계 (게스트 제외)
+  const VOTE_PTS = { attend: 1/52, late: 0.9/52, absent: 0.5/52, undecided: 0.2/52 };
+  const members = state.members || [];
+  const n = members.length; // 순번포인트 기준 전체 정회원 수
+  const memberNames = members.map(m => m.name).filter(Boolean);
+
+  // 멤버별 포인트 누적
+  const acc = {};
+  memberNames.forEach(name => { acc[name] = { attPts: 0, ordPts: 0, attendCount: 0, weeks: 0 }; });
+
+  for (const [weekId, poll] of Object.entries(allPolls)) {
+    const votesObj = poll.votes || {};
+
+    // votedAt 기준 투표 순서 정렬 (있는 경우만)
+    const sortedVoters = Object.values(votesObj)
+      .filter(v => v.votedAt)
+      .sort((a, b) => a.votedAt.localeCompare(b.votedAt));
+    const orderMap = {};
+    sortedVoters.forEach((v, i) => { orderMap[v.name] = i + 1; });
+
+    for (const name of memberNames) {
+      const key = name.replace(/[.#$[\]/]/g, '_');
+      const v = votesObj[key] || votesObj[name] || null;
+
+      const attPts = v ? (VOTE_PTS[v.vote] || 0) : 0;
+      let ordPts = 0;
+      if (v && v.votedAt && orderMap[name]) {
+        ordPts = Math.max(0, n - orderMap[name] + 1) / 100;
+      }
+
+      if (!acc[name]) continue;
+      acc[name].attPts += attPts;
+      acc[name].ordPts += ordPts;
+      if (v) acc[name].weeks++;
+      if (v && v.vote === 'attend') acc[name].attendCount++;
+    }
+  }
+
+  // 정렬 (총점 내림차순)
   const stats = memberNames.map(name => ({
     name,
-    count: attended[name] || 0,
-    rate: Math.round((attended[name] || 0) / total * 100)
-  })).sort((a, b) => b.rate - a.rate || b.count - a.count);
+    ...acc[name],
+    total: (acc[name] || { attPts: 0, ordPts: 0 }).attPts + (acc[name] || { attPts: 0, ordPts: 0 }).ordPts,
+  })).sort((a, b) => b.total - a.total || b.attPts - a.attPts);
 
-  // 동점자 동순위 계산
+  // 동점자 동순위
   stats.forEach((p, i) => {
     if (i === 0) { p.rank = 1; return; }
     const prev = stats[i - 1];
-    p.rank = (p.rate === prev.rate && p.count === prev.count) ? prev.rank : i + 1;
+    p.rank = Math.abs(p.total - prev.total) < 0.00001 ? prev.rank : i + 1;
   });
 
   const myName = state.identity && state.identity.name;
-
-  // 포디움: 동점 고려해 rank 1/2/3인 항목 찾기
   const podItems = stats.slice(0, Math.min(3, stats.length));
   const podCls = ['p1','p2','p3'], medals = ['🥇','🥈','🥉'];
 
-  let html = `<div style="text-align:center;font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;padding:12px 0 6px">─ ${_selectedRankYear} 시즌 · 전체 ${total}회 기준 ─</div><div class="rank-podium">
+  let html = `<div style="text-align:center;font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;padding:12px 0 6px">─ 전체 ${total}주 누적 · 출석포인트 + 순번포인트 ─</div><div class="rank-podium">
     ${podItems.map((p, i) => {
       const isMe = p.name === myName;
       const g = getGender(p.name), nc = g==='male'?'#1e40af':g==='female'?'#9d174d':'#1e293b';
+      const maxTotal = stats[0].total || 1;
       return `<div class="rank-pod ${podCls[i]}">
         <div class="rank-pod-medal">${medals[p.rank-1]||medals[i]}</div>
         <div class="rank-pod-nick" style="color:${isMe?'#2563eb':nc}">${p.name}</div>
-        <div class="rank-pod-members">${p.count}회 참석</div>
-        <div class="rank-pod-wr ${p.rate>=50?'hot':'cold'}">${p.rate}%</div>
-        <div class="rank-pod-wl">전체 ${total}회 중</div>
-        <div class="rank-pod-bar"><div class="rank-pod-bar-fill" style="width:${p.rate}%"></div></div>
+        <div class="rank-pod-members">${p.total.toFixed(3)}pt</div>
+        <div class="rank-pod-wr hot" style="font-size:0.7rem">${p.attPts.toFixed(2)}+${p.ordPts.toFixed(2)}</div>
+        <div class="rank-pod-wl">${p.attendCount}회 참석 · ${p.weeks}/${total}주</div>
+        <div class="rank-pod-bar"><div class="rank-pod-bar-fill" style="width:${Math.round(p.total/maxTotal*100)}%"></div></div>
       </div>`;
     }).join('')}
   </div>`;
 
   if (stats.length > 3) {
     html += `<div class="rank-list-label" style="margin-top:8px">─ 4위 이하 ─</div>`;
-    html += stats.slice(3).map((p, idx) => {
+    const maxTotal = stats[0].total || 1;
+    html += stats.slice(3).map((p) => {
       const isMe = p.name === myName;
       const g = getGender(p.name);
       const nc = g === 'male' ? '#2563eb' : g === 'female' ? '#db2777' : '#1e293b';
+      const barW = Math.round(p.total / maxTotal * 100);
       return `<div class="rank-item other">
         <div class="rank-item-bar"></div>
         <div class="rank-item-body">
           <span class="rank-num">${p.rank}위</span>
           <span class="rank-name" style="color:${isMe?'#2563eb':nc}">${p.name}</span>
-          <span class="rank-stat">${p.count}회 참석</span>
+          <span class="rank-stat">${p.attendCount}회 참석</span>
           <div class="rank-wr-col">
-            <span class="rank-winrate" style="color:${p.rate>=50?'#16a34a':'#dc2626'}">${p.rate}%</span>
-            <div class="rank-wr-bar"><div class="rank-wr-bar-fill ${p.rate>=50?'hot':'cold'}" style="width:${p.rate}%"></div></div>
+            <span class="rank-winrate" style="color:#1e293b;font-size:0.78rem">${p.total.toFixed(3)}<span style="font-size:0.6rem;color:#94a3b8">pt</span></span>
+            <div class="rank-wr-bar"><div class="rank-wr-bar-fill hot" style="width:${barW}%"></div></div>
           </div>
         </div>
       </div>`;
