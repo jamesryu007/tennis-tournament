@@ -15390,32 +15390,12 @@ function shareMpVoteCard() {
   const shareUrl = _mpActivePollId
     ? base + '?tab=setup&subScreen=meetingPoll&pollId=' + encodeURIComponent(_mpActivePollId)
     : base;
-  const el = document.getElementById('mp-vote-card');
-  if (!el || typeof html2canvas === 'undefined') {
-    navigator.share && navigator.share({ text: title + '\n' + shareUrl }).catch(() => {});
-    return;
+  const shareText = title + '\n' + shareUrl;
+  if (navigator.share) {
+    navigator.share({ text: shareText }).catch(() => {});
+  } else {
+    navigator.clipboard && navigator.clipboard.writeText(shareText).then(() => alert('링크가 복사되었습니다'));
   }
-  const shareBtn = el.querySelector('[data-share-btn]');
-  if (shareBtn) shareBtn.style.visibility = 'hidden';
-  html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false })
-    .then(canvas => {
-      if (shareBtn) shareBtn.style.visibility = '';
-      canvas.toBlob(blob => {
-        if (!blob) { navigator.share && navigator.share({ text: title + '\n' + shareUrl }).catch(() => {}); return; }
-        const file = new File([blob], 'meeting-poll.png', { type: 'image/png' });
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-          navigator.share({ files: [file], text: shareUrl }).catch(() => {
-            navigator.share({ text: title + '\n' + shareUrl }).catch(() => {});
-          });
-        } else if (navigator.share) {
-          navigator.share({ text: title + '\n' + shareUrl }).catch(() => {});
-        }
-      }, 'image/png');
-    })
-    .catch(() => {
-      if (shareBtn) shareBtn.style.visibility = '';
-      navigator.share && navigator.share({ text: title + '\n' + shareUrl }).catch(() => {});
-    });
 }
 
 function ladderShare() {
