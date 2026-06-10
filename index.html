@@ -2537,7 +2537,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v809';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v811';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -18013,7 +18013,11 @@ function openNoticeWriteModal(editId) {
       }
     });
   }
-  document.getElementById('notice-write-modal').style.display = 'flex';
+  const modal = document.getElementById('notice-write-modal');
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  document.body.style.position = 'fixed';
+  document.body.style.width = '100%';
 }
 function applyNoticeColor(type, color) {
   const editor = document.getElementById('notice-content-editor');
@@ -18024,6 +18028,9 @@ function applyNoticeColor(type, color) {
 }
 function closeNoticeWriteModal() {
   document.getElementById('notice-write-modal').style.display = 'none';
+  document.body.style.overflow = '';
+  document.body.style.position = '';
+  document.body.style.width = '';
   _noticeEditId = null;
 }
 function _renderNoticeList() {
@@ -18077,34 +18084,44 @@ function _renderNoticeList() {
     }).join('');
   });
 }
+let _noticeSaving = false;
 async function saveNotice() {
+  if (_noticeSaving) return;
   const title   = document.getElementById('notice-title-input').value.trim();
   const content = document.getElementById('notice-content-editor').innerHTML.trim();
   if (!content || content === '<br>') { alert('내용을 입력해주세요.'); return; }
-  const curName = (state.identity && state.identity.name) || '';
-  // 이미지 업로드
-  let imageUrl = '';
-  if (_noticeEditId) {
-    const existSnap = await db.ref('jmt/notices/' + _noticeEditId).once('value').catch(() => null);
-    imageUrl = ((existSnap && existSnap.val()) || {}).imageUrl || '';
+  const btn = document.querySelector('#notice-write-modal button[onclick="saveNotice()"]');
+  _noticeSaving = true;
+  if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
+  try {
+    const curName = (state.identity && state.identity.name) || '';
+    // 이미지 업로드
+    let imageUrl = '';
+    if (_noticeEditId) {
+      const existSnap = await db.ref('jmt/notices/' + _noticeEditId).once('value').catch(() => null);
+      imageUrl = ((existSnap && existSnap.val()) || {}).imageUrl || '';
+    }
+    const imgInput = document.getElementById('notice-img-input');
+    if (imgInput && imgInput.files[0]) {
+      const file = imgInput.files[0];
+      const fileId = `${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
+      const ref = firebase.storage().ref(`jmt-notices/${fileId}`);
+      await ref.put(file, { contentType: file.type }).catch(fbErr);
+      imageUrl = await ref.getDownloadURL().catch(() => '');
+    }
+    const data = { title, content, imageUrl };
+    if (_noticeEditId) {
+      await db.ref('jmt/notices/' + _noticeEditId).update(data).catch(fbErr);
+    } else {
+      await db.ref('jmt/notices').push({ ...data, createdBy: curName, createdAt: Date.now() }).catch(fbErr);
+    }
+    closeNoticeWriteModal();
+    _renderNoticeList();
+    _updateNoticeBadge();
+  } finally {
+    _noticeSaving = false;
+    if (btn) { btn.disabled = false; btn.textContent = '저장'; }
   }
-  const imgInput = document.getElementById('notice-img-input');
-  if (imgInput && imgInput.files[0]) {
-    const file = imgInput.files[0];
-    const fileId = `${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
-    const ref = firebase.storage().ref(`jmt-notices/${fileId}`);
-    await ref.put(file, { contentType: file.type }).catch(fbErr);
-    imageUrl = await ref.getDownloadURL().catch(() => '');
-  }
-  const data = { title, content, imageUrl };
-  if (_noticeEditId) {
-    await db.ref('jmt/notices/' + _noticeEditId).update(data).catch(fbErr);
-  } else {
-    await db.ref('jmt/notices').push({ ...data, createdBy: curName, createdAt: Date.now() }).catch(fbErr);
-  }
-  closeNoticeWriteModal();
-  _renderNoticeList();
-  _updateNoticeBadge();
 }
 function sendNoticeToChat(noticeId) {
   const curName = (state.identity && state.identity.name) || '';
@@ -22221,9 +22238,8 @@ function saveMpComment(key) {
 </div>
 
 <!-- ── 공지사항 작성 모달 ─────────────────────────────────────── -->
-<div id="notice-write-modal" style="display:none;position:fixed;inset:0;z-index:740;background:rgba(0,0,0,0.5);align-items:flex-end" onclick="closeNoticeWriteModal()">
-  <div style="width:100%;background:#fff;border-radius:20px 20px 0 0;padding:20px 16px max(env(safe-area-inset-bottom,24px),24px)" onclick="event.stopPropagation()">
-    <div style="width:36px;height:4px;background:#e2e8f0;border-radius:2px;margin:0 auto 14px"></div>
+<div id="notice-write-modal" style="display:none;position:fixed;inset:0;z-index:740;background:#fff;flex-direction:column;overflow-y:auto">
+  <div style="width:100%;max-width:600px;margin:0 auto;padding:max(env(safe-area-inset-top,16px),16px) 16px max(env(safe-area-inset-bottom,24px),24px)">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
       <div style="font-size:1rem;font-weight:800;color:#1e293b">✏️ 공지 작성</div>
       <button onclick="closeNoticeWriteModal()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8">✕</button>
