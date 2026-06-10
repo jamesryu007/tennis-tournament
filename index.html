@@ -2544,7 +2544,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v818';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v819';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -10679,7 +10679,7 @@ function selectIdentity(name) {
   localStorage.setItem(LS_IDENTITY, JSON.stringify(state.identity));
   document.getElementById('identity-modal').classList.remove('open');
   // 푸시 알림으로 진입한 경우 해당 탭으로 이동
-  if (window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen, nid=window._pendingNoticeId, mid=window._pendingMsgId, pid=window._pendingPollId; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; window._pendingNoticeId=null; window._pendingMsgId=null; window._pendingPollId=null; setTimeout(() => { switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); if(mid) setTimeout(()=>_scrollToBzMsg(mid),200); },300); if(ss==='notices') setTimeout(()=>{ openNoticeModal(); if(nid) setTimeout(()=>_scrollToNotice(nid),700); },400); if(ss==='meetingPoll'&&pid) setTimeout(()=>openMpDetailModal(pid),500); }, 100); }
+  if (window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen, nid=window._pendingNoticeId, mid=window._pendingMsgId, pid=window._pendingPollId; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; window._pendingNoticeId=null; window._pendingMsgId=null; window._pendingPollId=null; setTimeout(() => { switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); if(mid) window._bzDeepLinkMsgKey=mid; setTimeout(bzShowRoomFromMemory,100); },300); if(ss==='notices') setTimeout(()=>{ openNoticeModal(); if(nid) setTimeout(()=>_scrollToNotice(nid),700); },400); if(ss==='meetingPoll'&&pid) setTimeout(()=>openMpDetailModal(pid),500); }, 100); }
   // FCM: 처음 로그인이면 초기화(권한 요청 포함), 이미 초기화됐으면 토큰 재매핑
   if (!_fcmMessaging) {
     initFCM(true); // 사용자 클릭 제스처 시점이므로 권한 요청 가능
@@ -10939,7 +10939,7 @@ setTimeout(() => { if (!_photoAllItems.length) loadPhotos(); }, 500);
 // FCM 초기화 (접속자 선택 후 실행 — identity 모달 닫힐 때 호출)
 setTimeout(() => {
   if(state.identity) initFCM();
-  if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen, nid=window._pendingNoticeId, mid=window._pendingMsgId, pid=window._pendingPollId; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; window._pendingNoticeId=null; window._pendingMsgId=null; window._pendingPollId=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory,100); if(mid) setTimeout(()=>_scrollToBzMsg(mid),200); },300); if(ss==='notices') setTimeout(()=>{ openNoticeModal(); if(nid) setTimeout(()=>_scrollToNotice(nid),700); },400); if(ss==='meetingPoll'&&pid) setTimeout(()=>openMpDetailModal(pid),500); }
+  if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen, nid=window._pendingNoticeId, mid=window._pendingMsgId, pid=window._pendingPollId; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; window._pendingNoticeId=null; window._pendingMsgId=null; window._pendingPollId=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); if(mid) window._bzDeepLinkMsgKey=mid; setTimeout(bzShowRoomFromMemory,100); },300); if(ss==='notices') setTimeout(()=>{ openNoticeModal(); if(nid) setTimeout(()=>_scrollToNotice(nid),700); },400); if(ss==='meetingPoll'&&pid) setTimeout(()=>openMpDetailModal(pid),500); }
 }, 1500);
 document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
 // 랜덤 사진 변경 — 자.만.추. landscape 이미지 우선, 없으면 팀 사진 fallback
@@ -20149,6 +20149,20 @@ function _bzRenderMessages(phase, forceBottom) {
   if (!_bzIsFirstRender && _bzNeedsUnreadScroll && _bzLastReadTs > 0) {
     _bzScrollToFirstUnread();
     if (!_bzNeedsUnreadScroll) return; // 스크롤 완료 — 맨 아래 스크롤 생략
+  }
+  // 딥링크 타겟 메시지 스크롤 — 자동 스크롤 전에 가로채기
+  if (window._bzDeepLinkMsgKey) {
+    const _dlKey = window._bzDeepLinkMsgKey;
+    const _dlEl = area.querySelector('[data-bzkey="' + _dlKey + '"]');
+    if (_dlEl) {
+      window._bzDeepLinkMsgKey = null;
+      _bzSuppressScrollDown = true;
+      requestAnimationFrame(() => {
+        bzScrollToMsg(_dlKey);
+        if (area.style.opacity === '0') { area.style.opacity = '1'; area.style.transition = ''; }
+      });
+      return;
+    }
   }
   // 맨 아래 근처에 있던 경우만 자동 스크롤
   if (_bzWasAtBottom) {
