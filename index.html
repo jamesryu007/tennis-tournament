@@ -7955,7 +7955,10 @@ function renderRankYearRow(){
   for(let y=startYear;y<=_rankYear;y++) years.push(y);
   if(years.length<=1){row.style.display='none';return;}
   row.style.display='flex';
-  row.innerHTML=years.map(y=>`<button class="rank-year-btn${y===_selectedRankYear?' active':''}" onclick="setRankingYear(${y})">${y}년</button>`).join('');
+  row.innerHTML=`<select onchange="setRankingYear(+this.value)"
+    style="padding:4px 28px 4px 10px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.5);background:rgba(255,255,255,0.15);color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%226%22 viewBox=%220 0 10 6%22><path d=%22M0 0l5 6 5-6z%22 fill=%22white%22/></svg>');background-repeat:no-repeat;background-position:right 8px center">
+    ${years.map(y=>`<option value="${y}"${y===_selectedRankYear?' selected':''}>${y}년</option>`).join('')}
+  </select>`;
 }
 
 function setRankingYear(year){
