@@ -2544,7 +2544,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v824';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v825';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -16795,6 +16795,14 @@ function bzShowRoom() {
   _bzSetupAliasList();
   // 리스너가 이미 살아있고 _bzState가 있으면 즉시 렌더 (서버 왕복 없음)
   if (_bzListener && _bzState) {
+    // 렌더키 미리 세팅 — Firebase 리스너 재발동 시 전체 재렌더 방지 (딥링크 스크롤 위치 보존)
+    const _preNonMsgKey = JSON.stringify({
+      phase: _bzState.phase, entrants: _bzState.entrants, aliases: _bzState.aliases,
+      guesses: _bzState.guesses, results: _bzState.results,
+      showRealNames: _bzState.showRealNames, jinsilTok: _bzState.jinsilTok,
+    });
+    _bzLastNonMsgKey = _preNonMsgKey;
+    _bzLastRenderKey = _preNonMsgKey + '|' + JSON.stringify(_bzState.messages);
     _bzRender();
   } else {
     _bzSetupListener();
