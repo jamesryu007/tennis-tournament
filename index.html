@@ -2544,7 +2544,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v825';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v826';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -20167,6 +20167,8 @@ function _bzRenderMessages(phase, forceBottom) {
       requestAnimationFrame(() => {
         bzScrollToMsg(_dlKey);
         if (area.style.opacity === '0') { area.style.opacity = '1'; area.style.transition = ''; }
+        // 딥링크 스크롤 애니메이션 완료 후 자동 스크롤 재허용 (새 메시지 도착 시 bottom 유지)
+        setTimeout(() => { _bzSuppressScrollDown = false; }, 1500);
       });
       return;
     }
@@ -20428,7 +20430,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     }
     const newEl = insertEl;
     // 이미지 메시지: 로드 완료 후 스크롤 보정 (로드 전 scrollHeight로 스크롤하면 이미지 로드 후 위로 밀림)
-    if (wasAtBottom && imgSrc) {
+    if (wasAtBottom && imgSrc && !_bzSuppressScrollDown) {
       const img = newEl.querySelector('img');
       if (img) img.addEventListener('load', () => { requestAnimationFrame(() => { area.scrollTop = 999999; }); });
     }
@@ -20443,7 +20445,7 @@ function _bzIncrementalUpdateMessages(newMessages) {
     added = true;
   });
 
-  if (added && wasAtBottom) {
+  if (added && wasAtBottom && !_bzSuppressScrollDown) {
     requestAnimationFrame(() => { area.scrollTop = 999999; });
   }
 }
