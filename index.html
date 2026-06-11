@@ -2544,7 +2544,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v822';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v823';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -16040,6 +16040,7 @@ function _bombCleanup() {
 let _bzMyAliases = [];        // 내가 사용한 가명 목록 (max 2)
 let _bzCurrentAlias = null;  // null=미초기화, ''=나자신, 'name'=가명
 let _bzListener = null;      // Firebase 리스너
+let _bzRoomVisible = false;  // 자미톡 화면 표시 여부 (false면 DOM 렌더 건너뜀)
 let _bzLlmDisabled = false;  // 제이 LLM ON/OFF 상태 (jmt/botConfig/llmDisabled)
 let _bzState = null;         // 현재 게임 상태
 let _bzFirstRender = false;  // 진입 후 첫 렌더 여부 (초기 스크롤 보장)
@@ -16787,11 +16788,17 @@ function bzShowRoom() {
   }
 
   _bzFirstRender = true;
+  _bzRoomVisible = true;
   // 진입 즉시 chat area 클리어 + 숨김 — 이전 세션 메시지가 보이거나 스크롤 되는 현상 방지
   const _bzEnterArea = document.getElementById('bz-chat-area');
   if (_bzEnterArea) { _bzEnterArea.innerHTML = ''; _bzEnterArea.style.opacity = '0'; }
   _bzSetupAliasList();
-  _bzSetupListener();
+  // 리스너가 이미 살아있고 _bzState가 있으면 즉시 렌더 (서버 왕복 없음)
+  if (_bzListener && _bzState) {
+    _bzRender();
+  } else {
+    _bzSetupListener();
+  }
 
   // 채팅 맨 위/아래 도달 토스트 — position:fixed로 body에 올려 레이아웃 영향 없음
   const _bzChatArea = document.getElementById('bz-chat-area');
@@ -16848,8 +16855,8 @@ function bzLeaveRoom() {
   // 구분선 제거 — 방 나갈 때 정리
   const _divider = document.getElementById('bz-unread-divider');
   if (_divider) _divider.remove();
-  if (_bzListener) { db.ref(BZ_REF).off('value', _bzListener); _bzListener = null; }
-  _bzState = null;
+  _bzRoomVisible = false;
+  // 리스너 유지 — 재진입 시 서버 왕복 없이 즉시 렌더 (DOM만 건너뜀)
   _bzCurrentAlias = null;
   _bzInfoCollapsed = false;
   bzCancelReply();
@@ -16965,6 +16972,12 @@ function _bzSetupListener() {
     });
     const fullKey = nonMsgKey + '|' + JSON.stringify(newState.messages);
     _bzState = newState;
+    // 자미톡 화면이 보이지 않으면 상태만 저장하고 DOM 렌더 건너뜀
+    if (!_bzRoomVisible) {
+      _bzLastRenderKey = null; // 재진입 시 전체 재렌더 강제
+      _bzLastNonMsgKey = null;
+      return;
+    }
     // likes만 바뀐 경우 — 하트만 부분 업데이트
     if (_bzLastRenderKey && fullKey === _bzLastRenderKey) {
       _bzUpdateLikesOnly(newState.likes || {}, newState.reacts || {});
