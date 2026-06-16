@@ -2544,7 +2544,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v827';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v828';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13347,6 +13347,8 @@ async function triggerAtpRefresh() {
       if (e.data && e.data.type === 'NAVIGATE_TAB') {
         const { tab, commentId, betId, isWinner, subScreen } = e.data;
         const isWinnerHint = isWinner === 'true' ? true : isWinner === 'false' ? false : undefined;
+        // pending-nav 캐시 삭제 — postMessage로 처리했으므로 다음 앱 재시작 시 중복 실행 방지
+        if ('caches' in window) caches.open('jamite-nav').then(c => c.delete('/pending-nav')).catch(() => {});
         if (state.identity) {
           switchPage(tab);
           if (commentId) setTimeout(() => scrollToComment(commentId), 400);
