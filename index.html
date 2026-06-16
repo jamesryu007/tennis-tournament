@@ -2544,7 +2544,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v828';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v829';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -3034,12 +3034,15 @@ function setupFirebaseListeners() {
   db.ref('.info/connected').on('value', snap => setConnStatus(snap.val() === true));
 
   // 승리팀 실시간 알림 — 오늘의 경기 탭 활성 중인 모든 클라이언트에 애니메이션
-  let _lastWinnerAlertTs = null;
+  let _lastWinnerAlertTs = parseInt(localStorage.getItem('jmt_lastWinnerAlertTs') || '0', 10);
   db.ref('jmt/winnerAlert').on('value', snap => {
     const d = snap.val();
     if (!d || !d.ts || !d.team) return;
+    // 10초 이상 된 오래된 alert — 스킵 및 DB 정리 (앱 재시작 시 중복 표시 방지)
+    if (Date.now() - d.ts > 10000) { db.ref('jmt/winnerAlert').remove().catch(() => {}); return; }
     if (_lastWinnerAlertTs === d.ts) return; // 중복 방지
     _lastWinnerAlertTs = d.ts;
+    localStorage.setItem('jmt_lastWinnerAlertTs', String(d.ts)); // 세션 재시작 후에도 중복 방지
     if (document.getElementById('page-matches').classList.contains('active')) {
       showWinnerCelebration(d.team);
     }
