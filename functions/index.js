@@ -2036,6 +2036,37 @@ exports.refreshGolfData = onCall(
   }
 );
 
+// ══ 15. 골프 뉴스 자동 수집 (12시간마다) ═════════════════════════
+exports.fetchGolfNews = onSchedule(
+  { schedule: '0 */12 * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    try {
+      const res  = await fetch('https://site.api.espn.com/apis/site/v2/sports/golf/pga/news?limit=10');
+      const json = await res.json();
+      const items = (json.articles || []).slice(0, 10).map(a => ({
+        headline:    a.headline    || '',
+        description: a.description || '',
+        published:   a.published   || '',
+        url:         (a.links && a.links.web && a.links.web.href) || '',
+      })).filter(a => a.headline);
+      if (!items.length) { console.warn('fetchGolfNews: no articles'); return; }
+
+      const toTranslate = items.flatMap(a => [a.headline, a.description]);
+      const translated  = await translateTexts(toTranslate);
+      if (!translated) { console.warn('fetchGolfNews: translation failed, skipping'); return; }
+
+      items.forEach((a, i) => {
+        a.headlineKo    = translated[i * 2]     || a.headline;
+        a.descriptionKo = translated[i * 2 + 1] || a.description;
+      });
+      await db.ref('jmt/golfNews').set({ articles: items, updatedAt: new Date().toISOString() });
+      console.log(`fetchGolfNews: saved ${items.length} articles`);
+    } catch (e) {
+      console.error('fetchGolfNews error:', e);
+    }
+  }
+);
+
 // ══ 자미봇 — 채팅 트리거 자동 응답 ══════════════════════════════════
 
 const _BOT_NAME = '제이';
