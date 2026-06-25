@@ -2607,7 +2607,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v831';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v832';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22550,16 +22550,77 @@ function renderGolfLeaderboard(t) {
   </div>${rows}${updatedStr ? `<div style="text-align:center;padding:7px 0;font-size:0.62rem;color:#cbd5e1">업데이트 ${updatedStr}</div>` : ''}`;
 }
 
-// ── 수동 새로고침 (관리자) ───────────────────────────────────────
+// ── ESPN 골프 클라이언트 파싱 ─────────────────────────────────────
+function _parseGolfEvents(events, tour) {
+  const PGA_MAJORS  = ['masters', 'pga championship', 'u.s. open', 'the open championship'];
+  const LPGA_MAJORS = ['chevron championship', "u.s. women's open", "women's pga championship", 'evian championship', "women's british open", 'aia vitality', 'annika driven'];
+  const majors = tour === 'lpga' ? LPGA_MAJORS : PGA_MAJORS;
+  return (events || []).map(ev => {
+    const comp = (ev.competitions || [])[0];
+    if (!comp) return null;
+    const state  = ev.status?.type?.state || 'pre';
+    const detail = ev.status?.type?.detail || ev.status?.detail || '';
+    const roundM = detail.match(/Round\s*(\d)/i);
+    const round  = roundM ? parseInt(roundM[1]) : 0;
+    let venueName = '', venueCity = '', venueCountry = '';
+    if (comp.venue) {
+      venueName = comp.venue.fullName || '';
+      const parts = venueName.split(',').map(s => s.trim());
+      venueCity    = parts[0] || '';
+      venueCountry = parts.slice(1).join(', ').trim();
+    }
+    const n = (ev.name || '').toLowerCase();
+    const level = majors.some(m => n.includes(m)) ? 'major' : (tour === 'lpga' ? 'lpga_tour' : 'pga_tour');
+    const leaderboard = (comp.competitors || [])
+      .sort((a, b) => (a.sortOrder || 9999) - (b.sortOrder || 9999))
+      .map(c => ({
+        rank:    c.sortOrder || 0,
+        name:    c.athlete?.displayName || '',
+        country: c.athlete?.flag?.alt   || '',
+        total:   c.score        || 'E',
+        scores:  (c.linescores || []).map(s => s.displayValue || String(s.value || '')),
+        thru:    c.status?.displayValue || '',
+        state:   c.status?.type?.state  || 'pre',
+        isCut:   (c.status?.type?.name  || '').toLowerCase().includes('cut'),
+      }));
+    return {
+      id: ev.id || '', name: ev.name || '', shortName: ev.shortName || ev.name || '',
+      tour, level, state, round, venueName, venueCity, venueCountry,
+      startDate: ev.date || '', endDate: ev.endDate || '',
+      leaderboard, updatedAt: new Date().toISOString(),
+    };
+  }).filter(Boolean);
+}
+
+// ── ESPN 직접 fetch → Firebase 저장 ──────────────────────────────
 async function triggerGolfRefresh() {
   if (!db) return;
   const btn = document.querySelector('#golf-admin-bar button');
+  const cardsRow = document.getElementById('golf-cards-row');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ 불러오는 중...'; }
+  if (cardsRow && !Object.keys(golfState.tournaments).length) {
+    cardsRow.innerHTML = '<div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.82rem;width:100%">⏳ ESPN에서 데이터를 가져오는 중...</div>';
+  }
   try {
-    const fn = firebase.app().functions('asia-southeast1').httpsCallable('refreshGolfData');
-    await fn({});
-  } catch (e) {
-    console.warn('골프 데이터 새로고침 실패:', e.message || e);
+    const [pgaRes, lpgaRes] = await Promise.all([
+      fetch('https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard',  { mode:'cors' }),
+      fetch('https://site.api.espn.com/apis/site/v2/sports/golf/lpga/scoreboard', { mode:'cors' }),
+    ]);
+    const [pgaJson, lpgaJson] = await Promise.all([pgaRes.json(), lpgaRes.json()]);
+    const tournaments = [
+      ..._parseGolfEvents(pgaJson.events,  'pga'),
+      ..._parseGolfEvents(lpgaJson.events, 'lpga'),
+    ];
+    if (!tournaments.length) {
+      if (cardsRow) cardsRow.innerHTML = '<div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.82rem;width:100%">현재 진행 중인 대회가 없습니다.</div>';
+      return;
+    }
+    const updates = { 'jmt/golfData/updatedAt': new Date().toISOString() };
+    for (const t of tournaments) updates[`jmt/golfData/tournaments/${t.id}`] = t;
+    await db.ref().update(updates).catch(e => console.error('golfData write:', e));
+    // Firebase 리스너가 자동으로 renderGolfPage() 호출
+  } catch(e) {
+    alert('골프 데이터 불러오기 실패: ' + (e.message || e));
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '🔄 새로고침'; }
   }
