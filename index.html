@@ -2607,7 +2607,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v832';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v833';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22486,7 +22486,7 @@ function renderGolfRoundTabs(t) {
   if (!maxRound) { row.style.display = 'none'; return; }
   row.style.display = 'flex';
   const tabs = ['all', '1', '2', '3', '4'].filter(r => r === 'all' || parseInt(r) <= maxRound);
-  const label = { all:'전체', '1':'R1', '2':'R2', '3':'R3', '4':'R4' };
+  const label = { all:'전체', '1':'R1', '2':'R2', '3':'R3', '4':'Final' };
   row.innerHTML = tabs.map(r =>
     `<button class="atp-tab${r === golfState.selectedRound ? ' active' : ''}" onclick="switchGolfRound('${r}')">${label[r]}</button>`
   ).join('');
