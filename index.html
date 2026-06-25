@@ -948,7 +948,7 @@ const firebaseConfig = {
 
 <!-- 골프 관심선수 모달 -->
 <div id="golf-fav-modal" class="modal-overlay">
-  <div class="modal-sheet" style="height:78vh;display:flex;flex-direction:column">
+  <div class="modal-sheet" style="height:82vh;display:flex;flex-direction:column">
     <div class="modal-handle"></div>
     <div style="padding:16px 18px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
       <div>
@@ -961,6 +961,10 @@ const firebaseConfig = {
       <div style="background:#eff6ff;border-radius:10px;padding:8px 12px;font-size:0.78rem;color:#2563eb;font-weight:600" id="golf-fav-selected-names">선택된 선수 없음</div>
     </div>
     <div style="padding:0 18px 8px;flex-shrink:0">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <button id="golf-fav-btn-pga"  onclick="switchGolfFavDraw('pga')"  style="flex:1;padding:7px 4px;border-radius:10px;border:2px solid #2563eb;background:#2563eb;color:#fff;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit">🏌️ PGA</button>
+        <button id="golf-fav-btn-lpga" onclick="switchGolfFavDraw('lpga')" style="flex:1;padding:7px 4px;border-radius:10px;border:2px solid #e2e8f0;background:#f8fafc;color:#64748b;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit">🌸 LPGA</button>
+      </div>
       <input type="text" id="golf-fav-search" placeholder="🔍 선수 이름 검색..." oninput="renderGolfFavList(this.value)" style="width:100%;border-radius:10px;border:1.5px solid #e2e8f0;padding:9px 12px;font-size:0.85rem;outline:none;box-sizing:border-box">
     </div>
     <div id="golf-fav-list" style="overflow-y:auto;flex:1;padding:0 18px 10px"></div>
@@ -22384,22 +22388,112 @@ function saveMpComment(key) {
 <!-- ══ GOLF LIVE 스크립트 ══ -->
 <script>
 // ── 골프 상태 ──────────────────────────────────────────────────────
-let _golfDataRef = null;
-let _golfNewsRef = null;
-let _golfFavRef  = null;
+let _golfDataRef     = null;
+let _golfNewsRef     = null;
+let _golfFavRef      = null;
+let _golfRankingsRef = null;
 const LS_GOLF_FAV = 'jmt_favGolfPlayers';
 const LS_GOLF_NEWS_READ = 'jmt_golfNewsReadAt';
 const golfState = {
-  tournaments:  {},      // id → tournament 객체
-  selectedId:   null,    // 현재 선택된 대회 ID
-  selectedRound:'all',   // 'all' | '1' | '2' | '3' | '4'
-  currentMainTab:'lb',   // 'lb' | 'news'
-  loaded:       false,
-  news:         [],      // [{headline, headlineKo, description, descriptionKo, published, url}]
-  newsLoaded:   false,
-  favPlayers:   [],      // [{name, country}] — 저장된 관심선수
-  favPlayersTmp:[],      // 모달 임시 선택
+  tournaments:   {},      // id → tournament 객체
+  selectedId:    null,    // 현재 선택된 대회 ID
+  selectedRound: 'all',   // 'all' | '1' | '2' | '3' | '4'
+  currentMainTab:'lb',    // 'lb' | 'news'
+  loaded:        false,
+  news:          [],      // [{headline, headlineKo, description, descriptionKo, published, url}]
+  newsLoaded:    false,
+  favPlayers:    [],      // [{name, country}] — 저장된 관심선수
+  favPlayersTmp: [],      // 모달 임시 선택
+  pgaRankings:   [],      // [{name, country, rank}] — DB or 폴백
+  lpgaRankings:  [],      // [{name, country, rank}]
+  favDraw:       'pga',   // 'pga' | 'lpga' — 관심선수 모달 현재 탭
 };
+
+// ── 골프 세계 랭킹 폴백 (ESPN API 미지원 → 하드코딩) ────────────────
+const GOLF_TOP_PGA = [
+  { name:'Scottie Scheffler',   country:'USA', rank:1  },
+  { name:'Rory McIlroy',        country:'NIR', rank:2  },
+  { name:'Xander Schauffele',   country:'USA', rank:3  },
+  { name:'Collin Morikawa',     country:'USA', rank:4  },
+  { name:'Ludvig Åberg',        country:'SWE', rank:5  },
+  { name:'Tommy Fleetwood',     country:'ENG', rank:6  },
+  { name:'Viktor Hovland',      country:'NOR', rank:7  },
+  { name:'Hideki Matsuyama',    country:'JPN', rank:8  },
+  { name:'Shane Lowry',         country:'IRL', rank:9  },
+  { name:'Brian Harman',        country:'USA', rank:10 },
+  { name:'Jon Rahm',            country:'ESP', rank:11 },
+  { name:'Brooks Koepka',       country:'USA', rank:12 },
+  { name:'Patrick Cantlay',     country:'USA', rank:13 },
+  { name:'Justin Thomas',       country:'USA', rank:14 },
+  { name:'Tony Finau',          country:'USA', rank:15 },
+  { name:'Min Woo Lee',         country:'AUS', rank:16 },
+  { name:'Sam Burns',           country:'USA', rank:17 },
+  { name:'Wyndham Clark',       country:'USA', rank:18 },
+  { name:'Robert MacIntyre',    country:'SCO', rank:19 },
+  { name:'Tom Kim',             country:'KOR', rank:20 },
+  { name:'Cameron Young',       country:'USA', rank:21 },
+  { name:'Tyrrell Hatton',      country:'ENG', rank:22 },
+  { name:'Sepp Straka',         country:'AUT', rank:23 },
+  { name:'Joaquin Niemann',     country:'CHI', rank:24 },
+  { name:'Jason Day',           country:'AUS', rank:25 },
+  { name:'Russell Henley',      country:'USA', rank:26 },
+  { name:'Akshay Bhatia',       country:'USA', rank:27 },
+  { name:'Max Homa',            country:'USA', rank:28 },
+  { name:'Sungjae Im',          country:'KOR', rank:29 },
+  { name:'Si Woo Kim',          country:'KOR', rank:30 },
+  { name:'Adam Scott',          country:'AUS', rank:31 },
+  { name:'Ryan Fox',            country:'NZL', rank:32 },
+  { name:'Emiliano Grillo',     country:'ARG', rank:33 },
+  { name:'Eric Cole',           country:'USA', rank:34 },
+  { name:'Byeong Hun An',       country:'KOR', rank:35 },
+  { name:'Nick Taylor',         country:'CAN', rank:36 },
+  { name:'Keegan Bradley',      country:'USA', rank:37 },
+  { name:'Austin Eckroat',      country:'USA', rank:38 },
+  { name:'Nico Echavarria',     country:'COL', rank:39 },
+  { name:'Ben Griffin',         country:'USA', rank:40 },
+  { name:'Harris English',      country:'USA', rank:41 },
+  { name:'Chris Kirk',          country:'USA', rank:42 },
+  { name:'Lucas Glover',        country:'USA', rank:43 },
+  { name:'Cameron Davis',       country:'AUS', rank:44 },
+  { name:'Nick Dunlap',         country:'USA', rank:45 },
+  { name:'Patrick Reed',        country:'USA', rank:46 },
+  { name:'Tom Hoge',            country:'USA', rank:47 },
+  { name:'Adam Hadwin',         country:'CAN', rank:48 },
+  { name:'Tiger Woods',         country:'USA', rank:49 },
+  { name:'Phil Mickelson',      country:'USA', rank:50 },
+];
+const GOLF_TOP_LPGA = [
+  { name:'Nelly Korda',          country:'USA', rank:1  },
+  { name:'Celine Boutier',       country:'FRA', rank:2  },
+  { name:'Lydia Ko',             country:'NZL', rank:3  },
+  { name:'Jeeno Thitikul',       country:'THA', rank:4  },
+  { name:'Brooke Henderson',     country:'CAN', rank:5  },
+  { name:'Hannah Green',         country:'AUS', rank:6  },
+  { name:'In Gee Chun',          country:'KOR', rank:7  },
+  { name:'Minjee Lee',           country:'AUS', rank:8  },
+  { name:'Lilia Vu',             country:'USA', rank:9  },
+  { name:'Rose Zhang',           country:'USA', rank:10 },
+  { name:'Amy Yang',             country:'KOR', rank:11 },
+  { name:'Charley Hull',         country:'ENG', rank:12 },
+  { name:'Nasa Hataoka',         country:'JPN', rank:13 },
+  { name:'Xiyu Lin',             country:'CHN', rank:14 },
+  { name:'Patty Tavatanakit',    country:'THA', rank:15 },
+  { name:'Maja Stark',           country:'SWE', rank:16 },
+  { name:'Sei Young Kim',        country:'KOR', rank:17 },
+  { name:'Lexi Thompson',        country:'USA', rank:18 },
+  { name:'Ariya Jutanugarn',     country:'THA', rank:19 },
+  { name:'Jennifer Kupcho',      country:'USA', rank:20 },
+  { name:'Hana Jang',            country:'KOR', rank:21 },
+  { name:'Inbee Park',           country:'KOR', rank:22 },
+  { name:'Stacy Lewis',          country:'USA', rank:23 },
+  { name:'Grace Kim',            country:'AUS', rank:24 },
+  { name:'Bianca Pagdanganan',   country:'PHI', rank:25 },
+  { name:'Albane Valenzuela',    country:'SUI', rank:26 },
+  { name:'Allisen Corpuz',       country:'USA', rank:27 },
+  { name:'Yealimi Noh',          country:'USA', rank:28 },
+  { name:'Marina Alex',          country:'USA', rank:29 },
+  { name:'Morgane Metraux',      country:'SUI', rank:30 },
+];
 
 // ── 대회 등급 스타일 ──────────────────────────────────────────────
 const GOLF_LEVEL_STYLE = {
@@ -22444,12 +22538,21 @@ function initGolfListeners() {
       }
     });
   }
+
+  // 세계 랭킹 (Cloud Function이 수집한 누적 데이터)
+  _golfRankingsRef = db.ref('jmt/golfRankings');
+  _golfRankingsRef.on('value', snap => {
+    const d = snap.val() || {};
+    if (d.pga  && d.pga.length)  golfState.pgaRankings  = d.pga;
+    if (d.lpga && d.lpga.length) golfState.lpgaRankings = d.lpga;
+  });
 }
 
 function _teardownGolfListeners() {
-  if (_golfDataRef) { _golfDataRef.off('value'); _golfDataRef = null; }
-  if (_golfNewsRef) { _golfNewsRef.off('value'); _golfNewsRef = null; }
-  if (_golfFavRef)  { _golfFavRef.off('value');  _golfFavRef  = null; }
+  if (_golfDataRef)     { _golfDataRef.off('value');     _golfDataRef     = null; }
+  if (_golfNewsRef)     { _golfNewsRef.off('value');     _golfNewsRef     = null; }
+  if (_golfFavRef)      { _golfFavRef.off('value');      _golfFavRef      = null; }
+  if (_golfRankingsRef) { _golfRankingsRef.off('value'); _golfRankingsRef = null; }
 }
 
 // ── 페이지 전체 렌더 ──────────────────────────────────────────────
@@ -22667,7 +22770,8 @@ function openGolfFavModal() {
   golfState.favPlayersTmp = golfState.favPlayers.map(p => ({ ...p }));
   const searchEl = document.getElementById('golf-fav-search');
   if (searchEl) searchEl.value = '';
-  renderGolfFavList('');
+  golfState.favDraw = 'pga';
+  switchGolfFavDraw('pga');
   _updateGolfFavSelectedBar();
   document.getElementById('golf-fav-modal').classList.add('open');
 }
@@ -22675,18 +22779,43 @@ function closeGolfFavModal() {
   document.getElementById('golf-fav-modal').classList.remove('open');
 }
 
+function switchGolfFavDraw(draw) {
+  golfState.favDraw = draw;
+  const btnPga  = document.getElementById('golf-fav-btn-pga');
+  const btnLpga = document.getElementById('golf-fav-btn-lpga');
+  if (btnPga) {
+    btnPga.style.background   = draw === 'pga' ? '#2563eb' : '#f8fafc';
+    btnPga.style.color        = draw === 'pga' ? '#fff'     : '#64748b';
+    btnPga.style.borderColor  = draw === 'pga' ? '#2563eb' : '#e2e8f0';
+    btnPga.style.fontWeight   = draw === 'pga' ? '700'     : '600';
+  }
+  if (btnLpga) {
+    btnLpga.style.background  = draw === 'lpga' ? '#ec4899' : '#f8fafc';
+    btnLpga.style.color       = draw === 'lpga' ? '#fff'    : '#64748b';
+    btnLpga.style.borderColor = draw === 'lpga' ? '#ec4899' : '#e2e8f0';
+    btnLpga.style.fontWeight  = draw === 'lpga' ? '700'     : '600';
+  }
+  const searchEl = document.getElementById('golf-fav-search');
+  renderGolfFavList(searchEl ? searchEl.value : '');
+}
+
 function renderGolfFavList(query) {
   const listEl = document.getElementById('golf-fav-list');
   if (!listEl) return;
-  // 선수 목록: 현재 선택된 대회 리더보드 기준
-  const t = golfState.tournaments[golfState.selectedId];
-  const allPlayers = t ? Object.values(t.leaderboard || {}).map(p => ({ name:p.name, country:p.country, rank:p.rank })) : [];
-  if (!allPlayers.length) {
-    listEl.innerHTML = '<div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:0.82rem">선수 목록이 없습니다.<br>대회를 선택해 주세요.</div>';
-    return;
+  // 소스: DB 랭킹 우선, 없으면 하드코딩 폴백
+  const draw = golfState.favDraw || 'pga';
+  let allPlayers;
+  if (draw === 'pga') {
+    allPlayers = golfState.pgaRankings.length ? golfState.pgaRankings : GOLF_TOP_PGA;
+  } else {
+    allPlayers = golfState.lpgaRankings.length ? golfState.lpgaRankings : GOLF_TOP_LPGA;
   }
   const q        = (query || '').trim().toLowerCase();
   const filtered = q ? allPlayers.filter(p => p.name.toLowerCase().includes(q)) : allPlayers;
+  if (!filtered.length) {
+    listEl.innerHTML = '<div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:0.82rem">검색 결과가 없습니다.</div>';
+    return;
+  }
   const favNames = new Set(golfState.favPlayersTmp.map(p => p.name.toLowerCase()));
   listEl.innerHTML = filtered.map(p => {
     const sel = favNames.has(p.name.toLowerCase());
