@@ -70,6 +70,14 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
 #atp-tab-container .atp-tab { background:transparent !important; color:rgba(255,255,255,0.55) !important; font-size:0.8rem; border-radius:8px !important; }
 #atp-tab-container .atp-tab.active { background:rgba(255,255,255,0.92) !important; color:#2563eb !important; box-shadow:0 1px 6px rgba(0,0,0,0.15); font-weight:800 !important; border-radius:8px !important; }
 #atp-tab-container .atp-tab:not(:last-child) { border-right:none !important; }
+/* ── 스포츠 스위처 (테니스/골프) ── */
+.sport-switch-btn {
+  flex:1; padding:10px 4px; font-size:0.88rem; font-weight:700;
+  background:#f1f5f9; color:#64748b; border:2px solid #e2e8f0;
+  border-radius:12px; cursor:pointer; transition:background 0.15s, color 0.15s, border-color 0.15s;
+  font-family:inherit;
+}
+.sport-switch-btn.active { background:#2563eb; color:#fff; border-color:#2563eb; }
 .atp-match-row { display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1f5f9; font-size:0.82rem; gap:4px; }
 .atp-match-row:last-child { border-bottom:none; }
 .atp-player { flex:1; font-weight:600; color:#64748b; line-height:1.35; }
@@ -785,6 +793,15 @@ const firebaseConfig = {
 <!-- ══ PAGE: ATPLive ══ -->
 <div class="page" id="page-atp" style="font-size:106%">
 
+  <!-- 스포츠 스위처 -->
+  <div style="display:flex;gap:8px;margin-bottom:12px;padding:0 2px">
+    <button class="sport-switch-btn active" id="sport-btn-tennis" onclick="switchSportTab('tennis')">🎾 테니스</button>
+    <button class="sport-switch-btn" id="sport-btn-golf" onclick="switchSportTab('golf')">⛳ 골프</button>
+  </div>
+
+  <!-- 테니스 패널 -->
+  <div id="sport-panel-tennis">
+
   <!-- 대회 정보 + 탭 통합 블록 -->
   <div id="atp-tournament-card" style="margin-bottom:12px">
     <div class="rank-banner" style="margin-bottom:0;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;padding:18px 16px 14px">
@@ -830,6 +847,17 @@ const firebaseConfig = {
       <button onclick="openAtpBetsHistoryModal()" style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:16px;padding:5px 12px;font-size:0.75rem;font-weight:600;color:#475569;cursor:pointer">📜 베팅 히스토리</button>
     </div>
   </div>
+
+  </div><!-- /sport-panel-tennis -->
+
+  <!-- 골프 패널 -->
+  <div id="sport-panel-golf" style="display:none">
+    <div class="card" style="text-align:center;padding:40px 20px;color:#94a3b8">
+      <div style="font-size:2.5rem;margin-bottom:12px">⛳</div>
+      <div style="font-size:1rem;font-weight:700;color:#475569;margin-bottom:6px">골프 Live</div>
+      <div style="font-size:0.82rem">준비 중입니다.</div>
+    </div>
+  </div><!-- /sport-panel-golf -->
 
 </div>
 
@@ -2508,7 +2536,7 @@ const firebaseConfig = {
     <span class="ni">🏆</span><span>행모</span>
   </div>
   <div class="nav-item" id="nav-atp" onclick="switchPage('atp')">
-    <span class="ni">🎾</span><span class="live-badge">Live</span>
+    <span class="ni">🏟️</span><span class="live-badge">Live</span>
   </div>
 </nav>
 
@@ -2544,7 +2572,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v829';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v830';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11259,6 +11287,17 @@ function renderAtpNewsPanel() {
 }
 
 // ── 탭 전환 ──────────────────────────────────────────────────────
+// ── 스포츠 스위처 (테니스 / 골프) ─────────────────────────────────
+function switchSportTab(sport) {
+  ['tennis', 'golf'].forEach(s => {
+    const btn = document.getElementById(`sport-btn-${s}`);
+    const panel = document.getElementById(`sport-panel-${s}`);
+    const active = s === sport;
+    if (btn) btn.classList.toggle('active', active);
+    if (panel) panel.style.display = active ? '' : 'none';
+  });
+}
+
 function switchAtpTab(tab) {
   atpState.currentTab = tab;
   ['draw', 'bet', 'news'].forEach(t => {
