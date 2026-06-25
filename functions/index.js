@@ -1928,6 +1928,114 @@ exports.fetchAtpNews = onSchedule(
   }
 );
 
+// ══ GOLF: ESPN 파싱 ════════════════════════════════════════════════
+
+function _getGolfLevel(name, tour) {
+  const n = name.toLowerCase();
+  const PGA_MAJORS  = ['masters', 'pga championship', 'u.s. open', 'the open championship'];
+  const LPGA_MAJORS = ['chevron championship', "u.s. women's open", "women's pga championship", 'evian championship', "women's british open", 'aia vitality', 'annika driven'];
+  const majors = tour === 'lpga' ? LPGA_MAJORS : PGA_MAJORS;
+  if (majors.some(m => n.includes(m))) return 'major';
+  return tour === 'lpga' ? 'lpga_tour' : 'pga_tour';
+}
+
+async function _fetchAndParseGolfTour(tour) {
+  const res  = await fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tour}/scoreboard`);
+  const json = await res.json();
+  const results = [];
+
+  for (const ev of (json.events || [])) {
+    const comp  = (ev.competitions || [])[0];
+    if (!comp) continue;
+
+    const state  = ev.status?.type?.state || 'pre';
+    const detail = ev.status?.type?.detail || ev.status?.detail || '';
+    const roundM = detail.match(/Round\s*(\d)/i);
+    const round  = roundM ? parseInt(roundM[1]) : 0;
+
+    let venueName = '', venueCity = '', venueCountry = '';
+    if (comp.venue) {
+      venueName = comp.venue.fullName || '';
+      const parts = venueName.split(',').map(s => s.trim());
+      venueCity    = parts[0] || '';
+      venueCountry = parts.slice(1).join(', ').trim();
+    }
+
+    const leaderboard = (comp.competitors || [])
+      .sort((a, b) => (a.sortOrder || 9999) - (b.sortOrder || 9999))
+      .map(c => ({
+        rank:    c.sortOrder    || 0,
+        name:    c.athlete?.displayName || '',
+        country: c.athlete?.flag?.alt   || '',
+        total:   c.score        || 'E',
+        scores:  (c.linescores || []).map(s => s.displayValue || String(s.value || '')),
+        thru:    c.status?.displayValue || '',
+        state:   c.status?.type?.state  || 'pre',
+        isCut:   (c.status?.type?.name  || '').toLowerCase().includes('cut'),
+      }));
+
+    results.push({
+      id:          ev.id          || '',
+      name:        ev.name        || '',
+      shortName:   ev.shortName   || ev.name || '',
+      tour,
+      level:       _getGolfLevel(ev.name || '', tour),
+      state,
+      round,
+      venueName,
+      venueCity,
+      venueCountry,
+      startDate:   ev.date        || '',
+      endDate:     ev.endDate     || '',
+      leaderboard,
+      updatedAt:   new Date().toISOString(),
+    });
+  }
+  return results;
+}
+
+async function _saveGolfData(tournaments) {
+  if (!tournaments.length) { console.log('_saveGolfData: no tournaments to save'); return; }
+  const updates = { 'jmt/golfData/updatedAt': new Date().toISOString() };
+  for (const t of tournaments) updates[`jmt/golfData/tournaments/${t.id}`] = t;
+  await db.ref().update(updates);
+  console.log(`_saveGolfData: saved ${tournaments.length} tournaments`);
+}
+
+// ══ 14. 2시간마다 — ESPN Golf 데이터 fetch ════════════════════════
+exports.fetchGolfData = onSchedule(
+  { schedule: '30 */2 * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    try {
+      const [pga, lpga] = await Promise.all([
+        _fetchAndParseGolfTour('pga'),
+        _fetchAndParseGolfTour('lpga'),
+      ]);
+      await _saveGolfData([...pga, ...lpga]);
+    } catch (e) {
+      console.error('fetchGolfData error:', e);
+    }
+  }
+);
+
+// ══ 14b. Golf 수동 새로고침 (관리자 callable) ═════════════════════
+exports.refreshGolfData = onCall(
+  { region: 'asia-southeast1' },
+  async () => {
+    try {
+      const [pga, lpga] = await Promise.all([
+        _fetchAndParseGolfTour('pga'),
+        _fetchAndParseGolfTour('lpga'),
+      ]);
+      await _saveGolfData([...pga, ...lpga]);
+      return { success: true, count: pga.length + lpga.length };
+    } catch (e) {
+      console.error('refreshGolfData error:', e);
+      return { success: false, error: e.message };
+    }
+  }
+);
+
 // ══ 자미봇 — 채팅 트리거 자동 응답 ══════════════════════════════════
 
 const _BOT_NAME = '제이';
@@ -3422,9 +3530,10 @@ exports.sendNoticeAsBot = onCall({ region: 'asia-southeast1' }, async (req) => {
   // 자미톡에 공지 카드 메시지 게시 (type:'notice' — 클라이언트에서 카드 렌더링)
   await _postBotMsg({
     type: 'notice',
-    noticeId:      noticeId,
-    noticeTitle:   notice.title   || '',
-    noticeContent: notice.content || '',
+    noticeId:       noticeId,
+    noticeTitle:    notice.title    || '',
+    noticeContent:  notice.content  || '',
+    noticeImageUrl: notice.imageUrl || '',
     text: `📢 ${notice.title || '공지사항'}`, // 푸시 미리보기·검색용
   });
   // 전체 멤버에게 FCM 푸시 (쿨다운 없이 항상 발송)

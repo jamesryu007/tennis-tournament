@@ -78,6 +78,32 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
   font-family:inherit;
 }
 .sport-switch-btn.active { background:#2563eb; color:#fff; border-color:#2563eb; }
+/* ── 골프 대회 카드 ── */
+.golf-card {
+  flex-shrink:0; scroll-snap-align:start;
+  background:#fff; border:1.5px solid #e2e8f0; border-radius:14px;
+  padding:11px 13px; min-width:155px; max-width:190px; cursor:pointer;
+  transition:border-color 0.15s, box-shadow 0.15s;
+}
+.golf-card.selected { border-color:#2563eb !important; box-shadow:0 0 0 3px rgba(37,99,235,0.15); }
+.golf-card.live     { border-color:#ef4444 !important; }
+/* ── 골프 리더보드 행 ── */
+.golf-lb-row {
+  display:grid; grid-template-columns:28px 1fr 56px 42px 46px;
+  align-items:center; padding:8px 14px;
+  border-bottom:1px solid #f1f5f9; font-size:0.8rem; gap:4px;
+}
+.golf-lb-row:last-child { border-bottom:none; }
+.golf-lb-row.cut-row { opacity:0.45; }
+.golf-cut-line {
+  text-align:center; padding:5px 0; font-size:0.68rem;
+  color:#ef4444; font-weight:700;
+  background:#fef2f2; border-top:1.5px dashed #fca5a5; border-bottom:1.5px dashed #fca5a5;
+}
+/* ── 골프 라운드 탭 (ATP 다크 탭 스타일 공유) ── */
+#golf-round-tab-row .atp-tab { background:transparent !important; color:rgba(255,255,255,0.55) !important; font-size:0.8rem; border-radius:8px !important; }
+#golf-round-tab-row .atp-tab.active { background:rgba(255,255,255,0.92) !important; color:#2563eb !important; box-shadow:0 1px 6px rgba(0,0,0,0.15); font-weight:800 !important; border-radius:8px !important; }
+#golf-round-tab-row .atp-tab:not(:last-child) { border-right:none !important; }
 .atp-match-row { display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1f5f9; font-size:0.82rem; gap:4px; }
 .atp-match-row:last-child { border-bottom:none; }
 .atp-player { flex:1; font-weight:600; color:#64748b; line-height:1.35; }
@@ -852,10 +878,19 @@ const firebaseConfig = {
 
   <!-- 골프 패널 -->
   <div id="sport-panel-golf" style="display:none">
-    <div class="card" style="text-align:center;padding:40px 20px;color:#94a3b8">
-      <div style="font-size:2.5rem;margin-bottom:12px">⛳</div>
-      <div style="font-size:1rem;font-weight:700;color:#475569;margin-bottom:6px">골프 Live</div>
-      <div style="font-size:0.82rem">준비 중입니다.</div>
+    <!-- 대회 카드 캐러셀 -->
+    <div id="golf-cards-row" style="display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px 10px;scrollbar-width:none;-webkit-overflow-scrolling:touch"></div>
+    <!-- 선택 대회 헤더 배너 -->
+    <div id="golf-tourney-banner" style="margin-bottom:12px"></div>
+    <!-- 라운드 필터 탭 -->
+    <div id="golf-round-tab-row" style="display:none;flex;gap:0;background:rgba(55,40,120,0.85);padding:4px;border-radius:12px;margin-bottom:12px"></div>
+    <!-- 리더보드 -->
+    <div id="golf-leaderboard-wrap" class="card" style="padding:0">
+      <div style="text-align:center;padding:28px 0;color:#94a3b8;font-size:0.85rem">⛳ 골프 대회 정보를 불러오는 중...</div>
+    </div>
+    <!-- 관리자: 수동 새로고침 -->
+    <div id="golf-admin-bar" style="display:none;text-align:right;margin-top:8px">
+      <button onclick="triggerGolfRefresh()" style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:16px;padding:5px 14px;font-size:0.75rem;font-weight:600;color:#475569;cursor:pointer">🔄 새로고침</button>
     </div>
   </div><!-- /sport-panel-golf -->
 
@@ -2572,7 +2607,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v830';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v831';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9586,9 +9621,10 @@ function switchPage(id) {
   if (document.getElementById('page-matches').classList.contains('active') && id !== 'matches') {
     if (_carouselTimer) { clearInterval(_carouselTimer); _carouselTimer = null; }
   }
-  // ATP 탭을 벗어날 때 Firebase 리스너 해제
+  // ATP/골프 탭을 벗어날 때 Firebase 리스너 해제
   if (document.getElementById('page-atp').classList.contains('active') && id !== 'atp') {
     _teardownAtpListeners();
+    _teardownGolfListeners();
   }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -9639,6 +9675,11 @@ function switchPage(id) {
     initAtpListeners();
     renderAtpPage();
     if (!atpState.loaded) triggerAtpRefresh();
+    // 골프 패널이 열려있으면 골프 리스너도 초기화
+    if (document.getElementById('sport-panel-golf').style.display !== 'none') {
+      initGolfListeners();
+      if (!golfState.loaded) triggerGolfRefresh();
+    }
     if (atpState.preferBetTab) switchAtpTab('bet');
     // 관심선수 강제 로드 — 새로고침 후 Firebase 리스너 타이밍 보완
     const _favName = state.identity && state.identity.name;
@@ -11296,6 +11337,11 @@ function switchSportTab(sport) {
     if (btn) btn.classList.toggle('active', active);
     if (panel) panel.style.display = active ? '' : 'none';
   });
+  if (sport === 'golf') {
+    initGolfListeners();
+    if (!golfState.loaded) triggerGolfRefresh();
+    else renderGolfPage();
+  }
 }
 
 function switchAtpTab(tab) {
@@ -22300,6 +22346,224 @@ function saveMpComment(key) {
     }
   };
 })();
+</script>
+
+<!-- ══ GOLF LIVE 스크립트 ══ -->
+<script>
+// ── 골프 상태 ──────────────────────────────────────────────────────
+let _golfDataRef = null;
+const golfState = {
+  tournaments: {},      // id → tournament 객체
+  selectedId:   null,   // 현재 선택된 대회 ID
+  selectedRound:'all',  // 'all' | '1' | '2' | '3' | '4'
+  loaded:       false,
+};
+
+// ── 대회 등급 스타일 ──────────────────────────────────────────────
+const GOLF_LEVEL_STYLE = {
+  major:     { bg:'linear-gradient(135deg,#fef9c3,#fde68a)', border:'#f59e0b', badge:'🏆 Major',    badgeBg:'#f59e0b', color:'#78350f' },
+  pga_tour:  { bg:'linear-gradient(135deg,#dbeafe,#bfdbfe)', border:'#3b82f6', badge:'🏌️ PGA',      badgeBg:'#3b82f6', color:'#1e3a8a' },
+  lpga_tour: { bg:'linear-gradient(135deg,#fce7f3,#fbcfe8)', border:'#ec4899', badge:'🌸 LPGA',     badgeBg:'#ec4899', color:'#831843' },
+  dp_world:  { bg:'linear-gradient(135deg,#d1fae5,#a7f3d0)', border:'#10b981', badge:'🌍 DP World', badgeBg:'#10b981', color:'#064e3b' },
+};
+
+// ── 리스너 초기화 ─────────────────────────────────────────────────
+function initGolfListeners() {
+  if (_golfDataRef || !db) return;
+  _golfDataRef = db.ref('jmt/golfData/tournaments');
+  _golfDataRef.on('value', snap => {
+    golfState.tournaments = snap.val() || {};
+    golfState.loaded = true;
+    if (document.getElementById('sport-panel-golf').style.display !== 'none') renderGolfPage();
+  });
+}
+
+function _teardownGolfListeners() {
+  if (_golfDataRef) { _golfDataRef.off('value'); _golfDataRef = null; }
+}
+
+// ── 페이지 전체 렌더 ──────────────────────────────────────────────
+function renderGolfPage() {
+  renderGolfTournamentCards();
+  // 선택 대회 없거나 사라진 경우 자동 선택 (LIVE > 예정 > 종료)
+  if (!golfState.selectedId || !golfState.tournaments[golfState.selectedId]) {
+    const sorted = Object.values(golfState.tournaments).sort((a, b) => {
+      const o = { in:0, pre:1, post:2 };
+      return (o[a.state] ?? 3) - (o[b.state] ?? 3);
+    });
+    golfState.selectedId = sorted[0] ? sorted[0].id : null;
+  }
+  renderGolfSelected();
+  const adminBar = document.getElementById('golf-admin-bar');
+  if (adminBar) adminBar.style.display = isManager() ? '' : 'none';
+}
+
+// ── 대회 카드 캐러셀 ──────────────────────────────────────────────
+function renderGolfTournamentCards() {
+  const row = document.getElementById('golf-cards-row');
+  if (!row) return;
+  const list = Object.values(golfState.tournaments);
+  if (!list.length) {
+    row.innerHTML = '<div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.82rem;width:100%">현재 진행 중인 대회가 없습니다.</div>';
+    return;
+  }
+  list.sort((a, b) => ({ in:0, pre:1, post:2 }[a.state] ?? 3) - ({ in:0, pre:1, post:2 }[b.state] ?? 3));
+
+  row.innerHTML = list.map(t => {
+    const s = GOLF_LEVEL_STYLE[t.level] || GOLF_LEVEL_STYLE.pga_tour;
+    const sel = t.id === golfState.selectedId;
+    const stateBadge = t.state === 'in'
+      ? `<span style="background:#ef4444;color:#fff;font-size:0.6rem;font-weight:800;padding:2px 6px;border-radius:8px">LIVE</span>`
+      : t.state === 'pre'
+      ? `<span style="background:#f59e0b;color:#fff;font-size:0.6rem;font-weight:700;padding:2px 6px;border-radius:8px">예정</span>`
+      : `<span style="background:#94a3b8;color:#fff;font-size:0.6rem;font-weight:600;padding:2px 6px;border-radius:8px">종료</span>`;
+    const sub = t.state === 'in' && t.round
+      ? `<div style="font-size:0.68rem;color:#64748b;margin-top:3px">R${t.round} 진행 중</div>`
+      : t.venueCity
+      ? `<div style="font-size:0.68rem;color:#64748b;margin-top:3px">${t.venueCity}</div>`
+      : '';
+    return `<div class="golf-card${sel ? ' selected' : ''}${t.state === 'in' ? ' live' : ''}"
+      onclick="selectGolfTournament('${t.id}')"
+      style="background:${s.bg};border-color:${sel ? '#2563eb' : s.border}">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:5px">
+        <span style="background:${s.badgeBg};color:#fff;font-size:0.58rem;font-weight:700;padding:2px 7px;border-radius:8px;white-space:nowrap">${s.badge}</span>
+        ${stateBadge}
+      </div>
+      <div style="font-size:0.82rem;font-weight:800;color:${s.color};line-height:1.3">${t.shortName || t.name}</div>
+      ${sub}
+    </div>`;
+  }).join('');
+}
+
+// ── 대회 선택 ────────────────────────────────────────────────────
+function selectGolfTournament(id) {
+  golfState.selectedId   = id;
+  golfState.selectedRound = 'all';
+  renderGolfTournamentCards();
+  renderGolfSelected();
+}
+
+function renderGolfSelected() {
+  const t = golfState.tournaments[golfState.selectedId] || null;
+  renderGolfHeader(t);
+  renderGolfRoundTabs(t);
+  renderGolfLeaderboard(t);
+}
+
+// ── 대회 헤더 배너 ────────────────────────────────────────────────
+function renderGolfHeader(t) {
+  const el = document.getElementById('golf-tourney-banner');
+  if (!el) return;
+  if (!t) { el.innerHTML = ''; return; }
+  const s = GOLF_LEVEL_STYLE[t.level] || GOLF_LEVEL_STYLE.pga_tour;
+  const fmt = d => { try { return new Date(d).toLocaleDateString('ko-KR', { month:'numeric', day:'numeric' }); } catch(e) { return d; } };
+  const dates = [t.startDate, t.endDate].filter(Boolean).map(fmt).join(' ~ ');
+  el.innerHTML = `<div style="background:${s.bg};border:1.5px solid ${s.border};border-radius:14px;padding:14px 16px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="min-width:0;flex:1">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="background:${s.badgeBg};color:#fff;font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:8px">${s.badge}</span>
+          ${t.state === 'in' ? '<span class="live-badge" style="font-size:0.65rem;padding:2px 7px">LIVE</span>' : ''}
+        </div>
+        <div style="font-size:1rem;font-weight:800;color:${s.color};margin-top:6px;line-height:1.3">${t.name}</div>
+        ${t.venueName ? `<div style="font-size:0.73rem;color:#64748b;margin-top:2px">${t.venueName}</div>` : ''}
+        ${dates ? `<div style="font-size:0.7rem;color:#94a3b8;margin-top:2px">${dates}</div>` : ''}
+      </div>
+      ${t.state === 'in' && t.round ? `<div style="text-align:center;margin-left:12px;flex-shrink:0">
+        <div style="font-size:1.6rem;font-weight:900;color:${s.color};line-height:1">R${t.round}</div>
+        <div style="font-size:0.62rem;color:#64748b">진행 중</div>
+      </div>` : ''}
+    </div>
+  </div>`;
+}
+
+// ── 라운드 필터 탭 ────────────────────────────────────────────────
+function renderGolfRoundTabs(t) {
+  const row = document.getElementById('golf-round-tab-row');
+  if (!row) return;
+  const lb = t ? Object.values(t.leaderboard || {}) : [];
+  const maxRound = t ? (t.round || Math.max(...lb.map(p => (p.scores || []).length), 0)) : 0;
+  if (!maxRound) { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+  const tabs = ['all', '1', '2', '3', '4'].filter(r => r === 'all' || parseInt(r) <= maxRound);
+  const label = { all:'전체', '1':'R1', '2':'R2', '3':'R3', '4':'R4' };
+  row.innerHTML = tabs.map(r =>
+    `<button class="atp-tab${r === golfState.selectedRound ? ' active' : ''}" onclick="switchGolfRound('${r}')">${label[r]}</button>`
+  ).join('');
+}
+
+function switchGolfRound(round) {
+  golfState.selectedRound = round;
+  const t = golfState.tournaments[golfState.selectedId] || null;
+  renderGolfRoundTabs(t);
+  renderGolfLeaderboard(t);
+}
+
+// ── 리더보드 ─────────────────────────────────────────────────────
+function renderGolfLeaderboard(t) {
+  const wrap = document.getElementById('golf-leaderboard-wrap');
+  if (!wrap) return;
+  if (!t) {
+    wrap.innerHTML = '<div style="text-align:center;padding:28px 0;color:#94a3b8;font-size:0.85rem">대회를 선택해 주세요.</div>';
+    return;
+  }
+  const players = Object.values(t.leaderboard || {});
+  if (!players.length) {
+    wrap.innerHTML = '<div style="text-align:center;padding:28px 0;color:#94a3b8;font-size:0.85rem">리더보드 데이터가 없습니다.</div>';
+    return;
+  }
+
+  const roundIdx = golfState.selectedRound === 'all' ? null : parseInt(golfState.selectedRound) - 1;
+  const scoreColor = v => String(v).startsWith('-') ? '#2563eb' : v === 'E' ? '#334155' : '#dc2626';
+
+  let cutInserted = false;
+  const rows = players.map(p => {
+    let cutHtml = '';
+    if (!cutInserted && p.isCut) { cutInserted = true; cutHtml = '<div class="golf-cut-line">✂️ CUT</div>'; }
+
+    // 라운드 탭에 따른 스코어 열
+    const scoreCell = roundIdx !== null
+      ? `<span style="font-weight:700;color:${scoreColor((p.scores||[])[roundIdx]||'')}">${(p.scores||[])[roundIdx] || '-'}</span>`
+      : `<span style="font-size:0.7rem;color:#64748b">${(p.scores||[]).join(' ') || '-'}</span>`;
+
+    return `${cutHtml}<div class="golf-lb-row${p.isCut ? ' cut-row' : ''}">
+      <span style="font-size:0.72rem;font-weight:700;color:#94a3b8">${p.rank || '-'}</span>
+      <div style="min-width:0">
+        <div style="font-size:0.82rem;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
+        ${p.country ? `<div style="font-size:0.62rem;color:#94a3b8">${p.country}</div>` : ''}
+      </div>
+      ${scoreCell}
+      <span style="font-weight:800;font-size:0.85rem;color:${scoreColor(p.total||'E')};text-align:right">${p.total || 'E'}</span>
+      <span style="font-size:0.7rem;color:#64748b;text-align:right">${p.thru || '-'}</span>
+    </div>`;
+  }).join('');
+
+  const scoreHead = roundIdx !== null ? `<span style="font-size:0.68rem;color:#94a3b8">R${golfState.selectedRound}</span>` : `<span style="font-size:0.68rem;color:#94a3b8">스코어</span>`;
+  const updatedStr = t.updatedAt ? new Date(t.updatedAt).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) : '';
+
+  wrap.innerHTML = `<div style="display:grid;grid-template-columns:28px 1fr 56px 42px 46px;gap:4px;padding:8px 14px 6px;border-bottom:1.5px solid #e2e8f0">
+    <span style="font-size:0.68rem;color:#94a3b8">#</span>
+    <span style="font-size:0.68rem;color:#94a3b8">선수</span>
+    ${scoreHead}
+    <span style="font-size:0.68rem;color:#94a3b8;text-align:right">합계</span>
+    <span style="font-size:0.68rem;color:#94a3b8;text-align:right">진행</span>
+  </div>${rows}${updatedStr ? `<div style="text-align:center;padding:7px 0;font-size:0.62rem;color:#cbd5e1">업데이트 ${updatedStr}</div>` : ''}`;
+}
+
+// ── 수동 새로고침 (관리자) ───────────────────────────────────────
+async function triggerGolfRefresh() {
+  if (!db) return;
+  const btn = document.querySelector('#golf-admin-bar button');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ 불러오는 중...'; }
+  try {
+    const fn = firebase.app().functions('asia-southeast1').httpsCallable('refreshGolfData');
+    await fn({});
+  } catch (e) {
+    console.warn('골프 데이터 새로고침 실패:', e.message || e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 새로고침'; }
+  }
+}
 </script>
 
 <script>
