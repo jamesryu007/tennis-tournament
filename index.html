@@ -22665,24 +22665,56 @@ function renderGolfLeaderboard(t) {
   }
 
   const roundIdx = golfState.selectedRound === 'all' ? null : parseInt(golfState.selectedRound) - 1;
-  const scoreColor = v => String(v).startsWith('-') ? '#2563eb' : v === 'E' ? '#334155' : '#dc2626';
+  const scoreColor = v => {
+    const s = String(v || '');
+    return s.startsWith('-') ? '#2563eb' : s === 'E' ? '#334155' : '#dc2626';
+  };
+  // 점수 파싱 (정렬용) — 낮을수록 좋음
+  const parseScore = v => {
+    if (!v || v === '-') return 9999;
+    if (v === 'E') return 0;
+    const n = parseInt(v, 10);
+    return isNaN(n) ? 9999 : n;
+  };
   const favNames = new Set((golfState.favPlayers || []).map(p => p.name.toLowerCase()));
-  // 관심선수 상단 고정 (원래 순위 유지하면서 앞으로)
-  const favList = players.filter(p => favNames.has(p.name.toLowerCase()));
-  const otherList = players.filter(p => !favNames.has(p.name.toLowerCase()));
+
+  // 라운드 탭 선택 시 해당 라운드 점수 기준으로 재정렬 + 재순위
+  let displayPlayers;
+  if (roundIdx !== null) {
+    const withScore = players
+      .filter(p => (p.scores || [])[roundIdx] && (p.scores||[])[roundIdx] !== '-')
+      .sort((a, b) => parseScore((a.scores||[])[roundIdx]) - parseScore((b.scores||[])[roundIdx]));
+    const noScore  = players.filter(p => !(p.scores||[])[roundIdx] || (p.scores||[])[roundIdx] === '-');
+    // 라운드 순위 부여 (동타 처리)
+    let rRank = 1;
+    displayPlayers = withScore.map((p, i) => {
+      if (i > 0 && parseScore((p.scores||[])[roundIdx]) > parseScore((withScore[i-1].scores||[])[roundIdx])) rRank = i + 1;
+      return { ...p, _roundRank: rRank };
+    }).concat(noScore.map(p => ({ ...p, _roundRank: null })));
+  } else {
+    // 전체: 원래 누적 순위 그대로
+    displayPlayers = [...players].sort((a, b) => (a.rank || 999) - (b.rank || 999));
+  }
+
+  const favList   = displayPlayers.filter(p => favNames.has(p.name.toLowerCase()));
+  const otherList = displayPlayers.filter(p => !favNames.has(p.name.toLowerCase()));
 
   const _renderRow = (p, isFav = false) => {
-    const scoreCell = roundIdx !== null
-      ? `<span style="font-weight:700;color:${scoreColor((p.scores||[])[roundIdx]||'')}">${(p.scores||[])[roundIdx] || '-'}</span>`
-      : `<span style="font-size:0.7rem;color:#64748b">${(p.scores||[]).join(' ') || '-'}</span>`;
-    return `<div class="golf-lb-row${p.isCut ? ' cut-row' : ''}${isFav ? '' : ''}" style="${isFav ? 'background:#fffbeb;' : ''}">
-      <span style="font-size:0.72rem;font-weight:700;color:#94a3b8">${p.rank || '-'}</span>
+    const roundScore = (p.scores || [])[roundIdx !== null ? roundIdx : -1];
+    const scoreCell  = roundIdx !== null
+      ? `<span style="font-weight:700;font-size:0.88rem;color:${scoreColor(roundScore)}">${roundScore || '-'}</span>`
+      : `<span style="font-size:0.68rem;color:#64748b;letter-spacing:-0.2px">${(p.scores||[]).join('  ') || '-'}</span>`;
+    const rankDisp   = roundIdx !== null ? (p._roundRank || '-') : (p.rank || '-');
+    const totalDisp  = roundIdx !== null ? (roundScore || '-') : (p.total || 'E');
+    const totalColor = roundIdx !== null ? scoreColor(roundScore) : scoreColor(p.total || 'E');
+    return `<div class="golf-lb-row" style="${isFav ? 'background:#fffbeb;' : ''}">
+      <span style="font-size:0.72rem;font-weight:700;color:#94a3b8">${rankDisp}</span>
       <div style="min-width:0">
         <div style="font-size:0.82rem;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${isFav ? '⭐ ' : ''}${p.name}</div>
         ${p.country ? `<div style="font-size:0.62rem;color:#94a3b8">${p.country}</div>` : ''}
       </div>
-      ${scoreCell}
-      <span style="font-weight:800;font-size:0.85rem;color:${scoreColor(p.total||'E')};text-align:right">${p.total || 'E'}</span>
+      ${roundIdx !== null ? `<span></span>` : scoreCell}
+      <span style="font-weight:800;font-size:0.85rem;color:${totalColor};text-align:right">${totalDisp}</span>
       <span style="font-size:0.7rem;color:#64748b;text-align:right">${p.thru || '-'}</span>
     </div>`;
   };
@@ -22695,20 +22727,29 @@ function renderGolfLeaderboard(t) {
   let cutInserted = false;
   const rows = otherList.map(p => {
     let cutHtml = '';
-    if (!cutInserted && p.isCut) { cutInserted = true; cutHtml = '<div class="golf-cut-line">✂️ CUT</div>'; }
+    // CUT 라인은 전체 탭에서만 표시
+    if (roundIdx === null && !cutInserted && p.isCut) { cutInserted = true; cutHtml = '<div class="golf-cut-line">✂️ CUT</div>'; }
     return cutHtml + _renderRow(p, false);
   }).join('');
 
-  const scoreHead = roundIdx !== null ? `<span style="font-size:0.68rem;color:#94a3b8">R${golfState.selectedRound}</span>` : `<span style="font-size:0.68rem;color:#94a3b8">스코어</span>`;
+  const rLabel     = golfState.selectedRound === '4' ? 'Final' : `R${golfState.selectedRound}`;
   const updatedStr = t.updatedAt ? new Date(t.updatedAt).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) : '';
 
-  wrap.innerHTML = `<div style="display:grid;grid-template-columns:28px 1fr 56px 42px 46px;gap:4px;padding:8px 14px 6px;border-bottom:1.5px solid #e2e8f0">
-    <span style="font-size:0.68rem;color:#94a3b8">#</span>
-    <span style="font-size:0.68rem;color:#94a3b8">선수</span>
-    ${scoreHead}
-    <span style="font-size:0.68rem;color:#94a3b8;text-align:right">합계</span>
-    <span style="font-size:0.68rem;color:#94a3b8;text-align:right">진행</span>
-  </div>${favSection}${rows}${updatedStr ? `<div style="text-align:center;padding:7px 0;font-size:0.62rem;color:#cbd5e1">업데이트 ${updatedStr}</div>` : ''}`;
+  // 전체탭: # | 선수 | 스코어 | 합계 | 진행
+  // 라운드탭: # | 선수 | (empty) | 점수 | 진행
+  const headerHtml = roundIdx !== null
+    ? `<span style="font-size:0.68rem;color:#94a3b8">#</span>
+       <span style="font-size:0.68rem;color:#94a3b8">선수 <span style="color:#2563eb;font-weight:700">${rLabel}</span></span>
+       <span></span>
+       <span style="font-size:0.68rem;color:#94a3b8;text-align:right">점수</span>
+       <span style="font-size:0.68rem;color:#94a3b8;text-align:right">진행</span>`
+    : `<span style="font-size:0.68rem;color:#94a3b8">#</span>
+       <span style="font-size:0.68rem;color:#94a3b8">선수</span>
+       <span style="font-size:0.68rem;color:#94a3b8">스코어</span>
+       <span style="font-size:0.68rem;color:#94a3b8;text-align:right">합계</span>
+       <span style="font-size:0.68rem;color:#94a3b8;text-align:right">진행</span>`;
+
+  wrap.innerHTML = `<div style="display:grid;grid-template-columns:28px 1fr 56px 42px 46px;gap:4px;padding:8px 14px 6px;border-bottom:1.5px solid #e2e8f0">${headerHtml}</div>${favSection}${rows}${updatedStr ? `<div style="text-align:center;padding:7px 0;font-size:0.62rem;color:#cbd5e1">업데이트 ${updatedStr}</div>` : ''}`;
 }
 
 // ── 메인 탭 전환 (리더보드 / 뉴스) ───────────────────────────────
