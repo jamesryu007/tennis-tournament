@@ -878,8 +878,8 @@ const firebaseConfig = {
 
   <!-- 골프 패널 -->
   <div id="sport-panel-golf" style="display:none">
-    <!-- 대회 카드 캐러셀 -->
-    <div id="golf-cards-row" style="display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px 10px;scrollbar-width:none;-webkit-overflow-scrolling:touch"></div>
+    <!-- 통합 대회 헤더 (선택 대회 풀카드 + 다른 대회 전환 칩) -->
+    <div id="golf-tourney-section" style="margin-bottom:12px"></div>
     <!-- 메인 탭 (리더보드 / 뉴스) -->
     <div id="golf-main-tab-bar" style="display:flex;background:rgba(55,40,120,0.85);padding:4px;border-radius:12px;margin-bottom:12px">
       <button class="atp-tab active" id="golf-tab-lb"   onclick="switchGolfMainTab('lb')">🏌️ 리더보드</button>
@@ -887,7 +887,6 @@ const firebaseConfig = {
     </div>
     <!-- 리더보드 패널 -->
     <div id="golf-panel-lb">
-      <div id="golf-tourney-banner" style="margin-bottom:12px"></div>
       <div id="golf-round-tab-row" style="display:none;flex;gap:0;background:rgba(55,40,120,0.85);padding:4px;border-radius:12px;margin-bottom:12px"></div>
       <div id="golf-leaderboard-wrap" class="card" style="padding:0">
         <div style="text-align:center;padding:28px 0;color:#94a3b8;font-size:0.85rem">⛳ 골프 대회 정보를 불러오는 중...</div>
@@ -2641,7 +2640,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v835';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v836';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22455,7 +22454,6 @@ function _teardownGolfListeners() {
 
 // ── 페이지 전체 렌더 ──────────────────────────────────────────────
 function renderGolfPage() {
-  renderGolfTournamentCards();
   // 선택 대회 없거나 사라진 경우 자동 선택 (LIVE > 예정 > 종료)
   if (!golfState.selectedId || !golfState.tournaments[golfState.selectedId]) {
     const sorted = Object.values(golfState.tournaments).sort((a, b) => {
@@ -22464,88 +22462,69 @@ function renderGolfPage() {
     });
     golfState.selectedId = sorted[0] ? sorted[0].id : null;
   }
+  renderGolfTournamentSection();
   renderGolfSelected();
   const adminBar = document.getElementById('golf-admin-bar');
   if (adminBar) adminBar.style.display = isManager() ? '' : 'none';
 }
 
-// ── 대회 카드 캐러셀 ──────────────────────────────────────────────
-function renderGolfTournamentCards() {
-  const row = document.getElementById('golf-cards-row');
-  if (!row) return;
-  const list = Object.values(golfState.tournaments);
+// ── 통합 대회 섹션 (선택 대회 풀카드 + 다른 대회 전환 칩) ─────────
+function renderGolfTournamentSection() {
+  const el = document.getElementById('golf-tourney-section');
+  if (!el) return;
+  const list = Object.values(golfState.tournaments)
+    .sort((a, b) => ({ in:0, pre:1, post:2 }[a.state] ?? 3) - ({ in:0, pre:1, post:2 }[b.state] ?? 3));
   if (!list.length) {
-    row.innerHTML = '<div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.82rem;width:100%">현재 진행 중인 대회가 없습니다.</div>';
+    el.innerHTML = '<div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.82rem">현재 진행 중인 대회가 없습니다.</div>';
     return;
   }
-  list.sort((a, b) => ({ in:0, pre:1, post:2 }[a.state] ?? 3) - ({ in:0, pre:1, post:2 }[b.state] ?? 3));
-
-  row.innerHTML = list.map(t => {
-    const s = GOLF_LEVEL_STYLE[t.level] || GOLF_LEVEL_STYLE.pga_tour;
-    const sel = t.id === golfState.selectedId;
-    const stateBadge = t.state === 'in'
-      ? `<span style="background:#ef4444;color:#fff;font-size:0.6rem;font-weight:800;padding:2px 6px;border-radius:8px">LIVE</span>`
-      : t.state === 'pre'
-      ? `<span style="background:#f59e0b;color:#fff;font-size:0.6rem;font-weight:700;padding:2px 6px;border-radius:8px">예정</span>`
-      : `<span style="background:#94a3b8;color:#fff;font-size:0.6rem;font-weight:600;padding:2px 6px;border-radius:8px">종료</span>`;
-    const sub = t.state === 'in' && t.round
-      ? `<div style="font-size:0.68rem;color:#64748b;margin-top:3px">R${t.round} 진행 중</div>`
-      : t.venueCity
-      ? `<div style="font-size:0.68rem;color:#64748b;margin-top:3px">${t.venueCity}</div>`
-      : '';
-    return `<div class="golf-card${sel ? ' selected' : ''}${t.state === 'in' ? ' live' : ''}"
-      onclick="selectGolfTournament('${t.id}')"
-      style="background:${s.bg};border-color:${sel ? '#2563eb' : s.border}">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:5px">
-        <span style="background:${s.badgeBg};color:#fff;font-size:0.58rem;font-weight:700;padding:2px 7px;border-radius:8px;white-space:nowrap">${s.badge}</span>
-        ${stateBadge}
-      </div>
-      <div style="font-size:0.82rem;font-weight:800;color:${s.color};line-height:1.3">${t.shortName || t.name}</div>
-      ${sub}
-    </div>`;
+  const t = golfState.tournaments[golfState.selectedId] || list[0];
+  if (!t) return;
+  const s   = GOLF_LEVEL_STYLE[t.level] || GOLF_LEVEL_STYLE.pga_tour;
+  const fmt = d => { try { return new Date(d).toLocaleDateString('ko-KR', { month:'numeric', day:'numeric' }); } catch(e) { return d; } };
+  const dates = [t.startDate, t.endDate].filter(Boolean).map(fmt).join(' ~ ');
+  const stateBadge = t.state === 'in'
+    ? `<span class="live-badge" style="font-size:0.65rem;padding:2px 7px">LIVE</span>`
+    : t.state === 'pre'
+    ? `<span style="background:#f59e0b;color:#fff;font-size:0.62rem;font-weight:700;padding:2px 7px;border-radius:8px">예정</span>`
+    : `<span style="background:#94a3b8;color:#fff;font-size:0.62rem;font-weight:600;padding:2px 7px;border-radius:8px">종료</span>`;
+  // 다른 대회 전환 칩
+  const otherChips = list.filter(x => x.id !== t.id).map(x => {
+    const xs = GOLF_LEVEL_STYLE[x.level] || GOLF_LEVEL_STYLE.pga_tour;
+    return `<button onclick="selectGolfTournament('${x.id}')"
+      style="flex-shrink:0;background:rgba(255,255,255,0.6);border:1.5px solid ${xs.border};border-radius:16px;padding:3px 10px;font-size:0.68rem;font-weight:700;color:${xs.color};cursor:pointer;white-space:nowrap">${xs.badge} ${x.shortName || x.name} ▶</button>`;
   }).join('');
+
+  el.innerHTML = `<div style="background:${s.bg};border:1.5px solid ${s.border};border-radius:14px;padding:13px 15px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+      <div style="min-width:0;flex:1">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px">
+          <span style="background:${s.badgeBg};color:#fff;font-size:0.65rem;font-weight:700;padding:2px 8px;border-radius:8px">${s.badge}</span>
+          ${stateBadge}
+          ${t.state === 'in' && t.round ? `<span style="font-size:0.65rem;color:${s.color};font-weight:700">R${t.round}</span>` : ''}
+        </div>
+        <div style="font-size:0.95rem;font-weight:800;color:${s.color};line-height:1.3">${t.name}</div>
+        ${t.venueName ? `<div style="font-size:0.7rem;color:#64748b;margin-top:2px">${t.venueName}</div>` : ''}
+        ${dates ? `<div style="font-size:0.68rem;color:#94a3b8;margin-top:1px">${dates}</div>` : ''}
+        ${otherChips ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${otherChips}</div>` : ''}
+      </div>
+      <button onclick="openGolfFavModal()" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:16px;padding:5px 10px;font-size:0.72rem;font-weight:700;color:${s.color};cursor:pointer;white-space:nowrap">⭐ 관심선수</button>
+    </div>
+  </div>`;
 }
 
 // ── 대회 선택 ────────────────────────────────────────────────────
 function selectGolfTournament(id) {
-  golfState.selectedId   = id;
+  golfState.selectedId    = id;
   golfState.selectedRound = 'all';
-  renderGolfTournamentCards();
+  renderGolfTournamentSection();
   renderGolfSelected();
 }
 
 function renderGolfSelected() {
   const t = golfState.tournaments[golfState.selectedId] || null;
-  renderGolfHeader(t);
   renderGolfRoundTabs(t);
   renderGolfLeaderboard(t);
-}
-
-// ── 대회 헤더 배너 ────────────────────────────────────────────────
-function renderGolfHeader(t) {
-  const el = document.getElementById('golf-tourney-banner');
-  if (!el) return;
-  if (!t) { el.innerHTML = ''; return; }
-  const s = GOLF_LEVEL_STYLE[t.level] || GOLF_LEVEL_STYLE.pga_tour;
-  const fmt = d => { try { return new Date(d).toLocaleDateString('ko-KR', { month:'numeric', day:'numeric' }); } catch(e) { return d; } };
-  const dates = [t.startDate, t.endDate].filter(Boolean).map(fmt).join(' ~ ');
-  el.innerHTML = `<div style="background:${s.bg};border:1.5px solid ${s.border};border-radius:14px;padding:14px 16px">
-    <div style="display:flex;align-items:center;justify-content:space-between">
-      <div style="min-width:0;flex:1">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-          <span style="background:${s.badgeBg};color:#fff;font-size:0.68rem;font-weight:700;padding:2px 8px;border-radius:8px">${s.badge}</span>
-          ${t.state === 'in' ? '<span class="live-badge" style="font-size:0.65rem;padding:2px 7px">LIVE</span>' : ''}
-        </div>
-        <div style="font-size:1rem;font-weight:800;color:${s.color};margin-top:6px;line-height:1.3">${t.name}</div>
-        ${t.venueName ? `<div style="font-size:0.73rem;color:#64748b;margin-top:2px">${t.venueName}</div>` : ''}
-        ${dates ? `<div style="font-size:0.7rem;color:#94a3b8;margin-top:2px">${dates}</div>` : ''}
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;margin-left:10px">
-        ${t.state === 'in' && t.round ? `<div style="text-align:center"><div style="font-size:1.6rem;font-weight:900;color:${s.color};line-height:1">R${t.round}</div><div style="font-size:0.62rem;color:#64748b">진행 중</div></div>` : ''}
-        <button onclick="openGolfFavModal()" style="background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:16px;padding:4px 10px;font-size:0.72rem;font-weight:700;color:${s.color};cursor:pointer;white-space:nowrap">⭐ 관심선수</button>
-      </div>
-    </div>
-  </div>`;
 }
 
 // ── 라운드 필터 탭 ────────────────────────────────────────────────
