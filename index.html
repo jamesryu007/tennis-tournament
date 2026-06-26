@@ -2656,7 +2656,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v851';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v852';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22810,26 +22810,6 @@ function _renderPlayerProfile(content, name, tour, { espn, profile }) {
   // 사진
   const photoSrc = espn?.photo || '';
 
-  // 통계 카드
-  const stats = isTennis
-    ? [
-        { val: profile?.grandSlams ?? '-', lbl: '그랜드슬램',    bg:'#f0fdf4', color:'#16a34a' },
-        { val: profile?.careerTitles ?? '-', lbl: '커리어 타이틀', bg:'#eff6ff', color:'#2563eb' },
-        { val: profile?.careerHighRank ? `${profile.careerHighRank}위` : '-', lbl: '최고 랭킹', bg:'#fffbeb', color:'#d97706' },
-      ]
-    : [
-        { val: profile?.majorWins ?? '-', lbl: '메이저 우승',  bg:'#f0fdf4', color:'#16a34a' },
-        { val: profile?.tourWins ?? '-',  lbl: '투어 우승',   bg:'#eff6ff', color:'#2563eb' },
-        { val: profile?.careerHighRank ? `${profile.careerHighRank}위` : '-', lbl: 'OWGR 최고', bg:'#fffbeb', color:'#d97706' },
-      ];
-
-  const statsHtml = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:18px">
-    ${stats.map(s => `<div class="pp-stat" style="background:${s.bg}">
-      <div class="sv" style="color:${s.color}">${s.val}</div>
-      <div class="sl">${s.lbl}</div>
-    </div>`).join('')}
-  </div>`;
-
   // 섹션들
   const sections = [];
   const titlesKey = isTennis ? 'grandSlamDetails' : 'majorDetails';
@@ -22838,12 +22818,6 @@ function _renderPlayerProfile(content, name, tour, { espn, profile }) {
     sections.push(`<div style="margin-bottom:14px">
       <div class="pp-section-title">${titlesLabel}</div>
       <div class="pp-section-body">${profile[titlesKey]}</div>
-    </div>`);
-  }
-  if (profile?.careerPrize) {
-    sections.push(`<div style="margin-bottom:14px">
-      <div class="pp-section-title">💰 커리어 총 상금</div>
-      <div class="pp-section-body"><span style="font-size:1rem;font-weight:900;color:#059669">${profile.careerPrize}</span></div>
     </div>`);
   }
   if (profile?.playStyle) {
@@ -22878,11 +22852,9 @@ function _renderPlayerProfile(content, name, tour, { espn, profile }) {
         <div style="font-size:0.76rem;color:#64748b;margin-bottom:7px">${natStr ? `🌍 ${natStr} · ` : ''}${tourLabel}${birthStr}${proStr}</div>
         <div style="display:flex;gap:5px;flex-wrap:wrap">
           ${currentRank ? `<span style="background:${themeColor};color:#fff;font-size:0.68rem;font-weight:800;padding:3px 10px;border-radius:10px">현재 ${currentRank}위</span>` : ''}
-          ${profile?.careerHighRank && (!currentRank || profile.careerHighRank < currentRank) ? `<span style="background:#f1f5f9;color:#475569;font-size:0.68rem;font-weight:700;padding:3px 10px;border-radius:10px">최고 ${profile.careerHighRank}위</span>` : ''}
         </div>
       </div>
     </div>
-    ${statsHtml}
     ${sections.join('')}
   `;
 }
