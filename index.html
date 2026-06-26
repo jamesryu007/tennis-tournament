@@ -102,7 +102,7 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
 .golf-lb-row {
   display:grid; grid-template-columns:28px 1fr 56px 42px 46px;
   align-items:center; padding:8px 14px;
-  border-bottom:1px solid #f1f5f9; font-size:0.8rem; gap:4px;
+  border-bottom:1px solid #f1f5f9; font-size:0.86rem; gap:4px;
 }
 .golf-lb-row:last-child { border-bottom:none; }
 .golf-lb-row.cut-row { opacity:0.45; }
@@ -111,11 +111,11 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
   color:#ef4444; font-weight:700;
   background:#fef2f2; border-top:1.5px dashed #fca5a5; border-bottom:1.5px dashed #fca5a5;
 }
-.atp-match-row { display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1f5f9; font-size:0.82rem; gap:4px; }
+.atp-match-row { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid #f1f5f9; font-size:0.88rem; gap:4px; }
 .atp-match-row:last-child { border-bottom:none; }
 .atp-player { flex:1; font-weight:600; color:#64748b; line-height:1.35; }
 .atp-player.winner { color:#1e293b; font-weight:800; }
-.atp-score { font-size:0.75rem; color:#94a3b8; text-align:right; min-width:72px; }
+.atp-score { font-size:0.82rem; color:#94a3b8; text-align:right; min-width:72px; }
 .atp-score .win-score { color:#1e293b; font-weight:700; }
 .bet-card { border:1px solid #e8ecf0; border-radius:14px; margin-bottom:8px; overflow:hidden; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.05); display:flex; }
 .atp-round-label { font-size:0.72rem; font-weight:700; color:#94a3b8; padding:8px 0 4px; letter-spacing:0.3px; }
@@ -2669,7 +2669,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v863';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v865';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11578,24 +11578,24 @@ function renderTourneyInfoHtml(t, ended) {
             <button onclick="openTourneyInfoByName('${displayName.replace(/'/g, '\\\'').replace(/"/g, '&quot;')}','${_tennisTour}')" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:12px;padding:2px 8px;font-size:0.65rem;font-weight:700;color:${style.color};cursor:pointer;white-space:nowrap">📋 대회정보</button>
           </div>
           <!-- 일정 -->
-          <div style="font-size:0.76rem;color:#64748b;margin-bottom:2px">📅 ${startDate}${endDate && endDate !== startDate ? ' ~ ' + endDate : ''}</div>
+          <div style="font-size:0.82rem;color:#64748b;margin-bottom:2px">📅 ${startDate}${endDate && endDate !== startDate ? ' ~ ' + endDate : ''}</div>
           <!-- 경기장명 -->
-          ${venueName ? `<div style="font-size:0.76rem;font-weight:600;color:#475569;margin-bottom:1px">🏟️ ${venueName}</div>` : ''}
+          ${venueName ? `<div style="font-size:0.82rem;font-weight:600;color:#475569;margin-bottom:1px">🏟️ ${venueName}</div>` : ''}
           <!-- 위치 + 지도보기 인라인 -->
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-            ${address ? `<span style="font-size:0.74rem;color:#64748b">📍 ${address}</span>` : ''}
+            ${address ? `<span style="font-size:0.80rem;color:#64748b">📍 ${address}</span>` : ''}
             <a href="${mapsUrl}" target="_blank" rel="noopener"
-               style="font-size:0.72rem;font-weight:700;color:${style.color};text-decoration:none;background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:10px;padding:3px 10px;white-space:nowrap">🗺️ 지도보기</a>
+               style="font-size:0.78rem;font-weight:700;color:${style.color};text-decoration:none;background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:10px;padding:3px 10px;white-space:nowrap">🗺️ 지도보기</a>
           </div>
           <!-- 버튼들 (관리자만 표시) -->
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            ${isAdmin() && !ended ? `<button onclick="triggerAtpRefresh()" style="background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:10px;padding:4px 10px;font-size:0.72rem;font-weight:600;color:${style.color};cursor:pointer">🔄 새로고침</button>` : ''}
-            ${isAdmin() && !ended ? `<button onclick="openBetOpenModal()" style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:4px 10px;font-size:0.72rem;font-weight:700;color:#92400e;cursor:pointer">🎯 베팅 오픈</button>` : ''}
-            ${isAdmin() && !ended ? `<button onclick="openLoadHistoricalModal()" style="background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:10px;padding:4px 10px;font-size:0.72rem;font-weight:600;color:${style.color};cursor:pointer">📅 날짜 로드</button>` : ''}
+            ${isAdmin() && !ended ? `<button onclick="triggerAtpRefresh()" style="background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:10px;padding:4px 10px;font-size:0.78rem;font-weight:600;color:${style.color};cursor:pointer">🔄 새로고침</button>` : ''}
+            ${isAdmin() && !ended ? `<button onclick="openBetOpenModal()" style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:4px 10px;font-size:0.78rem;font-weight:700;color:#92400e;cursor:pointer">🎯 베팅 오픈</button>` : ''}
+            ${isAdmin() && !ended ? `<button onclick="openLoadHistoricalModal()" style="background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:10px;padding:4px 10px;font-size:0.78rem;font-weight:600;color:${style.color};cursor:pointer">📅 날짜 로드</button>` : ''}
           </div>
         </div>
         <!-- 관심선수 버튼 -->
-        <button onclick="openFavPlayerModal()" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:16px;padding:5px 10px;font-size:0.72rem;font-weight:700;color:${style.color};cursor:pointer;white-space:nowrap">⭐ 관심선수</button>
+        <button onclick="openFavPlayerModal()" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:16px;padding:5px 10px;font-size:0.78rem;font-weight:700;color:${style.color};cursor:pointer;white-space:nowrap">⭐ 관심선수</button>
       </div>
     </div>
   `;
@@ -11763,10 +11763,10 @@ function renderRoundDrawPanel(el, matches, tier, tourney) {
       const wtaRanked = atpState.wtaRankingsFromDb.find(r => r.name.toLowerCase() === p.name.toLowerCase());
       const ranked = atpRanked || wtaRanked;
       const isWoman = !!wtaRanked && !atpRanked;
-      const rankStr = ranked ? `<span style="font-size:0.6rem;opacity:0.75">${ranked.rank}위</span> ` : '';
+      const rankStr = ranked ? `<span style="font-size:0.68rem;opacity:0.75">${ranked.rank}위</span> ` : '';
       const style = isWoman
-        ? 'background:#fdf2f8;color:#be185d;border:1px solid #fbcfe8;border-radius:12px;padding:2px 9px;font-size:0.68rem;font-weight:700;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer'
-        : 'background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:12px;padding:2px 9px;font-size:0.68rem;font-weight:700;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer';
+        ? 'background:#fdf2f8;color:#be185d;border:1px solid #fbcfe8;border-radius:12px;padding:3px 10px;font-size:0.76rem;font-weight:700;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer'
+        : 'background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:12px;padding:3px 10px;font-size:0.76rem;font-weight:700;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer';
       const _pSafe = p.name.replace(/'/g, "\'");
       const _pTour = isWoman ? 'wta' : 'atp';
       return `<span style="${style}" onclick="openPlayerProfile('${_pSafe}','${_pTour}')">${rankStr}${p.name}</span>`;
@@ -11876,20 +11876,20 @@ function renderMatchRow(m) {
         <div style="display:flex;align-items:center;gap:5px">
           <div style="width:3px;height:16px;border-radius:2px;flex-shrink:0;background:${p1Win?'#22c55e':'transparent'}"></div>
           <div class="atp-player ${p1Win?'winner':''}" style="${fav1?'color:#f59e0b':''}">
-            <span class="pp-name-link" onclick="openPlayerProfile('${p1Safe}','${tourKey}')">${p1Name}</span>${m.player1Country?` <span style="font-size:0.63rem;color:#94a3b8;font-weight:400">${m.player1Country}</span>`:''}
+            <span class="pp-name-link" onclick="openPlayerProfile('${p1Safe}','${tourKey}')">${p1Name}</span>${m.player1Country?` <span style="font-size:0.70rem;color:#94a3b8;font-weight:400">${m.player1Country}</span>`:''}
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:5px;margin-top:4px">
           <div style="width:3px;height:16px;border-radius:2px;flex-shrink:0;background:${p2Win?'#22c55e':'transparent'}"></div>
           <div class="atp-player ${p2Win?'winner':''}" style="${fav2?'color:#f59e0b':''}">
-            <span class="pp-name-link" onclick="openPlayerProfile('${p2Safe}','${tourKey}')">${p2Name}</span>${m.player2Country?` <span style="font-size:0.63rem;color:#94a3b8;font-weight:400">${m.player2Country}</span>`:''}
+            <span class="pp-name-link" onclick="openPlayerProfile('${p2Safe}','${tourKey}')">${p2Name}</span>${m.player2Country?` <span style="font-size:0.70rem;color:#94a3b8;font-weight:400">${m.player2Country}</span>`:''}
           </div>
         </div>
       </div>
       <div class="atp-score">
         ${isDone
           ? `<div class="${p1Win?'win-score':''}">${score1}</div><div class="${p2Win?'win-score':''}" style="margin-top:4px">${score2}</div>`
-          : `<div style="font-size:0.68rem;color:#64748b;line-height:1.5;text-align:right">${toKSTStr(m.date)}</div>`
+          : `<div style="font-size:0.76rem;color:#64748b;line-height:1.5;text-align:right">${toKSTStr(m.date)}</div>`
         }
       </div>
     </div>`;
@@ -22743,14 +22743,14 @@ function renderGolfTournamentSection() {
           <button onclick="openTourneyInfo('${t.id}')" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:12px;padding:2px 8px;font-size:0.65rem;font-weight:700;color:${s.color};cursor:pointer;white-space:nowrap">📋 대회정보</button>
         </div>
         <!-- 일정 -->
-        ${dates ? `<div style="font-size:0.76rem;color:#64748b;margin-bottom:2px">📅 ${dates}</div>` : ''}
+        ${dates ? `<div style="font-size:0.82rem;color:#64748b;margin-bottom:2px">📅 ${dates}</div>` : ''}
         <!-- 골프장명 -->
-        ${courseName ? `<div style="font-size:0.76rem;font-weight:600;color:#475569;margin-bottom:1px">⛳ ${courseName}</div>` : ''}
+        ${courseName ? `<div style="font-size:0.82rem;font-weight:600;color:#475569;margin-bottom:1px">⛳ ${courseName}</div>` : ''}
         <!-- 위치 + 지도보기 (인라인) -->
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-          ${location ? `<span style="font-size:0.74rem;color:#64748b">📍 ${location}</span>` : ''}
+          ${location ? `<span style="font-size:0.80rem;color:#64748b">📍 ${location}</span>` : ''}
           <a href="${mapUrl}" target="_blank" rel="noopener"
-            style="font-size:0.72rem;color:${s.color};font-weight:700;text-decoration:none;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:10px;padding:3px 10px;white-space:nowrap">🗺️ 지도보기</a>
+            style="font-size:0.78rem;color:${s.color};font-weight:700;text-decoration:none;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:10px;padding:3px 10px;white-space:nowrap">🗺️ 지도보기</a>
         </div>
         <!-- 다른 대회 전환 -->
         ${otherChips ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${otherChips}</div>` : ''}
@@ -23313,8 +23313,8 @@ function renderGolfLeaderboard(t) {
     return `<div class="golf-lb-row" style="${isFav ? 'background:#fffbeb;' : ''}">
       <span style="font-size:0.72rem;font-weight:700;color:#94a3b8">${rankDisp}</span>
       <div style="min-width:0">
-        <div class="pp-name-link" style="font-size:0.82rem;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" onclick="openPlayerProfile('${pNameSafe}','${_golfTourKey}')">${isFav ? '⭐ ' : ''}${p.name}</div>
-        ${p.country ? `<div style="font-size:0.62rem;color:#94a3b8">${p.country}</div>` : ''}
+        <div class="pp-name-link" style="font-size:0.86rem;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" onclick="openPlayerProfile('${pNameSafe}','${_golfTourKey}')">${isFav ? '⭐ ' : ''}${p.name}</div>
+        ${p.country ? `<div style="font-size:0.70rem;color:#94a3b8">${p.country}</div>` : ''}
       </div>
       ${roundIdx !== null ? `<span></span>` : scoreCell}
       <span style="font-weight:800;font-size:0.85rem;color:${totalColor};text-align:right">${totalDisp}</span>
@@ -23341,16 +23341,16 @@ function renderGolfLeaderboard(t) {
   // 전체탭: # | 선수 | 스코어 | 합계 | 진행
   // 라운드탭: # | 선수 | (empty) | 점수 | 진행
   const headerHtml = roundIdx !== null
-    ? `<span style="font-size:0.68rem;color:#94a3b8">#</span>
-       <span style="font-size:0.68rem;color:#94a3b8">선수</span>
+    ? `<span style="font-size:0.74rem;color:#94a3b8">#</span>
+       <span style="font-size:0.74rem;color:#94a3b8">선수</span>
        <span></span>
-       <span style="font-size:0.68rem;color:#94a3b8;text-align:right">점수</span>
-       <span style="font-size:0.68rem;color:#94a3b8;text-align:right">진행</span>`
-    : `<span style="font-size:0.68rem;color:#94a3b8">#</span>
-       <span style="font-size:0.68rem;color:#94a3b8">선수</span>
-       <span style="font-size:0.68rem;color:#94a3b8">스코어</span>
-       <span style="font-size:0.68rem;color:#94a3b8;text-align:right">합계</span>
-       <span style="font-size:0.68rem;color:#94a3b8;text-align:right">진행</span>`;
+       <span style="font-size:0.74rem;color:#94a3b8;text-align:right">점수</span>
+       <span style="font-size:0.74rem;color:#94a3b8;text-align:right">진행</span>`
+    : `<span style="font-size:0.74rem;color:#94a3b8">#</span>
+       <span style="font-size:0.74rem;color:#94a3b8">선수</span>
+       <span style="font-size:0.74rem;color:#94a3b8">스코어</span>
+       <span style="font-size:0.74rem;color:#94a3b8;text-align:right">합계</span>
+       <span style="font-size:0.74rem;color:#94a3b8;text-align:right">진행</span>`;
 
   wrap.innerHTML = `${_roundTabsHtml()}<div style="display:grid;grid-template-columns:28px 1fr 56px 42px 46px;gap:4px;padding:8px 14px 6px;border-bottom:1.5px solid #e2e8f0">${headerHtml}</div>${favSection}${rows}${updatedStr ? `<div style="text-align:center;padding:7px 0;font-size:0.62rem;color:#cbd5e1">업데이트 ${updatedStr}</div>` : ''}`;
 }
