@@ -1313,6 +1313,24 @@ async function _fetchAndSaveRankings(tour) {
 async function _fetchAndSaveAtpRankings() { return _fetchAndSaveRankings('atp'); }
 async function _fetchAndSaveWtaRankings() { return _fetchAndSaveRankings('wta'); }
 
+// ── 골프 세계 랭킹 fetch 공통 함수 ───────────────────────────────
+async function _fetchAndSaveGolfRankings(tour) {
+  const url  = `https://site.api.espn.com/apis/site/v2/sports/golf/${tour}/rankings?limit=100`;
+  const res  = await fetch(url);
+  const json = await res.json();
+  const entries = (json.rankings && json.rankings[0] && json.rankings[0].ranks) || [];
+  const players = entries.map(e => ({
+    rank:    e.current || 0,
+    name:    e.athlete ? `${e.athlete.firstName || ''} ${e.athlete.lastName || ''}`.trim() : '',
+    country: e.athlete?.flag?.alt || e.athlete?.flag?.href || '',
+  })).filter(p => p.name && p.rank);
+  if (!players.length) { console.warn(`fetchGolfRankings(${tour}): empty result`); return false; }
+  const existing = ((await db.ref('jmt/golfRankings').once('value')).val()) || {};
+  await db.ref('jmt/golfRankings').set({ ...existing, [tour]: players, updatedAt: new Date().toISOString() });
+  console.log(`fetchGolfRankings(${tour}): saved ${players.length} players`);
+  return true;
+}
+
 // ══ ATP/WTA 세계 랭킹 — 매주 월요일 오전 6시 정기 업데이트 ═══════
 exports.fetchAtpRankings = onSchedule(
   { schedule: '0 6 * * 1', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
@@ -1329,6 +1347,24 @@ exports.fetchWtaRankings = onSchedule(
     catch (e) { console.error('fetchWtaRankings error:', e); }
   }
 );
+
+// ══ PGA/LPGA 골프 세계 랭킹 — 매주 월요일 오전 6:10 KST ══════════
+exports.fetchGolfRankings = onSchedule(
+  { schedule: '10 6 * * 1', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    try {
+      await _fetchAndSaveGolfRankings('pga');
+      await _fetchAndSaveGolfRankings('lpga');
+    } catch (e) { console.error('fetchGolfRankings error:', e); }
+  }
+);
+
+exports.refreshGolfRankings = onCall({ region: 'asia-southeast1' }, async (req) => {
+  if (!_BOT_MANAGERS.includes(req.data.senderName || '')) throw new Error('권한 없음');
+  const pgaOk  = await _fetchAndSaveGolfRankings('pga').catch(() => false);
+  const lpgaOk = await _fetchAndSaveGolfRankings('lpga').catch(() => false);
+  return { pga: pgaOk, lpga: lpgaOk };
+});
 
 // ══ 주간 MVP 시상 — 매주 토요일 오후 12:30 KST ══════════════════════
 
