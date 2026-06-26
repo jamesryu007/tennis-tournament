@@ -77,8 +77,8 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
 .pp-stat { border-radius:12px; padding:10px 6px; text-align:center; }
 .pp-stat .sv { font-size:1.3rem; font-weight:900; line-height:1.1; }
 .pp-stat .sl { font-size:0.6rem; color:#64748b; margin-top:3px; font-weight:600; }
-.pp-section-title { font-size:0.7rem; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:7px; }
-.pp-section-body { background:#f8fafc; border-radius:10px; padding:10px 12px; font-size:0.8rem; color:#334155; line-height:1.65; }
+.pp-section-title { font-size:0.78rem; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:7px; }
+.pp-section-body { background:#f8fafc; border-radius:10px; padding:10px 12px; font-size:0.88rem; color:#334155; line-height:1.65; }
 .pp-name-link { cursor:pointer; }
 .pp-name-link:hover { text-decoration:underline; text-decoration-style:dotted; text-underline-offset:2px; }
 /* ── 스포츠 스위처 (테니스/골프) ── */
@@ -2669,7 +2669,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v865';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v866';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22970,16 +22970,16 @@ function _renderTourneyInfo(content, t, { info, thumbnailUrl, error }) {
   if (info.history)       sections.push(sec('📝', '대회 소개', info.history));
   if (!sections.length)   sections.push(`<div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.82rem">정보가 없습니다.</div>`);
 
-  sections.push(`<div style="margin-top:4px;padding:8px 12px;background:#f8fafc;border-radius:8px;font-size:0.65rem;color:#94a3b8;text-align:center">⚠️ Wikipedia + AI 기반 — 최신 정보와 다를 수 있습니다</div>`);
+  sections.push(`<div style="margin-top:4px;padding:8px 12px;background:#f8fafc;border-radius:8px;font-size:0.72rem;color:#94a3b8;text-align:center">⚠️ Wikipedia + AI 기반 — 최신 정보와 다를 수 있습니다</div>`);
 
   content.innerHTML = `${imgHtml}
     <div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1.5px solid #f1f5f9">
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:5px">
-        <span style="background:${s.badgeBg};color:#fff;font-size:0.65rem;font-weight:700;padding:2px 8px;border-radius:8px">${s.badge}</span>
-        ${t.state === 'in' ? '<span class="live-badge" style="font-size:0.65rem;padding:2px 7px">LIVE</span>' : ''}
+        <span style="background:${s.badgeBg};color:#fff;font-size:0.72rem;font-weight:700;padding:2px 8px;border-radius:8px">${s.badge}</span>
+        ${t.state === 'in' ? '<span class="live-badge" style="font-size:0.72rem;padding:2px 7px">LIVE</span>' : ''}
       </div>
       <div style="font-size:1rem;font-weight:900;color:#1e293b;margin-bottom:4px">${t.name}</div>
-      ${dates ? `<div style="font-size:0.76rem;color:#64748b">📅 ${dates}</div>` : ''}
+      ${dates ? `<div style="font-size:0.84rem;color:#64748b">📅 ${dates}</div>` : ''}
     </div>
     ${sections.join('')}`;
 }
@@ -23063,10 +23063,10 @@ function _renderPlayerProfile(content, name, tour, { espn, profile, thumbnailUrl
       const items = profile.careerHighlights.split('\n').filter(Boolean);
       const timeline = items.map(item => {
         const m = item.match(/^(\d{4}[년\s]?[^:：]*[:：]?\s*)(.*)/);
-        const year = m ? `<span style="font-size:0.7rem;font-weight:800;color:${themeColor};flex-shrink:0;min-width:36px">${m[1].trim()}</span>` : '';
+        const year = m ? `<span style="font-size:0.78rem;font-weight:800;color:${themeColor};flex-shrink:0;min-width:36px">${m[1].trim()}</span>` : '';
         const desc = m ? m[2].trim() : item;
         return `<div style="display:flex;gap:8px;align-items:flex-start;padding:5px 0;border-bottom:1px solid #f1f5f9">
-          ${year}<span style="font-size:0.78rem;color:#334155;line-height:1.5">${desc || item}</span></div>`;
+          ${year}<span style="font-size:0.86rem;color:#334155;line-height:1.5">${desc || item}</span></div>`;
       }).join('');
       sections.push(`<div style="margin-bottom:14px">
         <div class="pp-section-title">📅 커리어 하이라이트</div>
@@ -23092,7 +23092,7 @@ function _renderPlayerProfile(content, name, tour, { espn, profile, thumbnailUrl
       sections.push(`<div style="margin-bottom:14px">
         <div class="pp-section-title">💬 명언</div>
         <div style="background:#f8fafc;border-radius:10px;padding:12px 14px;border-left:3px solid ${themeColor}">
-          <div style="font-size:0.82rem;color:#334155;line-height:1.7;font-style:italic">"${profile.famousQuote}"</div>
+          <div style="font-size:0.90rem;color:#334155;line-height:1.7;font-style:italic">"${profile.famousQuote}"</div>
         </div>
       </div>`);
     }
@@ -23102,7 +23102,7 @@ function _renderPlayerProfile(content, name, tour, { espn, profile, thumbnailUrl
       const facts = profile.triviaFacts.split('\n').filter(Boolean);
       const factHtml = facts.map(f => `<div style="display:flex;gap:7px;padding:4px 0">
         <span style="font-size:0.8rem;flex-shrink:0">🎲</span>
-        <span style="font-size:0.78rem;color:#334155;line-height:1.5">${f}</span>
+        <span style="font-size:0.86rem;color:#334155;line-height:1.5">${f}</span>
       </div>`).join('');
       sections.push(`<div style="margin-bottom:14px">
         <div class="pp-section-title">🎲 재미있는 사실</div>
@@ -23116,10 +23116,10 @@ function _renderPlayerProfile(content, name, tour, { espn, profile, thumbnailUrl
 
   // 자미터 관심 배지
   const jamiteBadge = isMyFav
-    ? `<span style="background:#f59e0b20;color:#d97706;font-size:0.65rem;font-weight:800;padding:3px 9px;border-radius:10px;border:1px solid #fcd34d">⭐ 내 관심 선수</span>`
+    ? `<span style="background:#f59e0b20;color:#d97706;font-size:0.72rem;font-weight:800;padding:3px 9px;border-radius:10px;border:1px solid #fcd34d">⭐ 내 관심 선수</span>`
     : '';
 
-  sections.push(`<div style="margin-top:4px;padding:8px 12px;background:#f8fafc;border-radius:8px;font-size:0.65rem;color:#94a3b8;text-align:center">⚠️ Wikipedia + AI 기반 — 최신 성적이 반영되지 않을 수 있습니다</div>`);
+  sections.push(`<div style="margin-top:4px;padding:8px 12px;background:#f8fafc;border-radius:8px;font-size:0.72rem;color:#94a3b8;text-align:center">⚠️ Wikipedia + AI 기반 — 최신 성적이 반영되지 않을 수 있습니다</div>`);
 
   content.innerHTML = `
     <div style="display:flex;align-items:center;gap:14px;padding:16px 0 16px;border-bottom:1.5px solid #f1f5f9;margin-bottom:16px">
@@ -23128,10 +23128,10 @@ function _renderPlayerProfile(content, name, tour, { espn, profile, thumbnailUrl
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-size:1.08rem;font-weight:900;color:#1e293b;margin-bottom:3px">${name}</div>
-        <div style="font-size:0.74rem;color:#64748b;margin-bottom:4px">${natStr ? `🌍 ${natStr} · ` : ''}${tourLabel}${birthStr}${proStr}</div>
-        ${placeStr ? `<div style="font-size:0.72rem;color:#94a3b8;margin-bottom:6px">${placeStr}</div>` : '<div style="margin-bottom:6px"></div>'}
+        <div style="font-size:0.82rem;color:#64748b;margin-bottom:4px">${natStr ? `🌍 ${natStr} · ` : ''}${tourLabel}${birthStr}${proStr}</div>
+        ${placeStr ? `<div style="font-size:0.80rem;color:#94a3b8;margin-bottom:6px">${placeStr}</div>` : '<div style="margin-bottom:6px"></div>'}
         <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
-          ${currentRank ? `<span style="background:${themeColor};color:#fff;font-size:0.68rem;font-weight:800;padding:3px 10px;border-radius:10px">현재 ${currentRank}위</span>` : ''}
+          ${currentRank ? `<span style="background:${themeColor};color:#fff;font-size:0.76rem;font-weight:800;padding:3px 10px;border-radius:10px">현재 ${currentRank}위</span>` : ''}
           ${jamiteBadge}
         </div>
       </div>
