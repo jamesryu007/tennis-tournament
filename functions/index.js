@@ -3875,10 +3875,11 @@ exports.fetchPlayerProfile = onCall({ region: 'asia-southeast1' }, async (req) =
 
   const isTennis = tour === 'atp' || tour === 'wta';
   const tourLabel = { atp: 'ATP', wta: 'WTA', pga: 'PGA', lpga: 'LPGA' }[tour] || tour.toUpperCase();
+  const today = new Date().toISOString().slice(0, 10); // 현재 날짜를 GPT에 전달해 최신 정보 반영 유도
 
   const prompt = isTennis
-    ? `테니스 선수 ${name} (${tourLabel})의 프로필을 JSON으로 작성해줘. 코드블록 없이 JSON만 반환:\n{"nationalityKo":"국적(한국어)","birthYear":출생연도또는null,"turnedPro":프로데뷔연도또는null,"careerHighRank":최고랭킹숫자또는null,"grandSlams":그랜드슬램우승횟수또는0,"grandSlamDetails":"대회별 우승 내용(예:호주오픈 3회,윔블던 2회) 또는 null","careerTitles":커리어타이틀수또는null,"careerPrize":"커리어총상금(예:$95,000,000) 또는 null","playStyle":"플레이스타일 15자이내 한국어 또는 null","bio":"선수소개 2문장 한국어"}`
-    : `골프 선수 ${name} (${tourLabel})의 프로필을 JSON으로 작성해줘. 코드블록 없이 JSON만 반환:\n{"nationalityKo":"국적(한국어)","birthYear":출생연도또는null,"turnedPro":프로데뷔연도또는null,"careerHighRank":OWGR최고랭킹숫자또는null,"majorWins":메이저우승횟수또는0,"majorDetails":"메이저별 우승 내용(예:마스터스 2회,US오픈 1회) 또는 null","tourWins":투어우승횟수또는null,"careerPrize":"커리어총상금(예:$75,000,000+) 또는 null","playStyle":"플레이스타일 15자이내 한국어 또는 null","bio":"선수소개 2문장 한국어"}`;
+    ? `오늘 날짜: ${today}\n테니스 선수 ${name} (${tourLabel})의 프로필을 JSON으로 작성해줘. 학습 데이터 기준으로 알고 있는 가장 최신 정보를 반영해줘(그랜드슬램 포함). 코드블록 없이 JSON만 반환:\n{"nationalityKo":"국적(한국어)","birthYear":출생연도또는null,"turnedPro":프로데뷔연도또는null,"careerHighRank":최고랭킹숫자또는null,"grandSlams":그랜드슬램우승횟수또는0,"grandSlamDetails":"대회별 우승 내용(예:호주오픈 3회,윔블던 2회) 또는 null","careerTitles":커리어타이틀수또는null,"careerPrize":"커리어총상금(예:$95,000,000) 또는 null","playStyle":"플레이스타일 15자이내 한국어 또는 null","bio":"선수소개 2문장 한국어"}`
+    : `오늘 날짜: ${today}\n골프 선수 ${name} (${tourLabel})의 프로필을 JSON으로 작성해줘. 학습 데이터 기준으로 알고 있는 가장 최신 정보를 반영해줘(메이저 우승 포함). 코드블록 없이 JSON만 반환:\n{"nationalityKo":"국적(한국어)","birthYear":출생연도또는null,"turnedPro":프로데뷔연도또는null,"careerHighRank":OWGR최고랭킹숫자또는null,"majorWins":메이저우승횟수또는0,"majorDetails":"메이저별 우승 내용(예:마스터스 2회,US오픈 1회) 또는 null","tourWins":투어우승횟수또는null,"careerPrize":"커리어총상금(예:$75,000,000+) 또는 null","playStyle":"플레이스타일 15자이내 한국어 또는 null","bio":"선수소개 2문장 한국어"}`;
 
   try {
     const resp = await fetch('https://api.openai.com/v1/chat/completions', {
