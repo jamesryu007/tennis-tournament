@@ -2656,7 +2656,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v852';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v853';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22658,6 +22658,7 @@ function renderGolfPage() {
   // (종료된 대회도 새 데이터가 올 때까지 그대로 유지)
   if (!golfState.selectedId || !golfState.tournaments[golfState.selectedId]) {
     golfState.selectedId = _allT[0] ? _allT[0].id : null;
+    golfState.selectedRound = _golfAutoRound(golfState.tournaments[golfState.selectedId]);
   }
   renderGolfTournamentSection();
   renderGolfSelected();
@@ -22733,9 +22734,15 @@ function renderGolfTournamentSection() {
 }
 
 // ── 대회 선택 ────────────────────────────────────────────────────
+function _golfAutoRound(t) {
+  if (!t) return 'all';
+  if ((t.state === 'in' || t.state === 'post') && t.round) return String(t.round);
+  return 'all';
+}
+
 function selectGolfTournament(id) {
   golfState.selectedId    = id;
-  golfState.selectedRound = 'all';
+  golfState.selectedRound = _golfAutoRound(golfState.tournaments[id]);
   renderGolfTournamentSection();
   renderGolfSelected();
 }
