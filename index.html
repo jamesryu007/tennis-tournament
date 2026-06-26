@@ -22614,9 +22614,13 @@ function renderGolfTournamentSection() {
       style="flex-shrink:0;background:rgba(255,255,255,0.6);border:1.5px solid ${xs.border};border-radius:16px;padding:3px 10px;font-size:0.68rem;font-weight:700;color:${xs.color};cursor:pointer;white-space:nowrap">${xs.badge} ${x.shortName || x.name} ▶</button>`;
   }).join('');
 
-  // 지도 링크 — 골프장 이름 + 도시로 검색
-  const mapQuery = encodeURIComponent((t.venueCity || t.venueName || t.name) + (t.venueCountry ? ', ' + t.venueCountry : ''));
-  const mapUrl   = `https://maps.google.com/?q=${mapQuery}`;
+  // venue 정보 — venueCity 없으면 venueName(전체)에서 파싱 시도
+  const _fullVenue = t.venueName || '';
+  const _parts     = _fullVenue ? _fullVenue.split(',').map(s => s.trim()) : [];
+  const courseName = t.venueCity    || _parts[0]                       || '';
+  const location   = t.venueCountry || _parts.slice(1).join(', ').trim() || '';
+  const mapQuery   = encodeURIComponent(`${courseName}${location ? ', ' + location : ''}` || t.name);
+  const mapUrl     = `https://maps.google.com/?q=${mapQuery}`;
 
   el.innerHTML = `<div style="background:${s.bg};border:1.5px solid ${s.border};border-radius:14px;padding:13px 15px">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
@@ -22628,11 +22632,11 @@ function renderGolfTournamentSection() {
         </div>
         <div style="font-size:0.95rem;font-weight:800;color:${s.color};line-height:1.3">${t.name}</div>
         ${dates ? `<div style="font-size:0.72rem;color:#64748b;margin-top:4px">📅 ${dates}</div>` : ''}
-        ${t.venueCity ? `<div style="font-size:0.72rem;color:#64748b;margin-top:2px">⛳ ${t.venueCity}</div>` : ''}
-        ${t.venueCountry ? `<div style="display:flex;align-items:center;gap:6px;margin-top:2px">
-          <span style="font-size:0.7rem;color:#94a3b8">📍 ${t.venueCountry}</span>
-          <a href="${mapUrl}" target="_blank" rel="noopener" style="font-size:0.65rem;color:${s.color};font-weight:700;text-decoration:none;background:rgba(255,255,255,0.6);border:1px solid ${s.border};border-radius:8px;padding:1px 7px">지도보기</a>
-        </div>` : ''}
+        ${courseName ? `<div style="font-size:0.72rem;color:#64748b;margin-top:2px">⛳ ${courseName}</div>` : ''}
+        <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+          ${location ? `<span style="font-size:0.7rem;color:#94a3b8">📍 ${location}</span>` : ''}
+          <a href="${mapUrl}" target="_blank" rel="noopener" style="font-size:0.65rem;color:${s.color};font-weight:700;text-decoration:none;background:rgba(255,255,255,0.6);border:1px solid ${s.border};border-radius:8px;padding:1px 7px">🗺️ 지도보기</a>
+        </div>
         ${otherChips ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${otherChips}</div>` : ''}
       </div>
       <button onclick="openGolfFavModal()" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:16px;padding:5px 10px;font-size:0.72rem;font-weight:700;color:${s.color};cursor:pointer;white-space:nowrap">⭐ 관심선수</button>
@@ -23033,23 +23037,44 @@ async function triggerGolfRefresh() {
   }
 }
 
-// ── 골프 뉴스 클라이언트 직접 fetch ──────────────────────────────
+// ── 골프 뉴스 클라이언트 직접 fetch + 번역 ───────────────────────
+const _GAS_TRANSLATE_URL = 'https://script.google.com/macros/s/AKfycbwfF6W1xll0ooa0g4Gb57dnVnknXbZxKM1au3YlY52oGsrDIqHPty4q6fh6mWW0SXI00w/exec';
+
+async function _golfTranslateTexts(texts) {
+  try {
+    const encoded = encodeURIComponent(JSON.stringify(texts));
+    const res  = await fetch(`${_GAS_TRANSLATE_URL}?texts=${encoded}`);
+    const json = await res.json();
+    return json.translated || null;
+  } catch(e) {
+    return null;
+  }
+}
+
 async function _triggerGolfNewsRefresh() {
   if (!db) return;
   try {
     const res  = await fetch('https://site.api.espn.com/apis/site/v2/sports/golf/pga/news?limit=10', { mode:'cors' });
     const json = await res.json();
     const items = (json.articles || []).slice(0, 10).map(a => ({
-      headline:       a.headline    || '',
-      description:    (a.description || '').slice(0, 300),
-      headlineKo:     a.headline    || '',
-      descriptionKo:  (a.description || '').slice(0, 300),
-      published:      a.published   || '',
-      url:            (a.links && a.links.web && a.links.web.href) || '',
+      headline:      a.headline    || '',
+      description:   (a.description || '').slice(0, 300),
+      headlineKo:    a.headline    || '',
+      descriptionKo: (a.description || '').slice(0, 300),
+      published:     a.published   || '',
+      url:           (a.links && a.links.web && a.links.web.href) || '',
     })).filter(a => a.headline);
-    if (items.length) {
-      db.ref('jmt/golfNews').set({ articles: items, updatedAt: new Date().toISOString() }).catch(fbErr);
+    if (!items.length) return;
+    // 번역 시도 (실패 시 영문 그대로)
+    const toTrans   = items.flatMap(a => [a.headline, a.description]);
+    const translated = await _golfTranslateTexts(toTrans);
+    if (translated) {
+      items.forEach((a, i) => {
+        a.headlineKo    = translated[i * 2]     || a.headline;
+        a.descriptionKo = translated[i * 2 + 1] || a.description;
+      });
     }
+    db.ref('jmt/golfNews').set({ articles: items, updatedAt: new Date().toISOString() }).catch(fbErr);
   } catch(e) {
     console.warn('golf news fetch:', e.message);
   }
