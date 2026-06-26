@@ -2656,7 +2656,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v856';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v857';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22740,7 +22740,15 @@ function renderGolfTournamentSection() {
 // ── 대회 선택 ────────────────────────────────────────────────────
 function _golfAutoRound(t) {
   if (!t) return 'all';
-  if ((t.state === 'in' || t.state === 'post') && t.round) return String(t.round);
+  if (t.state !== 'in' && t.state !== 'post') return 'all';
+  // t.round > 0이면 그대로 사용
+  if (t.round > 0) return String(t.round);
+  // t.round가 0이거나 없으면 리더보드 선수의 스코어 개수로 현재 라운드 추정
+  const players = Object.values(t.leaderboard || {});
+  if (players.length) {
+    const maxRounds = Math.max(...players.map(p => (p.scores || []).length).filter(n => n > 0));
+    if (maxRounds > 0 && isFinite(maxRounds)) return String(maxRounds);
+  }
   return 'all';
 }
 
@@ -22953,7 +22961,7 @@ async function openPlayerProfile(name, tour) {
   </div>`;
   modal.classList.add('open');
 
-  const cacheKey = `${name}__${tour}__${new Date().toISOString().slice(0,10)}`; // 날짜별 캐시 — 하루 지나면 재조회
+  const cacheKey = `${name}__${tour}`; // 세션 내 중복 호출 방지 (freshness는 DB/CF가 관리)
   if (_playerProfileCache[cacheKey]) {
     _renderPlayerProfile(content, name, tour, _playerProfileCache[cacheKey]);
     return;
