@@ -101,9 +101,9 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
   background:#fef2f2; border-top:1.5px dashed #fca5a5; border-bottom:1.5px dashed #fca5a5;
 }
 /* ── 골프 라운드 탭 (ATP 다크 탭 스타일 공유) ── */
-#golf-round-tab-row .atp-tab { background:transparent !important; color:rgba(255,255,255,0.55) !important; font-size:0.8rem; border-radius:8px !important; }
-#golf-round-tab-row .atp-tab.active { background:rgba(255,255,255,0.92) !important; color:#2563eb !important; box-shadow:0 1px 6px rgba(0,0,0,0.15); font-weight:800 !important; border-radius:8px !important; }
-#golf-round-tab-row .atp-tab:not(:last-child) { border-right:none !important; }
+.golf-round-tab-row .atp-tab { background:transparent !important; color:rgba(255,255,255,0.55) !important; font-size:0.8rem; border-radius:8px !important; }
+.golf-round-tab-row .atp-tab.active { background:rgba(255,255,255,0.92) !important; color:#2563eb !important; box-shadow:0 1px 6px rgba(0,0,0,0.15); font-weight:800 !important; border-radius:8px !important; }
+.golf-round-tab-row .atp-tab:not(:last-child) { border-right:none !important; }
 .atp-match-row { display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1f5f9; font-size:0.82rem; gap:4px; }
 .atp-match-row:last-child { border-bottom:none; }
 .atp-player { flex:1; font-weight:600; color:#64748b; line-height:1.35; }
@@ -880,7 +880,6 @@ const firebaseConfig = {
     </div>
     <!-- 리더보드 패널 -->
     <div id="golf-panel-lb">
-      <div id="golf-round-tab-row" style="display:none;flex;gap:0;background:rgba(55,40,120,0.85);padding:4px;border-radius:12px;margin-bottom:12px"></div>
       <div id="golf-leaderboard-wrap" class="card" style="padding:0">
         <div style="text-align:center;padding:28px 0;color:#94a3b8;font-size:0.85rem">⛳ 골프 대회 정보를 불러오는 중...</div>
       </div>
@@ -2637,7 +2636,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v844';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v845';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22628,16 +22627,10 @@ function renderGolfPage() {
   const _golfSort = (a, b) => (stateO[a.state] ?? 3) * 10 + (levelO[a.level] ?? 9) - (stateO[b.state] ?? 3) * 10 - (levelO[b.level] ?? 9);
   const _allT = Object.values(golfState.tournaments).sort(_golfSort);
 
+  // 선택된 대회가 없거나 DB에서 사라진 경우에만 자동 선택
+  // (종료된 대회도 새 데이터가 올 때까지 그대로 유지)
   if (!golfState.selectedId || !golfState.tournaments[golfState.selectedId]) {
-    // 선택된 대회 없으면 자동 선택
     golfState.selectedId = _allT[0] ? _allT[0].id : null;
-  } else {
-    // 선택된 대회가 종료됐는데 진행 중 대회가 있으면 자동 전환
-    const selT = golfState.tournaments[golfState.selectedId];
-    if (selT && selT.state === 'post') {
-      const activeT = _allT.find(t => t.state === 'in' || t.state === 'pre');
-      if (activeT) golfState.selectedId = activeT.id;
-    }
   }
   renderGolfTournamentSection();
   renderGolfSelected();
@@ -22726,23 +22719,15 @@ function renderGolfSelected() {
   renderGolfLeaderboard(t);
 }
 
-// ── 라운드 필터 탭 ────────────────────────────────────────────────
+// ── 라운드 필터 탭 (renderGolfLeaderboard 내부에 포함됨) ──────────
 function renderGolfRoundTabs(t) {
-  const row = document.getElementById('golf-round-tab-row');
-  if (!row) return;
-  if (!t) { row.style.display = 'none'; return; }
-  // 골프는 항상 4라운드 고정 — pre 상태에서도 전체 탭 표시
-  row.style.display = 'flex';
-  const label = { all:'전체', '1':'R1', '2':'R2', '3':'R3', '4':'Final' };
-  row.innerHTML = ['all', '1', '2', '3', '4'].map(r =>
-    `<button class="atp-tab${r === golfState.selectedRound ? ' active' : ''}" onclick="switchGolfRound('${r}')">${label[r]}</button>`
-  ).join('');
+  // 탭이 leaderboard wrap 안에 포함되므로 전체 재렌더
+  renderGolfLeaderboard(t);
 }
 
 function switchGolfRound(round) {
   golfState.selectedRound = round;
   const t = golfState.tournaments[golfState.selectedId] || null;
-  renderGolfRoundTabs(t);
   renderGolfLeaderboard(t);
 }
 
@@ -22750,13 +22735,25 @@ function switchGolfRound(round) {
 function renderGolfLeaderboard(t) {
   const wrap = document.getElementById('golf-leaderboard-wrap');
   if (!wrap) return;
+
+  // 라운드 탭 HTML 헬퍼 (카드 상단 고정)
+  const _roundTabsHtml = () => {
+    if (!t) return '';
+    const lbl = { all:'전체', '1':'R1', '2':'R2', '3':'R3', '4':'Final' };
+    return `<div class="golf-round-tab-row" style="display:flex;gap:0;background:rgba(55,40,120,0.85);padding:4px;border-radius:12px 12px 0 0">${
+      ['all','1','2','3','4'].map(r =>
+        `<button class="atp-tab${r === golfState.selectedRound ? ' active' : ''}" onclick="switchGolfRound('${r}')">${lbl[r]}</button>`
+      ).join('')
+    }</div>`;
+  };
+
   if (!t) {
     wrap.innerHTML = '<div style="text-align:center;padding:28px 0;color:#94a3b8;font-size:0.85rem">대회를 선택해 주세요.</div>';
     return;
   }
   const players = Object.values(t.leaderboard || {});
   if (!players.length) {
-    wrap.innerHTML = '<div style="text-align:center;padding:28px 0;color:#94a3b8;font-size:0.85rem">리더보드 데이터가 없습니다.</div>';
+    wrap.innerHTML = _roundTabsHtml() + '<div style="text-align:center;padding:28px 0;color:#94a3b8;font-size:0.85rem">리더보드 데이터가 없습니다.</div>';
     return;
   }
 
@@ -22847,7 +22844,7 @@ function renderGolfLeaderboard(t) {
        <span style="font-size:0.68rem;color:#94a3b8;text-align:right">합계</span>
        <span style="font-size:0.68rem;color:#94a3b8;text-align:right">진행</span>`;
 
-  wrap.innerHTML = `<div style="display:grid;grid-template-columns:28px 1fr 56px 42px 46px;gap:4px;padding:8px 14px 6px;border-bottom:1.5px solid #e2e8f0">${headerHtml}</div>${favSection}${rows}${updatedStr ? `<div style="text-align:center;padding:7px 0;font-size:0.62rem;color:#cbd5e1">업데이트 ${updatedStr}</div>` : ''}`;
+  wrap.innerHTML = `${_roundTabsHtml()}<div style="display:grid;grid-template-columns:28px 1fr 56px 42px 46px;gap:4px;padding:8px 14px 6px;border-bottom:1.5px solid #e2e8f0">${headerHtml}</div>${favSection}${rows}${updatedStr ? `<div style="text-align:center;padding:7px 0;font-size:0.62rem;color:#cbd5e1">업데이트 ${updatedStr}</div>` : ''}`;
 }
 
 // ── 메인 탭 전환 (리더보드 / 뉴스) ───────────────────────────────
@@ -23108,9 +23105,10 @@ async function triggerGolfRefresh() {
       if (venue) { t.venueName = venue.venueName; t.venueCity = venue.venueCity; t.venueCountry = venue.venueCountry; }
     }));
 
-    const updates = { 'jmt/golfData/updatedAt': new Date().toISOString() };
-    for (const t of tournaments) updates[`jmt/golfData/tournaments/${t.id}`] = t;
-    await db.ref().update(updates).catch(e => console.error('golfData write:', e));
+    const tournamentsObj = {};
+    for (const t of tournaments) tournamentsObj[t.id] = t;
+    await db.ref('jmt/golfData/tournaments').set(tournamentsObj).catch(e => console.error('golfData write:', e));
+    await db.ref('jmt/golfData/updatedAt').set(new Date().toISOString()).catch(e => console.error('golfData updatedAt write:', e));
     _triggerGolfNewsRefresh();
   } catch(e) {
     alert('골프 데이터 불러오기 실패: ' + (e.message || e));

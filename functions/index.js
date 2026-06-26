@@ -2009,10 +2009,11 @@ async function _fetchAndParseGolfTour(tour) {
 }
 
 async function _saveGolfData(tournaments) {
-  if (!tournaments.length) { console.log('_saveGolfData: no tournaments to save'); return; }
-  const updates = { 'jmt/golfData/updatedAt': new Date().toISOString() };
-  for (const t of tournaments) updates[`jmt/golfData/tournaments/${t.id}`] = t;
-  await db.ref().update(updates);
+  if (!tournaments.length) { console.log('_saveGolfData: no tournaments, keeping existing'); return; }
+  const tournamentsObj = {};
+  for (const t of tournaments) tournamentsObj[t.id] = t;
+  await db.ref('jmt/golfData/tournaments').set(tournamentsObj);
+  await db.ref('jmt/golfData/updatedAt').set(new Date().toISOString());
   console.log(`_saveGolfData: saved ${tournaments.length} tournaments`);
 }
 
