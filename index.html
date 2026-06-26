@@ -917,6 +917,18 @@ const firebaseConfig = {
   </div>
 </div>
 
+<!-- 대회 정보 팝업 -->
+<div id="tourney-info-modal" class="modal-overlay" style="z-index:410">
+  <div class="modal-sheet" style="max-height:88vh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <div style="padding:14px 18px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:1px solid #f1f5f9">
+      <span style="font-size:0.92rem;font-weight:800;color:#1e293b">🏆 대회 정보</span>
+      <button onclick="closeTourneyInfoModal()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#94a3b8;padding:4px;line-height:1">✕</button>
+    </div>
+    <div id="tourney-info-content" style="overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0 16px 24px;flex:1"></div>
+  </div>
+</div>
+
 <!-- 관심선수 등록 모달 -->
 <div id="fav-player-modal" class="modal-overlay">
   <div class="modal-sheet" style="height:82vh;display:flex;flex-direction:column">
@@ -2656,7 +2668,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v859';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v860';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22732,8 +22744,11 @@ function renderGolfTournamentSection() {
           <a href="${mapUrl}" target="_blank" rel="noopener"
             style="font-size:0.72rem;color:${s.color};font-weight:700;text-decoration:none;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:10px;padding:3px 10px;white-space:nowrap">🗺️ 지도보기</a>
         </div>
-        <!-- 다른 대회 전환 -->
-        ${otherChips ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${otherChips}</div>` : ''}
+        <!-- 대회정보 + 다른 대회 전환 -->
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <button onclick="openTourneyInfo('${t.id}')" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:16px;padding:3px 10px;font-size:0.68rem;font-weight:700;color:${s.color};cursor:pointer;white-space:nowrap">📋 대회정보</button>
+          ${otherChips}
+        </div>
       </div>
       <!-- 관심선수 버튼 -->
       <button onclick="openGolfFavModal()" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:16px;padding:5px 10px;font-size:0.72rem;font-weight:700;color:${s.color};cursor:pointer;white-space:nowrap">⭐ 관심선수</button>
@@ -22792,6 +22807,94 @@ function closePlayerProfileModal() {
   if (!document.querySelector('.modal-overlay.open')) {
     document.body.style.overflow = '';
   }
+}
+
+// ══ 대회 정보 팝업 ══════════════════════════════════════════════
+const _tourneyInfoCache = {};
+
+function closeTourneyInfoModal() {
+  document.getElementById('tourney-info-modal').classList.remove('open');
+  if (!document.querySelector('.modal-overlay.open')) document.body.style.overflow = '';
+}
+
+async function openTourneyInfo(tourneyId) {
+  const t = golfState.tournaments[tourneyId];
+  if (!t) return;
+  const modal   = document.getElementById('tourney-info-modal');
+  const content = document.getElementById('tourney-info-content');
+  if (!modal || !content) return;
+
+  document.body.style.overflow = 'hidden';
+  content.innerHTML = `<div style="text-align:center;padding:40px 0 20px">
+    <div style="font-size:2.5rem;margin-bottom:14px">🔍</div>
+    <div style="font-size:0.85rem;font-weight:600;color:#475569">${t.name}</div>
+    <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px">대회 정보 불러오는 중...</div>
+  </div>`;
+  modal.classList.add('open');
+
+  const cacheKey = `tourney__${tourneyId}`;
+  if (_tourneyInfoCache[cacheKey]) {
+    _renderTourneyInfo(content, t, _tourneyInfoCache[cacheKey]);
+    return;
+  }
+
+  try {
+    const fn = firebase.app().functions('asia-southeast1').httpsCallable('fetchTournamentInfo');
+    const r  = await fn({ name: t.name, tour: t.tour });
+    const result = r.data || {};
+    _tourneyInfoCache[cacheKey] = result;
+    _renderTourneyInfo(content, t, result);
+  } catch (e) {
+    _renderTourneyInfo(content, t, { error: true });
+  }
+}
+
+function _renderTourneyInfo(content, t, { info, thumbnailUrl, error }) {
+  const s = GOLF_LEVEL_STYLE[t.level] || GOLF_LEVEL_STYLE.pga_tour;
+  const fmt = d => { try { return new Date(d).toLocaleDateString('ko-KR', { month:'numeric', day:'numeric' }); } catch(e) { return d; } };
+  const dates = [t.startDate, t.endDate].filter(Boolean).map(fmt).join(' ~ ');
+
+  const sec = (icon, title, body) => `
+    <div style="margin-bottom:14px">
+      <div class="pp-section-title">${icon} ${title}</div>
+      <div class="pp-section-body">${body}</div>
+    </div>`;
+
+  // 헤더 이미지
+  const imgHtml = thumbnailUrl
+    ? `<div style="width:100%;height:140px;border-radius:12px;overflow:hidden;margin-bottom:16px;background:#f1f5f9">
+        <img src="${thumbnailUrl}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.style.display='none'">
+       </div>`
+    : '';
+
+  if (error || !info) {
+    content.innerHTML = `${imgHtml}
+      <div style="text-align:center;padding:24px 0;color:#94a3b8;font-size:0.85rem">대회 정보를 가져오지 못했습니다.</div>`;
+    return;
+  }
+
+  const sections = [];
+  if (info.organizer)     sections.push(sec('🏛️', '주최', info.organizer));
+  if (info.sponsor)       sections.push(sec('💼', '타이틀 스폰서', info.sponsor));
+  if (info.founded)       sections.push(sec('📅', '첫 개최', `${info.founded}년`));
+  if (info.purse)         sections.push(sec('💰', '총 상금', info.purse));
+  if (info.venue)         sections.push(sec('⛳', '개최지', info.venue));
+  if (info.recordWinner)  sections.push(sec('👑', '역대 최다 우승', info.recordWinner));
+  if (info.history)       sections.push(sec('📝', '대회 소개', info.history));
+  if (!sections.length)   sections.push(`<div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.82rem">정보가 없습니다.</div>`);
+
+  sections.push(`<div style="margin-top:4px;padding:8px 12px;background:#f8fafc;border-radius:8px;font-size:0.65rem;color:#94a3b8;text-align:center">⚠️ Wikipedia + AI 기반 — 최신 정보와 다를 수 있습니다</div>`);
+
+  content.innerHTML = `${imgHtml}
+    <div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1.5px solid #f1f5f9">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:5px">
+        <span style="background:${s.badgeBg};color:#fff;font-size:0.65rem;font-weight:700;padding:2px 8px;border-radius:8px">${s.badge}</span>
+        ${t.state === 'in' ? '<span class="live-badge" style="font-size:0.65rem;padding:2px 7px">LIVE</span>' : ''}
+      </div>
+      <div style="font-size:1rem;font-weight:900;color:#1e293b;margin-bottom:4px">${t.name}</div>
+      ${dates ? `<div style="font-size:0.76rem;color:#64748b">📅 ${dates}</div>` : ''}
+    </div>
+    ${sections.join('')}`;
 }
 
 async function _fetchEspnAthletePhoto(name, tour) {

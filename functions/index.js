@@ -3866,6 +3866,74 @@ exports.testBirthdayGreeting = onCall({ region: 'asia-southeast1' }, async (req)
   return { ok: true };
 });
 
+// ══ 대회 정보 (Wikipedia + GPT 기반) ════════════════════════════════
+exports.fetchTournamentInfo = onCall({ region: 'asia-southeast1' }, async (req) => {
+  const { name, tour } = req.data;
+  if (!name) return { error: 'no_name' };
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return { error: 'no_api_key' };
+
+  // ── DB 캐시 확인 (7일 이내면 즉시 반환) ──────────────────────────────
+  const safeKey = `${tour}_${name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const cacheRef = db.ref(`jmt/tournamentInfo/${safeKey}`);
+  try {
+    const snap = await cacheRef.once('value');
+    const dbCached = snap.val();
+    if (dbCached && dbCached.fetchedAt && (Date.now() - dbCached.fetchedAt) < 7 * 24 * 60 * 60 * 1000) {
+      console.log(`fetchTournamentInfo: DB cache hit for ${name}`);
+      return { info: dbCached.info, thumbnailUrl: dbCached.thumbnailUrl || null };
+    }
+  } catch (e) { /* DB 읽기 실패 시 새로 fetch */ }
+
+  // ── Wikipedia 서버사이드 fetch ────────────────────────────────────
+  let wikiContext = '';
+  let thumbnailUrl = null;
+  try {
+    const wikiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name)}`;
+    const wikiRes = await fetch(wikiUrl, { headers: { 'User-Agent': 'jamite-tennis-app/1.0' } });
+    if (wikiRes.ok) {
+      const wikiData = await wikiRes.json();
+      if (wikiData.extract) {
+        wikiContext = `\n\n[Wikipedia 참고 자료]\n${wikiData.extract.slice(0, 1500)}`;
+      }
+      if (wikiData.originalimage?.source) {
+        thumbnailUrl = wikiData.originalimage.source;
+      } else if (wikiData.thumbnail?.source) {
+        thumbnailUrl = wikiData.thumbnail.source.replace(/\/\d+px-/, '/400px-');
+      }
+    }
+  } catch (e) { /* Wikipedia 실패해도 GPT만으로 진행 */ }
+
+  const tourLabel = { pga: 'PGA Tour', lpga: 'LPGA Tour', atp: 'ATP', wta: 'WTA' }[tour] || tour.toUpperCase();
+  const prompt = `골프/테니스 대회 "${name}" (${tourLabel})의 정보를 아래 JSON 형식으로 한국어로 작성해줘.${wikiContext}
+
+확실하지 않은 필드는 null. 코드블록 없이 JSON만 반환:
+{"organizer":"주최 기관 또는 단체명 한국어 또는 null","sponsor":"타이틀 스폰서 한국어 또는 null","founded":첫개최연도(숫자)또는null,"purse":"총상금 한국어(예: 1,750만 달러) 또는 null","venue":"주요 개최지 또는 코스명 한국어 또는 null","recordWinner":"역대 최다 우승 선수명과 우승 횟수 한국어 또는 null","history":"대회 역사 및 특징 2~3문장 한국어 또는 null"}`;
+
+  try {
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4.1-mini',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 600,
+        temperature: 0.3,
+      }),
+    });
+    if (!resp.ok) { console.error('fetchTournamentInfo GPT error:', resp.status); return { error: 'gpt_error' }; }
+    const data = await resp.json();
+    const raw = (data.choices?.[0]?.message?.content || '').trim()
+      .replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/\n?```$/, '');
+    const info = JSON.parse(raw);
+    cacheRef.set({ info, thumbnailUrl, fetchedAt: Date.now() }).catch(e => console.error('tournamentInfo cache save error:', e));
+    return { info, thumbnailUrl };
+  } catch (e) {
+    console.error('fetchTournamentInfo error:', e);
+    return { error: 'parse_error' };
+  }
+});
+
 // ══ 선수 프로필 (Wikipedia + GPT 기반) ══════════════════════════════
 exports.fetchPlayerProfile = onCall({ region: 'asia-southeast1' }, async (req) => {
   const { name, tour } = req.data;
