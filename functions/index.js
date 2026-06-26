@@ -3865,3 +3865,40 @@ exports.testBirthdayGreeting = onCall({ region: 'asia-southeast1' }, async (req)
   await _runBirthdayGreeting();
   return { ok: true };
 });
+
+// ══ 선수 프로필 (GPT 기반) ════════════════════════════════════════
+exports.fetchPlayerProfile = onCall({ region: 'asia-southeast1' }, async (req) => {
+  const { name, tour } = req.data;
+  if (!name) return { error: 'no_name' };
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return { error: 'no_api_key' };
+
+  const isTennis = tour === 'atp' || tour === 'wta';
+  const tourLabel = { atp: 'ATP', wta: 'WTA', pga: 'PGA', lpga: 'LPGA' }[tour] || tour.toUpperCase();
+
+  const prompt = isTennis
+    ? `테니스 선수 ${name} (${tourLabel})의 프로필을 JSON으로 작성해줘. 코드블록 없이 JSON만 반환:\n{"nationalityKo":"국적(한국어)","birthYear":출생연도또는null,"turnedPro":프로데뷔연도또는null,"careerHighRank":최고랭킹숫자또는null,"grandSlams":그랜드슬램우승횟수또는0,"grandSlamDetails":"대회별 우승 내용(예:호주오픈 3회,윔블던 2회) 또는 null","careerTitles":커리어타이틀수또는null,"careerPrize":"커리어총상금(예:$95,000,000) 또는 null","playStyle":"플레이스타일 15자이내 한국어 또는 null","bio":"선수소개 2문장 한국어"}`
+    : `골프 선수 ${name} (${tourLabel})의 프로필을 JSON으로 작성해줘. 코드블록 없이 JSON만 반환:\n{"nationalityKo":"국적(한국어)","birthYear":출생연도또는null,"turnedPro":프로데뷔연도또는null,"careerHighRank":OWGR최고랭킹숫자또는null,"majorWins":메이저우승횟수또는0,"majorDetails":"메이저별 우승 내용(예:마스터스 2회,US오픈 1회) 또는 null","tourWins":투어우승횟수또는null,"careerPrize":"커리어총상금(예:$75,000,000+) 또는 null","playStyle":"플레이스타일 15자이내 한국어 또는 null","bio":"선수소개 2문장 한국어"}`;
+
+  try {
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: 'gpt-4.1-mini',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 400,
+        temperature: 0.2,
+      }),
+    });
+    if (!resp.ok) { console.error('fetchPlayerProfile GPT error:', resp.status); return { error: 'gpt_error' }; }
+    const data = await resp.json();
+    const raw = (data.choices?.[0]?.message?.content || '').trim()
+      .replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/\n?```$/, '');
+    const profile = JSON.parse(raw);
+    return { profile };
+  } catch (e) {
+    console.error('fetchPlayerProfile error:', e);
+    return { error: 'parse_error' };
+  }
+});

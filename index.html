@@ -73,6 +73,14 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
 #golf-main-tab-bar .atp-tab.active { background:rgba(255,255,255,0.92) !important; color:#2563eb !important; box-shadow:0 1px 6px rgba(0,0,0,0.15); font-weight:800 !important; border-radius:8px !important; }
 #atp-tab-container .atp-tab:not(:last-child),
 #golf-main-tab-bar .atp-tab:not(:last-child) { border-right:none !important; }
+/* ── 선수 프로필 모달 ── */
+.pp-stat { border-radius:12px; padding:10px 6px; text-align:center; }
+.pp-stat .sv { font-size:1.3rem; font-weight:900; line-height:1.1; }
+.pp-stat .sl { font-size:0.6rem; color:#64748b; margin-top:3px; font-weight:600; }
+.pp-section-title { font-size:0.7rem; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:7px; }
+.pp-section-body { background:#f8fafc; border-radius:10px; padding:10px 12px; font-size:0.8rem; color:#334155; line-height:1.65; }
+.pp-name-link { cursor:pointer; }
+.pp-name-link:hover { text-decoration:underline; text-decoration-style:dotted; text-underline-offset:2px; }
 /* ── 스포츠 스위처 (테니스/골프) ── */
 .sport-switch-btn {
   flex:1; padding:10px 4px; font-size:0.88rem; font-weight:700;
@@ -894,6 +902,18 @@ const firebaseConfig = {
     </div>
   </div><!-- /sport-panel-golf -->
 
+</div>
+
+<!-- 선수 프로필 팝업 -->
+<div id="player-profile-modal" class="modal-overlay">
+  <div class="modal-sheet" style="max-height:88vh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <div style="padding:14px 18px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;border-bottom:1px solid #f1f5f9">
+      <span style="font-size:0.92rem;font-weight:800;color:#1e293b">🏅 선수 프로필</span>
+      <button onclick="closePlayerProfileModal()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#94a3b8;padding:4px;line-height:1">✕</button>
+    </div>
+    <div id="player-profile-content" style="overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px 24px;flex:1"></div>
+  </div>
 </div>
 
 <!-- 관심선수 등록 모달 -->
@@ -2635,7 +2655,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v848';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v849';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11824,8 +11844,11 @@ function renderMatchRow(m) {
   const p2Name  = m.player2Name || 'TBD';
   const wta     = isWtaMatch(m);
 
-  const p1Win = m.player1Winner && isDone;
-  const p2Win = m.player2Winner && isDone;
+  const p1Win   = m.player1Winner && isDone;
+  const p2Win   = m.player2Winner && isDone;
+  const tourKey = wta ? 'wta' : 'atp';
+  const p1Safe  = p1Name.replace(/'/g, "\\'");
+  const p2Safe  = p2Name.replace(/'/g, "\\'");
   return `
     <div class="atp-match-row">
       <div style="flex:1;min-width:0">
@@ -11833,13 +11856,13 @@ function renderMatchRow(m) {
         <div style="display:flex;align-items:center;gap:5px">
           <div style="width:3px;height:16px;border-radius:2px;flex-shrink:0;background:${p1Win?'#22c55e':'transparent'}"></div>
           <div class="atp-player ${p1Win?'winner':''}" style="${fav1?'color:#f59e0b':''}">
-            ${p1Name}${m.player1Country?` <span style="font-size:0.63rem;color:#94a3b8;font-weight:400">${m.player1Country}</span>`:''}
+            <span class="pp-name-link" onclick="openPlayerProfile('${p1Safe}','${tourKey}')">${p1Name}</span>${m.player1Country?` <span style="font-size:0.63rem;color:#94a3b8;font-weight:400">${m.player1Country}</span>`:''}
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:5px;margin-top:4px">
           <div style="width:3px;height:16px;border-radius:2px;flex-shrink:0;background:${p2Win?'#22c55e':'transparent'}"></div>
           <div class="atp-player ${p2Win?'winner':''}" style="${fav2?'color:#f59e0b':''}">
-            ${p2Name}${m.player2Country?` <span style="font-size:0.63rem;color:#94a3b8;font-weight:400">${m.player2Country}</span>`:''}
+            <span class="pp-name-link" onclick="openPlayerProfile('${p2Safe}','${tourKey}')">${p2Name}</span>${m.player2Country?` <span style="font-size:0.63rem;color:#94a3b8;font-weight:400">${m.player2Country}</span>`:''}
           </div>
         </div>
       </div>
@@ -12599,15 +12622,19 @@ function renderFavPlayerList(query) {
     listEl.innerHTML = `<div style="text-align:center;padding:20px 0;color:#94a3b8;font-size:0.82rem">"${query}" 검색 결과 없음</div>`;
     return;
   }
+  const _favTour = _favModalDraw === 'womens' ? 'wta' : 'atp';
   listEl.innerHTML = filtered.map(p => {
-    const sel = favNames.has(p.name.toLowerCase());
-    return `<div onclick="toggleFavPlayerByName('${p.name.replace(/'/g,"\\'")}','${p.country}')"
-      style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #f1f5f9;cursor:pointer">
-      <div style="width:20px;height:20px;border-radius:5px;border:2px solid ${sel?'#2563eb':'#cbd5e1'};background:${sel?'#2563eb':'#fff'};flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.15s" id="favck-${p.name.replace(/[^a-zA-Z0-9]/g,'_')}">
+    const sel    = favNames.has(p.name.toLowerCase());
+    const pSafe  = p.name.replace(/'/g, "\\'");
+    const ctrSafe = (p.country || '').replace(/'/g, "\\'");
+    const ckId   = `favck-${p.name.replace(/[^a-zA-Z0-9]/g,'_')}`;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #f1f5f9">
+      <div onclick="toggleFavPlayerByName('${pSafe}','${ctrSafe}')"
+        style="width:20px;height:20px;border-radius:5px;border:2px solid ${sel?'#2563eb':'#cbd5e1'};background:${sel?'#2563eb':'#fff'};flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.15s;cursor:pointer" id="${ckId}">
         ${sel ? '<span style="color:#fff;font-size:0.7rem;font-weight:900">✓</span>' : ''}
       </div>
-      <div style="flex:1;min-width:0">
-        <span style="font-size:0.82rem;font-weight:700;color:#1e293b">${p.name}</span>
+      <div style="flex:1;min-width:0;cursor:pointer" onclick="openPlayerProfile('${pSafe}','${_favTour}')">
+        <span class="pp-name-link" style="font-size:0.82rem;font-weight:700;color:#1e293b">${p.name}</span>
         ${p.country ? `<span style="font-size:0.72rem;color:#94a3b8;margin-left:5px">${p.country}</span>` : ''}
       </div>
       <span style="font-size:0.72rem;color:#94a3b8;flex-shrink:0">${p.rank}위</span>
@@ -22730,6 +22757,166 @@ function switchGolfRound(round) {
   renderGolfLeaderboard(t);
 }
 
+// ══ 선수 프로필 팝업 ══════════════════════════════════════════════
+const _playerProfileCache = {};
+
+function closePlayerProfileModal() {
+  document.getElementById('player-profile-modal').classList.remove('open');
+}
+
+async function _fetchEspnAthletePhoto(name, tour) {
+  try {
+    const league = { atp:'tennis/atp', wta:'tennis/wta', pga:'golf/pga', lpga:'golf/lpga' }[tour] || 'tennis/atp';
+    const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${league}/athletes?search=${encodeURIComponent(name)}&limit=5`, { mode:'cors' });
+    const d = await res.json();
+    const athletes = d.athletes || [];
+    if (!athletes.length) return null;
+    const nameLower = name.toLowerCase();
+    const last = nameLower.split(' ').pop();
+    const match = athletes.find(a => (a.displayName || '').toLowerCase().includes(last)) || athletes[0];
+    return { photo: match.headshot?.href || null, country: match.flag?.alt || null };
+  } catch (e) { return null; }
+}
+
+function _renderPlayerProfile(content, name, tour, { espn, profile }) {
+  const isTennis  = tour === 'atp' || tour === 'wta';
+  const isWomen   = tour === 'wta' || tour === 'lpga';
+  const tourLabel = { atp:'ATP', wta:'WTA', pga:'PGA Tour', lpga:'LPGA Tour' }[tour] || tour.toUpperCase();
+  const themeColor = isWomen ? '#be185d' : '#2563eb';
+  const themeBg    = isWomen ? '#fdf2f8' : '#eff6ff';
+
+  // 현재 랭킹 — 앱 보유 데이터 활용
+  let currentRank = null;
+  if (tour === 'atp') {
+    const src = atpState.rankingsFromDb.length ? atpState.rankingsFromDb : ATP_TOP_PLAYERS;
+    const p = src.find(r => r.name.toLowerCase() === name.toLowerCase());
+    if (p) currentRank = p.rank;
+  } else if (tour === 'wta') {
+    const p = atpState.wtaRankingsFromDb.find(r => r.name.toLowerCase() === name.toLowerCase());
+    if (p) currentRank = p.rank;
+  } else if (tour === 'pga') {
+    const p = (golfState.pgaRankings || []).find(r => r.name.toLowerCase() === name.toLowerCase());
+    if (p) currentRank = p.rank;
+  } else if (tour === 'lpga') {
+    const p = (golfState.lpgaRankings || []).find(r => r.name.toLowerCase() === name.toLowerCase());
+    if (p) currentRank = p.rank;
+  }
+
+  // 사진
+  const photoSrc = espn?.photo || '';
+
+  // 통계 카드
+  const stats = isTennis
+    ? [
+        { val: profile?.grandSlams ?? '-', lbl: '그랜드슬램',    bg:'#f0fdf4', color:'#16a34a' },
+        { val: profile?.careerTitles ?? '-', lbl: '커리어 타이틀', bg:'#eff6ff', color:'#2563eb' },
+        { val: profile?.careerHighRank ? `${profile.careerHighRank}위` : '-', lbl: '최고 랭킹', bg:'#fffbeb', color:'#d97706' },
+      ]
+    : [
+        { val: profile?.majorWins ?? '-', lbl: '메이저 우승',  bg:'#f0fdf4', color:'#16a34a' },
+        { val: profile?.tourWins ?? '-',  lbl: '투어 우승',   bg:'#eff6ff', color:'#2563eb' },
+        { val: profile?.careerHighRank ? `${profile.careerHighRank}위` : '-', lbl: 'OWGR 최고', bg:'#fffbeb', color:'#d97706' },
+      ];
+
+  const statsHtml = `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:18px">
+    ${stats.map(s => `<div class="pp-stat" style="background:${s.bg}">
+      <div class="sv" style="color:${s.color}">${s.val}</div>
+      <div class="sl">${s.lbl}</div>
+    </div>`).join('')}
+  </div>`;
+
+  // 섹션들
+  const sections = [];
+  const titlesKey = isTennis ? 'grandSlamDetails' : 'majorDetails';
+  const titlesLabel = isTennis ? '🏆 그랜드슬램 타이틀' : '🏆 메이저 타이틀';
+  if (profile?.[titlesKey]) {
+    sections.push(`<div style="margin-bottom:14px">
+      <div class="pp-section-title">${titlesLabel}</div>
+      <div class="pp-section-body">${profile[titlesKey]}</div>
+    </div>`);
+  }
+  if (profile?.careerPrize) {
+    sections.push(`<div style="margin-bottom:14px">
+      <div class="pp-section-title">💰 커리어 총 상금</div>
+      <div class="pp-section-body"><span style="font-size:1rem;font-weight:900;color:#059669">${profile.careerPrize}</span></div>
+    </div>`);
+  }
+  if (profile?.playStyle) {
+    sections.push(`<div style="margin-bottom:14px">
+      <div class="pp-section-title">🎯 플레이 스타일</div>
+      <div class="pp-section-body">${profile.playStyle}</div>
+    </div>`);
+  }
+  if (profile?.bio) {
+    sections.push(`<div style="margin-bottom:14px">
+      <div class="pp-section-title">📝 선수 소개</div>
+      <div class="pp-section-body">${profile.bio}</div>
+    </div>`);
+  }
+  if (!profile) {
+    sections.push(`<div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.82rem">프로필 정보를 가져오지 못했습니다.</div>`);
+  }
+
+  const natStr = profile?.nationalityKo || espn?.country || '';
+  const birthStr = profile?.birthYear ? ` · ${profile.birthYear}년생` : '';
+  const proStr  = profile?.turnedPro ? ` · 프로 ${profile.turnedPro}년` : '';
+
+  content.innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;padding:16px 0 16px;border-bottom:1.5px solid #f1f5f9;margin-bottom:16px">
+      <div style="width:76px;height:76px;border-radius:50%;overflow:hidden;flex-shrink:0;background:${themeBg};border:3px solid ${themeColor}40;display:flex;align-items:center;justify-content:center;font-size:2.2rem">
+        ${photoSrc ? `<img src="${photoSrc}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='${isTennis ? '🎾' : '⛳'}'">` : (isTennis ? '🎾' : '⛳')}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:1.08rem;font-weight:900;color:#1e293b;margin-bottom:3px">${name}</div>
+        <div style="font-size:0.76rem;color:#64748b;margin-bottom:7px">${natStr ? `🌍 ${natStr} · ` : ''}${tourLabel}${birthStr}${proStr}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">
+          ${currentRank ? `<span style="background:${themeColor};color:#fff;font-size:0.68rem;font-weight:800;padding:3px 10px;border-radius:10px">현재 ${currentRank}위</span>` : ''}
+          ${profile?.careerHighRank && (!currentRank || profile.careerHighRank < currentRank) ? `<span style="background:#f1f5f9;color:#475569;font-size:0.68rem;font-weight:700;padding:3px 10px;border-radius:10px">최고 ${profile.careerHighRank}위</span>` : ''}
+        </div>
+      </div>
+    </div>
+    ${statsHtml}
+    ${sections.join('')}
+  `;
+}
+
+async function openPlayerProfile(name, tour) {
+  if (!name || name === 'TBD' || name === '-') return;
+  const modal   = document.getElementById('player-profile-modal');
+  const content = document.getElementById('player-profile-content');
+  if (!modal || !content) return;
+
+  // 로딩 표시
+  content.innerHTML = `<div style="text-align:center;padding:40px 0 20px">
+    <div style="font-size:2.5rem;margin-bottom:14px">🔍</div>
+    <div style="font-size:0.85rem;font-weight:600;color:#475569">${name}</div>
+    <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px">프로필 불러오는 중...</div>
+  </div>`;
+  modal.classList.add('open');
+
+  const cacheKey = `${name}__${tour}`;
+  if (_playerProfileCache[cacheKey]) {
+    _renderPlayerProfile(content, name, tour, _playerProfileCache[cacheKey]);
+    return;
+  }
+
+  // ESPN 사진 + GPT 프로필 병렬 fetch
+  const [espn, gptRes] = await Promise.all([
+    _fetchEspnAthletePhoto(name, tour),
+    (async () => {
+      try {
+        const fn = firebase.app().functions('asia-southeast1').httpsCallable('fetchPlayerProfile');
+        const r  = await fn({ name, tour });
+        return r.data;
+      } catch (e) { return { error: 'fn_error' }; }
+    })(),
+  ]);
+
+  const cached = { espn, profile: gptRes?.profile || null };
+  _playerProfileCache[cacheKey] = cached;
+  _renderPlayerProfile(content, name, tour, cached);
+}
+
 // ── 리더보드 ─────────────────────────────────────────────────────
 function renderGolfLeaderboard(t) {
   const wrap = document.getElementById('golf-leaderboard-wrap');
@@ -22802,6 +22989,7 @@ function renderGolfLeaderboard(t) {
   const favList   = displayPlayers.filter(p => favNames.has(p.name.toLowerCase()));
   const otherList = displayPlayers.filter(p => !favNames.has(p.name.toLowerCase()));
 
+  const _golfTourKey = t.tour === 'lpga' ? 'lpga' : 'pga';
   const _renderRow = (p, isFav = false) => {
     const roundScore = (p.scores || [])[roundIdx !== null ? roundIdx : -1];
     const scoreCell  = roundIdx !== null
@@ -22810,10 +22998,11 @@ function renderGolfLeaderboard(t) {
     const rankDisp   = roundIdx !== null ? (p._roundRank || '-') : (p.rank || '-');
     const totalDisp  = roundIdx !== null ? (roundScore || '-') : (p.total || 'E');
     const totalColor = roundIdx !== null ? scoreColor(roundScore) : scoreColor(p.total || 'E');
+    const pNameSafe  = p.name.replace(/'/g, "\\'");
     return `<div class="golf-lb-row" style="${isFav ? 'background:#fffbeb;' : ''}">
       <span style="font-size:0.72rem;font-weight:700;color:#94a3b8">${rankDisp}</span>
       <div style="min-width:0">
-        <div style="font-size:0.82rem;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${isFav ? '⭐ ' : ''}${p.name}</div>
+        <div class="pp-name-link" style="font-size:0.82rem;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" onclick="openPlayerProfile('${pNameSafe}','${_golfTourKey}')">${isFav ? '⭐ ' : ''}${p.name}</div>
         ${p.country ? `<div style="font-size:0.62rem;color:#94a3b8">${p.country}</div>` : ''}
       </div>
       ${roundIdx !== null ? `<span></span>` : scoreCell}
@@ -22967,15 +23156,17 @@ function renderGolfFavList(query) {
   const drawList = golfState.favPlayersTmp[draw] || [];
   const favNames = new Set(drawList.map(p => p.name.toLowerCase()));
   listEl.innerHTML = filtered.map(p => {
-    const sel = favNames.has(p.name.toLowerCase());
-    const key = p.name.replace(/[^a-zA-Z0-9]/g, '_');
-    return `<div onclick="toggleGolfFavPlayer('${p.name.replace(/'/g,"\\'")}','${p.country||''}')"
-      style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #f1f5f9;cursor:pointer">
-      <div id="golfck-${key}" style="width:20px;height:20px;border-radius:5px;border:2px solid ${sel?'#2563eb':'#cbd5e1'};background:${sel?'#2563eb':'#fff'};flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.15s">
+    const sel    = favNames.has(p.name.toLowerCase());
+    const key    = p.name.replace(/[^a-zA-Z0-9]/g, '_');
+    const pSafe  = p.name.replace(/'/g, "\\'");
+    const ctrSafe = (p.country || '').replace(/'/g, "\\'");
+    return `<div style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #f1f5f9">
+      <div onclick="toggleGolfFavPlayer('${pSafe}','${ctrSafe}')"
+        id="golfck-${key}" style="width:20px;height:20px;border-radius:5px;border:2px solid ${sel?'#2563eb':'#cbd5e1'};background:${sel?'#2563eb':'#fff'};flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all 0.15s;cursor:pointer">
         ${sel ? '<span style="color:#fff;font-size:0.7rem;font-weight:900">✓</span>' : ''}
       </div>
-      <div style="flex:1;min-width:0">
-        <span style="font-size:0.82rem;font-weight:700;color:#1e293b">${p.name}</span>
+      <div style="flex:1;min-width:0;cursor:pointer" onclick="openPlayerProfile('${pSafe}','${draw}')">
+        <span class="pp-name-link" style="font-size:0.82rem;font-weight:700;color:#1e293b">${p.name}</span>
         ${p.country ? `<span style="font-size:0.72rem;color:#94a3b8;margin-left:5px">${p.country}</span>` : ''}
       </div>
       ${p.rank ? `<span style="font-size:0.72rem;color:#94a3b8;flex-shrink:0">${p.rank}위</span>` : ''}
