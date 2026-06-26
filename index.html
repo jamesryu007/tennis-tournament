@@ -2669,7 +2669,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v862';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v863';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22817,6 +22817,48 @@ function closePlayerProfileModal() {
 // ══ 대회 정보 팝업 ══════════════════════════════════════════════
 const _tourneyInfoCache = {};
 
+function _initTourneyInfoSwipe(modal, content) {
+  if (modal._swipeAdded) return;
+  modal._swipeAdded = true;
+  const _inner = modal.querySelector('.modal-sheet');
+  let _sx = 0, _sy = 0;
+  modal.addEventListener('touchstart', e => {
+    _sx = e.touches[0].clientX; _sy = e.touches[0].clientY;
+    if (_inner) _inner.style.transition = 'none';
+  }, { passive: true });
+  modal.addEventListener('touchmove', e => {
+    const dx = e.touches[0].clientX - _sx;
+    const dy = Math.abs(e.touches[0].clientY - _sy);
+    if (dx > 10 && dy < 60) {
+      if (_inner) _inner.style.transform = `translateX(${dx}px)`;
+      modal.style.background = `rgba(15,23,42,${Math.max(0, 0.75 * (1 - dx / window.innerWidth))})`;
+      e.preventDefault();
+    } else if (!content.contains(e.target)) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+  modal.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - _sx;
+    const dy = Math.abs(e.changedTouches[0].clientY - _sy);
+    if (dx > window.innerWidth * 0.3 && dy < 60 && _inner) {
+      _inner.style.transition = 'transform 0.25s cubic-bezier(0.4,0,1,1)';
+      modal.style.transition = 'background 0.25s';
+      _inner.style.transform = `translateX(${window.innerWidth}px)`;
+      modal.style.background = 'rgba(15,23,42,0)';
+      setTimeout(() => {
+        closeTourneyInfoModal();
+        _inner.style.transition = ''; _inner.style.transform = '';
+        modal.style.transition = ''; modal.style.background = '';
+      }, 250);
+    } else if (_inner) {
+      _inner.style.transition = 'transform 0.2s ease';
+      _inner.style.transform = '';
+      modal.style.background = '';
+      setTimeout(() => { _inner.style.transition = ''; }, 200);
+    }
+  }, { passive: true });
+}
+
 function closeTourneyInfoModal() {
   document.getElementById('tourney-info-modal').classList.remove('open');
   if (!document.querySelector('.modal-overlay.open')) document.body.style.overflow = '';
@@ -22835,6 +22877,7 @@ async function openTourneyInfoByName(name, tour) {
     <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px">대회 정보 불러오는 중...</div>
   </div>`;
   modal.classList.add('open');
+  _initTourneyInfoSwipe(modal, content);
 
   const cacheKey = `tourney__${tour}_${name}`;
   if (_tourneyInfoCache[cacheKey]) {
@@ -22871,6 +22914,7 @@ async function openTourneyInfo(tourneyId) {
     <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px">대회 정보 불러오는 중...</div>
   </div>`;
   modal.classList.add('open');
+  _initTourneyInfoSwipe(modal, content);
 
   const cacheKey = `tourney__${tourneyId}`;
   if (_tourneyInfoCache[cacheKey]) {
@@ -23111,6 +23155,48 @@ async function openPlayerProfile(name, tour) {
   </div>`;
   modal.classList.add('open');
 
+  // 배경 스크롤 방지 + 오른쪽 스와이프 닫기 (1회만 등록)
+  if (!modal._swipeAdded) {
+    modal._swipeAdded = true;
+    const _inner = modal.querySelector('.modal-sheet');
+    let _sx = 0, _sy = 0;
+    modal.addEventListener('touchstart', e => {
+      _sx = e.touches[0].clientX; _sy = e.touches[0].clientY;
+      if (_inner) _inner.style.transition = 'none';
+    }, { passive: true });
+    modal.addEventListener('touchmove', e => {
+      const dx = e.touches[0].clientX - _sx;
+      const dy = Math.abs(e.touches[0].clientY - _sy);
+      if (dx > 10 && dy < 60) {
+        if (_inner) _inner.style.transform = `translateX(${dx}px)`;
+        modal.style.background = `rgba(15,23,42,${Math.max(0, 0.75 * (1 - dx / window.innerWidth))})`;
+        e.preventDefault();
+      } else if (!content.contains(e.target)) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+    modal.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - _sx;
+      const dy = Math.abs(e.changedTouches[0].clientY - _sy);
+      if (dx > window.innerWidth * 0.3 && dy < 60 && _inner) {
+        _inner.style.transition = 'transform 0.25s cubic-bezier(0.4,0,1,1)';
+        modal.style.transition = 'background 0.25s';
+        _inner.style.transform = `translateX(${window.innerWidth}px)`;
+        modal.style.background = 'rgba(15,23,42,0)';
+        setTimeout(() => {
+          closePlayerProfileModal();
+          _inner.style.transition = ''; _inner.style.transform = '';
+          modal.style.transition = ''; modal.style.background = '';
+        }, 250);
+      } else if (_inner) {
+        _inner.style.transition = 'transform 0.2s ease';
+        _inner.style.transform = '';
+        modal.style.background = '';
+        setTimeout(() => { _inner.style.transition = ''; }, 200);
+      }
+    }, { passive: true });
+  }
+
   const cacheKey = `${name}__${tour}`; // 세션 내 중복 호출 방지 (freshness는 DB/CF가 관리)
   if (_playerProfileCache[cacheKey]) {
     _renderPlayerProfile(content, name, tour, _playerProfileCache[cacheKey]);
@@ -23199,8 +23285,16 @@ function renderGolfLeaderboard(t) {
       return { ...p, _roundRank: rRank };
     }).concat(noScore.map(p => ({ ...p, _roundRank: null })));
   } else {
-    // 전체: 원래 누적 순위 그대로
-    displayPlayers = [...players].sort((a, b) => (a.rank || 999) - (b.rank || 999));
+    // 전체: 누적 합계(p.total) 기준으로 재정렬 + 동타 처리 순위 재계산
+    const _allWith = players
+      .filter(p => p.total !== undefined && p.total !== null && p.total !== '-')
+      .sort((a, b) => parseScore(a.total || 'E') - parseScore(b.total || 'E'));
+    const _allNo = players.filter(p => p.total === undefined || p.total === null || p.total === '-');
+    let _allRank = 1;
+    displayPlayers = _allWith.map((p, i) => {
+      if (i > 0 && parseScore(p.total || 'E') > parseScore(_allWith[i-1].total || 'E')) _allRank = i + 1;
+      return { ...p, _calcRank: _allRank };
+    }).concat(_allNo.map(p => ({ ...p, _calcRank: null })));
   }
 
   const favList   = displayPlayers.filter(p => favNames.has(p.name.toLowerCase()));
@@ -23212,7 +23306,7 @@ function renderGolfLeaderboard(t) {
     const scoreCell  = roundIdx !== null
       ? `<span style="font-weight:700;font-size:0.88rem;color:${scoreColor(roundScore)}">${roundScore || '-'}</span>`
       : `<span style="font-size:0.68rem;color:#64748b;letter-spacing:-0.2px">${(p.scores||[]).join('  ') || '-'}</span>`;
-    const rankDisp   = roundIdx !== null ? (p._roundRank || '-') : (p.rank || '-');
+    const rankDisp   = roundIdx !== null ? (p._roundRank || '-') : (p._calcRank || '-');
     const totalDisp  = roundIdx !== null ? (roundScore || '-') : (p.total || 'E');
     const totalColor = roundIdx !== null ? scoreColor(roundScore) : scoreColor(p.total || 'E');
     const pNameSafe  = p.name.replace(/'/g, "\\'");
