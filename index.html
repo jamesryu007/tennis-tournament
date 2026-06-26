@@ -2644,7 +2644,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v836';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v840';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22614,31 +22614,39 @@ function renderGolfTournamentSection() {
       style="flex-shrink:0;background:rgba(255,255,255,0.6);border:1.5px solid ${xs.border};border-radius:16px;padding:3px 10px;font-size:0.68rem;font-weight:700;color:${xs.color};cursor:pointer;white-space:nowrap">${xs.badge} ${x.shortName || x.name} ▶</button>`;
   }).join('');
 
-  // venue 정보 — venueCity 없으면 venueName(전체)에서 파싱 시도
+  // venue 정보 — venueCity 없으면 venueName 전체에서 파싱
   const _fullVenue = t.venueName || '';
-  const _parts     = _fullVenue ? _fullVenue.split(',').map(s => s.trim()) : [];
-  const courseName = t.venueCity    || _parts[0]                       || '';
-  const location   = t.venueCountry || _parts.slice(1).join(', ').trim() || '';
-  const mapQuery   = encodeURIComponent(`${courseName}${location ? ', ' + location : ''}` || t.name);
+  const _parts     = _fullVenue.split(',').map(p => p.trim()).filter(Boolean);
+  const courseName = t.venueCity    || _parts[0] || '';
+  const location   = t.venueCountry || _parts.slice(1).join(', ') || '';
+  const mapQuery   = encodeURIComponent(courseName ? `${courseName}${location ? ', ' + location : ''}` : t.name);
   const mapUrl     = `https://maps.google.com/?q=${mapQuery}`;
 
-  el.innerHTML = `<div style="background:${s.bg};border:1.5px solid ${s.border};border-radius:14px;padding:13px 15px">
+  el.innerHTML = `<div style="background:${s.bg};border:1.5px solid ${s.border};border-radius:14px;padding:12px 14px">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
       <div style="min-width:0;flex:1">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px">
+        <!-- 배지 행 -->
+        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:4px">
           <span style="background:${s.badgeBg};color:#fff;font-size:0.65rem;font-weight:700;padding:2px 8px;border-radius:8px">${s.badge}</span>
           ${stateBadge}
           ${t.state === 'in' && t.round ? `<span style="font-size:0.65rem;color:${s.color};font-weight:700">R${t.round}</span>` : ''}
         </div>
-        <div style="font-size:0.95rem;font-weight:800;color:${s.color};line-height:1.3">${t.name}</div>
-        ${dates ? `<div style="font-size:0.72rem;color:#64748b;margin-top:4px">📅 ${dates}</div>` : ''}
-        ${courseName ? `<div style="font-size:0.72rem;color:#64748b;margin-top:2px">⛳ ${courseName}</div>` : ''}
-        <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
-          ${location ? `<span style="font-size:0.7rem;color:#94a3b8">📍 ${location}</span>` : ''}
-          <a href="${mapUrl}" target="_blank" rel="noopener" style="font-size:0.65rem;color:${s.color};font-weight:700;text-decoration:none;background:rgba(255,255,255,0.6);border:1px solid ${s.border};border-radius:8px;padding:1px 7px">🗺️ 지도보기</a>
+        <!-- 대회명 -->
+        <div style="font-size:0.95rem;font-weight:800;color:${s.color};line-height:1.3;margin-bottom:5px">${t.name}</div>
+        <!-- 일정 -->
+        ${dates ? `<div style="font-size:0.76rem;color:#64748b;margin-bottom:2px">📅 ${dates}</div>` : ''}
+        <!-- 골프장명 -->
+        ${courseName ? `<div style="font-size:0.76rem;font-weight:600;color:#475569;margin-bottom:1px">⛳ ${courseName}</div>` : ''}
+        <!-- 위치 + 지도보기 (인라인) -->
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+          ${location ? `<span style="font-size:0.74rem;color:#64748b">📍 ${location}</span>` : ''}
+          <a href="${mapUrl}" target="_blank" rel="noopener"
+            style="font-size:0.72rem;color:${s.color};font-weight:700;text-decoration:none;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:10px;padding:3px 10px;white-space:nowrap">🗺️ 지도보기</a>
         </div>
-        ${otherChips ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${otherChips}</div>` : ''}
+        <!-- 다른 대회 전환 -->
+        ${otherChips ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${otherChips}</div>` : ''}
       </div>
+      <!-- 관심선수 버튼 -->
       <button onclick="openGolfFavModal()" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:16px;padding:5px 10px;font-size:0.72rem;font-weight:700;color:${s.color};cursor:pointer;white-space:nowrap">⭐ 관심선수</button>
     </div>
   </div>`;
