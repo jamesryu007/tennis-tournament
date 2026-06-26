@@ -67,9 +67,12 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
   box-shadow: inset 0 -3px 0 rgba(0,0,0,0.15);
 }
 /* 행모/LIVE 배너 아래 다크 탭 */
-#atp-tab-container .atp-tab { background:transparent !important; color:rgba(255,255,255,0.55) !important; font-size:0.8rem; border-radius:8px !important; }
-#atp-tab-container .atp-tab.active { background:rgba(255,255,255,0.92) !important; color:#2563eb !important; box-shadow:0 1px 6px rgba(0,0,0,0.15); font-weight:800 !important; border-radius:8px !important; }
-#atp-tab-container .atp-tab:not(:last-child) { border-right:none !important; }
+#atp-tab-container .atp-tab,
+#golf-main-tab-bar .atp-tab { background:transparent !important; color:rgba(255,255,255,0.55) !important; font-size:0.8rem; border-radius:8px !important; }
+#atp-tab-container .atp-tab.active,
+#golf-main-tab-bar .atp-tab.active { background:rgba(255,255,255,0.92) !important; color:#2563eb !important; box-shadow:0 1px 6px rgba(0,0,0,0.15); font-weight:800 !important; border-radius:8px !important; }
+#atp-tab-container .atp-tab:not(:last-child),
+#golf-main-tab-bar .atp-tab:not(:last-child) { border-right:none !important; }
 /* ── 스포츠 스위처 (테니스/골프) ── */
 .sport-switch-btn {
   flex:1; padding:10px 4px; font-size:0.88rem; font-weight:700;
@@ -871,7 +874,7 @@ const firebaseConfig = {
     <div id="golf-tourney-section" style="margin-bottom:12px"></div>
     <!-- 메인 탭 (리더보드 / 뉴스) -->
     <div id="golf-main-tab-bar" style="display:flex;background:rgba(55,40,120,0.85);padding:4px;border-radius:12px;margin-bottom:12px">
-      <button class="atp-tab active" id="golf-tab-lb"   onclick="switchGolfMainTab('lb')">🏌️ 리더보드</button>
+      <button class="atp-tab active" id="golf-tab-lb"   onclick="switchGolfMainTab('lb')">⛳ 리더보드</button>
       <button class="atp-tab"        id="golf-tab-news" onclick="switchGolfMainTab('news')">🔥 뉴스<span id="golf-news-new-badge" style="display:none;margin-left:4px;background:#ef4444;color:#fff;font-size:0.6rem;font-weight:800;padding:1px 5px;border-radius:8px;vertical-align:middle">NEW</span></button>
     </div>
     <!-- 리더보드 패널 -->
@@ -2632,7 +2635,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v847';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v848';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
