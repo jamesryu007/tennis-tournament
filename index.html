@@ -2668,7 +2668,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v860';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v861';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11550,6 +11550,7 @@ function renderTourneyInfoHtml(t, ended) {
   const startDate = t.startDate ? t.startDate.split('T')[0] : '';
   const endDate   = t.endDate   ? t.endDate.split('T')[0]   : '';
   const displayName = t.displayName || t.name || '';
+  const _tennisTour = tier.toLowerCase().includes('wta') ? 'wta' : 'atp';
 
   // 하드코딩 venue 정보 우선 사용
   const venueInfo  = getVenueInfo(t);
@@ -11570,8 +11571,11 @@ function renderTourneyInfoHtml(t, ended) {
               ? '<span style="background:#64748b;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:8px">종료</span>'
               : '<span class="live-badge" style="font-size:0.62rem;padding:2px 7px">LIVE</span>'}
           </div>
-          <!-- 대회명 -->
-          <div style="font-size:0.95rem;font-weight:800;color:${style.color};margin-bottom:5px">${displayName}</div>
+          <!-- 대회명 + 대회정보 버튼 -->
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px">
+            <span style="font-size:0.95rem;font-weight:800;color:${style.color}">${displayName}</span>
+            <button onclick="openTourneyInfoByName('${displayName.replace(/'/g, '\\\'').replace(/"/g, '&quot;')}','${_tennisTour}')" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:12px;padding:2px 8px;font-size:0.65rem;font-weight:700;color:${style.color};cursor:pointer;white-space:nowrap">📋 대회정보</button>
+          </div>
           <!-- 일정 -->
           <div style="font-size:0.76rem;color:#64748b;margin-bottom:2px">📅 ${startDate}${endDate && endDate !== startDate ? ' ~ ' + endDate : ''}</div>
           <!-- 경기장명 -->
@@ -22732,8 +22736,11 @@ function renderGolfTournamentSection() {
           ${stateBadge}
           ${t.state === 'in' && t.round ? `<span style="font-size:0.65rem;color:${s.color};font-weight:700">R${t.round}</span>` : ''}
         </div>
-        <!-- 대회명 -->
-        <div style="font-size:0.95rem;font-weight:800;color:${s.color};line-height:1.3;margin-bottom:5px">${t.name}</div>
+        <!-- 대회명 + 대회정보 버튼 -->
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:5px">
+          <span style="font-size:0.95rem;font-weight:800;color:${s.color};line-height:1.3">${t.name}</span>
+          <button onclick="openTourneyInfo('${t.id}')" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:12px;padding:2px 8px;font-size:0.65rem;font-weight:700;color:${s.color};cursor:pointer;white-space:nowrap">📋 대회정보</button>
+        </div>
         <!-- 일정 -->
         ${dates ? `<div style="font-size:0.76rem;color:#64748b;margin-bottom:2px">📅 ${dates}</div>` : ''}
         <!-- 골프장명 -->
@@ -22744,11 +22751,8 @@ function renderGolfTournamentSection() {
           <a href="${mapUrl}" target="_blank" rel="noopener"
             style="font-size:0.72rem;color:${s.color};font-weight:700;text-decoration:none;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:10px;padding:3px 10px;white-space:nowrap">🗺️ 지도보기</a>
         </div>
-        <!-- 대회정보 + 다른 대회 전환 -->
-        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-          <button onclick="openTourneyInfo('${t.id}')" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:16px;padding:3px 10px;font-size:0.68rem;font-weight:700;color:${s.color};cursor:pointer;white-space:nowrap">📋 대회정보</button>
-          ${otherChips}
-        </div>
+        <!-- 다른 대회 전환 -->
+        ${otherChips ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${otherChips}</div>` : ''}
       </div>
       <!-- 관심선수 버튼 -->
       <button onclick="openGolfFavModal()" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:16px;padding:5px 10px;font-size:0.72rem;font-weight:700;color:${s.color};cursor:pointer;white-space:nowrap">⭐ 관심선수</button>
@@ -22817,6 +22821,41 @@ function closeTourneyInfoModal() {
   if (!document.querySelector('.modal-overlay.open')) document.body.style.overflow = '';
 }
 
+// 테니스 대회정보 — name/tour 직접 전달
+async function openTourneyInfoByName(name, tour) {
+  const modal   = document.getElementById('tourney-info-modal');
+  const content = document.getElementById('tourney-info-content');
+  if (!modal || !content) return;
+
+  document.body.style.overflow = 'hidden';
+  content.innerHTML = `<div style="text-align:center;padding:40px 0 20px">
+    <div style="font-size:2.5rem;margin-bottom:14px">🔍</div>
+    <div style="font-size:0.85rem;font-weight:600;color:#475569">${name}</div>
+    <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px">대회 정보 불러오는 중...</div>
+  </div>`;
+  modal.classList.add('open');
+
+  const cacheKey = `tourney__${tour}_${name}`;
+  if (_tourneyInfoCache[cacheKey]) {
+    // 테니스용 더미 t 객체로 렌더
+    const fakeT = { name, tour, state: 'in', level: null };
+    _renderTourneyInfo(content, fakeT, _tourneyInfoCache[cacheKey]);
+    return;
+  }
+
+  try {
+    const fn = firebase.app().functions('asia-southeast1').httpsCallable('fetchTournamentInfo');
+    const r  = await fn({ name, tour });
+    const result = r.data || {};
+    _tourneyInfoCache[cacheKey] = result;
+    const fakeT = { name, tour, state: 'in', level: null };
+    _renderTourneyInfo(content, fakeT, result);
+  } catch (e) {
+    const fakeT = { name, tour, state: 'in', level: null };
+    _renderTourneyInfo(content, fakeT, { error: true });
+  }
+}
+
 async function openTourneyInfo(tourneyId) {
   const t = golfState.tournaments[tourneyId];
   if (!t) return;
@@ -22850,7 +22889,10 @@ async function openTourneyInfo(tourneyId) {
 }
 
 function _renderTourneyInfo(content, t, { info, thumbnailUrl, error }) {
-  const s = GOLF_LEVEL_STYLE[t.level] || GOLF_LEVEL_STYLE.pga_tour;
+  const isTennisTour = t.tour === 'atp' || t.tour === 'wta';
+  const s = isTennisTour
+    ? { badgeBg: t.tour === 'wta' ? '#be185d' : '#2563eb', badge: t.tour === 'wta' ? 'WTA' : 'ATP' }
+    : (GOLF_LEVEL_STYLE[t.level] || GOLF_LEVEL_STYLE.pga_tour);
   const fmt = d => { try { return new Date(d).toLocaleDateString('ko-KR', { month:'numeric', day:'numeric' }); } catch(e) { return d; } };
   const dates = [t.startDate, t.endDate].filter(Boolean).map(fmt).join(' ~ ');
 
