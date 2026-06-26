@@ -2656,7 +2656,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v858';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v859';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11572,7 +11572,7 @@ function renderTourneyInfoHtml(t, ended) {
           </div>
           <!-- 버튼들 (관리자만 표시) -->
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            ${isManager() && !ended ? `<button onclick="triggerAtpRefresh()" style="background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:10px;padding:4px 10px;font-size:0.72rem;font-weight:600;color:${style.color};cursor:pointer">🔄 새로고침</button>` : ''}
+            ${isAdmin() && !ended ? `<button onclick="triggerAtpRefresh()" style="background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:10px;padding:4px 10px;font-size:0.72rem;font-weight:600;color:${style.color};cursor:pointer">🔄 새로고침</button>` : ''}
             ${isAdmin() && !ended ? `<button onclick="openBetOpenModal()" style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:4px 10px;font-size:0.72rem;font-weight:700;color:#92400e;cursor:pointer">🎯 베팅 오픈</button>` : ''}
             ${isAdmin() && !ended ? `<button onclick="openLoadHistoricalModal()" style="background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:10px;padding:4px 10px;font-size:0.72rem;font-weight:600;color:${style.color};cursor:pointer">📅 날짜 로드</button>` : ''}
           </div>
@@ -11604,9 +11604,9 @@ function renderAtpTourneyInfo() {
     const gs = atpState.lastGrandSlam;
     if (gs && gs.tournamentInfo && gs.tournamentInfo.name) {
       el.innerHTML = renderTourneyInfoHtml(gs.tournamentInfo, true) +
-        `<div style="text-align:center;padding:4px 0 0"><button onclick="triggerAtpRefresh()" style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:20px;padding:5px 11px;font-size:0.75rem;font-weight:600;color:#64748b;cursor:pointer">🔄 새로고침</button></div>`;
+        (isAdmin() ? `<div style="text-align:center;padding:4px 0 0"><button onclick="triggerAtpRefresh()" style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:20px;padding:5px 11px;font-size:0.75rem;font-weight:600;color:#64748b;cursor:pointer">🔄 새로고침</button></div>` : '');
     } else {
-      el.innerHTML = '<div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.85rem">현재 진행 중인 대회 정보가 없습니다.<br><button onclick="triggerAtpRefresh()" style="margin-top:8px;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:0.8rem;cursor:pointer">🔄 새로고침</button></div>';
+      el.innerHTML = '<div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.85rem">현재 진행 중인 대회 정보가 없습니다.</div>' + (isAdmin() ? '<div style="text-align:center"><button onclick="triggerAtpRefresh()" style="margin-top:8px;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:0.8rem;cursor:pointer">🔄 새로고침</button></div>' : '');
     }
     return;
   }
