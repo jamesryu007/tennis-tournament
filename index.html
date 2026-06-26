@@ -2656,7 +2656,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v854';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v855';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22790,7 +22790,7 @@ async function _fetchEspnAthletePhoto(name, tour) {
   } catch (e) { return null; }
 }
 
-function _renderPlayerProfile(content, name, tour, { espn, profile }) {
+function _renderPlayerProfile(content, name, tour, { espn, profile, thumbnailUrl }) {
   const isTennis   = tour === 'atp' || tour === 'wta';
   const isWomen    = tour === 'wta' || tour === 'lpga';
   const tourLabel  = { atp:'ATP', wta:'WTA', pga:'PGA Tour', lpga:'LPGA Tour' }[tour] || tour.toUpperCase();
@@ -22826,10 +22826,12 @@ function _renderPlayerProfile(content, name, tour, { espn, profile }) {
     }
   } catch (e) {}
 
-  const photoSrc = espn?.photo || '';
-  const natStr   = profile?.nationalityKo || espn?.country || '';
-  const birthStr = profile?.birthYear ? ` · ${profile.birthYear}년생` : '';
-  const proStr   = profile?.turnedPro   ? ` · 프로 ${profile.turnedPro}년` : '';
+  // Wikipedia 썸네일 우선, ESPN 폴백
+  const photoSrc = thumbnailUrl || espn?.photo || '';
+  const natStr    = profile?.nationalityKo || espn?.country || '';
+  const birthStr  = profile?.birthYear ? ` · ${profile.birthYear}년생` : '';
+  const proStr    = profile?.turnedPro  ? ` · 프로 ${profile.turnedPro}년` : '';
+  const placeStr  = profile?.birthPlaceKo ? ` · 📍 ${profile.birthPlaceKo}` : '';
 
   // ── 섹션 빌더 ────────────────────────────────────────────────────
   const sec = (icon, title, body) => `
@@ -22918,7 +22920,8 @@ function _renderPlayerProfile(content, name, tour, { espn, profile }) {
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-size:1.08rem;font-weight:900;color:#1e293b;margin-bottom:3px">${name}</div>
-        <div style="font-size:0.74rem;color:#64748b;margin-bottom:8px">${natStr ? `🌍 ${natStr} · ` : ''}${tourLabel}${birthStr}${proStr}</div>
+        <div style="font-size:0.74rem;color:#64748b;margin-bottom:4px">${natStr ? `🌍 ${natStr} · ` : ''}${tourLabel}${birthStr}${proStr}</div>
+        ${placeStr ? `<div style="font-size:0.72rem;color:#94a3b8;margin-bottom:6px">${placeStr}</div>` : '<div style="margin-bottom:6px"></div>'}
         <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
           ${currentRank ? `<span style="background:${themeColor};color:#fff;font-size:0.68rem;font-weight:800;padding:3px 10px;border-radius:10px">현재 ${currentRank}위</span>` : ''}
           ${jamiteBadge}
@@ -22962,7 +22965,7 @@ async function openPlayerProfile(name, tour) {
     })(),
   ]);
 
-  const cached = { espn, profile: gptRes?.profile || null };
+  const cached = { espn, profile: gptRes?.profile || null, thumbnailUrl: gptRes?.thumbnailUrl || null };
   _playerProfileCache[cacheKey] = cached;
   _renderPlayerProfile(content, name, tour, cached);
 }
