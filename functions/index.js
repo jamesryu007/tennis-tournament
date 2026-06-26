@@ -3866,7 +3866,7 @@ exports.testBirthdayGreeting = onCall({ region: 'asia-southeast1' }, async (req)
   return { ok: true };
 });
 
-// ══ 선수 프로필 (GPT 기반) ════════════════════════════════════════
+// ══ 선수 프로필 (Wikipedia + GPT 기반) ══════════════════════════════
 exports.fetchPlayerProfile = onCall({ region: 'asia-southeast1' }, async (req) => {
   const { name, tour } = req.data;
   if (!name) return { error: 'no_name' };
@@ -3874,14 +3874,35 @@ exports.fetchPlayerProfile = onCall({ region: 'asia-southeast1' }, async (req) =
   if (!apiKey) return { error: 'no_api_key' };
 
   const isTennis = tour === 'atp' || tour === 'wta';
-  const tourLabel = { atp: 'ATP', wta: 'WTA', pga: 'PGA', lpga: 'LPGA' }[tour] || tour.toUpperCase();
-  const today = new Date().toISOString().slice(0, 10); // 현재 날짜를 GPT에 전달해 최신 정보 반영 유도
+  const tourLabel = { atp: 'ATP', wta: 'WTA', pga: 'PGA Tour', lpga: 'LPGA Tour' }[tour] || tour.toUpperCase();
+  const today = new Date().toISOString().slice(0, 10);
 
-  // 숫자 통계(그랜드슬램 수, 타이틀 수, 최고랭킹, 상금)는 GPT 학습 데이터 오류가 잦아 제거
-  // 대신 텍스트로 서술하는 항목만 요청 (grandSlamDetails, majorDetails, playStyle, bio)
-  const prompt = isTennis
-    ? `오늘 날짜: ${today}\n테니스 선수 ${name} (${tourLabel})의 프로필을 JSON으로 작성해줘. 확실하지 않은 정보는 null로 반환해줘. 코드블록 없이 JSON만 반환:\n{"nationalityKo":"국적(한국어)","birthYear":출생연도또는null,"turnedPro":프로데뷔연도또는null,"grandSlamDetails":"그랜드슬램 우승 대회와 횟수 텍스트(예:호주오픈 2024·2025, US오픈 2024) 또는 null","playStyle":"플레이스타일 20자이내 한국어 또는 null","bio":"선수소개 2~3문장 한국어"}`
-    : `오늘 날짜: ${today}\n골프 선수 ${name} (${tourLabel})의 프로필을 JSON으로 작성해줘. 확실하지 않은 정보는 null로 반환해줘. 코드블록 없이 JSON만 반환:\n{"nationalityKo":"국적(한국어)","birthYear":출생연도또는null,"turnedPro":프로데뷔연도또는null,"majorDetails":"메이저 우승 대회와 횟수 텍스트(예:마스터스 2회, US오픈 1회) 또는 null","playStyle":"플레이스타일 20자이내 한국어 또는 null","bio":"선수소개 2~3문장 한국어"}`;
+  // ── Wikipedia 서버사이드 fetch (사실 기반 컨텍스트 확보) ───────────────
+  let wikiContext = '';
+  try {
+    const wikiUrl = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(name)}`;
+    const wikiRes = await fetch(wikiUrl, { headers: { 'User-Agent': 'jamite-tennis-app/1.0' } });
+    if (wikiRes.ok) {
+      const wikiData = await wikiRes.json();
+      if (wikiData.extract) {
+        wikiContext = `\n\n[Wikipedia 참고 자료 — 이 내용을 사실 기반으로 활용해줘]\n${wikiData.extract.slice(0, 1500)}`;
+      }
+    }
+  } catch (e) { /* Wikipedia 실패해도 GPT만으로 진행 */ }
+
+  // ── 확장 GPT 프롬프트 ────────────────────────────────────────────
+  const titlesField = isTennis
+    ? '"grandSlamDetails":"그랜드슬램 우승 대회·횟수 텍스트(예:호주오픈 2024·2025, US오픈 2024) 또는 null"'
+    : '"majorDetails":"메이저 우승 대회·횟수 텍스트(예:마스터스 2022·2024, US오픈 2025) 또는 null"';
+  const equipField = isTennis
+    ? '"equipment":"사용 라켓 브랜드·모델명 또는 null"'
+    : '"equipment":"주요 사용 드라이버·퍼터 브랜드 또는 null"';
+
+  const prompt = `오늘 날짜: ${today}
+${isTennis ? '테니스' : '골프'} 선수 ${name} (${tourLabel})의 상세 프로필을 아래 JSON 형식으로 작성해줘.${wikiContext}
+
+중요: 확실하지 않은 정보는 null. 코드블록 없이 JSON만 반환:
+{"nationalityKo":"국적(한국어)","birthYear":출생연도또는null,"turnedPro":프로데뷔연도또는null,${titlesField},"strengths":"기술적 강점 2~3가지 한국어 서술 또는 null","weaknesses":"약점·보완점 1~2가지 한국어 서술 또는 null","rivals":"주요 라이벌 선수명과 관계 한국어 서술 또는 null",${equipField},"careerHighlights":"주요 커리어 하이라이트 3~5개, 줄바꿈(\\n)으로 구분한 한국어(예:2019년 US오픈 첫 우승\\n2021년 세계랭킹 1위 달성) 또는 null","famousQuote":"선수 본인의 유명한 발언 한국어 번역 또는 null","triviaFacts":"팬들이 잘 모르는 재미있는 사실 1~2가지 한국어(줄바꿈으로 구분) 또는 null","playStyle":"플레이스타일 20자이내 한국어 또는 null","bio":"선수소개 2~3문장 한국어"}`;
 
   try {
     const resp = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -3890,8 +3911,8 @@ exports.fetchPlayerProfile = onCall({ region: 'asia-southeast1' }, async (req) =
       body: JSON.stringify({
         model: 'gpt-4.1-mini',
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 400,
-        temperature: 0.2,
+        max_tokens: 1400,
+        temperature: 0.3,
       }),
     });
     if (!resp.ok) { console.error('fetchPlayerProfile GPT error:', resp.status); return { error: 'gpt_error' }; }

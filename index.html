@@ -2656,7 +2656,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v853';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v854';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22791,11 +22791,12 @@ async function _fetchEspnAthletePhoto(name, tour) {
 }
 
 function _renderPlayerProfile(content, name, tour, { espn, profile }) {
-  const isTennis  = tour === 'atp' || tour === 'wta';
-  const isWomen   = tour === 'wta' || tour === 'lpga';
-  const tourLabel = { atp:'ATP', wta:'WTA', pga:'PGA Tour', lpga:'LPGA Tour' }[tour] || tour.toUpperCase();
+  const isTennis   = tour === 'atp' || tour === 'wta';
+  const isWomen    = tour === 'wta' || tour === 'lpga';
+  const tourLabel  = { atp:'ATP', wta:'WTA', pga:'PGA Tour', lpga:'LPGA Tour' }[tour] || tour.toUpperCase();
   const themeColor = isWomen ? '#be185d' : '#2563eb';
   const themeBg    = isWomen ? '#fdf2f8' : '#eff6ff';
+  const sportEmoji = isTennis ? '🎾' : '⛳';
 
   // 현재 랭킹 — 앱 보유 데이터 활용
   let currentRank = null;
@@ -22814,51 +22815,113 @@ function _renderPlayerProfile(content, name, tour, { espn, profile }) {
     if (p) currentRank = p.rank;
   }
 
-  // 사진
+  // 자미터 관심 등록 여부 (현재 사용자 기준)
+  let isMyFav = false;
+  try {
+    if (isTennis) {
+      isMyFav = atpState.favPlayers.some(p => p.name && p.name.toLowerCase() === name.toLowerCase());
+    } else {
+      const gDraw = tour === 'lpga' ? 'lpga' : 'pga';
+      isMyFav = (golfState.favPlayers[gDraw] || []).some(p => p.name && p.name.toLowerCase() === name.toLowerCase());
+    }
+  } catch (e) {}
+
   const photoSrc = espn?.photo || '';
-
-  // 섹션들
-  const sections = [];
-  const titlesKey = isTennis ? 'grandSlamDetails' : 'majorDetails';
-  const titlesLabel = isTennis ? '🏆 그랜드슬램 타이틀' : '🏆 메이저 타이틀';
-  if (profile?.[titlesKey]) {
-    sections.push(`<div style="margin-bottom:14px">
-      <div class="pp-section-title">${titlesLabel}</div>
-      <div class="pp-section-body">${profile[titlesKey]}</div>
-    </div>`);
-  }
-  if (profile?.playStyle) {
-    sections.push(`<div style="margin-bottom:14px">
-      <div class="pp-section-title">🎯 플레이 스타일</div>
-      <div class="pp-section-body">${profile.playStyle}</div>
-    </div>`);
-  }
-  if (profile?.bio) {
-    sections.push(`<div style="margin-bottom:14px">
-      <div class="pp-section-title">📝 선수 소개</div>
-      <div class="pp-section-body">${profile.bio}</div>
-    </div>`);
-  }
-  if (!profile) {
-    sections.push(`<div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.82rem">프로필 정보를 가져오지 못했습니다.</div>`);
-  }
-  // GPT 학습 데이터 기준 안내
-  sections.push(`<div style="margin-top:6px;padding:8px 12px;background:#f8fafc;border-radius:8px;font-size:0.65rem;color:#94a3b8;text-align:center">⚠️ AI 학습 데이터 기준 — 최신 성적이 반영되지 않을 수 있습니다</div>`);
-
-  const natStr = profile?.nationalityKo || espn?.country || '';
+  const natStr   = profile?.nationalityKo || espn?.country || '';
   const birthStr = profile?.birthYear ? ` · ${profile.birthYear}년생` : '';
-  const proStr  = profile?.turnedPro ? ` · 프로 ${profile.turnedPro}년` : '';
+  const proStr   = profile?.turnedPro   ? ` · 프로 ${profile.turnedPro}년` : '';
+
+  // ── 섹션 빌더 ────────────────────────────────────────────────────
+  const sec = (icon, title, body) => `
+    <div style="margin-bottom:14px">
+      <div class="pp-section-title">${icon} ${title}</div>
+      <div class="pp-section-body">${body}</div>
+    </div>`;
+
+  const sections = [];
+
+  if (!profile) {
+    sections.push(`<div style="text-align:center;padding:24px 0;color:#94a3b8;font-size:0.82rem">프로필 정보를 가져오지 못했습니다.</div>`);
+  } else {
+    // 1. 타이틀
+    const titlesKey = isTennis ? 'grandSlamDetails' : 'majorDetails';
+    const titlesLbl = isTennis ? '그랜드슬램 타이틀' : '메이저 타이틀';
+    if (profile[titlesKey]) sections.push(sec('🏆', titlesLbl, profile[titlesKey]));
+
+    // 2. 커리어 하이라이트 — 줄바꿈 → 타임라인
+    if (profile.careerHighlights) {
+      const items = profile.careerHighlights.split('\n').filter(Boolean);
+      const timeline = items.map(item => {
+        const m = item.match(/^(\d{4}[년\s]?[^:：]*[:：]?\s*)(.*)/);
+        const year = m ? `<span style="font-size:0.7rem;font-weight:800;color:${themeColor};flex-shrink:0;min-width:36px">${m[1].trim()}</span>` : '';
+        const desc = m ? m[2].trim() : item;
+        return `<div style="display:flex;gap:8px;align-items:flex-start;padding:5px 0;border-bottom:1px solid #f1f5f9">
+          ${year}<span style="font-size:0.78rem;color:#334155;line-height:1.5">${desc || item}</span></div>`;
+      }).join('');
+      sections.push(`<div style="margin-bottom:14px">
+        <div class="pp-section-title">📅 커리어 하이라이트</div>
+        <div style="background:#f8fafc;border-radius:10px;padding:6px 12px">${timeline}</div>
+      </div>`);
+    }
+
+    // 3. 강점 / 약점
+    if (profile.strengths) sections.push(sec('💪', '강점', profile.strengths));
+    if (profile.weaknesses) sections.push(sec('🔧', '약점 · 보완점', profile.weaknesses));
+
+    // 4. 라이벌
+    if (profile.rivals) sections.push(sec('⚔️', '주요 라이벌', profile.rivals));
+
+    // 5. 플레이 스타일
+    if (profile.playStyle) sections.push(sec('🎯', '플레이 스타일', profile.playStyle));
+
+    // 6. 장비
+    if (profile.equipment) sections.push(sec(sportEmoji, '사용 장비', profile.equipment));
+
+    // 7. 명언 — 블록쿼트 스타일
+    if (profile.famousQuote) {
+      sections.push(`<div style="margin-bottom:14px">
+        <div class="pp-section-title">💬 명언</div>
+        <div style="background:#f8fafc;border-radius:10px;padding:12px 14px;border-left:3px solid ${themeColor}">
+          <div style="font-size:0.82rem;color:#334155;line-height:1.7;font-style:italic">"${profile.famousQuote}"</div>
+        </div>
+      </div>`);
+    }
+
+    // 8. 재미있는 사실
+    if (profile.triviaFacts) {
+      const facts = profile.triviaFacts.split('\n').filter(Boolean);
+      const factHtml = facts.map(f => `<div style="display:flex;gap:7px;padding:4px 0">
+        <span style="font-size:0.8rem;flex-shrink:0">🎲</span>
+        <span style="font-size:0.78rem;color:#334155;line-height:1.5">${f}</span>
+      </div>`).join('');
+      sections.push(`<div style="margin-bottom:14px">
+        <div class="pp-section-title">🎲 재미있는 사실</div>
+        <div class="pp-section-body" style="padding:8px 12px">${factHtml}</div>
+      </div>`);
+    }
+
+    // 9. 선수 소개
+    if (profile.bio) sections.push(sec('📝', '선수 소개', profile.bio));
+  }
+
+  // 자미터 관심 배지
+  const jamiteBadge = isMyFav
+    ? `<span style="background:#f59e0b20;color:#d97706;font-size:0.65rem;font-weight:800;padding:3px 9px;border-radius:10px;border:1px solid #fcd34d">⭐ 내 관심 선수</span>`
+    : '';
+
+  sections.push(`<div style="margin-top:4px;padding:8px 12px;background:#f8fafc;border-radius:8px;font-size:0.65rem;color:#94a3b8;text-align:center">⚠️ Wikipedia + AI 기반 — 최신 성적이 반영되지 않을 수 있습니다</div>`);
 
   content.innerHTML = `
     <div style="display:flex;align-items:center;gap:14px;padding:16px 0 16px;border-bottom:1.5px solid #f1f5f9;margin-bottom:16px">
-      <div style="width:76px;height:76px;border-radius:50%;overflow:hidden;flex-shrink:0;background:${themeBg};border:3px solid ${themeColor}40;display:flex;align-items:center;justify-content:center;font-size:2.2rem">
-        ${photoSrc ? `<img src="${photoSrc}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='${isTennis ? '🎾' : '⛳'}'">` : (isTennis ? '🎾' : '⛳')}
+      <div style="width:80px;height:80px;border-radius:50%;overflow:hidden;flex-shrink:0;background:${themeBg};border:3px solid ${themeColor}40;display:flex;align-items:center;justify-content:center;font-size:2.2rem">
+        ${photoSrc ? `<img src="${photoSrc}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='${sportEmoji}'">` : sportEmoji}
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-size:1.08rem;font-weight:900;color:#1e293b;margin-bottom:3px">${name}</div>
-        <div style="font-size:0.76rem;color:#64748b;margin-bottom:7px">${natStr ? `🌍 ${natStr} · ` : ''}${tourLabel}${birthStr}${proStr}</div>
-        <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <div style="font-size:0.74rem;color:#64748b;margin-bottom:8px">${natStr ? `🌍 ${natStr} · ` : ''}${tourLabel}${birthStr}${proStr}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center">
           ${currentRank ? `<span style="background:${themeColor};color:#fff;font-size:0.68rem;font-weight:800;padding:3px 10px;border-radius:10px">현재 ${currentRank}위</span>` : ''}
+          ${jamiteBadge}
         </div>
       </div>
     </div>
