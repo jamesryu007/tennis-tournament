@@ -2053,11 +2053,11 @@ exports.fetchGolfNews = onSchedule(
 
       const toTranslate = items.flatMap(a => [a.headline, a.description]);
       const translated  = await translateTexts(toTranslate);
-      if (!translated) { console.warn('fetchGolfNews: translation failed, skipping'); return; }
+      if (!translated) console.warn('fetchGolfNews: translation failed, using English fallback');
 
       items.forEach((a, i) => {
-        a.headlineKo    = translated[i * 2]     || a.headline;
-        a.descriptionKo = translated[i * 2 + 1] || a.description;
+        a.headlineKo    = (translated && translated[i * 2])     || a.headline;
+        a.descriptionKo = (translated && translated[i * 2 + 1]) || a.description;
       });
       await db.ref('jmt/golfNews').set({ articles: items, updatedAt: new Date().toISOString() });
       console.log(`fetchGolfNews: saved ${items.length} articles`);
