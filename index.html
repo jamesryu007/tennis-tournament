@@ -617,6 +617,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 /* ── MODALS ── */
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 300; align-items: flex-end; justify-content: center; overscroll-behavior: none; }
 #participant-modal { z-index: 310; }
+#player-profile-modal { z-index: 400; }
 #photo-edit-modal { z-index: 10001; }
 .modal-overlay.open { display: flex; }
 .modal { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
@@ -912,7 +913,7 @@ const firebaseConfig = {
       <span style="font-size:0.92rem;font-weight:800;color:#1e293b">🏅 선수 프로필</span>
       <button onclick="closePlayerProfileModal()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#94a3b8;padding:4px;line-height:1">✕</button>
     </div>
-    <div id="player-profile-content" style="overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px 24px;flex:1"></div>
+    <div id="player-profile-content" style="overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0 16px 24px;flex:1"></div>
   </div>
 </div>
 
@@ -2655,7 +2656,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v849';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v850';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22762,6 +22763,10 @@ const _playerProfileCache = {};
 
 function closePlayerProfileModal() {
   document.getElementById('player-profile-modal').classList.remove('open');
+  // 다른 모달이 열려있지 않을 때만 body scroll 복원
+  if (!document.querySelector('.modal-overlay.open')) {
+    document.body.style.overflow = '';
+  }
 }
 
 async function _fetchEspnAthletePhoto(name, tour) {
@@ -22886,7 +22891,8 @@ async function openPlayerProfile(name, tour) {
   const content = document.getElementById('player-profile-content');
   if (!modal || !content) return;
 
-  // 로딩 표시
+  // body 스크롤 잠금 + 로딩 표시
+  document.body.style.overflow = 'hidden';
   content.innerHTML = `<div style="text-align:center;padding:40px 0 20px">
     <div style="font-size:2.5rem;margin-bottom:14px">🔍</div>
     <div style="font-size:0.85rem;font-weight:600;color:#475569">${name}</div>
