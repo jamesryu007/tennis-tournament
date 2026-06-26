@@ -100,10 +100,6 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
   color:#ef4444; font-weight:700;
   background:#fef2f2; border-top:1.5px dashed #fca5a5; border-bottom:1.5px dashed #fca5a5;
 }
-/* ── 골프 라운드 탭 (ATP 다크 탭 스타일 공유) ── */
-.golf-round-tab-row .atp-tab { background:transparent !important; color:rgba(255,255,255,0.55) !important; font-size:0.8rem; border-radius:8px !important; }
-.golf-round-tab-row .atp-tab.active { background:rgba(255,255,255,0.92) !important; color:#2563eb !important; box-shadow:0 1px 6px rgba(0,0,0,0.15); font-weight:800 !important; border-radius:8px !important; }
-.golf-round-tab-row .atp-tab:not(:last-child) { border-right:none !important; }
 .atp-match-row { display:flex; align-items:center; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f1f5f9; font-size:0.82rem; gap:4px; }
 .atp-match-row:last-child { border-bottom:none; }
 .atp-player { flex:1; font-weight:600; color:#64748b; line-height:1.35; }
@@ -2636,7 +2632,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v846';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v847';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22736,15 +22732,24 @@ function renderGolfLeaderboard(t) {
   const wrap = document.getElementById('golf-leaderboard-wrap');
   if (!wrap) return;
 
-  // 라운드 탭 HTML 헬퍼 (카드 상단 고정)
+  // 라운드 탭 HTML 헬퍼 — 테니스와 동일한 pill + › 체인 스타일
   const _roundTabsHtml = () => {
     if (!t) return '';
     const lbl = { all:'전체', '1':'R1', '2':'R2', '3':'R3', '4':'Final' };
-    return `<div class="golf-round-tab-row" style="display:flex;gap:0;background:rgba(55,40,120,0.85);padding:4px;border-radius:12px 12px 0 0">${
-      ['all','1','2','3','4'].map(r =>
-        `<button class="atp-tab${r === golfState.selectedRound ? ' active' : ''}" onclick="switchGolfRound('${r}')">${lbl[r]}</button>`
-      ).join('')
-    }</div>`;
+    const rounds = ['all', '1', '2', '3', '4'];
+    const activeBg = '#3730a3';
+    const pills = rounds.map((r, i) => {
+      const isActive = r === golfState.selectedRound;
+      const bg     = isActive ? activeBg : '#fff';
+      const color  = isActive ? '#fff'   : '#475569';
+      const border = isActive ? activeBg : '#e2e8f0';
+      const arrow  = i < rounds.length - 1 ? `<span style="flex-shrink:0;color:#cbd5e1;font-size:0.8rem;line-height:1">›</span>` : '';
+      return `<button onclick="switchGolfRound('${r}')"${isActive ? ' data-golf-round-active="true"' : ''}
+        style="flex:0 0 auto;padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;border:1.5px solid ${border};background:${bg};color:${color}">${lbl[r]}</button>${arrow}`;
+    }).join('');
+    const selLabel = golfState.selectedRound === 'all' ? '전체' : lbl[golfState.selectedRound];
+    return `<div style="display:flex;align-items:center;gap:4px;overflow-x:auto;padding:10px 14px 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none">${pills}</div>
+<div style="font-size:0.72rem;font-weight:700;color:#94a3b8;padding:0 14px 8px;letter-spacing:0.3px">${selLabel}</div>`;
   };
 
   if (!t) {
@@ -22834,7 +22839,7 @@ function renderGolfLeaderboard(t) {
   // 라운드탭: # | 선수 | (empty) | 점수 | 진행
   const headerHtml = roundIdx !== null
     ? `<span style="font-size:0.68rem;color:#94a3b8">#</span>
-       <span style="font-size:0.68rem;color:#94a3b8">선수 <span style="color:#2563eb;font-weight:700">${rLabel}</span></span>
+       <span style="font-size:0.68rem;color:#94a3b8">선수</span>
        <span></span>
        <span style="font-size:0.68rem;color:#94a3b8;text-align:right">점수</span>
        <span style="font-size:0.68rem;color:#94a3b8;text-align:right">진행</span>`
