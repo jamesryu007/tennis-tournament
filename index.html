@@ -796,16 +796,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -954,7 +954,7 @@ const firebaseConfig = {
     <div style="padding:0 18px 10px;flex-shrink:0">
       <input type="text" id="fav-search-input" placeholder="🔍 선수 이름 검색..." oninput="filterFavPlayerList(this.value)" style="width:100%;border-radius:10px;border:1.5px solid #e2e8f0;padding:9px 12px;font-size:0.85rem;outline:none">
     </div>
-    <div id="fav-player-list" style="overflow-y:auto;flex:1;padding:0 18px 10px"></div>
+    <div id="fav-player-list" style="overflow-y:auto;overscroll-behavior:contain;flex:1;padding:0 18px 10px"></div>
     <div style="padding:12px 18px 20px;flex-shrink:0;border-top:1px solid #f1f5f9">
       <button onclick="saveFavPlayers()" class="btn btn-primary btn-full">저장</button>
     </div>
@@ -992,7 +992,7 @@ const firebaseConfig = {
       </div>
       <input type="text" id="golf-fav-search" placeholder="🔍 선수 이름 검색..." oninput="renderGolfFavList(this.value)" style="width:100%;border-radius:10px;border:1.5px solid #e2e8f0;padding:9px 12px;font-size:0.85rem;outline:none;box-sizing:border-box">
     </div>
-    <div id="golf-fav-list" style="overflow-y:auto;flex:1;padding:0 18px 10px"></div>
+    <div id="golf-fav-list" style="overflow-y:auto;overscroll-behavior:contain;flex:1;padding:0 18px 10px"></div>
     <div style="padding:12px 18px 20px;flex-shrink:0;border-top:1px solid #f1f5f9">
       <button onclick="saveGolfFavPlayers()" class="btn btn-primary btn-full">저장</button>
     </div>
@@ -2669,7 +2669,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v867';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v868';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12627,7 +12627,10 @@ function openFavPlayerModal() {
   if (searchInput) searchInput.value = '';
   renderFavPlayerList('');
   updateFavSelectedBar();
-  document.getElementById('fav-player-modal').classList.add('open');
+  const modal  = document.getElementById('fav-player-modal');
+  const listEl = document.getElementById('fav-player-list');
+  modal.classList.add('open');
+  _lockModalScroll(modal, listEl);
   // 버튼 초기 상태
   setTimeout(() => switchFavModalDraw('mens'), 0);
 }
@@ -12716,7 +12719,9 @@ function hideFavConfirmPanel() {
 
 function closeFavPlayerModal() {
   hideFavConfirmPanel();
-  document.getElementById('fav-player-modal').classList.remove('open');
+  const modal = document.getElementById('fav-player-modal');
+  modal.classList.remove('open');
+  _unlockModalScroll(modal);
 }
 
 async function loadTop100ForModal_UNUSED() {
@@ -22820,6 +22825,24 @@ function closePlayerProfileModal() {
 // ══ 대회 정보 팝업 ══════════════════════════════════════════════
 const _tourneyInfoCache = {};
 
+// 모달 배경 스크롤 방지 공통 헬퍼
+function _lockModalScroll(modal, listEl) {
+  if (modal._scrollLocked) return;
+  modal._scrollLocked = true;
+  document.body.style.overflow = 'hidden';
+  const handler = e => { if (!listEl || !listEl.contains(e.target)) e.preventDefault(); };
+  modal._scrollHandler = handler;
+  modal.addEventListener('touchmove', handler, { passive: false });
+}
+function _unlockModalScroll(modal) {
+  if (modal._scrollHandler) {
+    modal.removeEventListener('touchmove', modal._scrollHandler);
+    modal._scrollHandler = null;
+  }
+  modal._scrollLocked = false;
+  if (!document.querySelector('.modal-overlay.open')) document.body.style.overflow = '';
+}
+
 function _initTourneyInfoSwipe(modal, content) {
   if (modal._swipeAdded) return;
   modal._swipeAdded = true;
@@ -23427,10 +23450,15 @@ function openGolfFavModal() {
   golfState.favDraw = 'pga';
   switchGolfFavDraw('pga');
   _updateGolfFavSelectedBar();
-  document.getElementById('golf-fav-modal').classList.add('open');
+  const modal  = document.getElementById('golf-fav-modal');
+  const listEl = document.getElementById('golf-fav-list');
+  modal.classList.add('open');
+  _lockModalScroll(modal, listEl);
 }
 function closeGolfFavModal() {
-  document.getElementById('golf-fav-modal').classList.remove('open');
+  const modal = document.getElementById('golf-fav-modal');
+  modal.classList.remove('open');
+  _unlockModalScroll(modal);
 }
 
 function switchGolfFavDraw(draw) {
