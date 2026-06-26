@@ -2656,7 +2656,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v857';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v858';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11748,9 +11748,11 @@ function renderRoundDrawPanel(el, matches, tier, tourney) {
       const isWoman = !!wtaRanked && !atpRanked;
       const rankStr = ranked ? `<span style="font-size:0.6rem;opacity:0.75">${ranked.rank}위</span> ` : '';
       const style = isWoman
-        ? 'background:#fdf2f8;color:#be185d;border:1px solid #fbcfe8;border-radius:12px;padding:2px 9px;font-size:0.68rem;font-weight:700;display:inline-flex;align-items:center;gap:3px;white-space:nowrap'
-        : 'background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:12px;padding:2px 9px;font-size:0.68rem;font-weight:700;display:inline-flex;align-items:center;gap:3px;white-space:nowrap';
-      return `<span style="${style}">${rankStr}${p.name}</span>`;
+        ? 'background:#fdf2f8;color:#be185d;border:1px solid #fbcfe8;border-radius:12px;padding:2px 9px;font-size:0.68rem;font-weight:700;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer'
+        : 'background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe;border-radius:12px;padding:2px 9px;font-size:0.68rem;font-weight:700;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer';
+      const _pSafe = p.name.replace(/'/g, "\'");
+      const _pTour = isWoman ? 'wta' : 'atp';
+      return `<span style="${style}" onclick="openPlayerProfile('${_pSafe}','${_pTour}')">${rankStr}${p.name}</span>`;
     }).join('');
     favPillsHtml = `<div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:10px">
       <span style="font-size:0.72rem;font-weight:700;color:#1e293b;white-space:nowrap;flex-shrink:0">⭐ 관심선수</span>
@@ -12683,7 +12685,9 @@ function updateFavSelectedBar() {
     const isWoman = atpState.wtaRankingsFromDb.some(r => r.name.toLowerCase() === p.name.toLowerCase())
                  && !((atpState.rankingsFromDb.length ? atpState.rankingsFromDb : ATP_TOP_PLAYERS).some(r => r.name.toLowerCase() === p.name.toLowerCase()));
     const color = isWoman ? '#be185d' : '#2563eb';
-    return `<span style="color:${color};font-weight:700">${p.name}</span>`;
+    const _pSafe = p.name.replace(/'/g, "\'");
+    const _pTour = isWoman ? 'wta' : 'atp';
+    return `<span class="pp-name-link" style="color:${color};font-weight:700" onclick="openPlayerProfile('${_pSafe}','${_pTour}')">${p.name}</span>`;
   });
   names.innerHTML = '<span style="color:#64748b">⭐ </span>' + nameSpans.join('<span style="color:#94a3b8"> · </span>');
 }
@@ -23270,10 +23274,14 @@ function _updateGolfFavSelectedBar() {
   const lpga = golfState.favPlayersTmp.lpga || [];
   if (!pga.length && !lpga.length) { bar.style.display = 'none'; return; }
   bar.style.display = '';
+  const mkLinks = (list, tour) => list.map(p => {
+    const safe = p.name.replace(/'/g, "\'");
+    return `<span class="pp-name-link" style="font-weight:700" onclick="openPlayerProfile('${safe}','${tour}')">${p.name}</span>`;
+  }).join('<span style="color:#94a3b8">, </span>');
   const parts = [];
-  if (pga.length)  parts.push(`🏌️ ${pga.map(p => p.name).join(', ')}`);
-  if (lpga.length) parts.push(`🌸 ${lpga.map(p => p.name).join(', ')}`);
-  names.textContent = parts.join('  |  ');
+  if (pga.length)  parts.push(`🏌️ ${mkLinks(pga, 'pga')}`);
+  if (lpga.length) parts.push(`🌸 ${mkLinks(lpga, 'lpga')}`);
+  names.innerHTML = parts.join('<span style="color:#94a3b8">  |  </span>');
 }
 
 function saveGolfFavPlayers() {
