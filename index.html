@@ -2656,7 +2656,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v855';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v856';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22436,6 +22436,7 @@ const golfState = {
   tournaments:   {},      // id → tournament 객체
   selectedId:    null,    // 현재 선택된 대회 ID
   selectedRound: 'all',   // 'all' | '1' | '2' | '3' | '4'
+  _roundUserSet: false,  // true = 사용자가 직접 탭 선택, false = 자동 선택 가능
   currentMainTab:'lb',    // 'lb' | 'news'
   loaded:        false,
   news:          [],      // [{headline, headlineKo, description, descriptionKo, published, url}]
@@ -22654,10 +22655,13 @@ function renderGolfPage() {
   const _golfSort = (a, b) => (stateO[a.state] ?? 3) * 10 + (levelO[a.level] ?? 9) - (stateO[b.state] ?? 3) * 10 - (levelO[b.level] ?? 9);
   const _allT = Object.values(golfState.tournaments).sort(_golfSort);
 
-  // 선택된 대회가 없거나 DB에서 사라진 경우에만 자동 선택
-  // (종료된 대회도 새 데이터가 올 때까지 그대로 유지)
+  // 선택된 대회가 없거나 DB에서 사라진 경우 자동 선택
   if (!golfState.selectedId || !golfState.tournaments[golfState.selectedId]) {
-    golfState.selectedId = _allT[0] ? _allT[0].id : null;
+    golfState.selectedId    = _allT[0] ? _allT[0].id : null;
+    golfState._roundUserSet = false;
+  }
+  // 사용자가 직접 라운드를 선택하지 않은 경우 현재 라운드 자동 이동
+  if (!golfState._roundUserSet) {
     golfState.selectedRound = _golfAutoRound(golfState.tournaments[golfState.selectedId]);
   }
   renderGolfTournamentSection();
@@ -22742,6 +22746,7 @@ function _golfAutoRound(t) {
 
 function selectGolfTournament(id) {
   golfState.selectedId    = id;
+  golfState._roundUserSet = false;  // 대회 전환 시 자동 선택 모드로 복귀
   golfState.selectedRound = _golfAutoRound(golfState.tournaments[id]);
   renderGolfTournamentSection();
   renderGolfSelected();
@@ -22761,6 +22766,7 @@ function renderGolfRoundTabs(t) {
 
 function switchGolfRound(round) {
   golfState.selectedRound = round;
+  golfState._roundUserSet = true;  // 사용자가 직접 선택한 라운드
   const t = golfState.tournaments[golfState.selectedId] || null;
   renderGolfLeaderboard(t);
 }
