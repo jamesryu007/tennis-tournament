@@ -796,16 +796,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2669,7 +2669,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v866';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v867';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22763,17 +22763,20 @@ function renderGolfTournamentSection() {
 
 // ── 대회 선택 ────────────────────────────────────────────────────
 function _golfAutoRound(t) {
-  if (!t) return 'all';
-  if (t.state !== 'in' && t.state !== 'post') return 'all';
-  // t.round > 0이면 그대로 사용
+  // 항상 전체(누적 랭킹) 탭을 기본으로 표시
+  return 'all';
+}
+
+// 현재 진행 중인 라운드 번호 반환 (탭 색상 표시용)
+function _golfLiveRound(t) {
+  if (!t || t.state !== 'in') return null;
   if (t.round > 0) return String(t.round);
-  // t.round가 0이거나 없으면 리더보드 선수의 스코어 개수로 현재 라운드 추정
   const players = Object.values(t.leaderboard || {});
   if (players.length) {
-    const maxRounds = Math.max(...players.map(p => (p.scores || []).length).filter(n => n > 0));
-    if (maxRounds > 0 && isFinite(maxRounds)) return String(maxRounds);
+    const maxR = Math.max(...players.map(p => (p.scores || []).length).filter(n => n > 0));
+    if (maxR > 0 && isFinite(maxR)) return String(maxR);
   }
-  return 'all';
+  return null;
 }
 
 function selectGolfTournament(id) {
@@ -23230,15 +23233,18 @@ function renderGolfLeaderboard(t) {
     if (!t) return '';
     const lbl = { all:'전체', '1':'R1', '2':'R2', '3':'R3', '4':'Final' };
     const rounds = ['all', '1', '2', '3', '4'];
-    const activeBg = '#3730a3';
+    const activeBg  = '#3730a3';
+    const liveRound = _golfLiveRound(t); // 현재 진행 중인 라운드 (색상 표시용)
     const pills = rounds.map((r, i) => {
       const isActive = r === golfState.selectedRound;
-      const bg     = isActive ? activeBg : '#fff';
-      const color  = isActive ? '#fff'   : '#475569';
-      const border = isActive ? activeBg : '#e2e8f0';
+      const isLive   = !isActive && r !== 'all' && r === liveRound;
+      const bg     = isActive ? activeBg : isLive ? '#ecfdf5' : '#fff';
+      const color  = isActive ? '#fff'   : isLive ? '#16a34a' : '#475569';
+      const border = isActive ? activeBg : isLive ? '#22c55e' : '#e2e8f0';
+      const liveDot = isLive ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#22c55e;vertical-align:middle;margin-left:3px;margin-bottom:1px"></span>` : '';
       const arrow  = i < rounds.length - 1 ? `<span style="flex-shrink:0;color:#cbd5e1;font-size:0.8rem;line-height:1">›</span>` : '';
       return `<button onclick="switchGolfRound('${r}')"${isActive ? ' data-golf-round-active="true"' : ''}
-        style="flex:0 0 auto;padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;border:1.5px solid ${border};background:${bg};color:${color}">${lbl[r]}</button>${arrow}`;
+        style="flex:0 0 auto;padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;border:1.5px solid ${border};background:${bg};color:${color}">${lbl[r]}${liveDot}</button>${arrow}`;
     }).join('');
     const selLabel = golfState.selectedRound === 'all' ? '전체' : lbl[golfState.selectedRound];
     return `<div style="display:flex;align-items:center;gap:4px;overflow-x:auto;padding:10px 14px 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none">${pills}</div>
