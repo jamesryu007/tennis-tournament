@@ -954,7 +954,7 @@ const firebaseConfig = {
     <div style="padding:0 18px 10px;flex-shrink:0">
       <input type="text" id="fav-search-input" placeholder="🔍 선수 이름 검색..." oninput="filterFavPlayerList(this.value)" style="width:100%;border-radius:10px;border:1.5px solid #e2e8f0;padding:9px 12px;font-size:0.85rem;outline:none">
     </div>
-    <div id="fav-player-list" style="overflow-y:auto;flex:1;padding:0 18px 10px"></div>
+    <div id="fav-player-list" style="overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;flex:1;padding:0 18px 10px"></div>
     <div style="padding:12px 18px 20px;flex-shrink:0;border-top:1px solid #f1f5f9">
       <button onclick="saveFavPlayers()" class="btn btn-primary btn-full">저장</button>
     </div>
@@ -992,7 +992,7 @@ const firebaseConfig = {
       </div>
       <input type="text" id="golf-fav-search" placeholder="🔍 선수 이름 검색..." oninput="renderGolfFavList(this.value)" style="width:100%;border-radius:10px;border:1.5px solid #e2e8f0;padding:9px 12px;font-size:0.85rem;outline:none;box-sizing:border-box">
     </div>
-    <div id="golf-fav-list" style="overflow-y:auto;flex:1;padding:0 18px 10px"></div>
+    <div id="golf-fav-list" style="overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;flex:1;padding:0 18px 10px"></div>
     <div style="padding:12px 18px 20px;flex-shrink:0;border-top:1px solid #f1f5f9">
       <button onclick="saveGolfFavPlayers()" class="btn btn-primary btn-full">저장</button>
     </div>
@@ -2669,7 +2669,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v863';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v864';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12627,7 +12627,17 @@ function openFavPlayerModal() {
   if (searchInput) searchInput.value = '';
   renderFavPlayerList('');
   updateFavSelectedBar();
-  document.getElementById('fav-player-modal').classList.add('open');
+  const _favModal = document.getElementById('fav-player-modal');
+  document.body.style.overflow = 'hidden';
+  _favModal.classList.add('open');
+  // 배경 스크롤 방지 — 스크롤 불가 영역 touchmove 차단 (1회 등록)
+  if (!_favModal._scrollLockAdded) {
+    _favModal._scrollLockAdded = true;
+    const _favList = document.getElementById('fav-player-list');
+    _favModal.addEventListener('touchmove', e => {
+      if (!_favList || !_favList.contains(e.target)) e.preventDefault();
+    }, { passive: false });
+  }
   // 버튼 초기 상태
   setTimeout(() => switchFavModalDraw('mens'), 0);
 }
@@ -12717,6 +12727,7 @@ function hideFavConfirmPanel() {
 function closeFavPlayerModal() {
   hideFavConfirmPanel();
   document.getElementById('fav-player-modal').classList.remove('open');
+  if (!document.querySelector('.modal-overlay.open')) document.body.style.overflow = '';
 }
 
 async function loadTop100ForModal_UNUSED() {
@@ -23421,10 +23432,21 @@ function openGolfFavModal() {
   golfState.favDraw = 'pga';
   switchGolfFavDraw('pga');
   _updateGolfFavSelectedBar();
-  document.getElementById('golf-fav-modal').classList.add('open');
+  const _golfFavModal = document.getElementById('golf-fav-modal');
+  document.body.style.overflow = 'hidden';
+  _golfFavModal.classList.add('open');
+  // 배경 스크롤 방지 (1회 등록)
+  if (!_golfFavModal._scrollLockAdded) {
+    _golfFavModal._scrollLockAdded = true;
+    const _golfFavList = document.getElementById('golf-fav-list');
+    _golfFavModal.addEventListener('touchmove', e => {
+      if (!_golfFavList || !_golfFavList.contains(e.target)) e.preventDefault();
+    }, { passive: false });
+  }
 }
 function closeGolfFavModal() {
   document.getElementById('golf-fav-modal').classList.remove('open');
+  if (!document.querySelector('.modal-overlay.open')) document.body.style.overflow = '';
 }
 
 function switchGolfFavDraw(draw) {
