@@ -2644,7 +2644,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v840';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v841';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22499,6 +22499,49 @@ const GOLF_TOP_LPGA = [
   { name:'Morgane Metraux',      country:'SUI', rank:30 },
 ];
 
+// ── 골프 경기장 하드코딩 맵 (ESPN API venue 미지원) ────────────────
+const GOLF_VENUE_MAP = {
+  // ── PGA Tour (고정 개최지) ──────────────────────────────────────
+  'masters':                   { course:'Augusta National Golf Club',        address:'Augusta, Georgia, USA' },
+  'travelers championship':    { course:'TPC River Highlands',               address:'Cromwell, Connecticut, USA' },
+  'the players championship':  { course:'TPC Sawgrass',                      address:'Ponte Vedra Beach, Florida, USA' },
+  'arnold palmer invitational':{ course:'Bay Hill Club & Lodge',             address:'Orlando, Florida, USA' },
+  'genesis invitational':      { course:'Riviera Country Club',              address:'Pacific Palisades, California, USA' },
+  'at&t pebble beach':         { course:'Pebble Beach Golf Links',           address:'Pebble Beach, California, USA' },
+  'rbc heritage':              { course:'Harbour Town Golf Links',           address:'Hilton Head Island, South Carolina, USA' },
+  'memorial tournament':       { course:'Muirfield Village Golf Club',       address:'Dublin, Ohio, USA' },
+  'zurich classic':            { course:'TPC Louisiana',                     address:'Avondale, Louisiana, USA' },
+  'john deere classic':        { course:'TPC Deere Run',                     address:'Silvis, Illinois, USA' },
+  'wyndham championship':      { course:'Sedgefield Country Club',           address:'Greensboro, North Carolina, USA' },
+  'sony open':                 { course:'Waialae Country Club',              address:'Honolulu, Hawaii, USA' },
+  'farmers insurance':         { course:'Torrey Pines Golf Course',          address:'La Jolla, California, USA' },
+  'waste management':          { course:'TPC Scottsdale',                    address:'Scottsdale, Arizona, USA' },
+  'valspar championship':      { course:'Innisbrook Resort',                 address:'Palm Harbor, Florida, USA' },
+  'rbc canadian open':         { course:'Hamilton Golf & Country Club',      address:'Ancaster, Ontario, Canada' },
+  'bmw championship':          { course:'Aronimink Golf Club',               address:'Newtown Square, Pennsylvania, USA' },
+  // ── LPGA Tour (고정 개최지) ─────────────────────────────────────
+  'evian championship':        { course:'Evian Resort Golf Club',            address:'Évian-les-Bains, France' },
+  'chevron championship':      { course:'The Club at Carlton Woods',         address:'The Woodlands, Texas, USA' },
+  'lpga international':        { course:'LPGA International',                address:'Daytona Beach, Florida, USA' },
+  'cpkc women\'s open':        { course:'Calgary Golf & Country Club',       address:'Calgary, Alberta, Canada' },
+  'dow championship':          { course:'Midland Country Club',              address:'Midland, Michigan, USA' },
+  'cognizant founders cup':    { course:'Upper Montclair Country Club',      address:'Clifton, New Jersey, USA' },
+  // ── DP World Tour ───────────────────────────────────────────────
+  'scottish open':             { course:'The Renaissance Club',              address:'North Berwick, Scotland, UK' },
+  'irish open':                { course:'Royal County Down Golf Club',       address:'Newcastle, County Down, Ireland' },
+  'italian open':              { course:'Marco Simone Golf Club',            address:'Rome, Italy' },
+  'spanish open':              { course:'Club de Campo Villa de Madrid',     address:'Madrid, Spain' },
+  'dutch open':                { course:'Bernardus Golf',                    address:'Cromvoirt, Netherlands' },
+};
+
+function _getGolfVenueInfo(tournamentName) {
+  const n = (tournamentName || '').toLowerCase();
+  for (const [key, val] of Object.entries(GOLF_VENUE_MAP)) {
+    if (n.includes(key)) return val;
+  }
+  return null;
+}
+
 // ── 대회 등급 스타일 ──────────────────────────────────────────────
 const GOLF_LEVEL_STYLE = {
   major:     { bg:'linear-gradient(135deg,#fef9c3,#fde68a)', border:'#f59e0b', badge:'🏆 Major',    badgeBg:'#f59e0b', color:'#78350f' },
@@ -22614,11 +22657,12 @@ function renderGolfTournamentSection() {
       style="flex-shrink:0;background:rgba(255,255,255,0.6);border:1.5px solid ${xs.border};border-radius:16px;padding:3px 10px;font-size:0.68rem;font-weight:700;color:${xs.color};cursor:pointer;white-space:nowrap">${xs.badge} ${x.shortName || x.name} ▶</button>`;
   }).join('');
 
-  // venue 정보 — venueCity 없으면 venueName 전체에서 파싱
+  // venue 정보 — 하드코딩 맵 우선, 없으면 ESPN 데이터, 없으면 대회명 fallback
+  const _venueInfo = _getGolfVenueInfo(t.name);
   const _fullVenue = t.venueName || '';
   const _parts     = _fullVenue.split(',').map(p => p.trim()).filter(Boolean);
-  const courseName = t.venueCity    || _parts[0] || '';
-  const location   = t.venueCountry || _parts.slice(1).join(', ') || '';
+  const courseName = (_venueInfo && _venueInfo.course)  || t.venueCity    || _parts[0] || '';
+  const location   = (_venueInfo && _venueInfo.address) || t.venueCountry || _parts.slice(1).join(', ') || '';
   const mapQuery   = encodeURIComponent(courseName ? `${courseName}${location ? ', ' + location : ''}` : t.name);
   const mapUrl     = `https://maps.google.com/?q=${mapQuery}`;
 
