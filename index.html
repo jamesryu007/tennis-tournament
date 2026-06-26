@@ -828,26 +828,19 @@ const firebaseConfig = {
   <!-- 테니스 패널 -->
   <div id="sport-panel-tennis">
 
-  <!-- 대회 정보 + 탭 통합 블록 -->
-  <div id="atp-tournament-card" style="margin-bottom:12px">
-    <div class="rank-banner" style="margin-bottom:0;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between;padding:18px 16px 14px">
-      <div>
-        <div style="display:flex;align-items:center;gap:8px"><span class="live-badge live-badge-lg">LIVE</span><i style="font-size:0.82rem;font-weight:400;font-style:italic;color:rgba(255,255,255,0.85)">Dive into the global <span style="color:#ef4444;font-weight:700">live</span>!</i></div>
-      </div>
-      <button onclick="openFavPlayerModal()" style="background:rgba(255,255,255,0.18);border:1.5px solid rgba(255,255,255,0.4);border-radius:20px;padding:4px 11px;font-size:0.75rem;font-weight:700;color:#fff;cursor:pointer">⭐ Ranking</button>
+  <!-- 대회 카드 (골프와 동일한 구조) -->
+  <div id="atp-tourney-info" style="margin-bottom:12px">
+    <div id="atp-loading-msg" style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px 14px;text-align:center;color:#94a3b8;font-size:0.85rem">
+      대회 정보를 불러오는 중...<br>
+      <button id="atp-loading-retry" onclick="triggerAtpRefresh()" style="display:none;margin-top:10px;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6px 16px;font-size:0.8rem;cursor:pointer">🔄 직접 가져오기</button>
     </div>
-    <!-- 탭: 헤더 바로 아래 연결 -->
-    <div id="atp-tab-container" style="display:flex;background:rgba(55,40,120,0.85);padding:4px;border-radius:0 0 12px 12px">
-      <button class="atp-tab active" id="atp-tab-draw" onclick="switchAtpTab('draw')">🎾 대진표</button>
-      <button class="atp-tab"        id="atp-tab-bet"  onclick="switchAtpTab('bet')">🎯 베팅</button>
-      <button class="atp-tab"        id="atp-tab-news" onclick="switchAtpTab('news')">🔥 <span style="color:#fca5a5">Hot</span> News<span id="news-new-badge" style="display:none;margin-left:4px;background:#ef4444;color:#fff;font-size:0.6rem;font-weight:800;padding:1px 5px;border-radius:8px;vertical-align:middle;line-height:1.5">NEW</span></button>
-    </div>
-    <!-- 대회 카드: 서브탭 아래 -->
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;margin-top:12px;padding:10px 14px">
-      <div id="atp-tourney-info">
-        <div id="atp-loading-msg" style="text-align:center;padding:12px 0;color:#94a3b8;font-size:0.85rem">대회 정보를 불러오는 중...<br><button id="atp-loading-retry" onclick="triggerAtpRefresh()" style="display:none;margin-top:10px;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6px 16px;font-size:0.8rem;cursor:pointer">🔄 직접 가져오기</button></div>
-      </div>
-    </div>
+  </div>
+
+  <!-- 서브탭 (대진표 / 베팅 / Hot News) -->
+  <div id="atp-tab-container" style="display:flex;background:rgba(55,40,120,0.85);padding:4px;border-radius:12px;margin-bottom:12px">
+    <button class="atp-tab active" id="atp-tab-draw" onclick="switchAtpTab('draw')">🎾 대진표</button>
+    <button class="atp-tab"        id="atp-tab-bet"  onclick="switchAtpTab('bet')">🎯 베팅</button>
+    <button class="atp-tab"        id="atp-tab-news" onclick="switchAtpTab('news')">🔥 <span style="color:#fca5a5">Hot</span> News<span id="news-new-badge" style="display:none;margin-left:4px;background:#ef4444;color:#fff;font-size:0.6rem;font-weight:800;padding:1px 5px;border-radius:8px;vertical-align:middle;line-height:1.5">NEW</span></button>
   </div>
 
   <!-- 대진표 탭 -->
@@ -2644,7 +2637,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v842';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v843';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11531,27 +11524,42 @@ function renderTourneyInfoHtml(t, ended) {
   const venueInfo  = getVenueInfo(t);
   const venueName  = venueInfo ? venueInfo.venueName : (t.venueName || '');
   const address    = venueInfo ? venueInfo.address   : [t.venueCity, t.venueCountry].filter(Boolean).join(', ');
-  const mapsQuery  = encodeURIComponent(venueInfo ? venueInfo.address : `${venueName} ${address}`.trim());
+  // 지도 검색: 경기장명 + 주소 포함
+  const mapsQuery  = encodeURIComponent(venueName ? `${venueName}, ${address}` : (address || t.name || ''));
   const mapsUrl    = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
 
   return `
-    <div style="background:${style.bg};border:1.5px solid ${style.border};border-radius:14px;padding:12px 14px;margin-bottom:4px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
-        <span style="background:${style.badgeBg};color:${style.badgeColor};font-size:0.88rem;font-weight:900;padding:4px 14px;border-radius:10px;letter-spacing:2px;font-style:italic">${style.badge}</span>
-        ${ended ? '<span style="background:#64748b;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:10px">종료</span>' : ''}
-      </div>
-      <div style="font-size:0.95rem;font-weight:800;color:${style.color};margin-bottom:4px">${displayName}</div>
-      <div style="font-size:0.76rem;color:#64748b;margin-bottom:2px">📅 ${startDate}${endDate && endDate !== startDate ? ' ~ ' + endDate : ''}</div>
-      ${venueName ? `<div style="font-size:0.76rem;font-weight:600;color:#475569;margin-bottom:1px">🏟️ ${venueName}</div>` : ''}
-      <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📍 ${address || '경기장 정보 없음'}</div>
-      <div style="display:flex;gap:7px;flex-wrap:wrap">
-        <a href="${mapsUrl}" target="_blank" rel="noopener"
-           style="display:inline-flex;align-items:center;gap:5px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:20px;padding:5px 13px;font-size:0.75rem;font-weight:700;color:#166534;text-decoration:none">
-          🗺️ 지도보기
-        </a>
-        ${!ended ? `<button onclick="triggerAtpRefresh()" style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:20px;padding:5px 11px;font-size:0.75rem;font-weight:600;color:#64748b;cursor:pointer">🔄 새로고침</button>` : ''}
-        ${!ended ? `<button onclick="openBetOpenModal()" style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:20px;padding:5px 11px;font-size:0.75rem;font-weight:700;color:#92400e;cursor:pointer">🎯 베팅 오픈</button>` : ''}
-        ${isAdmin() && !ended ? `<button onclick="openLoadHistoricalModal()" style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:20px;padding:5px 11px;font-size:0.75rem;font-weight:600;color:#166534;cursor:pointer">📅 날짜 로드</button>` : ''}
+    <div style="background:${style.bg};border:1.5px solid ${style.border};border-radius:14px;padding:12px 14px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+        <div style="min-width:0;flex:1">
+          <!-- 배지 행 -->
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:4px">
+            <span style="background:${style.badgeBg};color:${style.badgeColor};font-size:0.82rem;font-weight:900;padding:3px 12px;border-radius:10px;letter-spacing:1px;font-style:italic">${style.badge}</span>
+            ${ended
+              ? '<span style="background:#64748b;color:#fff;font-size:0.65rem;font-weight:700;padding:2px 7px;border-radius:8px">종료</span>'
+              : '<span class="live-badge" style="font-size:0.62rem;padding:2px 7px">LIVE</span>'}
+          </div>
+          <!-- 대회명 -->
+          <div style="font-size:0.95rem;font-weight:800;color:${style.color};margin-bottom:5px">${displayName}</div>
+          <!-- 일정 -->
+          <div style="font-size:0.76rem;color:#64748b;margin-bottom:2px">📅 ${startDate}${endDate && endDate !== startDate ? ' ~ ' + endDate : ''}</div>
+          <!-- 경기장명 -->
+          ${venueName ? `<div style="font-size:0.76rem;font-weight:600;color:#475569;margin-bottom:1px">🏟️ ${venueName}</div>` : ''}
+          <!-- 위치 + 지도보기 인라인 -->
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+            ${address ? `<span style="font-size:0.74rem;color:#64748b">📍 ${address}</span>` : ''}
+            <a href="${mapsUrl}" target="_blank" rel="noopener"
+               style="font-size:0.72rem;font-weight:700;color:${style.color};text-decoration:none;background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:10px;padding:3px 10px;white-space:nowrap">🗺️ 지도보기</a>
+          </div>
+          <!-- 버튼들 -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${!ended ? `<button onclick="triggerAtpRefresh()" style="background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:10px;padding:4px 10px;font-size:0.72rem;font-weight:600;color:${style.color};cursor:pointer">🔄 새로고침</button>` : ''}
+            ${!ended ? `<button onclick="openBetOpenModal()" style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:4px 10px;font-size:0.72rem;font-weight:700;color:#92400e;cursor:pointer">🎯 베팅 오픈</button>` : ''}
+            ${isAdmin() && !ended ? `<button onclick="openLoadHistoricalModal()" style="background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:10px;padding:4px 10px;font-size:0.72rem;font-weight:600;color:${style.color};cursor:pointer">📅 날짜 로드</button>` : ''}
+          </div>
+        </div>
+        <!-- 관심선수 버튼 -->
+        <button onclick="openFavPlayerModal()" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:16px;padding:5px 10px;font-size:0.72rem;font-weight:700;color:${style.color};cursor:pointer;white-space:nowrap">⭐ 관심선수</button>
       </div>
     </div>
   `;
@@ -22615,15 +22623,21 @@ function _teardownGolfListeners() {
 // ── 페이지 전체 렌더 ──────────────────────────────────────────────
 function renderGolfPage() {
   // 선택 대회 없거나 사라진 경우 자동 선택 (LIVE > 예정 > 종료)
+  const stateO = { in:0, pre:1, post:2 };
+  const levelO = { major:0, pga_tour:1, lpga_tour:2, dp_world:3 };
+  const _golfSort = (a, b) => (stateO[a.state] ?? 3) * 10 + (levelO[a.level] ?? 9) - (stateO[b.state] ?? 3) * 10 - (levelO[b.level] ?? 9);
+  const _allT = Object.values(golfState.tournaments).sort(_golfSort);
+
   if (!golfState.selectedId || !golfState.tournaments[golfState.selectedId]) {
-    const stateO = { in:0, pre:1, post:2 };
-    const levelO = { major:0, pga_tour:1, lpga_tour:2, dp_world:3 };
-    const sorted = Object.values(golfState.tournaments).sort((a, b) => {
-      const sa = (stateO[a.state] ?? 3) * 10 + (levelO[a.level] ?? 9);
-      const sb = (stateO[b.state] ?? 3) * 10 + (levelO[b.level] ?? 9);
-      return sa - sb;
-    });
-    golfState.selectedId = sorted[0] ? sorted[0].id : null;
+    // 선택된 대회 없으면 자동 선택
+    golfState.selectedId = _allT[0] ? _allT[0].id : null;
+  } else {
+    // 선택된 대회가 종료됐는데 진행 중 대회가 있으면 자동 전환
+    const selT = golfState.tournaments[golfState.selectedId];
+    if (selT && selT.state === 'post') {
+      const activeT = _allT.find(t => t.state === 'in' || t.state === 'pre');
+      if (activeT) golfState.selectedId = activeT.id;
+    }
   }
   renderGolfTournamentSection();
   renderGolfSelected();
