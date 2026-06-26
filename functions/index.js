@@ -1939,6 +1939,21 @@ function _getGolfLevel(name, tour) {
   return tour === 'lpga' ? 'lpga_tour' : 'pga_tour';
 }
 
+async function _fetchGolfCourseInfo(tour, eventId) {
+  try {
+    const res    = await fetch(`https://sports.core.api.espn.com/v2/sports/golf/leagues/${tour}/events/${eventId}`);
+    const d      = await res.json();
+    const course = (d.courses || [])[0];
+    if (!course) return null;
+    const addr = course.address || {};
+    return {
+      venueName:    course.name || '',
+      venueCity:    [addr.city, addr.state].filter(Boolean).join(', '),
+      venueCountry: addr.country || '',
+    };
+  } catch(e) { return null; }
+}
+
 async function _fetchAndParseGolfTour(tour) {
   const res  = await fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tour}/scoreboard`);
   const json = await res.json();
@@ -1952,14 +1967,6 @@ async function _fetchAndParseGolfTour(tour) {
     const detail = ev.status?.type?.detail || ev.status?.detail || '';
     const roundM = detail.match(/Round\s*(\d)/i);
     const round  = roundM ? parseInt(roundM[1]) : 0;
-
-    let venueName = '', venueCity = '', venueCountry = '';
-    if (comp.venue) {
-      venueName = comp.venue.fullName || '';
-      const parts = venueName.split(',').map(s => s.trim());
-      venueCity    = parts[0] || '';
-      venueCountry = parts.slice(1).join(', ').trim();
-    }
 
     const leaderboard = (comp.competitors || [])
       .sort((a, b) => (a.sortOrder || 9999) - (b.sortOrder || 9999))
@@ -1982,15 +1989,22 @@ async function _fetchAndParseGolfTour(tour) {
       level:       _getGolfLevel(ev.name || '', tour),
       state,
       round,
-      venueName,
-      venueCity,
-      venueCountry,
+      venueName:   '',
+      venueCity:   '',
+      venueCountry:'',
       startDate:   ev.date        || '',
       endDate:     ev.endDate     || '',
       leaderboard,
       updatedAt:   new Date().toISOString(),
     });
   }
+
+  // ESPN core API에서 골프장 정보 병렬 fetch
+  await Promise.all(results.map(async t => {
+    const venue = await _fetchGolfCourseInfo(tour, t.id);
+    if (venue) { t.venueName = venue.venueName; t.venueCity = venue.venueCity; t.venueCountry = venue.venueCountry; }
+  }));
+
   return results;
 }
 

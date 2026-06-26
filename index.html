@@ -2644,7 +2644,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v841';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v842';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22520,6 +22520,7 @@ const GOLF_VENUE_MAP = {
   'rbc canadian open':         { course:'Hamilton Golf & Country Club',      address:'Ancaster, Ontario, Canada' },
   'bmw championship':          { course:'Aronimink Golf Club',               address:'Newtown Square, Pennsylvania, USA' },
   // ── LPGA Tour (고정 개최지) ─────────────────────────────────────
+  'kpmg women':                { course:'Sahalee Country Club',              address:'Sammamish, Washington, USA' },
   'evian championship':        { course:'Evian Resort Golf Club',            address:'Évian-les-Bains, France' },
   'chevron championship':      { course:'The Club at Carlton Woods',         address:'The Woodlands, Texas, USA' },
   'lpga international':        { course:'LPGA International',                address:'Daytona Beach, Florida, USA' },
@@ -22661,8 +22662,9 @@ function renderGolfTournamentSection() {
   const _venueInfo = _getGolfVenueInfo(t.name);
   const _fullVenue = t.venueName || '';
   const _parts     = _fullVenue.split(',').map(p => p.trim()).filter(Boolean);
-  const courseName = (_venueInfo && _venueInfo.course)  || t.venueCity    || _parts[0] || '';
-  const location   = (_venueInfo && _venueInfo.address) || t.venueCountry || _parts.slice(1).join(', ') || '';
+  // ESPN 동적 데이터 우선 → 하드코딩 맵 fallback
+  const courseName = t.venueCity    || (_venueInfo && _venueInfo.course)  || _parts[0] || '';
+  const location   = t.venueCountry || (_venueInfo && _venueInfo.address) || _parts.slice(1).join(', ') || '';
   const mapQuery   = encodeURIComponent(courseName ? `${courseName}${location ? ', ' + location : ''}` : t.name);
   const mapUrl     = `https://maps.google.com/?q=${mapQuery}`;
 
@@ -23053,15 +23055,27 @@ function _parseGolfEvents(events, tour) {
   }).filter(Boolean);
 }
 
+// ── ESPN core API에서 골프장 정보 fetch ───────────────────────────
+async function _fetchGolfVenue(tour, eventId) {
+  try {
+    const res  = await fetch(`https://sports.core.api.espn.com/v2/sports/golf/leagues/${tour}/events/${eventId}`, { mode:'cors' });
+    const d    = await res.json();
+    const course = (d.courses || [])[0];
+    if (!course) return null;
+    const addr = course.address || {};
+    return {
+      venueName:   course.name || '',
+      venueCity:   [addr.city, addr.state].filter(Boolean).join(', '),
+      venueCountry: addr.country || '',
+    };
+  } catch(e) { return null; }
+}
+
 // ── ESPN 직접 fetch → Firebase 저장 ──────────────────────────────
 async function triggerGolfRefresh() {
   if (!db) return;
   const btn = document.querySelector('#golf-admin-bar button');
-  const cardsRow = document.getElementById('golf-cards-row');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ 불러오는 중...'; }
-  if (cardsRow && !Object.keys(golfState.tournaments).length) {
-    cardsRow.innerHTML = '<div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.82rem;width:100%">⏳ ESPN에서 데이터를 가져오는 중...</div>';
-  }
   try {
     const [pgaRes, lpgaRes] = await Promise.all([
       fetch('https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard',  { mode:'cors' }),
@@ -23072,15 +23086,17 @@ async function triggerGolfRefresh() {
       ..._parseGolfEvents(pgaJson.events,  'pga'),
       ..._parseGolfEvents(lpgaJson.events, 'lpga'),
     ];
-    if (!tournaments.length) {
-      if (cardsRow) cardsRow.innerHTML = '<div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.82rem;width:100%">현재 진행 중인 대회가 없습니다.</div>';
-      return;
-    }
+    if (!tournaments.length) return;
+
+    // ESPN core API에서 골프장 정보 병렬 fetch
+    await Promise.all(tournaments.map(async t => {
+      const venue = await _fetchGolfVenue(t.tour, t.id);
+      if (venue) { t.venueName = venue.venueName; t.venueCity = venue.venueCity; t.venueCountry = venue.venueCountry; }
+    }));
+
     const updates = { 'jmt/golfData/updatedAt': new Date().toISOString() };
     for (const t of tournaments) updates[`jmt/golfData/tournaments/${t.id}`] = t;
     await db.ref().update(updates).catch(e => console.error('golfData write:', e));
-    // Firebase 리스너가 자동으로 renderGolfPage() 호출
-    // 뉴스도 같이 갱신
     _triggerGolfNewsRefresh();
   } catch(e) {
     alert('골프 데이터 불러오기 실패: ' + (e.message || e));
