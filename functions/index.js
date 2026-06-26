@@ -392,12 +392,17 @@ async function fetchAndParseAtpData() {
     ? `${ev.name || ''} · ${venueCity}`
     : (ev.name || '');
 
+  // 상금 정보 (ESPN 제공 시)
+  const purse = ev.displayPurse || ev.purse
+    || firstComp?.displayPurse || firstComp?.purse || '';
+
   const tournamentInfo = {
     id:           ev.id        || '',
     name:         ev.name      || '',
     shortName:    ev.shortName || '',
     displayName,
     tier,
+    purse:        purse ? String(purse) : '',
     venueName:    venueFullName,
     venueCity,
     venueCountry,
@@ -443,6 +448,53 @@ async function fetchAndParseAtpData() {
   return { tournamentInfo, matches, isGrandSlam: tier === 'grandslam', ev };
 }
 
+// ── 테니스 대회 히스토리 아카이브 ────────────────────────────────
+async function _archiveTennisHistory(tournamentInfo, matches) {
+  try {
+    if (!tournamentInfo || !tournamentInfo.id) return;
+    // 결승 찾기 — 남자부 Final (STATUS_FINAL + winner 확정)
+    const matchArr = Array.isArray(matches) ? matches : Object.values(matches || {});
+    const final = matchArr.find(m => {
+      const rn = (m.roundName || '').toLowerCase();
+      return (rn === 'final' || rn === 'the final')
+        && m.status === 'STATUS_FINAL'
+        && m.gender !== 'women'
+        && (m.player1Winner === true || m.player2Winner === true);
+    });
+    if (!final) { console.log('_archiveTennisHistory: no final found, skipping'); return; }
+
+    const winner   = final.player1Winner
+      ? { name: final.player1Name, country: final.player1Country, score: final.player1Score }
+      : { name: final.player2Name, country: final.player2Country, score: final.player2Score };
+    const runnerUp = final.player1Winner
+      ? { name: final.player2Name, country: final.player2Country, score: final.player2Score }
+      : { name: final.player1Name, country: final.player1Country, score: final.player1Score };
+
+    const year    = tournamentInfo.startDate
+      ? new Date(tournamentInfo.startDate).getFullYear()
+      : new Date().getFullYear();
+    const safeKey = `${year}_${tournamentInfo.id}`;
+
+    const existing = await db.ref(`jmt/tournamentHistory/tennis/${year}/${safeKey}`).once('value');
+    if (existing.val()) { console.log(`_archiveTennisHistory: already exists ${safeKey}`); return; }
+
+    await db.ref(`jmt/tournamentHistory/tennis/${year}/${safeKey}`).set({
+      id:        tournamentInfo.id,
+      name:      tournamentInfo.name,
+      tier:      tournamentInfo.tier,
+      startDate: tournamentInfo.startDate || '',
+      endDate:   tournamentInfo.endDate   || '',
+      purse:     tournamentInfo.purse     || '',
+      winner,
+      runnerUp,
+      savedAt:   new Date().toISOString(),
+    });
+    console.log(`_archiveTennisHistory: saved ${tournamentInfo.name} (${year})`);
+  } catch (e) {
+    console.error('_archiveTennisHistory error:', e);
+  }
+}
+
 // ── Grand Slam 저장 헬퍼 ─────────────────────────────────────────
 async function saveGrandSlamIfNeeded(tournamentInfo, matches, isGrandSlam) {
   if (!isGrandSlam || !tournamentInfo || !tournamentInfo.id) return;
@@ -482,6 +534,11 @@ async function saveAtpData(tournamentInfo, matches, isGrandSlam) {
       console.log(`saveAtpData: tournament changed but bet closed within 24h — skipping update`);
       return;
     }
+
+    // 이전 대회 히스토리 저장 (결승 완료된 경우만)
+    const oldMatchesSnap = await db.ref('jmt/atpData/matches').once('value');
+    const oldMatches = oldMatchesSnap.val() || {};
+    await _archiveTennisHistory(current, oldMatches);
 
     console.log(`Tournament changed: ${current.id} → ${tournamentInfo.id}. Clearing bets.`);
     await db.ref('jmt/atpBets').remove();
@@ -2017,6 +2074,9 @@ async function _fetchAndParseGolfTour(tour) {
         isCut:   (c.status?.type?.name  || '').toLowerCase().includes('cut'),
       }));
 
+    // 상금 정보 (ESPN 제공 시)
+    const evPurse = comp.displayPurse || comp.purse || ev.displayPurse || ev.purse || '';
+
     results.push({
       id:          ev.id          || '',
       name:        ev.name        || '',
@@ -2025,6 +2085,7 @@ async function _fetchAndParseGolfTour(tour) {
       level:       _getGolfLevel(ev.name || '', tour),
       state,
       round,
+      purse:       evPurse ? String(evPurse) : '',
       venueName:   '',
       venueCity:   '',
       venueCountry:'',
@@ -2044,8 +2105,56 @@ async function _fetchAndParseGolfTour(tour) {
   return results;
 }
 
+// ── 골프 대회 히스토리 아카이브 ──────────────────────────────────
+async function _archiveGolfHistory(t) {
+  try {
+    if (!t || !t.id) return;
+    const top10 = (t.leaderboard || [])
+      .filter(p => p.name && !p.isCut)
+      .slice(0, 10)
+      .map(p => ({ rank: p.rank || 0, name: p.name, country: p.country || '', total: p.total || 'E' }));
+    if (!top10.length) { console.log(`_archiveGolfHistory: no leaderboard for ${t.name}, skipping`); return; }
+
+    const year    = t.startDate ? new Date(t.startDate).getFullYear() : new Date().getFullYear();
+    const safeKey = `${year}_${t.id}`;
+
+    const existing = await db.ref(`jmt/tournamentHistory/golf/${t.tour}/${year}/${safeKey}`).once('value');
+    if (existing.val()) { console.log(`_archiveGolfHistory: already exists ${safeKey}`); return; }
+
+    await db.ref(`jmt/tournamentHistory/golf/${t.tour}/${year}/${safeKey}`).set({
+      id:        t.id,
+      name:      t.name,
+      tour:      t.tour,
+      level:     t.level     || 'pga_tour',
+      startDate: t.startDate || '',
+      endDate:   t.endDate   || '',
+      purse:     t.purse     || '',
+      top10,
+      savedAt:   new Date().toISOString(),
+    });
+    console.log(`_archiveGolfHistory: saved ${t.name} (${year})`);
+  } catch (e) {
+    console.error('_archiveGolfHistory error:', e);
+  }
+}
+
 async function _saveGolfData(tournaments) {
   if (!tournaments.length) { console.log('_saveGolfData: no tournaments, keeping existing'); return; }
+
+  // 사라진 post 대회 → 히스토리 저장
+  try {
+    const existingSnap = await db.ref('jmt/golfData/tournaments').once('value');
+    const existing = existingSnap.val() || {};
+    const newIds = new Set(tournaments.map(t => t.id));
+    for (const [id, t] of Object.entries(existing)) {
+      if (!newIds.has(id) && t.state === 'post') {
+        await _archiveGolfHistory(t);
+      }
+    }
+  } catch (e) {
+    console.error('_saveGolfData history check error:', e);
+  }
+
   const tournamentsObj = {};
   for (const t of tournaments) tournamentsObj[t.id] = t;
   await db.ref('jmt/golfData/tournaments').set(tournamentsObj);

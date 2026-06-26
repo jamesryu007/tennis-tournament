@@ -796,16 +796,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -874,6 +874,11 @@ const firebaseConfig = {
     <div id="atp-bet-history-btn" style="display:none;text-align:right;margin-top:6px">
       <button onclick="openAtpBetsHistoryModal()" style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:16px;padding:5px 12px;font-size:0.75rem;font-weight:600;color:#475569;cursor:pointer">📜 베팅 히스토리</button>
     </div>
+  </div>
+
+  <!-- 테니스 대회 히스토리 버튼 -->
+  <div id="tennis-history-btn-wrap" style="text-align:center;padding:10px 0 4px">
+    <button onclick="openTournamentHistory('tennis')" style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:20px;padding:6px 16px;font-size:0.78rem;font-weight:700;color:#475569;cursor:pointer">🏆 대회 히스토리</button>
   </div>
 
   </div><!-- /sport-panel-tennis -->
@@ -995,6 +1000,25 @@ const firebaseConfig = {
     <div id="golf-fav-list" style="overflow-y:auto;overscroll-behavior:contain;flex:1;padding:0 18px 10px"></div>
     <div style="padding:12px 18px 20px;flex-shrink:0;border-top:1px solid #f1f5f9">
       <button onclick="saveGolfFavPlayers()" class="btn btn-primary btn-full">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 대회 히스토리 모달 -->
+<div id="tournament-history-modal" class="modal-overlay">
+  <div class="modal-sheet" style="height:88vh;display:flex;flex-direction:column">
+    <div class="modal-handle"></div>
+    <div style="padding:14px 18px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div style="font-size:1rem;font-weight:800;color:#1e293b">🏆 대회 히스토리</div>
+      <button onclick="closeTournamentHistory()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8">✕</button>
+    </div>
+    <!-- 투어 선택 (골프는 PGA/LPGA, 테니스는 숨김) -->
+    <div id="history-tour-tabs" style="padding:0 18px 8px;flex-shrink:0;display:flex;gap:6px"></div>
+    <!-- 연도 필터 -->
+    <div id="history-year-tabs" style="overflow-x:auto;padding:0 18px 8px;flex-shrink:0;display:flex;gap:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none"></div>
+    <!-- 목록 -->
+    <div id="history-list" style="overflow-y:auto;overscroll-behavior:contain;flex:1;padding:0 18px 16px">
+      <div style="text-align:center;padding:32px 0;color:#94a3b8;font-size:0.85rem">불러오는 중...</div>
     </div>
   </div>
 </div>
@@ -2669,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v868';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v869';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11578,7 +11602,7 @@ function renderTourneyInfoHtml(t, ended) {
             <button onclick="openTourneyInfoByName('${displayName.replace(/'/g, '\\\'').replace(/"/g, '&quot;')}','${_tennisTour}')" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:12px;padding:2px 8px;font-size:0.65rem;font-weight:700;color:${style.color};cursor:pointer;white-space:nowrap">📋 대회정보</button>
           </div>
           <!-- 일정 -->
-          <div style="font-size:0.82rem;color:#64748b;margin-bottom:2px">📅 ${startDate}${endDate && endDate !== startDate ? ' ~ ' + endDate : ''}</div>
+          <div style="font-size:0.82rem;color:#64748b;margin-bottom:2px">📅 ${startDate}${endDate && endDate !== startDate ? ' ~ ' + endDate : ''}${t.purse ? ` · 💰 ${t.purse}` : ''}</div>
           <!-- 경기장명 -->
           ${venueName ? `<div style="font-size:0.82rem;font-weight:600;color:#475569;margin-bottom:1px">🏟️ ${venueName}</div>` : ''}
           <!-- 위치 + 지도보기 인라인 -->
@@ -22747,8 +22771,8 @@ function renderGolfTournamentSection() {
           <span style="font-size:0.95rem;font-weight:800;color:${s.color};line-height:1.3">${t.name}</span>
           <button onclick="openTourneyInfo('${t.id}')" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:12px;padding:2px 8px;font-size:0.65rem;font-weight:700;color:${s.color};cursor:pointer;white-space:nowrap">📋 대회정보</button>
         </div>
-        <!-- 일정 -->
-        ${dates ? `<div style="font-size:0.82rem;color:#64748b;margin-bottom:2px">📅 ${dates}</div>` : ''}
+        <!-- 일정 + 상금 -->
+        ${dates ? `<div style="font-size:0.82rem;color:#64748b;margin-bottom:2px">📅 ${dates}${t.purse ? ` · 💰 ${t.purse}` : ''}</div>` : ''}
         <!-- 골프장명 -->
         ${courseName ? `<div style="font-size:0.82rem;font-weight:600;color:#475569;margin-bottom:1px">⛳ ${courseName}</div>` : ''}
         <!-- 위치 + 지도보기 (인라인) -->
@@ -22888,6 +22912,184 @@ function _initTourneyInfoSwipe(modal, content) {
 function closeTourneyInfoModal() {
   document.getElementById('tourney-info-modal').classList.remove('open');
   if (!document.querySelector('.modal-overlay.open')) document.body.style.overflow = '';
+}
+
+// ══ 대회 히스토리 ══════════════════════════════════════════════
+const _historyState = { type: null, tour: null, data: null, year: 'all' };
+
+async function openTournamentHistory(type, tour) {
+  _historyState.type = type;
+  _historyState.tour = tour || (type === 'tennis' ? 'atp' : 'pga');
+  _historyState.data = null;
+  _historyState.year = 'all';
+
+  const modal  = document.getElementById('tournament-history-modal');
+  const listEl = document.getElementById('history-list');
+  modal.classList.add('open');
+  _lockModalScroll(modal, listEl);
+
+  // 투어 탭 (골프만)
+  const tourTabsEl = document.getElementById('history-tour-tabs');
+  if (type === 'golf') {
+    tourTabsEl.style.display = 'flex';
+    _renderHistoryTourTabs();
+  } else {
+    tourTabsEl.style.display = 'none';
+    tourTabsEl.innerHTML = '';
+  }
+
+  document.getElementById('history-year-tabs').innerHTML = '';
+  listEl.innerHTML = '<div style="text-align:center;padding:32px 0;color:#94a3b8;font-size:0.85rem">불러오는 중...</div>';
+
+  await _loadHistoryData();
+}
+
+function closeTournamentHistory() {
+  const modal = document.getElementById('tournament-history-modal');
+  modal.classList.remove('open');
+  _unlockModalScroll(modal);
+}
+
+function _renderHistoryTourTabs() {
+  const el = document.getElementById('history-tour-tabs');
+  if (!el) return;
+  const tours = [{ k: 'pga', label: '🏌️ PGA' }, { k: 'lpga', label: '🌸 LPGA' }];
+  el.innerHTML = tours.map(({ k, label }) => {
+    const active = k === _historyState.tour;
+    return `<button onclick="_switchHistoryTour('${k}')"
+      style="padding:5px 14px;border-radius:20px;font-size:0.76rem;font-weight:700;cursor:pointer;border:1.5px solid ${active ? '#2563eb' : '#e2e8f0'};background:${active ? '#2563eb' : '#f8fafc'};color:${active ? '#fff' : '#475569'}">${label}</button>`;
+  }).join('');
+}
+
+async function _switchHistoryTour(tour) {
+  _historyState.tour = tour;
+  _historyState.data = null;
+  _historyState.year = 'all';
+  _renderHistoryTourTabs();
+  document.getElementById('history-year-tabs').innerHTML = '';
+  document.getElementById('history-list').innerHTML = '<div style="text-align:center;padding:32px 0;color:#94a3b8;font-size:0.85rem">불러오는 중...</div>';
+  await _loadHistoryData();
+}
+
+async function _loadHistoryData() {
+  try {
+    const { type, tour } = _historyState;
+    const path = type === 'tennis'
+      ? 'jmt/tournamentHistory/tennis'
+      : `jmt/tournamentHistory/golf/${tour}`;
+    const snap = await db.ref(path).once('value');
+    const raw  = snap.val() || {};
+
+    // 연도 → 항목 배열로 평탄화
+    const allEntries = [];
+    for (const [year, entries] of Object.entries(raw)) {
+      for (const entry of Object.values(entries)) {
+        allEntries.push({ ...entry, _year: String(year) });
+      }
+    }
+    allEntries.sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
+    _historyState.data = allEntries;
+    _renderHistoryYearTabs();
+    _renderHistoryList();
+  } catch (e) {
+    document.getElementById('history-list').innerHTML = `<div style="text-align:center;padding:32px 0;color:#ef4444;font-size:0.85rem">데이터 로드 실패</div>`;
+  }
+}
+
+function _renderHistoryYearTabs() {
+  const el = document.getElementById('history-year-tabs');
+  if (!el || !_historyState.data) return;
+  const years = [...new Set(_historyState.data.map(e => e._year))].sort((a, b) => b - a);
+  if (!years.length) { el.innerHTML = ''; return; }
+  const tabs = ['all', ...years];
+  el.innerHTML = tabs.map(y => {
+    const active = y === _historyState.year;
+    const label  = y === 'all' ? '전체' : y + '년';
+    return `<button onclick="switchHistoryYear('${y}')"
+      style="flex-shrink:0;padding:4px 12px;border-radius:20px;font-size:0.74rem;font-weight:700;cursor:pointer;white-space:nowrap;border:1.5px solid ${active ? '#3730a3' : '#e2e8f0'};background:${active ? '#3730a3' : '#fff'};color:${active ? '#fff' : '#475569'}">${label}</button>`;
+  }).join('');
+}
+
+function switchHistoryYear(year) {
+  _historyState.year = year;
+  _renderHistoryYearTabs();
+  _renderHistoryList();
+}
+
+function _renderHistoryList() {
+  const el = document.getElementById('history-list');
+  if (!el || !_historyState.data) return;
+  const { data, year, type } = _historyState;
+  const filtered = year === 'all' ? data : data.filter(e => e._year === year);
+
+  if (!filtered.length) {
+    el.innerHTML = '<div style="text-align:center;padding:32px 0;color:#94a3b8;font-size:0.85rem">히스토리가 없습니다.</div>';
+    return;
+  }
+
+  const fmtDate = d => { try { return new Date(d).toLocaleDateString('ko-KR', { month:'numeric', day:'numeric' }); } catch(e) { return d || ''; } };
+
+  if (type === 'tennis') {
+    el.innerHTML = filtered.map(e => {
+      const tier  = e.tier || 'atp250';
+      const style = (typeof TIER_STYLE !== 'undefined' && TIER_STYLE[tier]) || { badge:'ATP', badgeBg:'#2563eb', badgeColor:'#fff', bg:'#eff6ff', border:'#bfdbfe', color:'#2563eb' };
+      const dates = [e.startDate, e.endDate].filter(Boolean).map(fmtDate).join(' ~ ');
+      const winnerSafe  = (e.winner?.name  || '').replace(/'/g, "\\'");
+      const runnerSafe  = (e.runnerUp?.name || '').replace(/'/g, "\\'");
+      return `<div style="background:${style.bg};border:1.5px solid ${style.border};border-radius:12px;padding:12px 14px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap">
+          <span style="background:${style.badgeBg};color:${style.badgeColor};font-size:0.7rem;font-weight:900;padding:2px 9px;border-radius:8px;font-style:italic">${style.badge}</span>
+          <span style="font-size:0.88rem;font-weight:800;color:${style.color}">${e.name}</span>
+        </div>
+        <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}${e.purse ? ` · 💰 ${e.purse}` : ''}</div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:1rem">🥇</span>
+            <div>
+              <span class="pp-name-link" style="font-size:0.88rem;font-weight:800;color:#1e293b;cursor:pointer" onclick="openPlayerProfile('${winnerSafe}','atp')">${e.winner?.name || '-'}</span>
+              ${e.winner?.country ? `<span style="font-size:0.72rem;color:#94a3b8;margin-left:5px">${e.winner.country}</span>` : ''}
+              ${e.winner?.score ? `<span style="font-size:0.76rem;color:#64748b;margin-left:6px">${e.winner.score}</span>` : ''}
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:1rem">🥈</span>
+            <div>
+              <span class="pp-name-link" style="font-size:0.86rem;font-weight:700;color:#475569;cursor:pointer" onclick="openPlayerProfile('${runnerSafe}','atp')">${e.runnerUp?.name || '-'}</span>
+              ${e.runnerUp?.country ? `<span style="font-size:0.72rem;color:#94a3b8;margin-left:5px">${e.runnerUp.country}</span>` : ''}
+              ${e.runnerUp?.score ? `<span style="font-size:0.76rem;color:#64748b;margin-left:6px">${e.runnerUp.score}</span>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    // 골프
+    const GOLF_STYLE = typeof GOLF_LEVEL_STYLE !== 'undefined' ? GOLF_LEVEL_STYLE : {};
+    el.innerHTML = filtered.map(e => {
+      const s     = GOLF_STYLE[e.level] || GOLF_STYLE.pga_tour || { badge:'PGA', badgeBg:'#16a34a', color:'#166534', bg:'#f0fdf4', border:'#bbf7d0' };
+      const dates = [e.startDate, e.endDate].filter(Boolean).map(fmtDate).join(' ~ ');
+      const top10 = e.top10 || [];
+      const rowsHtml = top10.map((p, i) => {
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+        const pSafe = (p.name || '').replace(/'/g, "\\'");
+        const scoreColor = !p.total || p.total === 'E' ? '#334155' : p.total.startsWith('-') ? '#2563eb' : '#dc2626';
+        return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #f1f5f9${i === top10.length - 1 ? ';border-bottom:none' : ''}">
+          <span style="font-size:0.74rem;font-weight:700;color:#94a3b8;min-width:22px">${medal || (p.rank || i + 1)}</span>
+          <span class="pp-name-link" style="flex:1;font-size:0.84rem;font-weight:${i < 3 ? '800' : '600'};color:#1e293b;cursor:pointer" onclick="openPlayerProfile('${pSafe}','${e.tour === 'lpga' ? 'lpga' : 'pga'}')">${p.name}</span>
+          ${p.country ? `<span style="font-size:0.70rem;color:#94a3b8">${p.country}</span>` : ''}
+          <span style="font-size:0.82rem;font-weight:800;color:${scoreColor};min-width:30px;text-align:right">${p.total || 'E'}</span>
+        </div>`;
+      }).join('');
+      return `<div style="background:${s.bg};border:1.5px solid ${s.border};border-radius:12px;padding:12px 14px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap">
+          <span style="background:${s.badgeBg};color:#fff;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:8px">${s.badge}</span>
+          <span style="font-size:0.88rem;font-weight:800;color:${s.color}">${e.name}</span>
+        </div>
+        <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}${e.purse ? ` · 💰 ${e.purse}` : ''}</div>
+        ${top10.length ? `<div style="background:#fff;border-radius:8px;padding:4px 10px">${rowsHtml}</div>` : '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:4px 0">결과 없음</div>'}
+      </div>`;
+    }).join('');
+  }
 }
 
 // 테니스 대회정보 — name/tour 직접 전달
@@ -23381,7 +23583,8 @@ function renderGolfLeaderboard(t) {
        <span style="font-size:0.74rem;color:#94a3b8;text-align:right">합계</span>
        <span style="font-size:0.74rem;color:#94a3b8;text-align:right">진행</span>`;
 
-  wrap.innerHTML = `${_roundTabsHtml()}<div style="display:grid;grid-template-columns:28px 1fr 56px 42px 46px;gap:4px;padding:8px 14px 6px;border-bottom:1.5px solid #e2e8f0">${headerHtml}</div>${favSection}${rows}${updatedStr ? `<div style="text-align:center;padding:7px 0;font-size:0.62rem;color:#cbd5e1">업데이트 ${updatedStr}</div>` : ''}`;
+  const historyBtnHtml = `<div style="text-align:center;padding:12px 0 6px"><button onclick="openTournamentHistory('golf','${(t.tour || 'pga')}')" style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:20px;padding:6px 16px;font-size:0.78rem;font-weight:700;color:#475569;cursor:pointer">🏆 대회 히스토리</button></div>`;
+  wrap.innerHTML = `${_roundTabsHtml()}<div style="display:grid;grid-template-columns:28px 1fr 56px 42px 46px;gap:4px;padding:8px 14px 6px;border-bottom:1.5px solid #e2e8f0">${headerHtml}</div>${favSection}${rows}${updatedStr ? `<div style="text-align:center;padding:7px 0;font-size:0.62rem;color:#cbd5e1">업데이트 ${updatedStr}</div>` : ''}${historyBtnHtml}`;
 }
 
 // ── 메인 탭 전환 (리더보드 / 뉴스) ───────────────────────────────
