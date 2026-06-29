@@ -2027,9 +2027,12 @@ function _getGolfLevel(name, tour) {
   const n = name.toLowerCase();
   const PGA_MAJORS  = ['masters', 'pga championship', 'u.s. open', 'the open championship'];
   const LPGA_MAJORS = ['chevron championship', "u.s. women's open", "women's pga championship", 'evian championship', "women's british open", 'aia vitality', 'annika driven'];
+  // DP World Tour는 The Open Championship 공동 주최 → major 처리
   const majors = tour === 'lpga' ? LPGA_MAJORS : PGA_MAJORS;
   if (majors.some(m => n.includes(m))) return 'major';
-  return tour === 'lpga' ? 'lpga_tour' : 'pga_tour';
+  if (tour === 'lpga') return 'lpga_tour';
+  if (tour === 'eur')  return 'dp_world';
+  return 'pga_tour';
 }
 
 async function _fetchGolfCourseInfo(tour, eventId) {
@@ -2167,11 +2170,12 @@ exports.fetchGolfData = onSchedule(
   { schedule: '30 */2 * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
   async () => {
     try {
-      const [pga, lpga] = await Promise.all([
+      const [pga, lpga, eur] = await Promise.all([
         _fetchAndParseGolfTour('pga'),
         _fetchAndParseGolfTour('lpga'),
+        _fetchAndParseGolfTour('eur'),
       ]);
-      await _saveGolfData([...pga, ...lpga]);
+      await _saveGolfData([...pga, ...lpga, ...eur]);
     } catch (e) {
       console.error('fetchGolfData error:', e);
     }
@@ -2183,12 +2187,13 @@ exports.refreshGolfData = onCall(
   { region: 'asia-southeast1' },
   async () => {
     try {
-      const [pga, lpga] = await Promise.all([
+      const [pga, lpga, eur] = await Promise.all([
         _fetchAndParseGolfTour('pga'),
         _fetchAndParseGolfTour('lpga'),
+        _fetchAndParseGolfTour('eur'),
       ]);
-      await _saveGolfData([...pga, ...lpga]);
-      return { success: true, count: pga.length + lpga.length };
+      await _saveGolfData([...pga, ...lpga, ...eur]);
+      return { success: true, count: pga.length + lpga.length + eur.length };
     } catch (e) {
       console.error('refreshGolfData error:', e);
       return { success: false, error: e.message };
