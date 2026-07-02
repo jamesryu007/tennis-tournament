@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v872';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v873';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11879,43 +11879,71 @@ function isWtaMatch(m) {
 }
 
 function renderMatchRow(m) {
-  const fav1 = isFavPlayer(m.player1Name);
-  const fav2 = isFavPlayer(m.player2Name);
-  const isDone  = m.status === 'STATUS_FINAL';
-  const score1  = m.player1Score || '';
-  const score2  = m.player2Score || '';
-  const p1Name  = m.player1Name || 'TBD';
-  const p2Name  = m.player2Name || 'TBD';
-  const wta     = isWtaMatch(m);
-
-  const p1Win   = m.player1Winner && isDone;
-  const p2Win   = m.player2Winner && isDone;
+  const fav1   = isFavPlayer(m.player1Name);
+  const fav2   = isFavPlayer(m.player2Name);
+  const isDone = m.status === 'STATUS_FINAL';
+  const p1Name = m.player1Name || 'TBD';
+  const p2Name = m.player2Name || 'TBD';
+  const wta    = isWtaMatch(m);
+  const p1Win  = m.player1Winner && isDone;
+  const p2Win  = m.player2Winner && isDone;
   const tourKey = wta ? 'wta' : 'atp';
   const p1Safe  = p1Name.replace(/'/g, "\\'");
   const p2Safe  = p2Name.replace(/'/g, "\\'");
+
+  // ── 세트 스코어 파싱 ──────────────────────────────────────────
+  let scoreSection = '';
+  if (isDone && (m.player1Score || m.player2Score)) {
+    const s1arr = (m.player1Score || '').trim().split(/\s+/).map(Number).filter(v => !isNaN(v) && v !== '');
+    const s2arr = (m.player2Score || '').trim().split(/\s+/).map(Number).filter(v => !isNaN(v) && v !== '');
+    let p1Sets = 0, p2Sets = 0;
+    const perSet = [];
+    for (let i = 0; i < Math.max(s1arr.length, s2arr.length); i++) {
+      const a = s1arr[i] ?? 0, b = s2arr[i] ?? 0;
+      if (a > b) p1Sets++; else if (b > a) p2Sets++;
+      perSet.push({ a, b, p1Won: a > b });
+    }
+    // 세트별 칩 — 승자 세트는 진하게, 패자는 흐리게
+    const chips = perSet.map(s => {
+      const col  = s.p1Won ? '#1e293b' : '#94a3b8';
+      const col2 = s.p1Won ? '#94a3b8' : '#1e293b';
+      return `<span style="display:inline-flex;align-items:center;gap:1px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;padding:2px 5px;font-size:0.68rem;font-weight:700">
+        <span style="color:${col}">${s.a}</span><span style="color:#cbd5e1;font-size:0.6rem">-</span><span style="color:${col2}">${s.b}</span>
+      </span>`;
+    }).join('');
+    // 최종 세트 스코어 (우측 큰 숫자)
+    scoreSection = `
+      <div style="flex-shrink:0;padding-left:10px;display:flex;flex-direction:column;align-items:flex-end">
+        <div style="min-height:22px;display:flex;align-items:center">
+          <span style="font-size:1.15rem;font-weight:900;line-height:1;color:${p1Win?'#16a34a':'#94a3b8'}">${p1Sets}</span>
+        </div>
+        <div style="min-height:22px;display:flex;align-items:center;margin-top:4px">
+          <span style="font-size:1.15rem;font-weight:900;line-height:1;color:${p2Win?'#16a34a':'#94a3b8'}">${p2Sets}</span>
+        </div>
+        <div style="display:flex;gap:3px;flex-wrap:nowrap;margin-top:5px">${chips}</div>
+      </div>`;
+  } else if (!isDone) {
+    scoreSection = `<div style="flex-shrink:0;font-size:0.75rem;color:#64748b;text-align:right;padding-left:8px;white-space:nowrap">${toKSTStr(m.date)}</div>`;
+  }
+
   return `
-    <div class="atp-match-row">
+    <div class="atp-match-row" style="align-items:flex-start">
       <div style="flex:1;min-width:0">
         ${wta ? '<div style="margin-bottom:3px"><span style="font-size:0.58rem;font-weight:800;background:#fce7f3;color:#be185d;border-radius:4px;padding:1px 5px">WTA</span></div>' : ''}
-        <div style="display:flex;align-items:center;gap:5px">
+        <div style="display:flex;align-items:center;gap:5px;min-height:22px">
           <div style="width:3px;height:16px;border-radius:2px;flex-shrink:0;background:${p1Win?'#22c55e':'transparent'}"></div>
           <div class="atp-player ${p1Win?'winner':''}" style="${fav1?'color:#f59e0b':''}">
             <span class="pp-name-link" onclick="openPlayerProfile('${p1Safe}','${tourKey}')">${p1Name}</span>${m.player1Country?` <span style="font-size:0.70rem;color:#94a3b8;font-weight:400">${m.player1Country}</span>`:''}
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:5px;margin-top:4px">
+        <div style="display:flex;align-items:center;gap:5px;margin-top:4px;min-height:22px">
           <div style="width:3px;height:16px;border-radius:2px;flex-shrink:0;background:${p2Win?'#22c55e':'transparent'}"></div>
           <div class="atp-player ${p2Win?'winner':''}" style="${fav2?'color:#f59e0b':''}">
             <span class="pp-name-link" onclick="openPlayerProfile('${p2Safe}','${tourKey}')">${p2Name}</span>${m.player2Country?` <span style="font-size:0.70rem;color:#94a3b8;font-weight:400">${m.player2Country}</span>`:''}
           </div>
         </div>
       </div>
-      <div class="atp-score">
-        ${isDone
-          ? `<div class="${p1Win?'win-score':''}">${score1}</div><div class="${p2Win?'win-score':''}" style="margin-top:4px">${score2}</div>`
-          : `<div style="font-size:0.76rem;color:#64748b;line-height:1.5;text-align:right">${toKSTStr(m.date)}</div>`
-        }
-      </div>
+      ${scoreSection}
     </div>`;
 }
 
@@ -22460,7 +22488,7 @@ function saveMpComment(key) {
         // 골프 탭이 보이면 골프 새로고침, 아니면 테니스 새로고침
         if (document.getElementById('sport-panel-golf') &&
             document.getElementById('sport-panel-golf').style.display !== 'none') {
-          if (typeof triggerGolfRefresh === 'function') triggerGolfRefresh();
+          if (typeof triggerGolfRefresh === 'function') await triggerGolfRefresh();
         } else {
           if (typeof triggerAtpRefresh === 'function') triggerAtpRefresh();
           if (typeof initAtpListeners === 'function') { _atpListenersActive = false; initAtpListeners(); }
@@ -23558,7 +23586,7 @@ function renderGolfLeaderboard(t) {
       </div>
       ${roundIdx !== null ? `<span></span>` : scoreCell}
       <span style="font-weight:800;font-size:0.85rem;color:${totalColor};text-align:right">${totalDisp}</span>
-      <span style="font-size:0.7rem;color:#64748b;text-align:right">${p.thru || '-'}</span>
+      <span style="font-size:0.7rem;text-align:right;font-weight:${p.state==='active'?'700':'400'};color:${p.thru==='F'?'#16a34a':p.state==='active'?'#f59e0b':'#94a3b8'}">${p.thru && p.thru!=='-' ? (p.thru==='F' ? 'F' : (isNaN(parseInt(p.thru)) ? p.thru : parseInt(p.thru)+'H')) : '-'}</span>
     </div>`;
   };
 
