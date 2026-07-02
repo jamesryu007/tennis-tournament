@@ -1,12 +1,12 @@
-// ── Firebase 설정 (개발환경: jamite-dev) ──────────────────────────────
+// ── Firebase 설정 (운영환경: jamite-tennis) ──────────────────────────
 
 const firebaseConfig = {
-  apiKey:            "AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI",
-  authDomain:        "jamite-dev.firebaseapp.com",
-  databaseURL:       "https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId:         "jamite-dev",
-  storageBucket:     "jamite-dev.firebasestorage.app",
-  messagingSenderId: "296777882297",
-  appId:             "1:296777882297:web:a03b11c6c99e7a00b5a1ce",
-  vapidKey:          "BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc"
+  apiKey:            "AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14",
+  authDomain:        "jamite-tennis.firebaseapp.com",
+  databaseURL:       "https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "jamite-tennis",
+  storageBucket:     "jamite-tennis.firebasestorage.app",
+  messagingSenderId: "1023676041344",
+  appId:             "1:1023676041344:web:d9a9fcf47f3b280bcbfe65",
+  vapidKey:          "BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg"
 };
