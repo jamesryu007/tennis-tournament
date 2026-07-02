@@ -796,16 +796,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v870';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v871';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22457,8 +22457,14 @@ function saveMpComment(key) {
         break;
 
       case 'atp':
-        if (typeof triggerAtpRefresh === 'function') triggerAtpRefresh();
-        if (typeof initAtpListeners === 'function') { _atpListenersActive = false; initAtpListeners(); }
+        // 골프 탭이 보이면 골프 새로고침, 아니면 테니스 새로고침
+        if (document.getElementById('sport-panel-golf') &&
+            document.getElementById('sport-panel-golf').style.display !== 'none') {
+          if (typeof triggerGolfRefresh === 'function') triggerGolfRefresh();
+        } else {
+          if (typeof triggerAtpRefresh === 'function') triggerAtpRefresh();
+          if (typeof initAtpListeners === 'function') { _atpListenersActive = false; initAtpListeners(); }
+        }
         break;
 
       case 'members':
@@ -22782,7 +22788,10 @@ function renderGolfTournamentSection() {
             style="font-size:0.78rem;color:${s.color};font-weight:700;text-decoration:none;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:10px;padding:3px 10px;white-space:nowrap">🗺️ 지도보기</a>
         </div>
         <!-- 다른 대회 전환 -->
-        ${otherChips ? `<div style="display:flex;gap:6px;flex-wrap:wrap">${otherChips}</div>` : ''}
+        ${otherChips ? `<div style="margin-top:4px">
+          <div style="font-size:0.68rem;font-weight:700;color:#94a3b8;letter-spacing:0.4px;margin-bottom:5px">⛳ 다른 대회</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">${otherChips}</div>
+        </div>` : ''}
       </div>
       <!-- 관심선수 버튼 -->
       <button onclick="openGolfFavModal()" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:16px;padding:5px 10px;font-size:0.72rem;font-weight:700;color:${s.color};cursor:pointer;white-space:nowrap">⭐ 관심선수</button>
