@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v874';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v875';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22737,7 +22737,16 @@ function renderGolfPage() {
   // 선택 대회 없거나 사라진 경우 자동 선택 (LIVE > 예정 > 종료)
   const stateO = { in:0, pre:1, post:2 };
   const levelO = { major:0, pga_tour:1, lpga_tour:2, dp_world:3 };
-  const _golfSort = (a, b) => (stateO[a.state] ?? 3) * 10 + (levelO[a.level] ?? 9) - (stateO[b.state] ?? 3) * 10 - (levelO[b.level] ?? 9);
+  // state 우선 → 같은 state면: in(진행중)=메이저 우선, pre(예정)=날짜 빠른 순, post(종료)=메이저 우선
+  const _golfSort = (a, b) => {
+    const sa = stateO[a.state] ?? 3, sb = stateO[b.state] ?? 3;
+    if (sa !== sb) return sa - sb;
+    if (sa === 1) { // pre: 날짜 빠른 것 우선, 같으면 메이저 우선
+      const da = a.startDate || '', db = b.startDate || '';
+      if (da !== db) return da < db ? -1 : 1;
+    }
+    return (levelO[a.level] ?? 9) - (levelO[b.level] ?? 9);
+  };
   const _allT = Object.values(golfState.tournaments).sort(_golfSort);
 
   // 선택된 대회가 없거나 DB에서 사라진 경우 자동 선택
