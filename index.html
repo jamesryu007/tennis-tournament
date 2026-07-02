@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v875';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v876';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11878,6 +11878,13 @@ function isWtaMatch(m) {
   return !p1InAtp && !p2InAtp;
 }
 
+// 한국 국적 판별 (ESPN flag alt 값 기준)
+function isKorean(country) {
+  if (!country) return false;
+  const c = country.toLowerCase();
+  return c === 'south korea' || c === 'kor' || c === 'korea' || c.includes('korea');
+}
+
 function renderMatchRow(m) {
   const fav1   = isFavPlayer(m.player1Name);
   const fav2   = isFavPlayer(m.player2Name);
@@ -11890,6 +11897,11 @@ function renderMatchRow(m) {
   const tourKey = wta ? 'wta' : 'atp';
   const p1Safe  = p1Name.replace(/'/g, "\\'");
   const p2Safe  = p2Name.replace(/'/g, "\\'");
+  // 한국 선수 태극 컬러 — 관심선수(노랑)보다 우선 적용
+  const kor1 = isKorean(m.player1Country);
+  const kor2 = isKorean(m.player2Country);
+  const p1Color = kor1 ? '#CD2E3A' : fav1 ? '#f59e0b' : '';
+  const p2Color = kor2 ? '#003478' : fav2 ? '#f59e0b' : '';
 
   // ── 세트 스코어 파싱 ──────────────────────────────────────────
   let scoreSection = '';
@@ -11933,13 +11945,13 @@ function renderMatchRow(m) {
         ${wta ? '<div style="margin-bottom:3px"><span style="font-size:0.58rem;font-weight:800;background:#fce7f3;color:#be185d;border-radius:4px;padding:1px 5px">WTA</span></div>' : ''}
         <div style="display:flex;align-items:center;gap:5px;min-height:22px">
           <div style="width:3px;height:16px;border-radius:2px;flex-shrink:0;background:${p1Win?'#22c55e':'transparent'}"></div>
-          <div class="atp-player ${p1Win?'winner':''}" style="${fav1?'color:#f59e0b':''}">
+          <div class="atp-player ${p1Win?'winner':''}" style="${p1Color?'color:'+p1Color:''}">
             <span class="pp-name-link" onclick="openPlayerProfile('${p1Safe}','${tourKey}')">${p1Name}</span>${m.player1Country?` <span style="font-size:0.70rem;color:#94a3b8;font-weight:400">${m.player1Country}</span>`:''}
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:5px;margin-top:4px;min-height:22px">
           <div style="width:3px;height:16px;border-radius:2px;flex-shrink:0;background:${p2Win?'#22c55e':'transparent'}"></div>
-          <div class="atp-player ${p2Win?'winner':''}" style="${fav2?'color:#f59e0b':''}">
+          <div class="atp-player ${p2Win?'winner':''}" style="${p2Color?'color:'+p2Color:''}">
             <span class="pp-name-link" onclick="openPlayerProfile('${p2Safe}','${tourKey}')">${p2Name}</span>${m.player2Country?` <span style="font-size:0.70rem;color:#94a3b8;font-weight:400">${m.player2Country}</span>`:''}
           </div>
         </div>
@@ -23588,10 +23600,12 @@ function renderGolfLeaderboard(t) {
     const totalDisp  = roundIdx !== null ? (roundScore || '-') : (p.total || 'E');
     const totalColor = roundIdx !== null ? scoreColor(roundScore) : scoreColor(p.total || 'E');
     const pNameSafe  = p.name.replace(/'/g, "\\'");
+    const korPlayer  = isKorean(p.country);
+    const nameColor  = korPlayer ? '#CD2E3A' : isFav ? '#92400e' : '#1e293b';
     return `<div class="golf-lb-row" style="${isFav ? 'background:#fffbeb;' : ''}">
       <span style="font-size:0.72rem;font-weight:700;color:#94a3b8">${rankDisp}</span>
       <div style="min-width:0">
-        <div class="pp-name-link" style="font-size:0.86rem;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" onclick="openPlayerProfile('${pNameSafe}','${_golfTourKey}')">${isFav ? '⭐ ' : ''}${p.name}</div>
+        <div class="pp-name-link" style="font-size:0.86rem;font-weight:700;color:${nameColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis" onclick="openPlayerProfile('${pNameSafe}','${_golfTourKey}')">${isFav ? '⭐ ' : ''}${p.name}</div>
         ${p.country ? `<div style="font-size:0.70rem;color:#94a3b8">${p.country}</div>` : ''}
       </div>
       ${roundIdx !== null ? `<span></span>` : scoreCell}
