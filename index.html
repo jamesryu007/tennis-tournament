@@ -796,15 +796,15 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
   apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
   authDomain:        'jamite-dev.firebaseapp.com',
   databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-dev',
+  projectId:         'jamite-tennis',
   storageBucket:     'jamite-dev.firebasestorage.app',
-  messagingSenderId: '168236820456',
-  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  messagingSenderId: '296777882297',
+  appId:             '1:296777882297:web:d9a9fcf47f3b280bcbfe65',
   vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v876';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v877';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11901,7 +11901,7 @@ function renderMatchRow(m) {
   const kor1 = isKorean(m.player1Country);
   const kor2 = isKorean(m.player2Country);
   const p1Color = kor1 ? '#CD2E3A' : fav1 ? '#f59e0b' : '';
-  const p2Color = kor2 ? '#003478' : fav2 ? '#f59e0b' : '';
+  const p2Color = kor2 ? '#CD2E3A' : fav2 ? '#f59e0b' : '';
 
   // ── 세트 스코어 파싱 ──────────────────────────────────────────
   let scoreSection = '';
