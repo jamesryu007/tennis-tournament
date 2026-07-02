@@ -11903,34 +11903,32 @@ function renderMatchRow(m) {
       if (a > b) p1Sets++; else if (b > a) p2Sets++;
       perSet.push({ a, b, p1Won: a > b });
     }
-    // 세트별 칩 — 세로 배치 (P1 위 / P2 아래), 이긴 쪽 초록
-    const chips = perSet.map(s => {
+    // 세트별 컬럼 — P1 점수(위)·P2 점수(아래) 각 선수 행 높이에 맞춰 한 줄 정렬
+    const setCols = perSet.map(s => {
       const c1 = s.p1Won ? '#16a34a' : '#94a3b8';
       const c2 = s.p1Won ? '#94a3b8' : '#16a34a';
       const w1 = s.p1Won ? '800' : '500';
       const w2 = s.p1Won ? '500' : '800';
-      return `<div style="display:flex;flex-direction:column;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:3px 7px;min-width:22px">
-        <span style="font-size:0.74rem;font-weight:${w1};color:${c1};line-height:1.4">${s.a}</span>
-        <span style="font-size:0.74rem;font-weight:${w2};color:${c2};line-height:1.4">${s.b}</span>
+      return `<div style="display:flex;flex-direction:column;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;min-width:22px">
+        <div style="padding:3px 7px;line-height:22px;font-size:0.76rem;font-weight:${w1};color:${c1}">${s.a}</div>
+        <div style="padding:3px 7px;line-height:22px;font-size:0.76rem;font-weight:${w2};color:${c2};border-top:1px solid #e2e8f0">${s.b}</div>
       </div>`;
     }).join('');
-    // 최종 세트 스코어(큰 숫자) + 세트별 칩 — 우측 컬럼에 세로 배치
+    // 최종 세트 스코어 컬럼 — 세트별 칩과 동일한 행 높이로 정렬
     scoreSection = `
-      <div style="flex-shrink:0;padding-left:10px;display:flex;flex-direction:column;align-items:flex-end">
-        <div style="min-height:22px;display:flex;align-items:center">
-          <span style="font-size:1.15rem;font-weight:900;line-height:1;color:${p1Win?'#16a34a':'#94a3b8'}">${p1Sets}</span>
+      <div style="flex-shrink:0;padding-left:8px;display:flex;align-items:center;gap:3px">
+        ${setCols}
+        <div style="display:flex;flex-direction:column;align-items:center;min-width:18px;margin-left:2px">
+          <div style="line-height:28px;font-size:1.1rem;font-weight:900;color:${p1Win?'#16a34a':'#94a3b8'}">${p1Sets}</div>
+          <div style="line-height:28px;font-size:1.1rem;font-weight:900;color:${p2Win?'#16a34a':'#94a3b8'}">${p2Sets}</div>
         </div>
-        <div style="min-height:22px;display:flex;align-items:center;margin-top:4px">
-          <span style="font-size:1.15rem;font-weight:900;line-height:1;color:${p2Win?'#16a34a':'#94a3b8'}">${p2Sets}</span>
-        </div>
-        <div style="display:flex;gap:3px;margin-top:6px">${chips}</div>
       </div>`;
   } else if (!isDone) {
     scoreSection = `<div style="flex-shrink:0;font-size:0.75rem;color:#64748b;text-align:right;padding-left:8px;white-space:nowrap">${toKSTStr(m.date)}</div>`;
   }
 
   return `
-    <div class="atp-match-row" style="align-items:flex-start">
+    <div class="atp-match-row" style="align-items:center">
       <div style="flex:1;min-width:0">
         ${wta ? '<div style="margin-bottom:3px"><span style="font-size:0.58rem;font-weight:800;background:#fce7f3;color:#be185d;border-radius:4px;padding:1px 5px">WTA</span></div>' : ''}
         <div style="display:flex;align-items:center;gap:5px;min-height:22px">

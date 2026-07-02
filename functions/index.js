@@ -2540,6 +2540,91 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
 
   const fortuneCtx = ''; // 운세는 룰베이스(_botFortune)에서 처리 — LLM 개입 없음
 
+  // ── 테니스·골프 대회 데이터 (스포츠 질문 감지 시 주입) ──────────────
+  const hasSportsQuery = /테니스|골프|ATP|WTA|PGA|LPGA|DP월드|DP 월드|투어|대회|우승|준우승|선수.*세계|세계.*선수|리더보드|윔블던|US오픈|호주오픈|프랑스오픈|마스터스|에비앙|파이널|그랜드슬램|세계랭킹|대회.*결과|결과.*대회/.test(question);
+  let sportsTourneyCtx = '';
+  if (hasSportsQuery) {
+    try {
+      const [atpSnap, golfSnap] = await Promise.all([
+        db.ref('jmt/atpData').once('value'),
+        db.ref('jmt/golfData/tournaments').once('value'),
+      ]);
+
+      // ATP/WTA 테니스 현재 대회
+      const atpData = atpSnap.val();
+      if (atpData && atpData.tournamentInfo) {
+        const ti = atpData.tournamentInfo;
+        const matchArr = Array.isArray(atpData.matches) ? atpData.matches : Object.values(atpData.matches || {});
+        const finishedMatches = matchArr
+          .filter(m => m.status === 'STATUS_FINAL' && m.player1Name)
+          .sort((a, b) => ({'Final':0,'The Final':0,'Semifinal':1,'Quarterfinal':2}[a.roundName]??9) - ({'Final':0,'The Final':0,'Semifinal':1,'Quarterfinal':2}[b.roundName]??9));
+        const liveMatches = matchArr.filter(m => m.status !== 'STATUS_FINAL' && m.player1Name);
+        const fmtMatch = (m) => {
+          const winner = m.player1Winner ? m.player1Name : m.player2Winner ? m.player2Name : null;
+          const scores = `${m.player1Score || ''}/${m.player2Score || ''}`;
+          const gender = m.gender === 'women' ? 'WTA' : 'ATP';
+          return `  [${gender}] ${m.roundName||''}: ${m.player1Name} vs ${m.player2Name}${winner ? ` → ${winner} 승` : ''} (${scores})`;
+        };
+        const matchLines = [
+          ...finishedMatches.slice(0, 12).map(fmtMatch),
+          ...liveMatches.slice(0, 5).map(m => `  [${m.gender==='women'?'WTA':'ATP'}] ${m.roundName||''}: ${m.player1Name} vs ${m.player2Name} (진행중)`),
+        ].join('\n');
+        sportsTourneyCtx += `[현재 테니스 대회 — ESPN 실시간, 학습 데이터보다 우선]\n대회: ${ti.displayName || ti.name} (${ti.tier||''})\n장소: ${ti.venueName ? `${ti.venueName}, ` : ''}${ti.venueCity||''} ${ti.venueCountry||''}\n기간: ${(ti.startDate||'').slice(0,10)} ~ ${(ti.endDate||'').slice(0,10)}${ti.purse ? ` | 상금: ${ti.purse}` : ''}\n업데이트: ${(atpData.updatedAt||'').slice(0,16).replace('T',' ')}\n${matchLines || '경기 데이터 없음'}`;
+      }
+
+      // 골프 현재 대회들
+      const golfTourneys = Object.values(golfSnap.val() || {})
+        .sort((a,b) => ({'in':0,'pre':1,'post':2}[a.state]??3) - ({'in':0,'pre':1,'post':2}[b.state]??3));
+      if (golfTourneys.length) {
+        const TOUR_LBL = { pga:'PGA투어', lpga:'LPGA투어', eur:'DP월드투어' };
+        const golfLines = golfTourneys.map(t => {
+          const stLabel = t.state==='in' ? '진행중' : t.state==='pre' ? '예정' : '종료';
+          const top10 = (t.leaderboard||[]).slice(0,10)
+            .map(p => `    ${p.rank}위 ${p.name} (${p.country||''}): ${p.total}${p.thru ? ` thru ${p.thru}` : ''}`)
+            .join('\n');
+          return `▸ [${TOUR_LBL[t.tour]||t.tour}] ${t.name} (${stLabel}${t.round ? ` R${t.round}` : ''})\n  기간: ${(t.startDate||'').slice(0,10)} ~ ${(t.endDate||'').slice(0,10)}${t.purse ? ` | 상금: ${t.purse}` : ''}\n  장소: ${t.venueName||''} ${t.venueCity||''} ${t.venueCountry||''}\n${top10 || '  (리더보드 준비중)'}`;
+        }).join('\n\n');
+        sportsTourneyCtx += (sportsTourneyCtx ? '\n\n' : '') + `[현재 골프 대회 — ESPN 실시간, 학습 데이터보다 우선]\n${golfLines}`;
+      }
+
+      // 대회 히스토리 (테니스 최근 5건 + 골프 최근 9건)
+      const historySnap = await db.ref('jmt/tournamentHistory').once('value');
+      const histAll = historySnap.val() || {};
+
+      const tennisHist = [];
+      for (const yr of Object.keys(histAll.tennis || {}).sort().reverse()) {
+        const entries = Object.values(histAll.tennis[yr]||{}).sort((a,b) => (b.startDate||'').localeCompare(a.startDate||''));
+        for (const e of entries) { if (tennisHist.length < 5) tennisHist.push(e); }
+        if (tennisHist.length >= 5) break;
+      }
+      const golfHist = [];
+      for (const tour of ['pga','lpga','eur']) {
+        for (const yr of Object.keys((histAll.golf||{})[tour]||{}).sort().reverse()) {
+          const entries = Object.values(histAll.golf[tour][yr]||{}).sort((a,b) => (b.startDate||'').localeCompare(a.startDate||''));
+          for (const e of entries) { if (golfHist.length < 12) golfHist.push(e); }
+        }
+      }
+      golfHist.sort((a,b) => (b.startDate||'').localeCompare(a.startDate||''));
+
+      if (tennisHist.length) {
+        const lines = tennisHist.map(e => {
+          const w = e.winner ? `우승: ${e.winner.name}(${e.winner.country||''})` : '';
+          const ru = e.runnerUp ? ` 준우승: ${e.runnerUp.name}` : '';
+          return `  ▸ ${(e.startDate||'').slice(0,7)} ${e.name}${e.purse ? ` (${e.purse})` : ''}${w ? ' — '+w+ru : ''}`;
+        }).join('\n');
+        sportsTourneyCtx += `\n\n[테니스 최근 대회 히스토리]\n${lines}`;
+      }
+      if (golfHist.length) {
+        const TOUR_LBL2 = { pga:'PGA', lpga:'LPGA', eur:'DP월드' };
+        const lines = golfHist.slice(0,9).map(e => {
+          const top3 = (e.top10||[]).slice(0,3).map(p => `${p.rank}위 ${p.name}`).join(', ');
+          return `  ▸ ${(e.startDate||'').slice(0,7)} [${TOUR_LBL2[e.tour]||e.tour}] ${e.name}${e.purse ? ` (${e.purse})` : ''} — ${top3||'기록없음'}`;
+        }).join('\n');
+        sportsTourneyCtx += `\n\n[골프 최근 대회 히스토리]\n${lines}`;
+      }
+    } catch(e) { console.error('_botAI sports ctx error:', e); }
+  }
+
   // 배차/동선 관련 쿼리 — memberLocations 주입
   const hasCarpoolQuery = /배차|카풀|카풀|동선|루트|출발|태워|합승|차량|몇명|몇 명|같이.*가|함께.*가|누가.*가까|어디.*사|집.*어디|거주|사는곳|사는 곳|동네/.test(question);
   let locationCtx = '';
@@ -2875,7 +2960,7 @@ ${checkinCtx}
 
 [자미터 단골맛집 — 서울/강남권 위주, 다른 지역 질문엔 이 목록 사용 금지]
 ${restaurantCtx}
-${weatherCtx}${airCtx}${locationCtx}${matchupCtx}${bagelCtx}${predictCtx}
+${weatherCtx}${airCtx}${locationCtx}${matchupCtx}${bagelCtx}${predictCtx}${sportsTourneyCtx ? '\n\n' + sportsTourneyCtx : ''}
 현재 한국 시각: ${(() => { const d = new Date(new Date().toLocaleString('en-US', {timeZone:'Asia/Seoul'})); return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 ${'일월화수목금토'.split('')[d.getDay()]}요일 ${d.getHours()}시 ${d.getMinutes()}분`; })()}
 현재 질문자: ${senderName}
 ${senderPairSummary ? `[${senderName} 관련 페어 전체 — 파트너/짝 질문 시 이 목록 기준으로 답변]\n${senderPairSummary}` : ''}${fortuneCtx}`;
