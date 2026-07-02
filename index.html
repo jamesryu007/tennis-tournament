@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v873';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v874';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11903,15 +11903,18 @@ function renderMatchRow(m) {
       if (a > b) p1Sets++; else if (b > a) p2Sets++;
       perSet.push({ a, b, p1Won: a > b });
     }
-    // 세트별 칩 — 승자 세트는 진하게, 패자는 흐리게
+    // 세트별 칩 — 세로 배치 (P1 위 / P2 아래), 이긴 쪽 초록
     const chips = perSet.map(s => {
-      const col  = s.p1Won ? '#1e293b' : '#94a3b8';
-      const col2 = s.p1Won ? '#94a3b8' : '#1e293b';
-      return `<span style="display:inline-flex;align-items:center;gap:1px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;padding:2px 5px;font-size:0.68rem;font-weight:700">
-        <span style="color:${col}">${s.a}</span><span style="color:#cbd5e1;font-size:0.6rem">-</span><span style="color:${col2}">${s.b}</span>
-      </span>`;
+      const c1 = s.p1Won ? '#16a34a' : '#94a3b8';
+      const c2 = s.p1Won ? '#94a3b8' : '#16a34a';
+      const w1 = s.p1Won ? '800' : '500';
+      const w2 = s.p1Won ? '500' : '800';
+      return `<div style="display:flex;flex-direction:column;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:3px 7px;min-width:22px">
+        <span style="font-size:0.74rem;font-weight:${w1};color:${c1};line-height:1.4">${s.a}</span>
+        <span style="font-size:0.74rem;font-weight:${w2};color:${c2};line-height:1.4">${s.b}</span>
+      </div>`;
     }).join('');
-    // 최종 세트 스코어 (우측 큰 숫자)
+    // 최종 세트 스코어(큰 숫자) + 세트별 칩 — 우측 컬럼에 세로 배치
     scoreSection = `
       <div style="flex-shrink:0;padding-left:10px;display:flex;flex-direction:column;align-items:flex-end">
         <div style="min-height:22px;display:flex;align-items:center">
@@ -11920,7 +11923,7 @@ function renderMatchRow(m) {
         <div style="min-height:22px;display:flex;align-items:center;margin-top:4px">
           <span style="font-size:1.15rem;font-weight:900;line-height:1;color:${p2Win?'#16a34a':'#94a3b8'}">${p2Sets}</span>
         </div>
-        <div style="display:flex;gap:3px;flex-wrap:nowrap;margin-top:5px">${chips}</div>
+        <div style="display:flex;gap:3px;margin-top:6px">${chips}</div>
       </div>`;
   } else if (!isDone) {
     scoreSection = `<div style="flex-shrink:0;font-size:0.75rem;color:#64748b;text-align:right;padding-left:8px;white-space:nowrap">${toKSTStr(m.date)}</div>`;
