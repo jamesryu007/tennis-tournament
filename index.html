@@ -796,16 +796,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v877';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v878';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4573,6 +4573,8 @@ let _conditionBadA=null;  // A팀 양보 선수 (🙏 최소 경기)
 let _conditionBadB=null;  // B팀 양보 선수
 let _conditionGoodA=null; // A팀 추가 선수 (💪 한 경기 더)
 let _conditionGoodB=null; // B팀 추가 선수
+let _autoConditionBad=null;  // 자동대진 양보 선수 (🙏)
+let _autoConditionGood=null; // 자동대진 추가 선수 (💪)
 let _autoDrawSession=null;      // DB 세션 데이터 { owner, teamMode, teamA, teamB, ... }
 let _autoDrawSessionRef=null;   // Firebase 리스너 ref
 let _applyingSession=false;     // 세션 적용 중 플래그 (이중 저장 방지)
@@ -5532,8 +5534,10 @@ function openAutoDrawModal(){
   const assignEl=document.getElementById('auto-team-assign');
   if(assignEl) assignEl.style.display=_autoTeamMode?'':'none';
   if(_autoTeamMode) _renderTeamAssign();
-  // 모달 열릴 때 임시 제외 목록 리셋
+  // 모달 열릴 때 임시 제외 목록·컨디션 리셋
   _autoExcludedNames=new Set();
+  _autoConditionBad=null;
+  _autoConditionGood=null;
   // 오늘 참석자 pill UI 표시
   _renderAutoDrawAttendeeUI();
   document.getElementById('auto-draw-warn').style.display='none';
@@ -6582,21 +6586,50 @@ function _renderAutoDrawAttendeeUI(){
   const makePill=(p)=>{
     const excl=_autoExcludedNames.has(p.name);
     const isMale=p.gender==='male';
+    const nameSafe=p.name.replace(/'/g,"\\'");
+    // 팀 모드가 아닐 때: 🙏/💪 컨디션 토글 (대진 생성자만)
+    if(!_autoTeamMode&&!excl){
+      const isBad=_autoConditionBad===p.name;
+      const isGood=_autoConditionGood===p.name;
+      const canTap=canEdit||(curName&&curName===p.name); // 관리자 또는 본인
+      let bg,color,border,prefix='';
+      if(isBad){      bg='#fff7ed';color='#c2410c';border='#fed7aa';prefix='🙏 ';}
+      else if(isGood){bg='#f0fdf4';color='#15803d';border='#bbf7d0';prefix='💪 ';}
+      else{           bg=isMale?'#eff6ff':'#fdf2f8';color=isMale?'#1d4ed8':'#db2777';border=isMale?'#bfdbfe':'#fbcfe8';}
+      const tapAttr=canTap?`onclick="_tapAutoConditionPlayer('${nameSafe}')" style="cursor:pointer;"`:'style="cursor:default;"';
+      const xBtn=canEdit?`<button class="pill-x" onclick="event.stopPropagation();_toggleAutoExclude('${nameSafe}')" title="제외">✕</button>`:'';
+      return `<span class="draw-attendee-pill" ${tapAttr.replace('style="','style="background:'+bg+';color:'+color+';border:1.5px solid '+border+';')}>${prefix}${p.name}${xBtn}</span>`;
+    }
+    // 팀 모드 or 제외 선수: 기존 스타일
     const bg=excl?'#f1f5f9':(isMale?'#eff6ff':'#fdf2f8');
     const color=excl?'#94a3b8':(isMale?'#1d4ed8':'#db2777');
     const border=excl?'#e2e8f0':(isMale?'#bfdbfe':'#fbcfe8');
     const xBtn=canEdit
-      ?`<button class="pill-x" onclick="_toggleAutoExclude('${p.name.replace(/'/g,"\\'")}')" title="${excl?'복원':'제외'}">${excl?'↩':'✕'}</button>`
+      ?`<button class="pill-x" onclick="_toggleAutoExclude('${nameSafe}')" title="${excl?'복원':'제외'}">${excl?'↩':'✕'}</button>`
       :'';
     return `<span class="draw-attendee-pill${excl?' excluded':''}" style="background:${bg};color:${color};border:1.5px solid ${border}">${p.name}${xBtn}</span>`;
   };
   const males=raw.filter(p=>p.gender==='male');
   const females=raw.filter(p=>p.gender!=='male');
   const exclNote=excludedCount?`<span style="font-size:0.78rem;color:#dc2626;font-weight:600;margin-left:4px">(${excludedCount}명 제외)</span>`:'';
+  const condHint=!_autoTeamMode?(canEdit?`<span style="font-size:0.72rem;color:#94a3b8;margin-left:6px">탭: 🙏양보→💪추가→해제</span>`:
+    `<span style="font-size:0.72rem;color:#94a3b8;margin-left:6px">내 이름 탭: 🙏양보→💪추가→해제</span>`):'';
   el.innerHTML=
-    `<b>오늘 참석자 ${active.length}명</b> — 남 ${activeMales}명 / 여 ${activeFemales}명${exclNote}` +
-    (canEdit?`<span style="font-size:0.72rem;color:#94a3b8;margin-left:6px">✕ 눌러 제외</span>`:'') +
+    `<b>오늘 참석자 ${active.length}명</b> — 남 ${activeMales}명 / 여 ${activeFemales}명${exclNote}${condHint}` +
     `<div style="margin-top:6px;line-height:1.9">${males.map(makePill).join('')}${females.map(makePill).join('')}</div>`;
+}
+
+// 자동대진 컨디션 토글 — 없음→🙏양보→💪추가→없음
+function _tapAutoConditionPlayer(name){
+  if(_autoConditionBad===name){
+    _autoConditionBad=null; _autoConditionGood=name;
+  } else if(_autoConditionGood===name){
+    _autoConditionGood=null;
+  } else {
+    _autoConditionBad=name;
+    if(_autoConditionGood===name) _autoConditionGood=null;
+  }
+  _renderAutoDrawAttendeeUI();
 }
 
 // 참석자 임시 제외 토글 (관리자 전용)
@@ -6692,21 +6725,12 @@ function _shuffleArr(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j
 
 // 혼복 1경기 온디맨드 생성
 // mustPlay: 직전 라운드 미배정 선수 → 우선 배정 (-1000점 보너스)
-function _genOneMixed(roundPlayers,prevPlayers,prevPrevPlayers,sortedM,sortedF,mSess,fSess,pairStats,usedCombos,mustPlay,allowConsec3){
+function _genOneMixed(roundPlayers,prevPlayers,prevPrevPlayers,sortedM,sortedF,mSess,fSess,pairStats,usedCombos,mustPlay,allowConsec3,conditionGood,conditionBad){
   const isConsec3=p=>prevPrevPlayers.has(p)&&prevPlayers.has(p);
   const isBlocked=p=>roundPlayers.has(p)||(!allowConsec3&&isConsec3(p));
-  const poolM=_shuffleArr(sortedM).filter(p=>!isBlocked(p.name))
-    .sort((a,b)=>{
-      const sa=(mustPlay.has(a.name)?-1000:0)+(allowConsec3&&isConsec3(a.name)?500:0)+(mSess[a.name]||0);
-      const sb=(mustPlay.has(b.name)?-1000:0)+(allowConsec3&&isConsec3(b.name)?500:0)+(mSess[b.name]||0);
-      return sa-sb;
-    });
-  const poolF=_shuffleArr(sortedF).filter(p=>!isBlocked(p.name))
-    .sort((a,b)=>{
-      const sa=(mustPlay.has(a.name)?-1000:0)+(allowConsec3&&isConsec3(a.name)?500:0)+(fSess[a.name]||0);
-      const sb=(mustPlay.has(b.name)?-1000:0)+(allowConsec3&&isConsec3(b.name)?500:0)+(fSess[b.name]||0);
-      return sa-sb;
-    });
+  const score=(n,sess)=>(mustPlay.has(n)?-1000:0)+(conditionGood&&conditionGood.has(n)?-800:0)+(conditionBad&&conditionBad.has(n)?800:0)+(allowConsec3&&isConsec3(n)?500:0)+(sess[n]||0);
+  const poolM=_shuffleArr(sortedM).filter(p=>!isBlocked(p.name)).sort((a,b)=>score(a.name,mSess)-score(b.name,mSess));
+  const poolF=_shuffleArr(sortedF).filter(p=>!isBlocked(p.name)).sort((a,b)=>score(a.name,fSess)-score(b.name,fSess));
   if(poolM.length<2||poolF.length<2) return null;
   for(let mi=0;mi<poolM.length-1;mi++)
     for(let mj=mi+1;mj<poolM.length;mj++)
@@ -6728,16 +6752,12 @@ function _genOneMixed(roundPlayers,prevPlayers,prevPrevPlayers,sortedM,sortedF,m
 
 // 남복/여복 1경기 온디맨드 생성
 // type: 'mens'|'womens', sorted: 해당 성별 랭킹순 배열, sess: 세션 내 게임수 맵
-function _genOneSameGender(type,roundPlayers,prevPlayers,prevPrevPlayers,prevMensPlayers,sorted,sess,pairStats,usedCombos,mustPlay,allowConsec3){
+function _genOneSameGender(type,roundPlayers,prevPlayers,prevPrevPlayers,prevMensPlayers,sorted,sess,pairStats,usedCombos,mustPlay,allowConsec3,conditionGood,conditionBad){
   const isMens=type==='mens';
   const isConsec3=p=>prevPrevPlayers.has(p)&&prevPlayers.has(p);
   const isBlocked=p=>roundPlayers.has(p)||(!allowConsec3&&isConsec3(p))||(isMens&&prevMensPlayers.has(p));
-  const pool=_shuffleArr(sorted).filter(p=>!isBlocked(p.name))
-    .sort((a,b)=>{
-      const sa=(mustPlay.has(a.name)?-1000:0)+(allowConsec3&&isConsec3(a.name)?500:0)+(sess[a.name]||0);
-      const sb=(mustPlay.has(b.name)?-1000:0)+(allowConsec3&&isConsec3(b.name)?500:0)+(sess[b.name]||0);
-      return sa-sb;
-    });
+  const score=(n)=>(mustPlay.has(n)?-1000:0)+(conditionGood&&conditionGood.has(n)?-800:0)+(conditionBad&&conditionBad.has(n)?800:0)+(allowConsec3&&isConsec3(n)?500:0)+(sess[n]||0);
+  const pool=_shuffleArr(sorted).filter(p=>!isBlocked(p.name)).sort((a,b)=>score(a.name)-score(b.name));
   if(pool.length<4) return null;
   for(let i=0;i<pool.length-3;i++)
     for(let j=i+1;j<pool.length-2;j++)
@@ -6759,7 +6779,7 @@ function _genOneSameGender(type,roundPlayers,prevPlayers,prevPrevPlayers,prevMen
 // 생성+스케줄 통합 함수 ─ 한 경기씩 생성하면서 즉시 라운드 배정
 // 현재 라운드 상태(prevPlayers, prevMensPlayers 등)를 알면서 생성하므로
 // 구조적으로 3연속·남복연속 위반이 발생하지 않음
-function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,allowConsec3,presetRounds,lateNamesSet){
+function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,allowConsec3,presetRounds,lateNamesSet,conditionGood,conditionBad){
   if(!presetRounds) presetRounds={};
   if(!lateNamesSet) lateNamesSet=new Set();
   const remaining={mixed:counts.mixed,mens:counts.mens,womens:counts.womens};
@@ -6816,13 +6836,13 @@ function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,a
         let match=null;
         if(type==='mixed'){
           match=_genOneMixed(roundPlayers,prevPlayers,prevPrevPlayers,
-            activeM,activeF,mSess,fSess,pairStats,usedCombos.mixed,mustPlay,allowConsec3);
+            activeM,activeF,mSess,fSess,pairStats,usedCombos.mixed,mustPlay,allowConsec3,conditionGood,conditionBad);
         } else if(type==='mens'){
           match=_genOneSameGender('mens',roundPlayers,prevPlayers,prevPrevPlayers,
-            prevMensPlayers,activeM,mensSess,pairStats,usedCombos.mens,mustPlay,allowConsec3);
+            prevMensPlayers,activeM,mensSess,pairStats,usedCombos.mens,mustPlay,allowConsec3,conditionGood,conditionBad);
         } else {
           match=_genOneSameGender('womens',roundPlayers,prevPlayers,prevPrevPlayers,
-            new Set(),activeF,womensSess,pairStats,usedCombos.womens,mustPlay,allowConsec3);
+            new Set(),activeF,womensSess,pairStats,usedCombos.womens,mustPlay,allowConsec3,conditionGood,conditionBad);
         }
         if(match){
           remaining[type]--;
@@ -6939,9 +6959,11 @@ async function generateAutoDrawCards(){
     } else {
       const sortedM=_autoSortByRank(males,playerStats);
       const sortedF=_autoSortByRank(females,playerStats);
+      const autoCGood=_autoConditionGood?new Set([_autoConditionGood]):null;
+      const autoCBad=_autoConditionBad?new Set([_autoConditionBad]):null;
       scheduled=_genAndSchedule(sortedM,sortedF,pairStats,
         {mixed:mixedCnt,mens:mensCnt,womens:womensCnt},courtCount,maxRounds,allowConsec3,
-        presetRounds,lateNamesSet);
+        presetRounds,lateNamesSet,autoCGood,autoCBad);
     }
     const totalMade=scheduled.length;
     if(totalMade===0){
