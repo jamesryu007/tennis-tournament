@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v888';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v889';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -23693,6 +23693,12 @@ function renderGolfLeaderboard(t) {
   const otherList = displayPlayers.filter(p => !favNames.has(p.name.toLowerCase()));
 
   const _golfTourKey = t.tour === 'lpga' ? 'lpga' : 'pga';
+  // 라운드 수 계산 (최대 4) — _renderRow보다 앞에 선언해야 클로저에서 사용 가능
+  const maxScoreRounds = Math.min(Math.max(...displayPlayers.map(p=>(p.scores||[]).length), 0), 4);
+  const rndLabels = ['R1','R2','R3','Final'];
+  const CHIP_W = 32; // 라운드 칩 고정 너비(px)
+  const TOT_W  = 36; // 합계 칩 너비
+  const THR_W  = 28; // 진행 너비
   const _renderRow = (p, isFav = false) => {
     const pNameSafe  = p.name.replace(/'/g, "\\'");
     const korPlayer  = isKorean(p.country);
@@ -23757,13 +23763,6 @@ function renderGolfLeaderboard(t) {
 
   const rLabel     = golfState.selectedRound === '4' ? 'Final' : `R${golfState.selectedRound}`;
   const updatedStr = t.updatedAt ? new Date(t.updatedAt).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) : '';
-
-  // 라운드 수 계산 (최대 4)
-  const maxScoreRounds = Math.min(Math.max(...displayPlayers.map(p=>(p.scores||[]).length), 0), 4);
-  const rndLabels = ['R1','R2','R3','Final'];
-  const CHIP_W = 32; // 라운드 칩 고정 너비(px)
-  const TOT_W  = 36; // 합계 칩 너비
-  const THR_W  = 28; // 진행 너비
 
   // 헤더 오른쪽: 전체탭=R1 R2 R3 Final 합계 진행 / 라운드탭=점수 진행
   const rightHeader = roundIdx !== null
