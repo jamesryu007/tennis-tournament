@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v885';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v886';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6749,10 +6749,10 @@ function _shuffleArr(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j
 
 // 혼복 1경기 온디맨드 생성
 // mustPlay: 직전 라운드 미배정 선수 → 우선 배정 (-1000점 보너스)
-function _genOneMixed(roundPlayers,prevPlayers,prevPrevPlayers,sortedM,sortedF,mSess,fSess,pairStats,usedCombos,mustPlay,allowConsec3,conditionGood,conditionBad){
+function _genOneMixed(roundPlayers,prevPlayers,prevPrevPlayers,sortedM,sortedF,mSess,fSess,pairStats,usedCombos,mustPlay,allowConsec3,conditionGood,conditionBad,condGoodMult,condBadMult){
   const isConsec3=p=>prevPrevPlayers.has(p)&&prevPlayers.has(p);
   const isBlocked=p=>roundPlayers.has(p)||(!allowConsec3&&isConsec3(p));
-  const score=(n,sess)=>(mustPlay.has(n)?-1000:0)+(conditionGood&&conditionGood.has(n)?-800:0)+(conditionBad&&conditionBad.has(n)?800:0)+(allowConsec3&&isConsec3(n)?500:0)+(sess[n]||0);
+  const score=(n,sess)=>(mustPlay.has(n)?-1000:0)+(conditionGood&&conditionGood.has(n)?-800*(condGoodMult||1):0)+(conditionBad&&conditionBad.has(n)?800*(condBadMult||1):0)+(allowConsec3&&isConsec3(n)?500:0)+(sess[n]||0);
   const poolM=_shuffleArr(sortedM).filter(p=>!isBlocked(p.name)).sort((a,b)=>score(a.name,mSess)-score(b.name,mSess));
   const poolF=_shuffleArr(sortedF).filter(p=>!isBlocked(p.name)).sort((a,b)=>score(a.name,fSess)-score(b.name,fSess));
   if(poolM.length<2||poolF.length<2) return null;
@@ -6776,11 +6776,11 @@ function _genOneMixed(roundPlayers,prevPlayers,prevPrevPlayers,sortedM,sortedF,m
 
 // 남복/여복 1경기 온디맨드 생성
 // type: 'mens'|'womens', sorted: 해당 성별 랭킹순 배열, sess: 세션 내 게임수 맵
-function _genOneSameGender(type,roundPlayers,prevPlayers,prevPrevPlayers,prevMensPlayers,sorted,sess,pairStats,usedCombos,mustPlay,allowConsec3,conditionGood,conditionBad){
+function _genOneSameGender(type,roundPlayers,prevPlayers,prevPrevPlayers,prevMensPlayers,sorted,sess,pairStats,usedCombos,mustPlay,allowConsec3,conditionGood,conditionBad,condGoodMult,condBadMult){
   const isMens=type==='mens';
   const isConsec3=p=>prevPrevPlayers.has(p)&&prevPlayers.has(p);
   const isBlocked=p=>roundPlayers.has(p)||(!allowConsec3&&isConsec3(p))||(isMens&&prevMensPlayers.has(p));
-  const score=(n)=>(mustPlay.has(n)?-1000:0)+(conditionGood&&conditionGood.has(n)?-800:0)+(conditionBad&&conditionBad.has(n)?800:0)+(allowConsec3&&isConsec3(n)?500:0)+(sess[n]||0);
+  const score=(n)=>(mustPlay.has(n)?-1000:0)+(conditionGood&&conditionGood.has(n)?-800*(condGoodMult||1):0)+(conditionBad&&conditionBad.has(n)?800*(condBadMult||1):0)+(allowConsec3&&isConsec3(n)?500:0)+(sess[n]||0);
   const pool=_shuffleArr(sorted).filter(p=>!isBlocked(p.name)).sort((a,b)=>score(a.name)-score(b.name));
   if(pool.length<4) return null;
   for(let i=0;i<pool.length-3;i++)
@@ -6887,13 +6887,13 @@ function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,a
         const effBad=_effectiveCond(conditionBad,false,condBadMult||1);
         if(type==='mixed'){
           match=_genOneMixed(roundPlayers,prevPlayers,prevPrevPlayers,
-            activeM,activeF,mSess,fSess,pairStats,usedCombos.mixed,mustPlay,allowConsec3,effGood,effBad);
+            activeM,activeF,mSess,fSess,pairStats,usedCombos.mixed,mustPlay,allowConsec3,effGood,effBad,condGoodMult,condBadMult);
         } else if(type==='mens'){
           match=_genOneSameGender('mens',roundPlayers,prevPlayers,prevPrevPlayers,
-            prevMensPlayers,activeM,mensSess,pairStats,usedCombos.mens,mustPlay,allowConsec3,effGood,effBad);
+            prevMensPlayers,activeM,mensSess,pairStats,usedCombos.mens,mustPlay,allowConsec3,effGood,effBad,condGoodMult,condBadMult);
         } else {
           match=_genOneSameGender('womens',roundPlayers,prevPlayers,prevPrevPlayers,
-            new Set(),activeF,womensSess,pairStats,usedCombos.womens,mustPlay,allowConsec3,effGood,effBad);
+            new Set(),activeF,womensSess,pairStats,usedCombos.womens,mustPlay,allowConsec3,effGood,effBad,condGoodMult,condBadMult);
         }
         if(match){
           remaining[type]--;
