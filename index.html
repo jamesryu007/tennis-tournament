@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v881';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v882';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5858,7 +5858,17 @@ function _computeDrawAnalysis(){
   const teamMode=!!(tmCard);
   const teamANames=tmCard?tmCard._teamANames:[];
   const teamBNames=tmCard?tmCard._teamBNames:[];
-  return {attendees,males,females,autoCards,manualCards,roundMap,roundNums,courtCount,maxRound,playerData,typeCounts,consec3,mensConsecIssues,emptySlots,teamMode,teamANames,teamBNames};
+  // 조건 태그 필드 — 첫 번째 자동대진 카드에서 추출
+  const _condCard=autoCards[0]||{};
+  const condFields={};
+  if(_condCard._condBad)   condFields._condBad=_condCard._condBad;
+  if(_condCard._condGood)  condFields._condGood=_condCard._condGood;
+  if(_condCard._condBadA)  condFields._condBadA=_condCard._condBadA;
+  if(_condCard._condBadB)  condFields._condBadB=_condCard._condBadB;
+  if(_condCard._condGoodA) condFields._condGoodA=_condCard._condGoodA;
+  if(_condCard._condGoodB) condFields._condGoodB=_condCard._condGoodB;
+  if(_condCard._lateNames&&_condCard._lateNames.length) condFields._lateNames=_condCard._lateNames;
+  return {attendees,males,females,autoCards,manualCards,roundMap,roundNums,courtCount,maxRound,playerData,typeCounts,consec3,mensConsecIssues,emptySlots,teamMode,teamANames,teamBNames,...condFields};
 }
 
 // 팀 대결 최종 결과 렌더링
