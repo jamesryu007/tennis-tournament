@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v890';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v891';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -23736,7 +23736,10 @@ function renderGolfLeaderboard(t) {
           const isLast=ri===maxScoreRounds-1;
           const sv=(p.scores||[])[ri];
           if(!sv||sv==='-') return `<span style="min-width:${isLast?TOT_W:CHIP_W}px;text-align:center"></span>`;
-          const c=scoreColor(sv);const bg=sv.startsWith('-')?'#dbeafe':sv==='E'?'#f1f5f9':'#fee2e2';const border=sv.startsWith('-')?'#93c5fd':sv==='E'?'#e2e8f0':'#fca5a5';
+          // 합계(마지막)만 컬러, 라운드 칩은 회색
+          const c=isLast?scoreColor(sv):'#64748b';
+          const bg=isLast?(sv.startsWith('-')?'#dbeafe':sv==='E'?'#f1f5f9':'#fee2e2'):'#f1f5f9';
+          const border=isLast?(sv.startsWith('-')?'#93c5fd':sv==='E'?'#e2e8f0':'#fca5a5'):'#e2e8f0';
           const fw=isLast?'900':'700';const sz=isLast?'0.8rem':'0.7rem';const pad=isLast?'3px 8px':'2px 5px';const br=isLast?'7px':'5px';
           return `<span style="min-width:${isLast?TOT_W:CHIP_W}px;text-align:center;font-size:${sz};font-weight:${fw};color:${c};background:${bg};border:1.5px solid ${border};border-radius:${br};padding:${pad}">${sv}</span>`;
         }).join('')}${maxScoreRounds<4?_chip(totalDisp,true):''}
