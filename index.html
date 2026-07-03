@@ -796,15 +796,15 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
   apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
   authDomain:        'jamite-dev.firebaseapp.com',
   databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
+  projectId:         'jamite-dev',
   storageBucket:     'jamite-dev.firebasestorage.app',
-  messagingSenderId: '296777882297',
-  appId:             '1:296777882297:web:d9a9fcf47f3b280bcbfe65',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
   vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v877';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v880';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6970,12 +6970,26 @@ async function generateAutoDrawCards(){
       numBase++;
       const courtLabel=`${match._court}번코트`;
       const _drawCreator=(state.identity&&state.identity.name)||'';
+      // 대진 생성 시 적용된 조건 스냅샷 (카드에 기록)
+      const _condSnap={};
+      if(_autoTeamMode&&_autoTeamA.length&&_autoTeamB.length){
+        if(_conditionBadA)  _condSnap._condBadA=_conditionBadA;
+        if(_conditionBadB)  _condSnap._condBadB=_conditionBadB;
+        if(_conditionGoodA) _condSnap._condGoodA=_conditionGoodA;
+        if(_conditionGoodB) _condSnap._condGoodB=_conditionGoodB;
+      } else {
+        if(_autoConditionBad)  _condSnap._condBad=_autoConditionBad;
+        if(_autoConditionGood) _condSnap._condGood=_autoConditionGood;
+      }
+      const _lateArr=[...lateNamesSet];
+      if(_lateArr.length) _condSnap._lateNames=_lateArr;
       const cardData={
         phase:'setup',team0:match.team0,team1:match.team1,
         sets:[],winner:-1,bgImage,num:numBase,createdAt,label,
         matchType:match.type,courtLabel,
         _round:match._round,_court:match._court,
         createdBy:_drawCreator,
+        ..._condSnap,
         ...(_autoTeamMode&&_autoTeamA.length&&_autoTeamB.length?{
           _teamMode:true,
           _teamANames:[..._autoTeamA],_teamBNames:[..._autoTeamB],
@@ -7180,6 +7194,19 @@ function _renderDailyCard(id){
   const _curName=(state.identity&&state.identity.name)||'';
   const canManage=isManager()||(!!d.createdBy&&d.createdBy===_curName);
 
+  // 대진 조건 태그 (🙏양보/💪추가/⏰늦참)
+  function _condTagsHtml(){
+    const tags=[];
+    if(d._condBad)  tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(255,237,213,0.9);color:#c2410c;border-radius:10px;padding:2px 7px">🙏 ${d._condBad}</span>`);
+    if(d._condGood) tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(220,252,231,0.9);color:#15803d;border-radius:10px;padding:2px 7px">💪 ${d._condGood}</span>`);
+    if(d._condBadA) tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(255,237,213,0.9);color:#c2410c;border-radius:10px;padding:2px 7px">🙏 ${d._condBadA}</span>`);
+    if(d._condBadB) tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(255,237,213,0.9);color:#c2410c;border-radius:10px;padding:2px 7px">🙏 ${d._condBadB}</span>`);
+    if(d._condGoodA) tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(220,252,231,0.9);color:#15803d;border-radius:10px;padding:2px 7px">💪 ${d._condGoodA}</span>`);
+    if(d._condGoodB) tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(220,252,231,0.9);color:#15803d;border-radius:10px;padding:2px 7px">💪 ${d._condGoodB}</span>`);
+    if(d._lateNames&&d._lateNames.length) d._lateNames.forEach(n=>tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(254,243,199,0.9);color:#92400e;border-radius:10px;padding:2px 7px">⏰ ${n}</span>`));
+    return tags.length?`<div style="padding:3px 10px 5px;display:flex;flex-wrap:wrap;gap:3px">${tags.join('')}</div>`:'';
+  }
+
   function mkCard(numLabel, leftCol, midCol, rightCol, bgOverride){
     const bgImg = bgOverride || d.bgImage || 'images/ca1.png';
     return `<div class="dc-card">
@@ -7192,6 +7219,7 @@ function _renderDailyCard(id){
         </div>
         ${canManage?`<button class="dc-del-btn" onclick="adminRemoveDailyCard('${id}')" title="카드 삭제">✕</button>`:''}
       </div>
+      ${_condTagsHtml()}
       <div class="dc-body">
         ${leftCol}
         <div class="dc-mid">${midCol}</div>
