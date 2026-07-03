@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v882';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v883';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4575,6 +4575,8 @@ let _conditionGoodA=null; // A팀 추가 선수 (💪 한 경기 더)
 let _conditionGoodB=null; // B팀 추가 선수
 let _autoConditionBad=null;  // 자동대진 양보 선수 (🙏)
 let _autoConditionGood=null; // 자동대진 추가 선수 (💪)
+let _autoConditionBadMult=1;  // 양보 배수 (1=1게임, 2=2게임)
+let _autoConditionGoodMult=1; // 추가 배수 (1=1게임, 2=2게임)
 let _autoDrawSession=null;      // DB 세션 데이터 { owner, teamMode, teamA, teamB, ... }
 let _autoDrawSessionRef=null;   // Firebase 리스너 ref
 let _applyingSession=false;     // 세션 적용 중 플래그 (이중 저장 방지)
@@ -5536,8 +5538,8 @@ function openAutoDrawModal(){
   if(_autoTeamMode) _renderTeamAssign();
   // 모달 열릴 때 임시 제외 목록·컨디션 리셋
   _autoExcludedNames=new Set();
-  _autoConditionBad=null;
-  _autoConditionGood=null;
+  _autoConditionBad=null; _autoConditionBadMult=1;
+  _autoConditionGood=null; _autoConditionGoodMult=1;
   // 오늘 참석자 pill UI 표시
   _renderAutoDrawAttendeeUI();
   document.getElementById('auto-draw-warn').style.display='none';
@@ -6358,7 +6360,7 @@ function _renderDrawAnalysis(d){
     <div style="font-size:0.85rem;font-weight:800;color:#166534;margin-bottom:7px">👥 참석자 ${d.attendees.length}명 — 남 ${d.males.length} / 여 ${d.females.length}</div>
     <div style="font-size:0.8rem;color:#1d4ed8;font-weight:700">♂ ${d.males.map(p=>p.name).join(' · ')}</div>
     <div style="font-size:0.8rem;color:#be185d;font-weight:700;margin-top:4px">♀ ${d.females.map(p=>p.name).join(' · ')}</div>
-    ${(()=>{const tags=[];if(d._condBad)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(255,237,213,0.9);color:#c2410c;border-radius:10px;padding:2px 7px">🙏 ${d._condBad}</span>`);if(d._condGood)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(220,252,231,0.9);color:#15803d;border-radius:10px;padding:2px 7px">💪 ${d._condGood}</span>`);if(d._condBadA)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(255,237,213,0.9);color:#c2410c;border-radius:10px;padding:2px 7px">🙏 ${d._condBadA}</span>`);if(d._condBadB)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(255,237,213,0.9);color:#c2410c;border-radius:10px;padding:2px 7px">🙏 ${d._condBadB}</span>`);if(d._condGoodA)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(220,252,231,0.9);color:#15803d;border-radius:10px;padding:2px 7px">💪 ${d._condGoodA}</span>`);if(d._condGoodB)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(220,252,231,0.9);color:#15803d;border-radius:10px;padding:2px 7px">💪 ${d._condGoodB}</span>`);if(d._lateNames&&d._lateNames.length)d._lateNames.forEach(n=>tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(254,243,199,0.9);color:#92400e;border-radius:10px;padding:2px 7px">⏰ ${n}</span>`));return tags.length?`<div style="margin-top:7px;display:flex;flex-wrap:wrap;gap:3px">${tags.join('')}</div>`:''})()}
+    ${(()=>{const tags=[];if(d._condBad)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(255,237,213,0.9);color:#c2410c;border-radius:10px;padding:2px 7px">${'🙏'.repeat(d._condBadMult||1)} ${d._condBad}</span>`);if(d._condGood)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(220,252,231,0.9);color:#15803d;border-radius:10px;padding:2px 7px">${'💪'.repeat(d._condGoodMult||1)} ${d._condGood}</span>`);if(d._condBadA)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(255,237,213,0.9);color:#c2410c;border-radius:10px;padding:2px 7px">🙏 ${d._condBadA}</span>`);if(d._condBadB)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(255,237,213,0.9);color:#c2410c;border-radius:10px;padding:2px 7px">🙏 ${d._condBadB}</span>`);if(d._condGoodA)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(220,252,231,0.9);color:#15803d;border-radius:10px;padding:2px 7px">💪 ${d._condGoodA}</span>`);if(d._condGoodB)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(220,252,231,0.9);color:#15803d;border-radius:10px;padding:2px 7px">💪 ${d._condGoodB}</span>`);if(d._lateNames&&d._lateNames.length)d._lateNames.forEach(n=>tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(254,243,199,0.9);color:#92400e;border-radius:10px;padding:2px 7px">⏰ ${n}</span>`));return tags.length?`<div style="margin-top:7px;display:flex;flex-wrap:wrap;gap:3px">${tags.join('')}</div>`:''})()}
   </div>`;
   // ── 팀 대결 배너
   if(d.teamMode){
@@ -6604,8 +6606,8 @@ function _renderAutoDrawAttendeeUI(){
       const isGood=_autoConditionGood===p.name;
       const canTap=canEdit||(curName&&curName===p.name); // 관리자 또는 본인
       let bg,color,border,prefix='';
-      if(isBad){      bg='#fff7ed';color='#c2410c';border='#fed7aa';prefix='🙏 ';}
-      else if(isGood){bg='#f0fdf4';color='#15803d';border='#bbf7d0';prefix='💪 ';}
+      if(isBad){      bg='#fff7ed';color='#c2410c';border='#fed7aa';prefix='🙏'.repeat(_autoConditionBadMult)+' ';}
+      else if(isGood){bg='#f0fdf4';color='#15803d';border='#bbf7d0';prefix='💪'.repeat(_autoConditionGoodMult)+' ';}
       else{           bg=isMale?'#eff6ff':'#fdf2f8';color=isMale?'#1d4ed8':'#db2777';border=isMale?'#bfdbfe':'#fbcfe8';}
       const tapAttr=canTap?`onclick="_tapAutoConditionPlayer('${nameSafe}')" style="cursor:pointer;"`:'style="cursor:default;"';
       const xBtn=canEdit?`<button class="pill-x" onclick="event.stopPropagation();_toggleAutoExclude('${nameSafe}')" title="제외">✕</button>`:'';
@@ -6623,22 +6625,31 @@ function _renderAutoDrawAttendeeUI(){
   const males=raw.filter(p=>p.gender==='male');
   const females=raw.filter(p=>p.gender!=='male');
   const exclNote=excludedCount?`<span style="font-size:0.78rem;color:#dc2626;font-weight:600;margin-left:4px">(${excludedCount}명 제외)</span>`:'';
-  const condHint=!_autoTeamMode?(canEdit?`<span style="font-size:0.72rem;color:#94a3b8;margin-left:6px">탭: 🙏양보→💪추가→해제</span>`:
-    `<span style="font-size:0.72rem;color:#94a3b8;margin-left:6px">내 이름 탭: 🙏양보→💪추가→해제</span>`):'';
+  const condHint=!_autoTeamMode?(canEdit?`<span style="font-size:0.72rem;color:#94a3b8;margin-left:6px">탭: 🙏→🙏🙏→💪→💪💪→해제</span>`:
+    `<span style="font-size:0.72rem;color:#94a3b8;margin-left:6px">내 이름 탭: 🙏→🙏🙏→💪→💪💪→해제</span>`):'';
   el.innerHTML=
     `<b>오늘 참석자 ${active.length}명</b> — 남 ${activeMales}명 / 여 ${activeFemales}명${exclNote}${condHint}` +
     `<div style="margin-top:6px;line-height:1.9">${males.map(makePill).join('')}${females.map(makePill).join('')}</div>`;
 }
 
-// 자동대진 컨디션 토글 — 없음→🙏양보→💪추가→없음
+// 자동대진 컨디션 토글 — 없음→🙏(1)→🙏🙏(2)→💪(1)→💪💪(2)→없음
 function _tapAutoConditionPlayer(name){
   if(_autoConditionBad===name){
-    _autoConditionBad=null; _autoConditionGood=name;
+    if(_autoConditionBadMult===1){
+      _autoConditionBadMult=2; // 🙏→🙏🙏
+    } else {
+      _autoConditionBad=null; _autoConditionBadMult=1;
+      _autoConditionGood=name; _autoConditionGoodMult=1; // 🙏🙏→💪
+    }
   } else if(_autoConditionGood===name){
-    _autoConditionGood=null;
+    if(_autoConditionGoodMult===1){
+      _autoConditionGoodMult=2; // 💪→💪💪
+    } else {
+      _autoConditionGood=null; _autoConditionGoodMult=1; // 💪💪→없음
+    }
   } else {
-    _autoConditionBad=name;
     if(_autoConditionGood===name) _autoConditionGood=null;
+    _autoConditionBad=name; _autoConditionBadMult=1; // 없음→🙏
   }
   _renderAutoDrawAttendeeUI();
 }
@@ -6790,7 +6801,7 @@ function _genOneSameGender(type,roundPlayers,prevPlayers,prevPrevPlayers,prevMen
 // 생성+스케줄 통합 함수 ─ 한 경기씩 생성하면서 즉시 라운드 배정
 // 현재 라운드 상태(prevPlayers, prevMensPlayers 등)를 알면서 생성하므로
 // 구조적으로 3연속·남복연속 위반이 발생하지 않음
-function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,allowConsec3,presetRounds,lateNamesSet,conditionGood,conditionBad){
+function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,allowConsec3,presetRounds,lateNamesSet,conditionGood,conditionBad,condGoodMult,condBadMult){
   if(!presetRounds) presetRounds={};
   if(!lateNamesSet) lateNamesSet=new Set();
   const remaining={mixed:counts.mixed,mens:counts.mens,womens:counts.womens};
@@ -6804,19 +6815,19 @@ function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,a
   const allTotalSess={};
   [...sortedM,...sortedF].forEach(p=>{allTotalSess[p.name]=0;});
   const allPlayerNames=[...sortedM,...sortedF].map(p=>p.name);
-  // 1게임 차이 한도 내에서만 컨디션 조건 활성화
-  const _effectiveCond=(cond,isGood)=>{
+  // maxDiff 게임 차이 한도 내에서만 컨디션 조건 활성화 (배수 지원)
+  const _effectiveCond=(cond,isGood,maxDiff)=>{
     if(!cond||!cond.size) return cond;
     const name=[...cond][0];
     const mySess=allTotalSess[name]||0;
     const others=allPlayerNames.filter(n=>n!==name).map(n=>allTotalSess[n]||0);
     if(!others.length) return cond;
     if(isGood){
-      // 💪: 다른 선수 최댓값보다 이미 1 이상 앞서면 해제
-      return mySess>Math.max(...others)?null:cond;
+      // 💪: 최대 maxDiff 게임 더 뛰면 해제
+      return mySess>Math.max(...others)+(maxDiff-1)?null:cond;
     } else {
-      // 🙏: 다른 선수 최솟값보다 이미 1 이상 뒤처지면 해제
-      return mySess<Math.min(...others)?null:cond;
+      // 🙏: 최대 maxDiff 게임 덜 뛰면 해제
+      return mySess<Math.min(...others)-(maxDiff-1)?null:cond;
     }
   };
   const usedCombos={mixed:new Set(),mens:new Set(),womens:new Set()};
@@ -6865,8 +6876,8 @@ function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,a
       for(const type of typeOrder){
         let match=null;
         // 1게임 차이 한도 내에서만 컨디션 적용
-        const effGood=_effectiveCond(conditionGood,true);
-        const effBad=_effectiveCond(conditionBad,false);
+        const effGood=_effectiveCond(conditionGood,true,condGoodMult||1);
+        const effBad=_effectiveCond(conditionBad,false,condBadMult||1);
         if(type==='mixed'){
           match=_genOneMixed(roundPlayers,prevPlayers,prevPrevPlayers,
             activeM,activeF,mSess,fSess,pairStats,usedCombos.mixed,mustPlay,allowConsec3,effGood,effBad);
@@ -6997,7 +7008,7 @@ async function generateAutoDrawCards(){
       const autoCBad=_autoConditionBad?new Set([_autoConditionBad]):null;
       scheduled=_genAndSchedule(sortedM,sortedF,pairStats,
         {mixed:mixedCnt,mens:mensCnt,womens:womensCnt},courtCount,maxRounds,allowConsec3,
-        presetRounds,lateNamesSet,autoCGood,autoCBad);
+        presetRounds,lateNamesSet,autoCGood,autoCBad,_autoConditionGoodMult,_autoConditionBadMult);
     }
     const totalMade=scheduled.length;
     if(totalMade===0){
@@ -7034,8 +7045,8 @@ async function generateAutoDrawCards(){
         if(_conditionGoodA) _condSnap._condGoodA=_conditionGoodA;
         if(_conditionGoodB) _condSnap._condGoodB=_conditionGoodB;
       } else {
-        if(_autoConditionBad)  _condSnap._condBad=_autoConditionBad;
-        if(_autoConditionGood) _condSnap._condGood=_autoConditionGood;
+        if(_autoConditionBad){  _condSnap._condBad=_autoConditionBad; if(_autoConditionBadMult>1) _condSnap._condBadMult=_autoConditionBadMult; }
+        if(_autoConditionGood){ _condSnap._condGood=_autoConditionGood; if(_autoConditionGoodMult>1) _condSnap._condGoodMult=_autoConditionGoodMult; }
       }
       const _lateArr=[...lateNamesSet];
       if(_lateArr.length) _condSnap._lateNames=_lateArr;
@@ -7253,8 +7264,8 @@ function _renderDailyCard(id){
   // 대진 조건 태그 (🙏양보/💪추가/⏰늦참)
   function _condTagsHtml(){
     const tags=[];
-    if(d._condBad)  tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(255,237,213,0.9);color:#c2410c;border-radius:10px;padding:2px 7px">🙏 ${d._condBad}</span>`);
-    if(d._condGood) tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(220,252,231,0.9);color:#15803d;border-radius:10px;padding:2px 7px">💪 ${d._condGood}</span>`);
+    if(d._condBad)  tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(255,237,213,0.9);color:#c2410c;border-radius:10px;padding:2px 7px">${'🙏'.repeat(d._condBadMult||1)} ${d._condBad}</span>`);
+    if(d._condGood) tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(220,252,231,0.9);color:#15803d;border-radius:10px;padding:2px 7px">${'💪'.repeat(d._condGoodMult||1)} ${d._condGood}</span>`);
     if(d._condBadA) tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(255,237,213,0.9);color:#c2410c;border-radius:10px;padding:2px 7px">🙏 ${d._condBadA}</span>`);
     if(d._condBadB) tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(255,237,213,0.9);color:#c2410c;border-radius:10px;padding:2px 7px">🙏 ${d._condBadB}</span>`);
     if(d._condGoodA) tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(220,252,231,0.9);color:#15803d;border-radius:10px;padding:2px 7px">💪 ${d._condGoodA}</span>`);
