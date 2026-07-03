@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v884';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v885';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6859,7 +6859,12 @@ function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,a
     const activeF=isLateExcluded?nonLateF:sortedF;
     // mustPlay: 직전 라운드 쉰 선수 (연속 쉼 방지), 늦참 제외 구간에서는 늦참 제외
     const baseMust=new Set([...prevRested]);
-    const mustPlay=isLateExcluded?new Set([...baseMust].filter(n=>!lateNamesSet.has(n))):baseMust;
+    let mustPlay=isLateExcluded?new Set([...baseMust].filter(n=>!lateNamesSet.has(n))):new Set([...baseMust]);
+    // 🙏🙏 양보 곱배기 선수 — 연속 쉬기 허용 (mustPlay 제외), 단일 🙏는 기존 동작 유지
+    if((condBadMult||1)>=2&&conditionBad&&conditionBad.size){
+      const effBadCheck=_effectiveCond(conditionBad,false,condBadMult);
+      if(effBadCheck) [...conditionBad].forEach(n=>mustPlay.delete(n));
+    }
     for(let c=0;c<courtCount;c++){
       if(remaining.mixed+remaining.mens+remaining.womens===0) break;
       // 타입 결정: 명시 프리셋 타입(non-auto) 우선, 실패 시 비율 낮은 타입으로 폴백
