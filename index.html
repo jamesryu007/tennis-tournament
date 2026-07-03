@@ -798,14 +798,14 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script>
 // ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v880';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v881';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6348,6 +6348,7 @@ function _renderDrawAnalysis(d){
     <div style="font-size:0.85rem;font-weight:800;color:#166534;margin-bottom:7px">👥 참석자 ${d.attendees.length}명 — 남 ${d.males.length} / 여 ${d.females.length}</div>
     <div style="font-size:0.8rem;color:#1d4ed8;font-weight:700">♂ ${d.males.map(p=>p.name).join(' · ')}</div>
     <div style="font-size:0.8rem;color:#be185d;font-weight:700;margin-top:4px">♀ ${d.females.map(p=>p.name).join(' · ')}</div>
+    ${(()=>{const tags=[];if(d._condBad)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(255,237,213,0.9);color:#c2410c;border-radius:10px;padding:2px 7px">🙏 ${d._condBad}</span>`);if(d._condGood)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(220,252,231,0.9);color:#15803d;border-radius:10px;padding:2px 7px">💪 ${d._condGood}</span>`);if(d._condBadA)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(255,237,213,0.9);color:#c2410c;border-radius:10px;padding:2px 7px">🙏 ${d._condBadA}</span>`);if(d._condBadB)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(255,237,213,0.9);color:#c2410c;border-radius:10px;padding:2px 7px">🙏 ${d._condBadB}</span>`);if(d._condGoodA)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(220,252,231,0.9);color:#15803d;border-radius:10px;padding:2px 7px">💪 ${d._condGoodA}</span>`);if(d._condGoodB)tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(220,252,231,0.9);color:#15803d;border-radius:10px;padding:2px 7px">💪 ${d._condGoodB}</span>`);if(d._lateNames&&d._lateNames.length)d._lateNames.forEach(n=>tags.push(`<span style="font-size:0.68rem;font-weight:700;background:rgba(254,243,199,0.9);color:#92400e;border-radius:10px;padding:2px 7px">⏰ ${n}</span>`));return tags.length?`<div style="margin-top:7px;display:flex;flex-wrap:wrap;gap:3px">${tags.join('')}</div>`:''})()}
   </div>`;
   // ── 팀 대결 배너
   if(d.teamMode){
