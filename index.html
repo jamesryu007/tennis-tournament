@@ -100,7 +100,7 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
 .golf-card.live     { border-color:#ef4444 !important; }
 /* ── 골프 리더보드 행 ── */
 .golf-lb-row {
-  display:grid; grid-template-columns:28px 1fr 56px 42px 46px;
+  display:grid; grid-template-columns:28px 1fr auto;
   align-items:center; padding:8px 14px;
   border-bottom:1px solid #f1f5f9; font-size:0.86rem; gap:4px;
 }
@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v886';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v889';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -23693,26 +23693,58 @@ function renderGolfLeaderboard(t) {
   const otherList = displayPlayers.filter(p => !favNames.has(p.name.toLowerCase()));
 
   const _golfTourKey = t.tour === 'lpga' ? 'lpga' : 'pga';
+  // 라운드 수 계산 (최대 4) — _renderRow보다 앞에 선언해야 클로저에서 사용 가능
+  const maxScoreRounds = Math.min(Math.max(...displayPlayers.map(p=>(p.scores||[]).length), 0), 4);
+  const rndLabels = ['R1','R2','R3','Final'];
+  const CHIP_W = 32; // 라운드 칩 고정 너비(px)
+  const TOT_W  = 36; // 합계 칩 너비
+  const THR_W  = 28; // 진행 너비
   const _renderRow = (p, isFav = false) => {
-    const roundScore = (p.scores || [])[roundIdx !== null ? roundIdx : -1];
-    const scoreCell  = roundIdx !== null
-      ? `<span style="font-weight:700;font-size:0.88rem;color:${scoreColor(roundScore)}">${roundScore || '-'}</span>`
-      : `<span style="font-size:0.68rem;color:#64748b;letter-spacing:-0.2px">${(p.scores||[]).join('  ') || '-'}</span>`;
-    const rankDisp   = roundIdx !== null ? (p._roundRank || '-') : (p._calcRank || '-');
-    const totalDisp  = roundIdx !== null ? (roundScore || '-') : (p.total || 'E');
-    const totalColor = roundIdx !== null ? scoreColor(roundScore) : scoreColor(p.total || 'E');
     const pNameSafe  = p.name.replace(/'/g, "\\'");
     const korPlayer  = isKorean(p.country);
     const nameColor  = korPlayer ? '#CD2E3A' : isFav ? '#92400e' : '#1e293b';
-    return `<div class="golf-lb-row" style="${isFav ? 'background:#fffbeb;' : ''}">
+    const rankDisp   = roundIdx !== null ? (p._roundRank || '-') : (p._calcRank || '-');
+    const totalDisp  = roundIdx !== null ? ((p.scores||[])[roundIdx] || '-') : (p.total || 'E');
+    const totalColor = scoreColor(totalDisp);
+    const thruText   = p.thru && p.thru!=='-' ? (p.thru==='F' ? 'F' : (isNaN(parseInt(p.thru)) ? p.thru : parseInt(p.thru)+'H')) : '-';
+    const thruColor  = p.thru==='F' ? '#16a34a' : p.state==='active' ? '#f59e0b' : '#94a3b8';
+    // 스코어 칩 헬퍼
+    const _chip = (v, big=false) => {
+      if (!v || v==='-') return '';
+      const c = scoreColor(v);
+      const bg = v.startsWith('-') ? '#dbeafe' : v==='E' ? '#f1f5f9' : '#fee2e2';
+      const border = v.startsWith('-') ? '#93c5fd' : v==='E' ? '#e2e8f0' : '#fca5a5';
+      const sz = big ? '0.8rem' : '0.7rem';
+      const fw = big ? '900' : '700';
+      const pad = big ? '3px 8px' : '2px 5px';
+      const mw = big ? '30px' : '22px';
+      const br = big ? '7px' : '5px';
+      return `<span style="min-width:${mw};text-align:center;font-size:${sz};font-weight:${fw};color:${c};background:${bg};border:1.5px solid ${border};border-radius:${br};padding:${pad}">${v}</span>`;
+    };
+    // 라운드 칩 목록
+    // 오른쪽 칩 영역: 전체탭=R1~Final 고정열 / 라운드탭=해당라운드 점수만
+    const _fixedChip = (v) => {
+      if (!v || v==='-') return `<span style="min-width:${CHIP_W}px;text-align:center"></span>`;
+      return _chip(v).replace('min-width:22px','min-width:'+CHIP_W+'px');
+    };
+    const rightCells = roundIdx !== null
+      ? `${_chip(totalDisp,true)}<span style="min-width:${THR_W}px;text-align:right;font-size:0.65rem;font-weight:${p.state==='active'?'700':'400'};color:${thruColor}">${thruText}</span>`
+      : `${rndLabels.slice(0,maxScoreRounds).map((l,ri)=>{
+          const isLast=ri===maxScoreRounds-1;
+          const sv=(p.scores||[])[ri];
+          if(!sv||sv==='-') return `<span style="min-width:${isLast?TOT_W:CHIP_W}px;text-align:center"></span>`;
+          const c=scoreColor(sv);const bg=sv.startsWith('-')?'#dbeafe':sv==='E'?'#f1f5f9':'#fee2e2';const border=sv.startsWith('-')?'#93c5fd':sv==='E'?'#e2e8f0':'#fca5a5';
+          const fw=isLast?'900':'700';const sz=isLast?'0.8rem':'0.7rem';const pad=isLast?'3px 8px':'2px 5px';const br=isLast?'7px':'5px';
+          return `<span style="min-width:${isLast?TOT_W:CHIP_W}px;text-align:center;font-size:${sz};font-weight:${fw};color:${c};background:${bg};border:1.5px solid ${border};border-radius:${br};padding:${pad}">${sv}</span>`;
+        }).join('')}${maxScoreRounds<4?_chip(totalDisp,true):''}
+        <span style="min-width:${THR_W}px;text-align:right;font-size:0.65rem;font-weight:${p.state==='active'?'700':'400'};color:${thruColor}">${thruText}</span>`;
+    return `<div class="golf-lb-row" style="${isFav ? 'background:#fffbeb;border-left:3px solid #f59e0b;' : ''}">
       <span style="font-size:0.72rem;font-weight:700;color:#94a3b8">${rankDisp}</span>
       <div style="min-width:0">
         <div class="pp-name-link" style="font-size:0.86rem;font-weight:700;color:${nameColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis" onclick="openPlayerProfile('${pNameSafe}','${_golfTourKey}')">${isFav ? '⭐ ' : ''}${p.name}</div>
         ${p.country ? `<div style="font-size:0.70rem;color:#94a3b8">${p.country}</div>` : ''}
       </div>
-      ${roundIdx !== null ? `<span></span>` : scoreCell}
-      <span style="font-weight:800;font-size:0.85rem;color:${totalColor};text-align:right">${totalDisp}</span>
-      <span style="font-size:0.7rem;text-align:right;font-weight:${p.state==='active'?'700':'400'};color:${p.thru==='F'?'#16a34a':p.state==='active'?'#f59e0b':'#94a3b8'}">${p.thru && p.thru!=='-' ? (p.thru==='F' ? 'F' : (isNaN(parseInt(p.thru)) ? p.thru : parseInt(p.thru)+'H')) : '-'}</span>
+      <div style="display:flex;align-items:center;gap:3px;justify-content:flex-end">${rightCells}</div>
     </div>`;
   };
 
@@ -23732,22 +23764,24 @@ function renderGolfLeaderboard(t) {
   const rLabel     = golfState.selectedRound === '4' ? 'Final' : `R${golfState.selectedRound}`;
   const updatedStr = t.updatedAt ? new Date(t.updatedAt).toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit' }) : '';
 
-  // 전체탭: # | 선수 | 스코어 | 합계 | 진행
-  // 라운드탭: # | 선수 | (empty) | 점수 | 진행
-  const headerHtml = roundIdx !== null
-    ? `<span style="font-size:0.74rem;color:#94a3b8">#</span>
-       <span style="font-size:0.74rem;color:#94a3b8">선수</span>
-       <span></span>
-       <span style="font-size:0.74rem;color:#94a3b8;text-align:right">점수</span>
-       <span style="font-size:0.74rem;color:#94a3b8;text-align:right">진행</span>`
-    : `<span style="font-size:0.74rem;color:#94a3b8">#</span>
-       <span style="font-size:0.74rem;color:#94a3b8">선수</span>
-       <span style="font-size:0.74rem;color:#94a3b8">스코어</span>
-       <span style="font-size:0.74rem;color:#94a3b8;text-align:right">합계</span>
-       <span style="font-size:0.74rem;color:#94a3b8;text-align:right">진행</span>`;
+  // 헤더 오른쪽: 전체탭=R1 R2 R3 Final 합계 진행 / 라운드탭=점수 진행
+  const rightHeader = roundIdx !== null
+    ? `<div style="display:flex;align-items:center;gap:3px;justify-content:flex-end">
+        <span style="min-width:${TOT_W}px;text-align:center;font-size:0.65rem;font-weight:700;color:#94a3b8">${rndLabels[roundIdx]||'점수'}</span>
+        <span style="min-width:${THR_W}px;text-align:right;font-size:0.65rem;color:#94a3b8">진행</span>
+      </div>`
+    : `<div style="display:flex;align-items:center;gap:3px;justify-content:flex-end">
+        ${rndLabels.slice(0,maxScoreRounds).map((l,i)=>`<span style="min-width:${i===maxScoreRounds-1?TOT_W:CHIP_W}px;text-align:center;font-size:0.65rem;font-weight:700;color:#94a3b8">${l}</span>`).join('')}
+        ${maxScoreRounds<4?`<span style="min-width:${TOT_W}px;text-align:center;font-size:0.65rem;font-weight:700;color:#94a3b8">합계</span>`:''}
+        <span style="min-width:${THR_W}px;text-align:right;font-size:0.65rem;color:#94a3b8">진행</span>
+      </div>`;
+
+  const headerHtml = `<span style="font-size:0.74rem;color:#94a3b8">#</span>
+     <span style="font-size:0.74rem;color:#94a3b8">선수</span>
+     ${rightHeader}`;
 
   const historyBtnHtml = `<div style="text-align:center;padding:12px 0 6px"><button onclick="openTournamentHistory('golf','${(t.tour || 'pga')}')" style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:20px;padding:6px 16px;font-size:0.78rem;font-weight:700;color:#475569;cursor:pointer">🏆 대회 히스토리</button></div>`;
-  wrap.innerHTML = `${_roundTabsHtml()}<div style="display:grid;grid-template-columns:28px 1fr 56px 42px 46px;gap:4px;padding:8px 14px 6px;border-bottom:1.5px solid #e2e8f0">${headerHtml}</div>${favSection}${rows}${updatedStr ? `<div style="text-align:center;padding:7px 0;font-size:0.62rem;color:#cbd5e1">업데이트 ${updatedStr}</div>` : ''}${historyBtnHtml}`;
+  wrap.innerHTML = `${_roundTabsHtml()}<div style="display:grid;grid-template-columns:28px 1fr auto;gap:4px;padding:8px 14px 6px;border-bottom:1.5px solid #e2e8f0">${headerHtml}</div>${favSection}${rows}${updatedStr ? `<div style="text-align:center;padding:7px 0;font-size:0.62rem;color:#cbd5e1">업데이트 ${updatedStr}</div>` : ''}${historyBtnHtml}`;
 }
 
 // ── 메인 탭 전환 (리더보드 / 뉴스) ───────────────────────────────
