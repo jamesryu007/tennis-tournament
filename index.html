@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v878';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v879';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6789,6 +6789,25 @@ function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,a
   const mSess={},fSess={},mensSess={},womensSess={};
   sortedM.forEach(p=>{mSess[p.name]=0;mensSess[p.name]=0;});
   sortedF.forEach(p=>{fSess[p.name]=0;womensSess[p.name]=0;});
+  // 전체 게임수 합산 (🙏/💪 1게임 차이 제한용)
+  const allTotalSess={};
+  [...sortedM,...sortedF].forEach(p=>{allTotalSess[p.name]=0;});
+  const allPlayerNames=[...sortedM,...sortedF].map(p=>p.name);
+  // 1게임 차이 한도 내에서만 컨디션 조건 활성화
+  const _effectiveCond=(cond,isGood)=>{
+    if(!cond||!cond.size) return cond;
+    const name=[...cond][0];
+    const mySess=allTotalSess[name]||0;
+    const others=allPlayerNames.filter(n=>n!==name).map(n=>allTotalSess[n]||0);
+    if(!others.length) return cond;
+    if(isGood){
+      // 💪: 다른 선수 최댓값보다 이미 1 이상 앞서면 해제
+      return mySess>Math.max(...others)?null:cond;
+    } else {
+      // 🙏: 다른 선수 최솟값보다 이미 1 이상 뒤처지면 해제
+      return mySess<Math.min(...others)?null:cond;
+    }
+  };
   const usedCombos={mixed:new Set(),mens:new Set(),womens:new Set()};
   const typeIdx={mixed:0,mens:0,womens:0};
   const allPlayers=new Set([...sortedM,...sortedF].map(p=>p.name));
@@ -6834,15 +6853,18 @@ function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,a
       }
       for(const type of typeOrder){
         let match=null;
+        // 1게임 차이 한도 내에서만 컨디션 적용
+        const effGood=_effectiveCond(conditionGood,true);
+        const effBad=_effectiveCond(conditionBad,false);
         if(type==='mixed'){
           match=_genOneMixed(roundPlayers,prevPlayers,prevPrevPlayers,
-            activeM,activeF,mSess,fSess,pairStats,usedCombos.mixed,mustPlay,allowConsec3,conditionGood,conditionBad);
+            activeM,activeF,mSess,fSess,pairStats,usedCombos.mixed,mustPlay,allowConsec3,effGood,effBad);
         } else if(type==='mens'){
           match=_genOneSameGender('mens',roundPlayers,prevPlayers,prevPrevPlayers,
-            prevMensPlayers,activeM,mensSess,pairStats,usedCombos.mens,mustPlay,allowConsec3,conditionGood,conditionBad);
+            prevMensPlayers,activeM,mensSess,pairStats,usedCombos.mens,mustPlay,allowConsec3,effGood,effBad);
         } else {
           match=_genOneSameGender('womens',roundPlayers,prevPlayers,prevPrevPlayers,
-            new Set(),activeF,womensSess,pairStats,usedCombos.womens,mustPlay,allowConsec3,conditionGood,conditionBad);
+            new Set(),activeF,womensSess,pairStats,usedCombos.womens,mustPlay,allowConsec3,effGood,effBad);
         }
         if(match){
           remaining[type]--;
@@ -6856,6 +6878,7 @@ function _genAndSchedule(sortedM,sortedF,pairStats,counts,courtCount,maxRounds,a
           [...match.team0,...match.team1].forEach(p=>{
             roundPlayers.add(p);
             mustPlay.delete(p);
+            allTotalSess[p]=(allTotalSess[p]||0)+1; // 전체 게임수 합산 업데이트
           });
           if(type==='mixed'){
             [...match.team0,...match.team1].forEach(p=>{
