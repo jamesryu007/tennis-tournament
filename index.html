@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v892';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v893';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -23732,18 +23732,11 @@ function renderGolfLeaderboard(t) {
     };
     const rightCells = roundIdx !== null
       ? `${_chip(totalDisp,true)}<span style="min-width:${THR_W}px;text-align:right;font-size:0.65rem;font-weight:${p.state==='active'?'700':'400'};color:${thruColor}">${thruText}</span>`
-      : `${rndLabels.slice(0,maxScoreRounds).map((l,ri)=>{
-          const isLast=ri===maxScoreRounds-1;
+      : `${(()=>{const v=totalDisp;if(!v||v==='-')return `<span style="min-width:${TOT_W}px;text-align:center"></span>`;const c=scoreColor(v);const bg=v.startsWith('-')?'#dbeafe':v==='E'?'#f1f5f9':'#fee2e2';const border=v.startsWith('-')?'#93c5fd':v==='E'?'#e2e8f0':'#fca5a5';return `<span style="min-width:${TOT_W}px;text-align:center;font-size:0.8rem;font-weight:900;color:${c};background:${bg};border:1.5px solid ${border};border-radius:7px;padding:3px 8px">${v}</span>`;})()} ${rndLabels.slice(0,maxScoreRounds).map((l,ri)=>{
           const sv=(p.scores||[])[ri];
-          if(!sv||sv==='-') return `<span style="min-width:${isLast?TOT_W:CHIP_W}px;text-align:center"></span>`;
-          // 합계(마지막)만 컬러, 라운드 칩은 회색
-          const c=isLast?scoreColor(sv):'#64748b';
-          const bg=isLast?(sv.startsWith('-')?'#dbeafe':sv==='E'?'#f1f5f9':'#fee2e2'):'#f1f5f9';
-          const border=isLast?(sv.startsWith('-')?'#93c5fd':sv==='E'?'#e2e8f0':'#fca5a5'):'#e2e8f0';
-          const fw=isLast?'900':'700';const sz=isLast?'0.8rem':'0.7rem';const pad=isLast?'3px 8px':'2px 5px';const br=isLast?'7px':'5px';
-          return `<span style="min-width:${isLast?TOT_W:CHIP_W}px;text-align:center;font-size:${sz};font-weight:${fw};color:${c};background:${bg};border:1.5px solid ${border};border-radius:${br};padding:${pad}">${sv}</span>`;
-        }).join('')}${maxScoreRounds<4?_chip(totalDisp,true):''}
-        <span style="min-width:${THR_W}px;text-align:right;font-size:0.65rem;font-weight:${p.state==='active'?'700':'400'};color:${thruColor}">${thruText}</span>`;
+          if(!sv||sv==='-') return `<span style="min-width:${CHIP_W}px;text-align:center"></span>`;
+          return `<span style="min-width:${CHIP_W}px;text-align:center;font-size:0.7rem;font-weight:700;color:#64748b;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:5px;padding:2px 5px">${sv}</span>`;
+        }).join('')}<span style="min-width:${THR_W}px;text-align:right;font-size:0.65rem;font-weight:${p.state==='active'?'700':'400'};color:${thruColor}">${thruText}</span>`;
     return `<div class="golf-lb-row" style="${isFav ? 'background:#fffbeb;border-left:3px solid #f59e0b;' : ''}">
       <span style="font-size:0.72rem;font-weight:700;color:#94a3b8">${rankDisp}</span>
       <div style="min-width:0">
@@ -23777,8 +23770,8 @@ function renderGolfLeaderboard(t) {
         <span style="min-width:${THR_W}px;text-align:right;font-size:0.65rem;color:#94a3b8">진행</span>
       </div>`
     : `<div style="display:flex;align-items:center;gap:3px;justify-content:flex-end">
-        ${rndLabels.slice(0,maxScoreRounds).map((l,i)=>`<span style="min-width:${i===maxScoreRounds-1?TOT_W:CHIP_W}px;text-align:center;font-size:0.65rem;font-weight:700;color:#94a3b8">${l}</span>`).join('')}
-        ${maxScoreRounds<4?`<span style="min-width:${TOT_W}px;text-align:center;font-size:0.65rem;font-weight:700;color:#94a3b8">합계</span>`:''}
+        <span style="min-width:${TOT_W}px;text-align:center;font-size:0.65rem;font-weight:700;color:#94a3b8">합계</span>
+        ${rndLabels.slice(0,maxScoreRounds).map(l=>`<span style="min-width:${CHIP_W}px;text-align:center;font-size:0.65rem;font-weight:700;color:#94a3b8">${l}</span>`).join('')}
         <span style="min-width:${THR_W}px;text-align:right;font-size:0.65rem;color:#94a3b8">진행</span>
       </div>`;
 

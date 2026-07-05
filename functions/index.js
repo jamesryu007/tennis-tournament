@@ -489,6 +489,22 @@ async function _archiveTennisHistory(tournamentInfo, matches) {
       runnerUp,
       savedAt:   new Date().toISOString(),
     });
+    // ── 우승자 전체 푸시 ──────────────────────────────────────────
+    try {
+      const tier     = tournamentInfo.tier || '';
+      const tierTag  = tier === 'grandslam' ? '🏆 Grand Slam' : tier === 'atp1000' ? '⭐ ATP 1000' : tier === 'atp500' ? '🎯 ATP 500' : '🎾 ATP 250';
+      const purseStr = tournamentInfo.purse ? ` | 💰 ${tournamentInfo.purse}` : '';
+      const tokens   = await getAllTokens();
+      await sendPush(
+        tokens,
+        `${tierTag} — ${tournamentInfo.displayName || tournamentInfo.name} 우승!`,
+        `🥇 ${winner.name}${winner.country ? ' ('+winner.country+')' : ''}${purseStr}`,
+        'atp'
+      );
+      console.log(`_archiveTennisHistory: push sent — winner ${winner.name}`);
+    } catch (pushErr) {
+      console.error('_archiveTennisHistory push error:', pushErr);
+    }
     console.log(`_archiveTennisHistory: saved ${tournamentInfo.name} (${year})`);
   } catch (e) {
     console.error('_archiveTennisHistory error:', e);
@@ -2135,6 +2151,22 @@ async function _archiveGolfHistory(t) {
       top10,
       savedAt:   new Date().toISOString(),
     });
+    // ── 우승자 전체 푸시 ──────────────────────────────────────────
+    try {
+      const winner   = top10[0];
+      const tourTag  = t.level === 'major' ? '⛳ Major' : t.tour === 'lpga' ? '🌸 LPGA' : '⛳ PGA Tour';
+      const purseStr = t.purse ? ` | 💰 ${t.purse}` : '';
+      const tokens   = await getAllTokens();
+      await sendPush(
+        tokens,
+        `${tourTag} — ${t.name} 우승!`,
+        `🥇 ${winner.name}${winner.country ? ' ('+winner.country+')' : ''}${purseStr}`,
+        'atp'
+      );
+      console.log(`_archiveGolfHistory: push sent — winner ${winner.name}`);
+    } catch (pushErr) {
+      console.error('_archiveGolfHistory push error:', pushErr);
+    }
     console.log(`_archiveGolfHistory: saved ${t.name} (${year})`);
   } catch (e) {
     console.error('_archiveGolfHistory error:', e);
