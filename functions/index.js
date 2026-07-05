@@ -2140,7 +2140,7 @@ async function _fetchAndParseGolfTour(tour) {
           scores:  rounds.map(s => s.displayValue || String(s.value || '')),
           thru,
           state:   pState,
-          isCut:   (c.status?.type?.name || '').toLowerCase().includes('cut'),
+          isCut:   round > 2 && rounds.length < round,
         };
       });
 
