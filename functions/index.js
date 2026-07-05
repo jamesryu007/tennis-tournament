@@ -2120,7 +2120,12 @@ async function _fetchAndParseGolfTour(tour) {
     // round 정보는 ev.status가 아닌 comp.status.type.detail에 있음
     const detail = comp.status?.type?.detail || comp.status?.type?.shortDetail || ev.status?.type?.detail || '';
     const roundM = detail.match(/Round\s*(\d)/i);
-    const round  = roundM ? parseInt(roundM[1]) : 0;
+    let round  = roundM ? parseInt(roundM[1]) : 0;
+    // round 감지 실패 시(대회 완료 등) 선수 최대 라운드 수로 추정
+    if (round === 0) {
+      const maxRds = Math.max(...(comp.competitors || []).map(c => (c.linescores || []).length), 0);
+      if (maxRds > 0) round = maxRds;
+    }
 
     const leaderboard = (comp.competitors || [])
       .sort((a, b) => (a.order || a.sortOrder || 9999) - (b.order || b.sortOrder || 9999))
