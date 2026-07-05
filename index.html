@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v901';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v902';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22851,14 +22851,14 @@ function _teardownGolfListeners() {
 
 // ── 페이지 전체 렌더 ──────────────────────────────────────────────
 function renderGolfPage() {
-  // 선택 대회 없거나 사라진 경우 자동 선택 (LIVE > 예정 > 종료)
-  const stateO = { in:0, pre:1, post:2 };
+  // 선택 대회 없거나 사라진 경우 자동 선택 (LIVE > 종료 > 예정)
+  const stateO = { in:0, post:1, pre:2 };
   const levelO = { major:0, pga_tour:1, lpga_tour:2, dp_world:3 };
-  // state 우선 → 같은 state면: in(진행중)=메이저 우선, pre(예정)=날짜 빠른 순, post(종료)=메이저 우선
+  // state 우선 → 같은 state면: in/post=메이저 우선, pre(예정)=날짜 빠른 순
   const _golfSort = (a, b) => {
     const sa = stateO[a.state] ?? 3, sb = stateO[b.state] ?? 3;
     if (sa !== sb) return sa - sb;
-    if (sa === 1) { // pre: 날짜 빠른 것 우선, 같으면 메이저 우선
+    if (sa === 2) { // pre: 날짜 빠른 것 우선, 같으면 메이저 우선
       const da = a.startDate || '', db = b.startDate || '';
       if (da !== db) return da < db ? -1 : 1;
     }
@@ -22866,8 +22866,10 @@ function renderGolfPage() {
   };
   const _allT = Object.values(golfState.tournaments).sort(_golfSort);
 
-  // 선택된 대회가 없거나 DB에서 사라진 경우 자동 선택
-  if (!golfState.selectedId || !golfState.tournaments[golfState.selectedId]) {
+  // 선택된 대회가 없거나, 사라졌거나, pre(미시작) 상태인데 in/post 대회가 있으면 자동 선택
+  const _curT = golfState.selectedId ? golfState.tournaments[golfState.selectedId] : null;
+  if (!golfState.selectedId || !_curT ||
+      (_curT.state === 'pre' && _allT.some(t => t.state !== 'pre'))) {
     golfState.selectedId    = _allT[0] ? _allT[0].id : null;
     golfState._roundUserSet = false;
   }
