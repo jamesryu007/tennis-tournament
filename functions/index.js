@@ -1315,6 +1315,63 @@ exports.notifyTournamentChange = onValueWritten(
   }
 );
 
+// ══ 15b. 테니스 우승자 실시간 감지 (결승 STATUS_FINAL 전환 시 즉시 푸시) ══
+exports.notifyTennisWinner = onValueWritten(
+  { ref: 'jmt/atpData', region: 'asia-southeast1' },
+  async (event) => {
+    try {
+      const before = event.data.before.val();
+      const after  = event.data.after.val();
+      if (!after) return;
+
+      // 이전 경기 id → 상태 맵
+      const matchesBefore = {};
+      (Array.isArray(before?.matches) ? before.matches : Object.values(before?.matches || {}))
+        .forEach(m => { if (m.id) matchesBefore[m.id] = m; });
+
+      const matchesAfter = Array.isArray(after.matches) ? after.matches : Object.values(after.matches || {});
+
+      // 이번 업데이트에서 처음 STATUS_FINAL이 된 결승 경기
+      const newFinals = matchesAfter.filter(m => {
+        const rn = (m.roundName || '').toLowerCase();
+        if (rn !== 'final' && rn !== 'the final') return false;
+        if (m.status !== 'STATUS_FINAL') return false;
+        if (!m.player1Winner && !m.player2Winner) return false;
+        const prev = m.id ? matchesBefore[m.id] : null;
+        return !prev || prev.status !== 'STATUS_FINAL';
+      });
+
+      if (!newFinals.length) return;
+
+      const tInfo   = after.tournamentInfo || {};
+      const tier    = tInfo.tier || '';
+      const tierTag = tier === 'grandslam' ? '🏆 Grand Slam'
+        : tier === 'atp1000' ? '⭐ ATP 1000'
+        : tier === 'atp500'  ? '🎯 ATP 500' : '🎾 ATP';
+      const purseStr = tInfo.purse ? ` | 💰 ${tInfo.purse}` : '';
+      const tName   = tInfo.displayName || tInfo.name || '';
+      const tokens  = await getAllTokens();
+
+      for (const final of newFinals) {
+        const isWomen   = final.gender === 'women';
+        const genderTag = isWomen ? '👸 여자' : '👑 남자';
+        const winner    = final.player1Winner
+          ? { name: final.player1Name, country: final.player1Country }
+          : { name: final.player2Name, country: final.player2Country };
+        await sendPush(
+          tokens,
+          `${tierTag} — ${tName} ${genderTag} 우승!`,
+          `🥇 ${winner.name}${winner.country ? ' ('+winner.country+')' : ''}${purseStr}`,
+          'atp'
+        );
+        console.log(`notifyTennisWinner: push sent — ${isWomen?'women':'men'} winner ${winner.name}`);
+      }
+    } catch (e) {
+      console.error('notifyTennisWinner error:', e);
+    }
+  }
+);
+
 // ══ 16. 관심선수 경기 시작 감지 ══════════════════════════════════
 exports.notifyFavPlayerMatch = onValueWritten(
   { ref: 'jmt/atpData', region: 'asia-southeast1' },
@@ -2060,22 +2117,32 @@ async function _fetchAndParseGolfTour(tour) {
     if (!comp) continue;
 
     const state  = ev.status?.type?.state || 'pre';
-    const detail = ev.status?.type?.detail || ev.status?.detail || '';
+    // round 정보는 ev.status가 아닌 comp.status.type.detail에 있음
+    const detail = comp.status?.type?.detail || comp.status?.type?.shortDetail || ev.status?.type?.detail || '';
     const roundM = detail.match(/Round\s*(\d)/i);
     const round  = roundM ? parseInt(roundM[1]) : 0;
 
     const leaderboard = (comp.competitors || [])
-      .sort((a, b) => (a.sortOrder || 9999) - (b.sortOrder || 9999))
-      .map(c => ({
-        rank:    c.sortOrder    || 0,
-        name:    c.athlete?.displayName || '',
-        country: c.athlete?.flag?.alt   || '',
-        total:   c.score        || 'E',
-        scores:  (c.linescores || []).map(s => s.displayValue || String(s.value || '')),
-        thru:    c.status?.displayValue || '',
-        state:   c.status?.type?.state  || 'pre',
-        isCut:   (c.status?.type?.name  || '').toLowerCase().includes('cut'),
-      }));
+      .sort((a, b) => (a.order || a.sortOrder || 9999) - (b.order || b.sortOrder || 9999))
+      .map(c => {
+        // thru = 현재 라운드 중첩 linescores 개수 (sortOrder/status 모두 None)
+        const rounds = c.linescores || [];
+        const curRoundIdx = round > 0 ? round - 1 : rounds.length - 1;
+        const curRound = rounds[curRoundIdx] || {};
+        const curHoles = (curRound.linescores || []).length;
+        const thru  = curHoles === 18 ? 'F' : curHoles > 0 ? String(curHoles) : '';
+        const pState = curHoles === 18 ? 'post' : curHoles > 0 ? 'in' : 'pre';
+        return {
+          rank:    c.order || c.sortOrder || 0,
+          name:    c.athlete?.displayName || '',
+          country: c.athlete?.flag?.alt   || '',
+          total:   c.score        || 'E',
+          scores:  rounds.map(s => s.displayValue || String(s.value || '')),
+          thru,
+          state:   pState,
+          isCut:   (c.status?.type?.name || '').toLowerCase().includes('cut'),
+        };
+      });
 
     // 상금 정보 (ESPN 제공 시)
     const evPurse = comp.displayPurse || comp.purse || ev.displayPurse || ev.purse || '';
@@ -2182,6 +2249,29 @@ exports.fetchGolfData = onSchedule(
   }
 );
 
+// ══ 14a. Final 라운드 진행 중 20분마다 fetch ═══════════════════════
+exports.fetchGolfDataFinal = onSchedule(
+  { schedule: '*/20 * * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    try {
+      // Final 라운드(round 4) 진행 중인 대회가 있는지 먼저 확인
+      const snap = await db.ref('jmt/golfData/tournaments').once('value');
+      const tournaments = Object.values(snap.val() || {});
+      const hasFinalInProgress = tournaments.some(t => t.state === 'in' && t.round === 4);
+      if (!hasFinalInProgress) return; // Final 아니면 skip
+      console.log('fetchGolfDataFinal: Final round in progress — fetching fresh data');
+      const [pga, lpga, eur] = await Promise.all([
+        _fetchAndParseGolfTour('pga'),
+        _fetchAndParseGolfTour('lpga'),
+        _fetchAndParseGolfTour('eur'),
+      ]);
+      await _saveGolfData([...pga, ...lpga, ...eur]);
+    } catch (e) {
+      console.error('fetchGolfDataFinal error:', e);
+    }
+  }
+);
+
 // ══ 14b. Golf 수동 새로고침 (관리자 callable) ═════════════════════
 exports.refreshGolfData = onCall(
   { region: 'asia-southeast1' },
@@ -2197,6 +2287,46 @@ exports.refreshGolfData = onCall(
     } catch (e) {
       console.error('refreshGolfData error:', e);
       return { success: false, error: e.message };
+    }
+  }
+);
+
+// ══ 14c. 골프 우승자 실시간 감지 (대회 post 전환 시 즉시 푸시) ══════
+exports.notifyGolfWinner = onValueWritten(
+  { ref: 'jmt/golfData/tournaments', region: 'asia-southeast1' },
+  async (event) => {
+    try {
+      const before = event.data.before.val() || {};
+      const after  = event.data.after.val()  || {};
+
+      // 이번 업데이트에서 처음 post 상태가 된 대회
+      const newlyFinished = Object.values(after).filter(t => {
+        if (!t || !t.id) return false;
+        if (t.state !== 'post') return false;
+        const prev = before[t.id];
+        return !prev || prev.state !== 'post';
+      });
+
+      if (!newlyFinished.length) return;
+
+      const tokens = await getAllTokens();
+
+      for (const t of newlyFinished) {
+        const winner = (t.leaderboard || []).filter(p => p.name && !p.isCut)[0];
+        if (!winner) continue;
+        const tourTag  = t.level === 'major' ? '⛳ Major'
+          : t.tour === 'lpga' ? '🌸 LPGA' : '⛳ PGA Tour';
+        const purseStr = t.purse ? ` | 💰 ${t.purse}` : '';
+        await sendPush(
+          tokens,
+          `${tourTag} — ${t.name} 우승!`,
+          `🥇 ${winner.name}${winner.country ? ' ('+winner.country+')' : ''}${purseStr}`,
+          'atp'
+        );
+        console.log(`notifyGolfWinner: push sent — ${t.name} winner ${winner.name}`);
+      }
+    } catch (e) {
+      console.error('notifyGolfWinner error:', e);
     }
   }
 );
