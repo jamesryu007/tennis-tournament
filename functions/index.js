@@ -2117,22 +2117,32 @@ async function _fetchAndParseGolfTour(tour) {
     if (!comp) continue;
 
     const state  = ev.status?.type?.state || 'pre';
-    const detail = ev.status?.type?.detail || ev.status?.detail || '';
+    // round 정보는 ev.status가 아닌 comp.status.type.detail에 있음
+    const detail = comp.status?.type?.detail || comp.status?.type?.shortDetail || ev.status?.type?.detail || '';
     const roundM = detail.match(/Round\s*(\d)/i);
     const round  = roundM ? parseInt(roundM[1]) : 0;
 
     const leaderboard = (comp.competitors || [])
-      .sort((a, b) => (a.sortOrder || 9999) - (b.sortOrder || 9999))
-      .map(c => ({
-        rank:    c.sortOrder    || 0,
-        name:    c.athlete?.displayName || '',
-        country: c.athlete?.flag?.alt   || '',
-        total:   c.score        || 'E',
-        scores:  (c.linescores || []).map(s => s.displayValue || String(s.value || '')),
-        thru:    c.status?.displayValue || c.status?.type?.shortDetail || c.status?.type?.description || '',
-        state:   c.status?.type?.state  || 'pre',
-        isCut:   (c.status?.type?.name  || '').toLowerCase().includes('cut'),
-      }));
+      .sort((a, b) => (a.order || a.sortOrder || 9999) - (b.order || b.sortOrder || 9999))
+      .map(c => {
+        // thru = 현재 라운드 중첩 linescores 개수 (sortOrder/status 모두 None)
+        const rounds = c.linescores || [];
+        const curRoundIdx = round > 0 ? round - 1 : rounds.length - 1;
+        const curRound = rounds[curRoundIdx] || {};
+        const curHoles = (curRound.linescores || []).length;
+        const thru  = curHoles === 18 ? 'F' : curHoles > 0 ? String(curHoles) : '';
+        const pState = curHoles === 18 ? 'post' : curHoles > 0 ? 'in' : 'pre';
+        return {
+          rank:    c.order || c.sortOrder || 0,
+          name:    c.athlete?.displayName || '',
+          country: c.athlete?.flag?.alt   || '',
+          total:   c.score        || 'E',
+          scores:  rounds.map(s => s.displayValue || String(s.value || '')),
+          thru,
+          state:   pState,
+          isCut:   (c.status?.type?.name || '').toLowerCase().includes('cut'),
+        };
+      });
 
     // 상금 정보 (ESPN 제공 시)
     const evPurse = comp.displayPurse || comp.purse || ev.displayPurse || ev.purse || '';

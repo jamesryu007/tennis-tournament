@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v895';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v896';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -23980,7 +23980,8 @@ function _parseGolfEvents(events, tour) {
     const comp = (ev.competitions || [])[0];
     if (!comp) return null;
     const state  = ev.status?.type?.state || 'pre';
-    const detail = ev.status?.type?.detail || ev.status?.detail || '';
+    // round: comp.status.type.detail에 있음 (ev.status.type.detail은 null)
+    const detail = comp.status?.type?.detail || comp.status?.type?.shortDetail || ev.status?.type?.detail || '';
     const roundM = detail.match(/Round\s*(\d)/i);
     const round  = roundM ? parseInt(roundM[1]) : 0;
     let venueName = '', venueCity = '', venueCountry = '';
@@ -23993,17 +23994,26 @@ function _parseGolfEvents(events, tour) {
     const n = (ev.name || '').toLowerCase();
     const level = majors.some(m => n.includes(m)) ? 'major' : (tour === 'lpga' ? 'lpga_tour' : tour === 'eur' ? 'dp_world' : 'pga_tour');
     const leaderboard = (comp.competitors || [])
-      .sort((a, b) => (a.sortOrder || 9999) - (b.sortOrder || 9999))
-      .map(c => ({
-        rank:    c.sortOrder || 0,
-        name:    c.athlete?.displayName || '',
-        country: c.athlete?.flag?.alt   || '',
-        total:   c.score        || 'E',
-        scores:  (c.linescores || []).map(s => s.displayValue || String(s.value || '')),
-        thru:    c.status?.displayValue || c.status?.type?.shortDetail || c.status?.type?.description || '',
-        state:   c.status?.type?.state  || 'pre',
-        isCut:   (c.status?.type?.name  || '').toLowerCase().includes('cut'),
-      }));
+      .sort((a, b) => (a.order || a.sortOrder || 9999) - (b.order || b.sortOrder || 9999))
+      .map(c => {
+        // thru = 현재 라운드 중첩 linescores 개수 (c.status는 모두 null)
+        const rounds = c.linescores || [];
+        const curRoundIdx = round > 0 ? round - 1 : rounds.length - 1;
+        const curRound = rounds[curRoundIdx] || {};
+        const curHoles = (curRound.linescores || []).length;
+        const thru  = curHoles === 18 ? 'F' : curHoles > 0 ? String(curHoles) : '';
+        const pState = curHoles === 18 ? 'post' : curHoles > 0 ? 'in' : 'pre';
+        return {
+          rank:    c.order || c.sortOrder || 0,
+          name:    c.athlete?.displayName || '',
+          country: c.athlete?.flag?.alt   || '',
+          total:   c.score        || 'E',
+          scores:  rounds.map(s => s.displayValue || String(s.value || '')),
+          thru,
+          state:   pState,
+          isCut:   (c.status?.type?.name || '').toLowerCase().includes('cut'),
+        };
+      });
     return {
       id: ev.id || '', name: ev.name || '', shortName: ev.shortName || ev.name || '',
       tour, level, state, round, venueName, venueCity, venueCountry,
