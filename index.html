@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v900';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v903';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -22851,14 +22851,14 @@ function _teardownGolfListeners() {
 
 // ── 페이지 전체 렌더 ──────────────────────────────────────────────
 function renderGolfPage() {
-  // 선택 대회 없거나 사라진 경우 자동 선택 (LIVE > 예정 > 종료)
-  const stateO = { in:0, pre:1, post:2 };
+  // 선택 대회 없거나 사라진 경우 자동 선택 (LIVE > 종료 > 예정)
+  const stateO = { in:0, post:1, pre:2 };
   const levelO = { major:0, pga_tour:1, lpga_tour:2, dp_world:3 };
-  // state 우선 → 같은 state면: in(진행중)=메이저 우선, pre(예정)=날짜 빠른 순, post(종료)=메이저 우선
+  // state 우선 → 같은 state면: in/post=메이저 우선, pre(예정)=날짜 빠른 순
   const _golfSort = (a, b) => {
     const sa = stateO[a.state] ?? 3, sb = stateO[b.state] ?? 3;
     if (sa !== sb) return sa - sb;
-    if (sa === 1) { // pre: 날짜 빠른 것 우선, 같으면 메이저 우선
+    if (sa === 2) { // pre: 날짜 빠른 것 우선, 같으면 메이저 우선
       const da = a.startDate || '', db = b.startDate || '';
       if (da !== db) return da < db ? -1 : 1;
     }
@@ -22866,8 +22866,10 @@ function renderGolfPage() {
   };
   const _allT = Object.values(golfState.tournaments).sort(_golfSort);
 
-  // 선택된 대회가 없거나 DB에서 사라진 경우 자동 선택
-  if (!golfState.selectedId || !golfState.tournaments[golfState.selectedId]) {
+  // 선택된 대회가 없거나, 사라졌거나, pre(미시작) 상태인데 in/post 대회가 있으면 자동 선택
+  const _curT = golfState.selectedId ? golfState.tournaments[golfState.selectedId] : null;
+  if (!golfState.selectedId || !_curT ||
+      (_curT.state === 'pre' && _allT.some(t => t.state !== 'pre'))) {
     golfState.selectedId    = _allT[0] ? _allT[0].id : null;
     golfState._roundUserSet = false;
   }
@@ -23649,6 +23651,11 @@ function renderGolfLeaderboard(t) {
     wrap.innerHTML = _roundTabsHtml() + '<div style="text-align:center;padding:28px 0;color:#94a3b8;font-size:0.85rem">리더보드 데이터가 없습니다.</div>';
     return;
   }
+  // isCut 재계산 — round 감지 실패로 저장된 값이 틀릴 수 있으므로 scores 길이로 보정
+  const _maxScoreLen = Math.max(...players.map(p => (p.scores || []).length), 0);
+  if (_maxScoreLen > 2) {
+    players.forEach(p => { if ((p.scores || []).length < _maxScoreLen) p.isCut = true; });
+  }
 
   const roundIdx = golfState.selectedRound === 'all' ? null : parseInt(golfState.selectedRound) - 1;
   const scoreColor = v => {
@@ -23993,7 +24000,12 @@ function _parseGolfEvents(events, tour) {
     // round: comp.status.type.detail에 있음 (ev.status.type.detail은 null)
     const detail = comp.status?.type?.detail || comp.status?.type?.shortDetail || ev.status?.type?.detail || '';
     const roundM = detail.match(/Round\s*(\d)/i);
-    const round  = roundM ? parseInt(roundM[1]) : 0;
+    let round  = roundM ? parseInt(roundM[1]) : 0;
+    // round 감지 실패 시(대회 완료 등) 선수 최대 라운드 수로 추정
+    if (round === 0) {
+      const maxRds = Math.max(...(comp.competitors || []).map(c => (c.linescores || []).length), 0);
+      if (maxRds > 0) round = maxRds;
+    }
     let venueName = '', venueCity = '', venueCountry = '';
     if (comp.venue) {
       venueName = comp.venue.fullName || '';
@@ -24007,12 +24019,14 @@ function _parseGolfEvents(events, tour) {
       .sort((a, b) => (a.order || a.sortOrder || 9999) - (b.order || b.sortOrder || 9999))
       .map(c => {
         // thru = 현재 라운드 중첩 linescores 개수 (c.status는 모두 null)
+        // DP World 등 홀별 데이터 미제공 시: 라운드 스코어 존재하면 'F' 처리
         const rounds = c.linescores || [];
         const curRoundIdx = round > 0 ? round - 1 : rounds.length - 1;
         const curRound = rounds[curRoundIdx] || {};
         const curHoles = (curRound.linescores || []).length;
-        const thru  = curHoles === 18 ? 'F' : curHoles > 0 ? String(curHoles) : '';
-        const pState = curHoles === 18 ? 'post' : curHoles > 0 ? 'in' : 'pre';
+        const hasRoundScore = curRound.displayValue !== undefined || curRound.value !== undefined;
+        const thru  = curHoles === 18 ? 'F' : curHoles > 0 ? String(curHoles) : hasRoundScore ? 'F' : '';
+        const pState = curHoles === 18 ? 'post' : curHoles > 0 ? 'in' : hasRoundScore ? 'post' : 'pre';
         return {
           rank:    c.order || c.sortOrder || 0,
           name:    c.athlete?.displayName || '',

@@ -2120,18 +2120,25 @@ async function _fetchAndParseGolfTour(tour) {
     // round 정보는 ev.status가 아닌 comp.status.type.detail에 있음
     const detail = comp.status?.type?.detail || comp.status?.type?.shortDetail || ev.status?.type?.detail || '';
     const roundM = detail.match(/Round\s*(\d)/i);
-    const round  = roundM ? parseInt(roundM[1]) : 0;
+    let round  = roundM ? parseInt(roundM[1]) : 0;
+    // round 감지 실패 시(대회 완료 등) 선수 최대 라운드 수로 추정
+    if (round === 0) {
+      const maxRds = Math.max(...(comp.competitors || []).map(c => (c.linescores || []).length), 0);
+      if (maxRds > 0) round = maxRds;
+    }
 
     const leaderboard = (comp.competitors || [])
       .sort((a, b) => (a.order || a.sortOrder || 9999) - (b.order || b.sortOrder || 9999))
       .map(c => {
         // thru = 현재 라운드 중첩 linescores 개수 (sortOrder/status 모두 None)
+        // DP World 등 홀별 데이터 미제공 시: 라운드 스코어 존재하면 'F' 처리
         const rounds = c.linescores || [];
         const curRoundIdx = round > 0 ? round - 1 : rounds.length - 1;
         const curRound = rounds[curRoundIdx] || {};
         const curHoles = (curRound.linescores || []).length;
-        const thru  = curHoles === 18 ? 'F' : curHoles > 0 ? String(curHoles) : '';
-        const pState = curHoles === 18 ? 'post' : curHoles > 0 ? 'in' : 'pre';
+        const hasRoundScore = curRound.displayValue !== undefined || curRound.value !== undefined;
+        const thru  = curHoles === 18 ? 'F' : curHoles > 0 ? String(curHoles) : hasRoundScore ? 'F' : '';
+        const pState = curHoles === 18 ? 'post' : curHoles > 0 ? 'in' : hasRoundScore ? 'post' : 'pre';
         return {
           rank:    c.order || c.sortOrder || 0,
           name:    c.athlete?.displayName || '',
