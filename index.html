@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v897';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v898';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -23739,8 +23739,7 @@ function renderGolfLeaderboard(t) {
           const isLastRound = ri===maxScoreRounds-1;
           const isActive = isLastRound && p.state==='in' && p.thru && p.thru!=='F';
           if(isActive){
-            const chipW=CHIP_W+12;
-            return `<span style="min-width:${chipW}px;text-align:center;font-size:0.7rem;font-weight:800;color:#92400e;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:5px;padding:2px 5px">${sv}·${p.thru}H</span>`;
+            return `<span style="min-width:${CHIP_W}px;text-align:center;font-size:0.7rem;font-weight:800;color:#92400e;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:5px;padding:2px 5px">${sv}</span>`;
           }
           return `<span style="min-width:${CHIP_W}px;text-align:center;font-size:0.7rem;font-weight:700;color:#64748b;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:5px;padding:2px 5px">${sv}</span>`;
         }).join('')}<span style="min-width:${THR_W}px;text-align:right;font-size:0.65rem;font-weight:${(p.state==='in'||p.state==='active')?'700':'400'};color:${thruColor}">${thruText}</span>`;
