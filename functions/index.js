@@ -489,22 +489,6 @@ async function _archiveTennisHistory(tournamentInfo, matches) {
       runnerUp,
       savedAt:   new Date().toISOString(),
     });
-    // ── 우승자 전체 푸시 ──────────────────────────────────────────
-    try {
-      const tier     = tournamentInfo.tier || '';
-      const tierTag  = tier === 'grandslam' ? '🏆 Grand Slam' : tier === 'atp1000' ? '⭐ ATP 1000' : tier === 'atp500' ? '🎯 ATP 500' : '🎾 ATP 250';
-      const purseStr = tournamentInfo.purse ? ` | 💰 ${tournamentInfo.purse}` : '';
-      const tokens   = await getAllTokens();
-      await sendPush(
-        tokens,
-        `${tierTag} — ${tournamentInfo.displayName || tournamentInfo.name} 우승!`,
-        `🥇 ${winner.name}${winner.country ? ' ('+winner.country+')' : ''}${purseStr}`,
-        'atp'
-      );
-      console.log(`_archiveTennisHistory: push sent — winner ${winner.name}`);
-    } catch (pushErr) {
-      console.error('_archiveTennisHistory push error:', pushErr);
-    }
     console.log(`_archiveTennisHistory: saved ${tournamentInfo.name} (${year})`);
   } catch (e) {
     console.error('_archiveTennisHistory error:', e);
@@ -1331,6 +1315,63 @@ exports.notifyTournamentChange = onValueWritten(
   }
 );
 
+// ══ 15b. 테니스 우승자 실시간 감지 (결승 STATUS_FINAL 전환 시 즉시 푸시) ══
+exports.notifyTennisWinner = onValueWritten(
+  { ref: 'jmt/atpData', region: 'asia-southeast1' },
+  async (event) => {
+    try {
+      const before = event.data.before.val();
+      const after  = event.data.after.val();
+      if (!after) return;
+
+      // 이전 경기 id → 상태 맵
+      const matchesBefore = {};
+      (Array.isArray(before?.matches) ? before.matches : Object.values(before?.matches || {}))
+        .forEach(m => { if (m.id) matchesBefore[m.id] = m; });
+
+      const matchesAfter = Array.isArray(after.matches) ? after.matches : Object.values(after.matches || {});
+
+      // 이번 업데이트에서 처음 STATUS_FINAL이 된 결승 경기
+      const newFinals = matchesAfter.filter(m => {
+        const rn = (m.roundName || '').toLowerCase();
+        if (rn !== 'final' && rn !== 'the final') return false;
+        if (m.status !== 'STATUS_FINAL') return false;
+        if (!m.player1Winner && !m.player2Winner) return false;
+        const prev = m.id ? matchesBefore[m.id] : null;
+        return !prev || prev.status !== 'STATUS_FINAL';
+      });
+
+      if (!newFinals.length) return;
+
+      const tInfo   = after.tournamentInfo || {};
+      const tier    = tInfo.tier || '';
+      const tierTag = tier === 'grandslam' ? '🏆 Grand Slam'
+        : tier === 'atp1000' ? '⭐ ATP 1000'
+        : tier === 'atp500'  ? '🎯 ATP 500' : '🎾 ATP';
+      const purseStr = tInfo.purse ? ` | 💰 ${tInfo.purse}` : '';
+      const tName   = tInfo.displayName || tInfo.name || '';
+      const tokens  = await getAllTokens();
+
+      for (const final of newFinals) {
+        const isWomen   = final.gender === 'women';
+        const genderTag = isWomen ? '👸 여자' : '👑 남자';
+        const winner    = final.player1Winner
+          ? { name: final.player1Name, country: final.player1Country }
+          : { name: final.player2Name, country: final.player2Country };
+        await sendPush(
+          tokens,
+          `${tierTag} — ${tName} ${genderTag} 우승!`,
+          `🥇 ${winner.name}${winner.country ? ' ('+winner.country+')' : ''}${purseStr}`,
+          'atp'
+        );
+        console.log(`notifyTennisWinner: push sent — ${isWomen?'women':'men'} winner ${winner.name}`);
+      }
+    } catch (e) {
+      console.error('notifyTennisWinner error:', e);
+    }
+  }
+);
+
 // ══ 16. 관심선수 경기 시작 감지 ══════════════════════════════════
 exports.notifyFavPlayerMatch = onValueWritten(
   { ref: 'jmt/atpData', region: 'asia-southeast1' },
@@ -2151,22 +2192,6 @@ async function _archiveGolfHistory(t) {
       top10,
       savedAt:   new Date().toISOString(),
     });
-    // ── 우승자 전체 푸시 ──────────────────────────────────────────
-    try {
-      const winner   = top10[0];
-      const tourTag  = t.level === 'major' ? '⛳ Major' : t.tour === 'lpga' ? '🌸 LPGA' : '⛳ PGA Tour';
-      const purseStr = t.purse ? ` | 💰 ${t.purse}` : '';
-      const tokens   = await getAllTokens();
-      await sendPush(
-        tokens,
-        `${tourTag} — ${t.name} 우승!`,
-        `🥇 ${winner.name}${winner.country ? ' ('+winner.country+')' : ''}${purseStr}`,
-        'atp'
-      );
-      console.log(`_archiveGolfHistory: push sent — winner ${winner.name}`);
-    } catch (pushErr) {
-      console.error('_archiveGolfHistory push error:', pushErr);
-    }
     console.log(`_archiveGolfHistory: saved ${t.name} (${year})`);
   } catch (e) {
     console.error('_archiveGolfHistory error:', e);
@@ -2229,6 +2254,46 @@ exports.refreshGolfData = onCall(
     } catch (e) {
       console.error('refreshGolfData error:', e);
       return { success: false, error: e.message };
+    }
+  }
+);
+
+// ══ 14c. 골프 우승자 실시간 감지 (대회 post 전환 시 즉시 푸시) ══════
+exports.notifyGolfWinner = onValueWritten(
+  { ref: 'jmt/golfData/tournaments', region: 'asia-southeast1' },
+  async (event) => {
+    try {
+      const before = event.data.before.val() || {};
+      const after  = event.data.after.val()  || {};
+
+      // 이번 업데이트에서 처음 post 상태가 된 대회
+      const newlyFinished = Object.values(after).filter(t => {
+        if (!t || !t.id) return false;
+        if (t.state !== 'post') return false;
+        const prev = before[t.id];
+        return !prev || prev.state !== 'post';
+      });
+
+      if (!newlyFinished.length) return;
+
+      const tokens = await getAllTokens();
+
+      for (const t of newlyFinished) {
+        const winner = (t.leaderboard || []).filter(p => p.name && !p.isCut)[0];
+        if (!winner) continue;
+        const tourTag  = t.level === 'major' ? '⛳ Major'
+          : t.tour === 'lpga' ? '🌸 LPGA' : '⛳ PGA Tour';
+        const purseStr = t.purse ? ` | 💰 ${t.purse}` : '';
+        await sendPush(
+          tokens,
+          `${tourTag} — ${t.name} 우승!`,
+          `🥇 ${winner.name}${winner.country ? ' ('+winner.country+')' : ''}${purseStr}`,
+          'atp'
+        );
+        console.log(`notifyGolfWinner: push sent — ${t.name} winner ${winner.name}`);
+      }
+    } catch (e) {
+      console.error('notifyGolfWinner error:', e);
     }
   }
 );
