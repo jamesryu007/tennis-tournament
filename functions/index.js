@@ -2129,7 +2129,7 @@ async function _fetchAndParseGolfTour(tour) {
         country: c.athlete?.flag?.alt   || '',
         total:   c.score        || 'E',
         scores:  (c.linescores || []).map(s => s.displayValue || String(s.value || '')),
-        thru:    c.status?.displayValue || '',
+        thru:    c.status?.displayValue || c.status?.type?.shortDetail || c.status?.type?.description || '',
         state:   c.status?.type?.state  || 'pre',
         isCut:   (c.status?.type?.name  || '').toLowerCase().includes('cut'),
       }));
@@ -2235,6 +2235,29 @@ exports.fetchGolfData = onSchedule(
       await _saveGolfData([...pga, ...lpga, ...eur]);
     } catch (e) {
       console.error('fetchGolfData error:', e);
+    }
+  }
+);
+
+// ══ 14a. Final 라운드 진행 중 20분마다 fetch ═══════════════════════
+exports.fetchGolfDataFinal = onSchedule(
+  { schedule: '*/20 * * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    try {
+      // Final 라운드(round 4) 진행 중인 대회가 있는지 먼저 확인
+      const snap = await db.ref('jmt/golfData/tournaments').once('value');
+      const tournaments = Object.values(snap.val() || {});
+      const hasFinalInProgress = tournaments.some(t => t.state === 'in' && t.round === 4);
+      if (!hasFinalInProgress) return; // Final 아니면 skip
+      console.log('fetchGolfDataFinal: Final round in progress — fetching fresh data');
+      const [pga, lpga, eur] = await Promise.all([
+        _fetchAndParseGolfTour('pga'),
+        _fetchAndParseGolfTour('lpga'),
+        _fetchAndParseGolfTour('eur'),
+      ]);
+      await _saveGolfData([...pga, ...lpga, ...eur]);
+    } catch (e) {
+      console.error('fetchGolfDataFinal error:', e);
     }
   }
 );

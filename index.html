@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v894';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v895';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -23710,7 +23710,7 @@ function renderGolfLeaderboard(t) {
     const totalDisp  = roundIdx !== null ? ((p.scores||[])[roundIdx] || '-') : (p.total || 'E');
     const totalColor = scoreColor(totalDisp);
     const thruText   = p.thru && p.thru!=='-' ? (p.thru==='F' ? 'F' : (isNaN(parseInt(p.thru)) ? p.thru : parseInt(p.thru)+'H')) : '-';
-    const thruColor  = p.thru==='F' ? '#16a34a' : p.state==='active' ? '#f59e0b' : '#94a3b8';
+    const thruColor  = p.thru==='F' ? '#16a34a' : (p.state==='in'||p.state==='active') ? '#f59e0b' : '#94a3b8';
     // 스코어 칩 헬퍼
     const _chip = (v, big=false) => {
       if (!v || v==='-') return '';
@@ -23731,12 +23731,12 @@ function renderGolfLeaderboard(t) {
       return _chip(v).replace('min-width:22px','min-width:'+CHIP_W+'px');
     };
     const rightCells = roundIdx !== null
-      ? `${_chip(totalDisp,true)}<span style="min-width:${THR_W}px;text-align:right;font-size:0.65rem;font-weight:${p.state==='active'?'700':'400'};color:${thruColor}">${thruText}</span>`
+      ? `${_chip(totalDisp,true)}<span style="min-width:${THR_W}px;text-align:right;font-size:0.65rem;font-weight:${(p.state==='in'||p.state==='active')?'700':'400'};color:${thruColor}">${thruText}</span>`
       : `${(()=>{const v=totalDisp;if(!v||v==='-')return `<span style="min-width:${TOT_W}px;text-align:center"></span>`;const c=scoreColor(v);const bg=v.startsWith('-')?'#dbeafe':v==='E'?'#f1f5f9':'#fee2e2';const border=v.startsWith('-')?'#93c5fd':v==='E'?'#e2e8f0':'#fca5a5';return `<span style="min-width:${TOT_W}px;text-align:center;font-size:0.8rem;font-weight:900;color:${c};background:${bg};border:1.5px solid ${border};border-radius:7px;padding:3px 8px">${v}</span>`;})()} ${rndLabels.slice(0,maxScoreRounds).map((l,ri)=>{
           const sv=(p.scores||[])[ri];
           if(!sv||sv==='-') return `<span style="min-width:${CHIP_W}px;text-align:center"></span>`;
           return `<span style="min-width:${CHIP_W}px;text-align:center;font-size:0.7rem;font-weight:700;color:#64748b;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:5px;padding:2px 5px">${sv}</span>`;
-        }).join('')}<span style="min-width:${THR_W}px;text-align:right;font-size:0.65rem;font-weight:${p.state==='active'?'700':'400'};color:${thruColor}">${thruText}</span>`;
+        }).join('')}<span style="min-width:${THR_W}px;text-align:right;font-size:0.65rem;font-weight:${(p.state==='in'||p.state==='active')?'700':'400'};color:${thruColor}">${thruText}</span>`;
     return `<div class="golf-lb-row" style="${isFav ? 'background:#fffbeb;border-left:3px solid #f59e0b;' : ''}">
       <span style="font-size:0.72rem;font-weight:700;color:#94a3b8">${rankDisp}</span>
       <div style="min-width:0">
@@ -24000,7 +24000,7 @@ function _parseGolfEvents(events, tour) {
         country: c.athlete?.flag?.alt   || '',
         total:   c.score        || 'E',
         scores:  (c.linescores || []).map(s => s.displayValue || String(s.value || '')),
-        thru:    c.status?.displayValue || '',
+        thru:    c.status?.displayValue || c.status?.type?.shortDetail || c.status?.type?.description || '',
         state:   c.status?.type?.state  || 'pre',
         isCut:   (c.status?.type?.name  || '').toLowerCase().includes('cut'),
       }));
