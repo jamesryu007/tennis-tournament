@@ -448,20 +448,22 @@ async function fetchAndParseAtpData() {
   return { tournamentInfo, matches, isGrandSlam: tier === 'grandslam', ev };
 }
 
-// ── 테니스 대회 히스토리 아카이브 ────────────────────────────────
-async function _archiveTennisHistory(tournamentInfo, matches) {
+// ── 테니스 대회 히스토리 아카이브 ─────────────────────────────────
+// gender: 'men' | 'women' — 남/여 결승 별도 저장
+async function _archiveTennisHistory(tournamentInfo, matches, gender = 'men') {
   try {
     if (!tournamentInfo || !tournamentInfo.id) return;
-    // 결승 찾기 — 남자부 Final (STATUS_FINAL + winner 확정)
     const matchArr = Array.isArray(matches) ? matches : Object.values(matches || {});
+    const isWomen  = gender === 'women';
+    // 해당 성별 결승 찾기 (STATUS_FINAL + winner 확정)
     const final = matchArr.find(m => {
       const rn = (m.roundName || '').toLowerCase();
       return (rn === 'final' || rn === 'the final')
         && m.status === 'STATUS_FINAL'
-        && m.gender !== 'women'
+        && (isWomen ? m.gender === 'women' : m.gender !== 'women')
         && (m.player1Winner === true || m.player2Winner === true);
     });
-    if (!final) { console.log('_archiveTennisHistory: no final found, skipping'); return; }
+    if (!final) { console.log(`_archiveTennisHistory: no ${gender} final found, skipping`); return; }
 
     const winner   = final.player1Winner
       ? { name: final.player1Name, country: final.player1Country, score: final.player1Score }
@@ -473,7 +475,7 @@ async function _archiveTennisHistory(tournamentInfo, matches) {
     const year    = tournamentInfo.startDate
       ? new Date(tournamentInfo.startDate).getFullYear()
       : new Date().getFullYear();
-    const safeKey = `${year}_${tournamentInfo.id}`;
+    const safeKey = `${year}_${tournamentInfo.id}_${gender}`;
 
     const existing = await db.ref(`jmt/tournamentHistory/tennis/${year}/${safeKey}`).once('value');
     if (existing.val()) { console.log(`_archiveTennisHistory: already exists ${safeKey}`); return; }
@@ -481,6 +483,7 @@ async function _archiveTennisHistory(tournamentInfo, matches) {
     await db.ref(`jmt/tournamentHistory/tennis/${year}/${safeKey}`).set({
       id:        tournamentInfo.id,
       name:      tournamentInfo.name,
+      gender,
       tier:      tournamentInfo.tier,
       startDate: tournamentInfo.startDate || '',
       endDate:   tournamentInfo.endDate   || '',
@@ -489,7 +492,7 @@ async function _archiveTennisHistory(tournamentInfo, matches) {
       runnerUp,
       savedAt:   new Date().toISOString(),
     });
-    console.log(`_archiveTennisHistory: saved ${tournamentInfo.name} (${year})`);
+    console.log(`_archiveTennisHistory: saved ${tournamentInfo.name} ${gender} (${year})`);
   } catch (e) {
     console.error('_archiveTennisHistory error:', e);
   }
@@ -535,10 +538,11 @@ async function saveAtpData(tournamentInfo, matches, isGrandSlam) {
       return;
     }
 
-    // 이전 대회 히스토리 저장 (결승 완료된 경우만)
+    // 이전 대회 히스토리 저장 (결승 완료된 경우만) — 남/여 각각
     const oldMatchesSnap = await db.ref('jmt/atpData/matches').once('value');
     const oldMatches = oldMatchesSnap.val() || {};
-    await _archiveTennisHistory(current, oldMatches);
+    await _archiveTennisHistory(current, oldMatches, 'men');
+    await _archiveTennisHistory(current, oldMatches, 'women');
 
     console.log(`Tournament changed: ${current.id} → ${tournamentInfo.id}. Clearing bets.`);
     await db.ref('jmt/atpBets').remove();
@@ -1365,6 +1369,9 @@ exports.notifyTennisWinner = onValueWritten(
           'atp'
         );
         console.log(`notifyTennisWinner: push sent — ${isWomen?'women':'men'} winner ${winner.name}`);
+
+        // 결승 완료 즉시 히스토리 저장 — 남/여 각각
+        await _archiveTennisHistory(after.tournamentInfo, matchesAfter, isWomen ? 'women' : 'men');
       }
     } catch (e) {
       console.error('notifyTennisWinner error:', e);

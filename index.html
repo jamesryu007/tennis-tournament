@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v903';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v904';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -23205,6 +23205,7 @@ function _renderHistoryList() {
       return `<div style="background:${style.bg};border:1.5px solid ${style.border};border-radius:12px;padding:12px 14px;margin-bottom:10px">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap">
           <span style="background:${style.badgeBg};color:${style.badgeColor};font-size:0.7rem;font-weight:900;padding:2px 9px;border-radius:8px;font-style:italic">${style.badge}</span>
+          ${e.gender === 'women' ? `<span style="background:#fce7f3;color:#be185d;font-size:0.68rem;font-weight:800;padding:2px 7px;border-radius:8px">여자</span>` : e.gender === 'men' ? `<span style="background:#dbeafe;color:#1d4ed8;font-size:0.68rem;font-weight:800;padding:2px 7px;border-radius:8px">남자</span>` : ''}
           <span style="font-size:0.88rem;font-weight:800;color:${style.color}">${e.name}</span>
         </div>
         <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}${e.purse ? ` · 💰 ${e.purse}` : ''}</div>
