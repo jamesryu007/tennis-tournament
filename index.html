@@ -2220,7 +2220,7 @@ const firebaseConfig = {
   <div id="ranking-panel" style="padding:0">
     <div class="rank-toggle">
       <div class="rank-toggle-btn active" id="rtog-player" onclick="setRankingMode('player')">개인 랭킹</div>
-      <div class="rank-toggle-btn" id="rtog-pair" onclick="setRankingMode('pair')">팀페어 랭킹</div>
+      <div class="rank-toggle-btn" id="rtog-pair" onclick="setRankingMode('pair')">단짝 통계</div>
       <div class="rank-toggle-btn" id="rtog-attendance" onclick="setRankingMode('attendance')">출석 랭킹</div>
     </div>
     <div id="ranking-list"></div>
@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v908';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v909';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8259,16 +8259,12 @@ async function loadRankingTop3(){
   ]);
   const psData=psSnap.val()||{};
   const plData=plSnap.val()||{};
-  const t3PairRaw=Object.entries(psData)
-    .map(([k,v])=>({key:k,players:v.players||k.split('_'),wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
-    .filter(p=>p.wins+p.draws+p.losses>=1);
-  const t3PairAvg=t3PairRaw.length?t3PairRaw.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/t3PairRaw.length:0;
-  const t3PairTh=t3PairAvg*0.5;
-  const _t3PAlpha=t3PairAvg/2;
-  const _t3PBayes=(w,d,l)=>{const t=w+(d||0)+l;return t?((w+(d||0)*0.5+_t3PAlpha)/(t+2*_t3PAlpha)*100):50;};
-  const t3PairQ=t3PairRaw.filter(p=>p.wins+p.draws+p.losses>=t3PairTh).sort((a,b)=>_t3PBayes(b.wins,b.draws,b.losses)-_t3PBayes(a.wins,a.draws,a.losses)||b.wins-a.wins);
-  const t3PairU=t3PairRaw.filter(p=>p.wins+p.draws+p.losses<t3PairTh).sort((a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||_t3PBayes(b.wins,b.draws,b.losses)-_t3PBayes(a.wins,a.draws,a.losses)||b.wins-a.wins;});
-  state._pairTop3=[...t3PairQ,...t3PairU].slice(0,3);
+  // 단짝 통계: 경기수 내림차순 상위 3조합
+  state._pairTop3=Object.entries(psData)
+    .map(([k,v])=>({key:k,players:v.players||k.split('_'),wins:v.wins||0,draws:Math.max(0,v.draws||0),losses:v.losses||0}))
+    .filter(p=>p.wins+p.draws+p.losses>=2)
+    .sort((a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses);})
+    .slice(0,3);
 
   const t3PlRaw=Object.entries(plData)
     .map(([name,v])=>({name,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
@@ -8287,8 +8283,8 @@ function setRankingMode(mode){
   document.getElementById('rtog-attendance').className='rank-toggle-btn'+(mode==='attendance'?' active':'');
   const hintEl=document.getElementById('rank-hint-text');
   if(hintEl){
-    if(mode==='player') hintEl.textContent='클릭하면 상대 전적을 볼 수 있어요.';
-    else if(mode==='pair') hintEl.textContent='클릭하면 만만한 상대와 베이글 기록을 볼 수 있어요.';
+    if(mode==='player') hintEl.textContent='클릭하면 파트너 전적과 상대 전적을 볼 수 있어요.';
+    else if(mode==='pair') hintEl.textContent='함께 많이 뛴 파트너 조합 목록 (경기수 순).';
     else hintEl.textContent='';
   }
   renderRankYearRow();
@@ -8304,14 +8300,38 @@ async function renderRankingTab(){
   if(!hasStatsCache) el.innerHTML='<div style="text-align:center;padding:20px;color:#94a3b8;font-size:0.85rem">불러오는 중...</div>';
 
   // ── 공통 헬퍼 ──
-  function mkDetail(vsData,stats,mode,indent,bagelData){
+  function mkDetail(vsData,stats,mode,indent,bagelData,partnerData){
     const style=indent?'margin-left:51px':'';
-    const showTabs=mode==='pair'&&bagelData;
-    const tabsHtml=showTabs?`<div style="display:flex;gap:5px;margin-bottom:8px">
-      <button class="rank-dtab${_rankDetailTab==='vs'?' active-vs':''}" onclick="switchRankDetailTab('vs')">📊 만만한 전적</button>
-      <button class="rank-dtab${_rankDetailTab==='bagel'?' active-bagel':''}" onclick="switchRankDetailTab('bagel')">🥯 베이글 전적</button>
-    </div>` : '';
-    if(showTabs&&_rankDetailTab==='bagel'){
+    const showPairTabs=mode==='pair'&&bagelData;
+    const showPlayerTabs=mode==='player'&&partnerData;
+    let tabsHtml='';
+    if(showPlayerTabs){
+      tabsHtml=`<div style="display:flex;gap:5px;margin-bottom:8px">
+        <button class="rank-dtab${_rankDetailTab==='partner'?' active-vs':''}" onclick="switchRankDetailTab('partner')">🤝 파트너 전적</button>
+        <button class="rank-dtab${_rankDetailTab==='vs'?' active-vs':''}" onclick="switchRankDetailTab('vs')">📊 만만한 전적</button>
+      </div>`;
+    } else if(showPairTabs){
+      tabsHtml=`<div style="display:flex;gap:5px;margin-bottom:8px">
+        <button class="rank-dtab${_rankDetailTab==='vs'?' active-vs':''}" onclick="switchRankDetailTab('vs')">📊 만만한 전적</button>
+        <button class="rank-dtab${_rankDetailTab==='bagel'?' active-bagel':''}" onclick="switchRankDetailTab('bagel')">🥯 베이글 전적</button>
+      </div>`;
+    }
+    // 파트너 전적 탭 (개인 랭킹)
+    if(showPlayerTabs&&_rankDetailTab==='partner'){
+      const partners=Object.entries(partnerData)
+        .map(([name,v])=>({name,wins:v.wins,draws:v.draws,losses:v.losses,total:v.total}))
+        .sort((a,b)=>b.total-a.total||b.wins-a.wins);
+      return `<div class="rank-detail" style="${style}">${tabsHtml}<div class="rank-detail-title">🤝 함께 뛴 파트너 (경기수 순)</div>${
+        partners.length
+          ?partners.map(p=>{
+            const wr=Math.round(effWr(p.wins,p.draws,p.losses));
+            const g=getGender(p.name),nc=g==='male'?'#2563eb':g==='female'?'#db2777':'#1e293b';
+            return `<div class="rank-detail-row"><span style="flex:1;color:${nc};font-weight:600">${p.name}</span><span style="color:#64748b;font-size:0.72rem;min-width:36px">${p.total}경기</span><span style="color:#16a34a;font-weight:700;min-width:28px">${p.wins}승</span>${p.draws?`<span style="color:#f59e0b;font-weight:700;min-width:24px">${p.draws}무</span>`:''}<span style="color:#dc2626;font-weight:700;min-width:28px">${p.losses}패</span><span style="font-size:0.82rem;font-weight:800;min-width:38px;text-align:right;color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span></div>`;
+          }).join('')
+          :'<p style="font-size:0.78rem;color:#94a3b8;text-align:center;margin:4px 0 0">파트너 기록 없음</p>'
+      }</div>`;
+    }
+    if(showPairTabs&&_rankDetailTab==='bagel'){
       const givenE=Object.entries(bagelData.given||{}).sort((a,b)=>b[1]-a[1]);
       const recvE=Object.entries(bagelData.received||{}).sort((a,b)=>b[1]-a[1]);
       const mkRankBagelRow=(entries,icon,color)=>entries.length
@@ -8403,103 +8423,45 @@ async function renderRankingTab(){
         _rankVsCache[vsCacheKey]=vsData;
       }
     }
+    // ── 단짝 통계: 경기수 내림차순 목록 (랭킹 아님) ──────────────────
     const memberNames=(state.members||[]).map(m=>m.name);
-    const pairsRaw=Object.entries(stats)
+    const pairs=Object.entries(stats)
       .map(([k,v])=>({key:k,players:v.players||k.split('_'),nickname:v.nickname,wins:v.wins||0,draws:Math.max(0,v.draws||0),losses:v.losses||0}))
-      .filter(p=>p.wins+p.draws+p.losses>=1 && p.players.every(n=>memberNames.includes(n)));
-    if(!pairsRaw.length){el.innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>경기 기록이 없습니다</p></div>';return;}
-    const pairAvgG=pairsRaw.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/pairsRaw.length;
-    const pairThresh=pairAvgG*0.5;
-    // 베이지안 보정: α = 평균경기수 / 2 (가변 — 시즌 진행에 따라 자동 조정)
-    const _pAlpha=pairAvgG/2;
-    const pairBayesWr=(w,d,l)=>{const t=w+(d||0)+l;return t?((w+(d||0)*0.5+_pAlpha)/(t+2*_pAlpha)*100):50;};
-    const sortFnQ=(a,b)=>pairBayesWr(b.wins,b.draws,b.losses)-pairBayesWr(a.wins,a.draws,a.losses)||b.wins-a.wins;
-    const sortFnU=(a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||pairBayesWr(b.wins,b.draws,b.losses)-pairBayesWr(a.wins,a.draws,a.losses)||b.wins-a.wins;};
-    const pairsQ=pairsRaw.filter(p=>p.wins+p.draws+p.losses>=pairThresh).sort(sortFnQ).map(p=>({...p,qualified:true}));
-    const pairsU=pairsRaw.filter(p=>p.wins+p.draws+p.losses<pairThresh).sort(sortFnU).map(p=>({...p,qualified:false}));
-    const pairs=[...pairsQ,...pairsU];
-    if(!pairs.length){el.innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>경기 기록이 없습니다</p></div>';return;}
-
-    // 동순위 계산 (베이지안 보정 승률 기준)
-    pairs.forEach((p,i)=>{
-      if(i===0){p.rank=1;return;}
-      const prev=pairs[i-1];
-      const bw=Math.round(pairBayesWr(p.wins,p.draws,p.losses)),pbw=Math.round(pairBayesWr(prev.wins,prev.draws,prev.losses));
-      p.rank=(bw===pbw&&p.wins===prev.wins&&p.qualified===prev.qualified)?prev.rank:i+1;
-    });
+      .filter(p=>{const t=p.wins+p.draws+p.losses; return t>=2 && p.players.every(n=>memberNames.includes(n));})
+      .sort((a,b)=>{
+        const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;
+        return gb-ga||Math.round(effWr(b.wins,b.draws,b.losses))-Math.round(effWr(a.wins,a.draws,a.losses));
+      });
+    if(!pairs.length){el.innerHTML='<div class="empty-state"><div class="icon">🤝</div><p>2경기 이상 함께 뛴 파트너가 없습니다</p></div>';return;}
 
     _pairRankShareData = pairs;
-    let html=`<div style="text-align:center;font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;padding:12px 0 6px">─ ${_selectedRankYear} 시즌 · ${pairs.length}팀 ─</div>`;
+    let html=`<div style="text-align:center;font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;padding:12px 0 6px">─ ${_selectedRankYear} 시즌 · ${pairs.length}조합 (2경기↑) ─</div>`;
 
-    // 베이글 아이콘: 캐시 우선 (없으면 아이콘 없이 즉시 렌더, 백그라운드 로드 후 재렌더)
-    const _allBagelStats = _bagelStatsCache[_selectedRankYear] || null;
-    function _bagelCounts(pairKey) {
-      if (!_allBagelStats) return { given: 0, received: 0 };
-      const given = Object.values(_allBagelStats.pairGiven[pairKey] || {}).reduce((s,n)=>s+n, 0);
-      const received = Object.values(_allBagelStats.pairReceived[pairKey] || {}).reduce((s,n)=>s+n, 0);
-      return { given, received };
-    }
-    function _bagelIcon(pairKey) {
-      const { given, received } = _bagelCounts(pairKey);
-      if (!given && !received) return '';
-      const g = given ? `<span style="font-size:0.72rem;font-weight:800;color:#16a34a;margin-left:1px">${given}</span>` : '';
-      const r = received ? `<span style="font-size:0.72rem;font-weight:800;color:#dc2626;margin-left:1px">${received}</span>` : '';
-      return `<span style="font-size:0.8em;margin-left:3px">🥯${g}${r}</span>`;
-    }
-
-    // ── 시상대 (1~3위) ──
-    const podItems=pairs.slice(0,Math.min(3,pairs.length));
-    const podCls=['p1','p2','p3'],medals=['🥇','🥈','🥉'];
-    html+=`<div class="rank-podium">`;
-    podItems.forEach((p,i)=>{
-      const wr=Math.round(effWr(p.wins,p.draws,p.losses));
+    html+=pairs.map(p=>{
       const isSel=p.key===_selectedRankKey;
+      const total=p.wins+p.draws+p.losses;
+      const wr=Math.round(effWr(p.wins,p.draws,p.losses));
+      const wdl=p.draws?`${p.wins}승 <span style="color:#f59e0b">${p.draws}무</span> ${p.losses}패`:`${p.wins}승 ${p.losses}패`;
       const [pp1,pp2]=p.players||[];
       const g1=pp1?getGender(pp1):'',g2=pp2?getGender(pp2):'';
       let a=pp1||'?',b=pp2||'?';
       if(g1==='female'&&g2==='male'){a=pp2;b=pp1;}
-      const autoNick=(a[0]||'?')+(b[0]||'?')+'팀';
-      const nick=p.nickname||autoNick;
-      const wdl=p.draws?`${p.wins}승 ${p.draws}무 ${p.losses}패`:`${p.wins}승 ${p.losses}패`;
-      const podBagelIcon=_bagelIcon(p.key);
-      const podWr=Math.round(pairBayesWr(p.wins,p.draws,p.losses));
-      html+=`<div class="rank-pod ${podCls[i]}${isSel?' selected':''}" onclick="toggleRankDetail('${p.key}')">
-        <div class="rank-pod-medal">${medals[(p.rank||1)-1]||medals[i]}</div>
-        <div class="rank-pod-nick">${nick}${podBagelIcon}</div>
-        <div class="rank-pod-members">${a}-${b}</div>
-        <div class="rank-pod-wr ${podWr>=50?'hot':'cold'}">${podWr}%</div>
-        <div class="rank-pod-wl">${wdl}</div>
-        <div class="rank-pod-bar"><div class="rank-pod-bar-fill" style="width:${podWr}%"></div></div>
-      </div>`;
-    });
-    html+=`</div>`;
-
-    let bagelData=null;
-    if(_selectedRankKey && _rankDetailTab==='bagel'){
-      bagelData={given:(_allBagelStats&&_allBagelStats.pairGiven[_selectedRankKey])||{},received:(_allBagelStats&&_allBagelStats.pairReceived[_selectedRankKey])||{}};
-    } else if(_selectedRankKey){
-      bagelData={};
-    }
-
-    // 선택된 포디움 상세
-    if(_selectedRankKey && pairs.slice(0,3).find(p=>p.key===_selectedRankKey))
-      html+=mkDetail(vsData,stats,'pair',false,bagelData);
-
-    // ── 4위 이하 ──
-    if(pairs.length>3){
-      html+=`<div class="rank-list-label">─ 4위 이하 ─</div>`;
-      html+=pairs.slice(3).map((p,idx)=>{
-        const isSel=p.key===_selectedRankKey;
-        const det=isSel?mkDetail(vsData,stats,'pair',true,bagelData):'';
-        const bagelIcon=_bagelIcon(p.key);
-        const disp=`<span>${getPairDisplayName(p.players,p.nickname)}${bagelIcon}</span>`;
-        const pBayesWr=Math.round(pairBayesWr(p.wins,p.draws,p.losses));
-        return mkListItem(p.key,p.rank,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified,pBayesWr);
-      }).join('');
-    }
+      const disp=`${a}<span style="color:#94a3b8;margin:0 3px">·</span>${b}`;
+      const det=isSel?mkDetail(vsData,stats,'pair',true,{}):'';
+      return `<div class="rank-item other${isSel?' selected':''}" onclick="toggleRankDetail('${p.key}')">
+        <div class="rank-item-bar"></div>
+        <div class="rank-item-body">
+          <span class="rank-num" style="font-size:0.72rem;color:#64748b;min-width:36px">${total}경기</span>
+          <span class="rank-name">${disp}</span>
+          <span class="rank-stat">${wdl}</span>
+          <div class="rank-wr-col">
+            <span class="rank-winrate" style="color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span>
+            <div class="rank-wr-bar"><div class="rank-wr-bar-fill ${wr>=50?'hot':'cold'}" style="width:${wr}%"></div></div>
+          </div>
+        </div>
+      </div>${det}`;
+    }).join('');
     el.innerHTML=html;
-    // 베이글 캐시 없으면 백그라운드 로드 후 재렌더
-    if(!_allBagelStats) _getBagelStats(_selectedRankYear).then(()=>{if(document.getElementById('page-history')?.classList.contains('active'))renderRankingTab();}).catch(()=>{});
 
   } else {
     let stats;
@@ -8527,6 +8489,26 @@ async function renderRankingTab(){
         vsData=vsSnap.val()||{};
         _rankVsCache[vsCacheKey]=vsData;
       }
+    }
+    // 파트너 전적: pairStats에서 선택 선수가 포함된 조합 추출
+    let partnerData=null;
+    if(_selectedRankKey){
+      const pairCacheKey=`pair_${_selectedRankYear}`;
+      let pairStats=_rankStatsCache[pairCacheKey];
+      if(!pairStats){
+        const psSnap=await db.ref(`jmt/pairStats/${_selectedRankYear}`).once('value');
+        pairStats=psSnap.val()||{};
+        _rankStatsCache[pairCacheKey]=pairStats;
+      }
+      partnerData={};
+      Object.entries(pairStats).forEach(([k,v])=>{
+        const players=v.players||k.split('_');
+        if(!players.includes(_selectedRankKey)) return;
+        const partner=players.find(p=>p!==_selectedRankKey);
+        if(!partner) return;
+        const w=v.wins||0,dr=Math.max(0,v.draws||0),l=v.losses||0;
+        partnerData[partner]={wins:w,draws:dr,losses:l,total:w+dr+l};
+      });
     }
     const memberNames=(state.members||[]).map(m=>m.name);
     const playersRaw=Object.entries(stats)
@@ -8589,14 +8571,14 @@ async function renderRankingTab(){
     html+=`</div>`;
 
     if(_selectedRankKey && players.slice(0,3).find(p=>p.name===_selectedRankKey))
-      html+=mkDetail(vsData,stats,'player',false);
+      html+=mkDetail(vsData,stats,'player',false,null,partnerData);
 
     if(players.length>3){
       html+=`<div class="rank-list-label">─ 4위 이하 ─</div>`;
       html+=players.slice(3).map((p,idx)=>{
         const isSel=p.name===_selectedRankKey;
         const g=getGender(p.name),nc=g==='male'?'#2563eb':g==='female'?'#db2777':'#1e293b';
-        const det=isSel?mkDetail(vsData,stats,'player',true):'';
+        const det=isSel?mkDetail(vsData,stats,'player',true,null,partnerData):'';
         const disp=`<span style="color:${nc}">${p.name}</span>${bdayBadge(p.name)}`;
         return mkListItem(p.name,p.rank,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified);
       }).join('');
@@ -8606,7 +8588,7 @@ async function renderRankingTab(){
 }
 
 function toggleRankDetail(key){
-  if (_selectedRankKey !== key) _rankDetailTab='vs'; // 다른 선수 클릭 시 탭 초기화
+  if (_selectedRankKey !== key) _rankDetailTab=_rankingMode==='player'?'partner':'vs'; // 다른 항목 클릭 시 탭 초기화
   _selectedRankKey=_selectedRankKey===key?null:key;
   renderRankingTab();
 }
