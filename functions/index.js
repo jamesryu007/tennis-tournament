@@ -448,6 +448,41 @@ async function fetchAndParseAtpData() {
   return { tournamentInfo, matches, isGrandSlam: tier === 'grandslam', ev };
 }
 
+// ── 테니스 우승상금 자동 조회 ────────────────────────────────────
+// ESPN core API 우선, 실패 시 연도별 ID 테이블 → 대회명 기반 그랜드슬램 폴백
+const _TENNIS_WINNER_PURSE = {
+  '2026': {
+    '172': '€2,800,000',  // Roland Garros
+    '188': '£3,600,000',  // Wimbledon
+  },
+  // 연도별 업데이트 필요
+};
+
+async function _fetchTennisPurse(tournamentId, tournamentName, year) {
+  // 1. ESPN core API (현재 tennis는 purse=0이지만 향후 데이터 제공 대비)
+  try {
+    const code = String(tournamentId).split('-')[0];
+    const res  = await fetch(
+      `https://sports.core.api.espn.com/v2/sports/tennis/leagues/atp/events/${code}-${year}`
+    );
+    const d = await res.json();
+    if (d.purse && d.purse > 0 && d.displayPurse) return String(d.displayPurse);
+  } catch (_) {}
+
+  // 2. 연도+ID 기반 하드코드 테이블
+  const code2 = String(tournamentId).split('-')[0];
+  const yearMap = _TENNIS_WINNER_PURSE[String(year)] || {};
+  if (yearMap[code2]) return yearMap[code2];
+
+  // 3. 대회명 기반 그랜드슬램 폴백
+  const n = (tournamentName || '').toLowerCase();
+  if (n.includes('australian open'))                          return 'AUD 4,150,000';
+  if (n.includes('roland garros') || n.includes('french open')) return '€2,800,000';
+  if (n.includes('wimbledon'))                                return '£3,600,000';
+  if (n.includes('us open'))                                  return '$5,000,000';
+  return '';
+}
+
 // ── 테니스 대회 히스토리 아카이브 ─────────────────────────────────
 // gender: 'men' | 'women' — 남/여 결승 별도 저장
 async function _archiveTennisHistory(tournamentInfo, matches, gender = 'men') {
@@ -480,6 +515,11 @@ async function _archiveTennisHistory(tournamentInfo, matches, gender = 'men') {
     const existing = await db.ref(`jmt/tournamentHistory/tennis/${year}/${safeKey}`).once('value');
     if (existing.val()) { console.log(`_archiveTennisHistory: already exists ${safeKey}`); return; }
 
+    // purse 없으면 ESPN core API / 하드코드 테이블에서 자동 조회
+    const purse = tournamentInfo.purse
+      || await _fetchTennisPurse(tournamentInfo.id, tournamentInfo.name, year)
+      || '';
+
     await db.ref(`jmt/tournamentHistory/tennis/${year}/${safeKey}`).set({
       id:        tournamentInfo.id,
       name:      tournamentInfo.name,
@@ -487,7 +527,7 @@ async function _archiveTennisHistory(tournamentInfo, matches, gender = 'men') {
       tier:      tournamentInfo.tier,
       startDate: tournamentInfo.startDate || '',
       endDate:   tournamentInfo.endDate   || '',
-      purse:     tournamentInfo.purse     || '',
+      purse,
       winner,
       runnerUp,
       savedAt:   new Date().toISOString(),
@@ -2189,6 +2229,27 @@ async function _fetchAndParseGolfTour(tour) {
   return results;
 }
 
+// ── 골프 우승상금 자동 조회 ──────────────────────────────────────
+// ESPN core API: 총상금 → 투어별 비율로 우승상금 계산
+// PGA 18% | LPGA 15% | EUR(DP World) 17%
+const _GOLF_WINNER_PCT = { pga: 0.18, lpga: 0.15, eur: 0.17 };
+
+async function _fetchGolfPurse(tour, eventId) {
+  try {
+    const res = await fetch(
+      `https://sports.core.api.espn.com/v2/sports/golf/leagues/${tour}/events/${eventId}`
+    );
+    const d = await res.json();
+    if (!d.purse) return '';
+    const pct    = _GOLF_WINNER_PCT[tour] || 0.18;
+    const winner = Math.round(d.purse * pct);
+    return '$' + winner.toLocaleString('en-US');
+  } catch (e) {
+    console.error('_fetchGolfPurse error:', e);
+    return '';
+  }
+}
+
 // ── 골프 대회 히스토리 아카이브 ──────────────────────────────────
 async function _archiveGolfHistory(t) {
   try {
@@ -2205,6 +2266,9 @@ async function _archiveGolfHistory(t) {
     const existing = await db.ref(`jmt/tournamentHistory/golf/${t.tour}/${year}/${safeKey}`).once('value');
     if (existing.val()) { console.log(`_archiveGolfHistory: already exists ${safeKey}`); return; }
 
+    // purse 없으면 ESPN core API에서 자동 조회
+    const purse = t.purse || await _fetchGolfPurse(t.tour, t.id) || '';
+
     await db.ref(`jmt/tournamentHistory/golf/${t.tour}/${year}/${safeKey}`).set({
       id:        t.id,
       name:      t.name,
@@ -2212,7 +2276,7 @@ async function _archiveGolfHistory(t) {
       level:     t.level     || 'pga_tour',
       startDate: t.startDate || '',
       endDate:   t.endDate   || '',
-      purse:     t.purse     || '',
+      purse,
       top10,
       savedAt:   new Date().toISOString(),
     });
