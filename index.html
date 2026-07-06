@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v904';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v905';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -23208,7 +23208,7 @@ function _renderHistoryList() {
           ${e.gender === 'women' ? `<span style="background:#fce7f3;color:#be185d;font-size:0.68rem;font-weight:800;padding:2px 7px;border-radius:8px">여자</span>` : e.gender === 'men' ? `<span style="background:#dbeafe;color:#1d4ed8;font-size:0.68rem;font-weight:800;padding:2px 7px;border-radius:8px">남자</span>` : ''}
           <span style="font-size:0.88rem;font-weight:800;color:${style.color}">${e.name}</span>
         </div>
-        <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}${e.purse ? ` · 💰 ${e.purse}` : ''}</div>
+        <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}${e.purse ? ` · 🏆 우승 ${e.purse}` : ''}</div>
         <div style="display:flex;flex-direction:column;gap:5px">
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:1rem">🥇</span>
@@ -23252,7 +23252,7 @@ function _renderHistoryList() {
           <span style="background:${s.badgeBg};color:#fff;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:8px">${s.badge}</span>
           <span style="font-size:0.88rem;font-weight:800;color:${s.color}">${e.name}</span>
         </div>
-        <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}${e.purse ? ` · 💰 ${e.purse}` : ''}</div>
+        <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}${e.purse ? ` · 🏆 우승 ${e.purse}` : ''}</div>
         ${top10.length ? `<div style="background:#fff;border-radius:8px;padding:4px 10px">${rowsHtml}</div>` : '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:4px 0">결과 없음</div>'}
       </div>`;
     }).join('');
