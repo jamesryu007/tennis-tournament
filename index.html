@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v913';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v914';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8351,7 +8351,8 @@ async function renderRankingTab(){
               :isBuddy?'<span style="margin-left:4px;font-size:0.62rem;font-weight:800;background:#7c3aed;color:#fff;padding:1px 5px;border-radius:6px">🤝 단짝</span>'
               :isBest?'<span style="margin-left:4px;font-size:0.62rem;font-weight:800;background:#f59e0b;color:#fff;padding:1px 5px;border-radius:6px">🔥 베스트</span>'
               :'';
-            return `<div class="rank-detail-row"><span style="flex:1;color:${nc};font-weight:600">${p.name}${badge}</span><span style="color:#64748b;font-size:0.72rem;min-width:36px">${p.total}경기</span><span style="color:#16a34a;font-weight:700;min-width:28px">${p.wins}승</span><span style="color:#f59e0b;font-weight:700;min-width:24px;visibility:${p.draws?'visible':'hidden'}">${p.draws}무</span><span style="color:#dc2626;font-weight:700;min-width:28px">${p.losses}패</span><span style="font-size:0.82rem;font-weight:800;min-width:38px;text-align:right;color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span></div>`;
+            const bagelCol=`<span style="font-size:0.65rem;font-weight:800;min-width:42px;text-align:right;flex-shrink:0;visibility:${(p.bagelGiven||p.bagelReceived)?'visible':'hidden'}"><span style="color:#16a34a">🥯${p.bagelGiven||0}</span> <span style="color:#dc2626">😵${p.bagelReceived||0}</span></span>`;
+            return `<div class="rank-detail-row"><span style="flex:1;color:${nc};font-weight:600">${p.name}${badge}</span><span style="color:#64748b;font-size:0.72rem;min-width:36px">${p.total}경기</span><span style="color:#16a34a;font-weight:700;min-width:28px">${p.wins}승</span><span style="color:#f59e0b;font-weight:700;min-width:24px;visibility:${p.draws?'visible':'hidden'}">${p.draws}무</span><span style="color:#dc2626;font-weight:700;min-width:28px">${p.losses}패</span><span style="font-size:0.82rem;font-weight:800;min-width:38px;text-align:right;color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span>${bagelCol}</div>`;
           }).join('')
           :'<p style="font-size:0.78rem;color:#94a3b8;text-align:center;margin:4px 0 0">파트너 기록 없음</p>'
       }</div>`;
@@ -8459,6 +8460,7 @@ async function renderRankingTab(){
       });
     if(!pairs.length){el.innerHTML='<div class="empty-state"><div class="icon">🤝</div><p>2경기 이상 함께 뛴 파트너가 없습니다</p></div>';return;}
 
+    const {pairGiven:_bGiven,pairReceived:_bReceived}=await _getBagelStats(_selectedRankYear);
     _pairRankShareData = pairs;
     let html=`<div style="text-align:center;font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;padding:12px 0 6px">─ ${_selectedRankYear} 시즌 · ${pairs.length}조합 (2경기↑) ─</div>`;
 
@@ -8472,13 +8474,17 @@ async function renderRankingTab(){
       let a=pp1||'?',b=pp2||'?';
       if(g1==='female'&&g2==='male'){a=pp2;b=pp1;}
       const disp=`${a}<span style="color:#94a3b8;margin:0 3px">·</span>${b}`;
-      const det=isSel?mkDetail(vsData,stats,'pair',true,{}):'';
+      const bg=Object.values(_bGiven[p.key]||{}).reduce((s,v)=>s+v,0);
+      const br=Object.values(_bReceived[p.key]||{}).reduce((s,v)=>s+v,0);
+      const bagelBit=(bg||br)?`<span style="margin-left:4px;font-size:0.68rem;font-weight:800;color:#16a34a">🥯${bg}</span><span style="font-size:0.68rem;font-weight:800;color:#dc2626"> 😵${br}</span>`:'';
+      const bagelData={given:_bGiven[p.key]||{},received:_bReceived[p.key]||{}};
+      const det=isSel?mkDetail(vsData,stats,'pair',true,bagelData):'';
       return `<div class="rank-item other${isSel?' selected':''}" onclick="toggleRankDetail('${p.key}')">
         <div class="rank-item-bar"></div>
         <div class="rank-item-body">
           <span class="rank-num" style="font-size:0.72rem;color:#64748b;min-width:36px">${total}경기</span>
           <span class="rank-name">${disp}</span>
-          <span class="rank-stat">${wdl}</span>
+          <span class="rank-stat">${wdl}${bagelBit}</span>
           <div class="rank-wr-col">
             <span class="rank-winrate" style="color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span>
             <div class="rank-wr-bar"><div class="rank-wr-bar-fill ${wr>=50?'hot':'cold'}" style="width:${wr}%"></div></div>
@@ -8533,6 +8539,13 @@ async function renderRankingTab(){
         if(!partner) return;
         const w=v.wins||0,dr=Math.max(0,v.draws||0),l=v.losses||0;
         partnerData[partner]={wins:w,draws:dr,losses:l,total:w+dr+l};
+      });
+      // 파트너별 베이글 집계
+      const {pairGiven:_pbG,pairReceived:_pbR}=await _getBagelStats(_selectedRankYear);
+      Object.keys(partnerData).forEach(partner=>{
+        const pk=getPairKey(_selectedRankKey,partner);
+        partnerData[partner].bagelGiven=Object.values(_pbG[pk]||{}).reduce((s,v)=>s+v,0);
+        partnerData[partner].bagelReceived=Object.values(_pbR[pk]||{}).reduce((s,v)=>s+v,0);
       });
     }
     const memberNames=(state.members||[]).map(m=>m.name);
