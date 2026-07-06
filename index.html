@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v903';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v907';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -23195,6 +23195,23 @@ function _renderHistoryList() {
 
   const fmtDate = d => { try { return new Date(d).toLocaleDateString('ko-KR', { month:'numeric', day:'numeric' }); } catch(e) { return d || ''; } };
 
+  // 상금 → 한화 병기 (2026년 7월 환율: $1=₩1,543 / €1=₩1,751 / £1=₩1,970)
+  const _purseKRW = purseStr => {
+    if (!purseStr) return '';
+    const s = String(purseStr).replace(/,/g, '');
+    const hasDollar = s.includes('$'), hasEuro = s.includes('€'), hasGbp = s.includes('£');
+    const rate = hasDollar ? 1543 : hasEuro ? 1751 : hasGbp ? 1970 : 0;
+    if (!rate) return '';
+    const amount = parseFloat(s.replace(/[^0-9.]/g, ''));
+    if (!amount) return '';
+    const krw = Math.round(amount * rate);
+    const eok  = Math.floor(krw / 100000000);
+    const chun = Math.floor((krw % 100000000) / 10000000);
+    if (eok >= 1) return `약 ${eok}억${chun > 0 ? ` ${chun}천만` : ''}원`;
+    const man = Math.floor(krw / 10000);
+    return `약 ${man.toLocaleString()}만원`;
+  };
+
   if (type === 'tennis') {
     el.innerHTML = filtered.map(e => {
       const tier  = e.tier || 'atp250';
@@ -23205,9 +23222,10 @@ function _renderHistoryList() {
       return `<div style="background:${style.bg};border:1.5px solid ${style.border};border-radius:12px;padding:12px 14px;margin-bottom:10px">
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap">
           <span style="background:${style.badgeBg};color:${style.badgeColor};font-size:0.7rem;font-weight:900;padding:2px 9px;border-radius:8px;font-style:italic">${style.badge}</span>
+          ${e.gender === 'women' ? `<span style="background:#fce7f3;color:#be185d;font-size:0.68rem;font-weight:800;padding:2px 7px;border-radius:8px">여자</span>` : e.gender === 'men' ? `<span style="background:#dbeafe;color:#1d4ed8;font-size:0.68rem;font-weight:800;padding:2px 7px;border-radius:8px">남자</span>` : ''}
           <span style="font-size:0.88rem;font-weight:800;color:${style.color}">${e.name}</span>
         </div>
-        <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}${e.purse ? ` · 💰 ${e.purse}` : ''}</div>
+        <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}${e.purse ? ` · 🏆 우승 ${e.purse}${_purseKRW(e.purse) ? ` <span style="color:#2563eb;font-weight:700">(${_purseKRW(e.purse)})</span>` : ''}` : ''}</div>
         <div style="display:flex;flex-direction:column;gap:5px">
           <div style="display:flex;align-items:center;gap:8px">
             <span style="font-size:1rem">🥇</span>
@@ -23251,7 +23269,7 @@ function _renderHistoryList() {
           <span style="background:${s.badgeBg};color:#fff;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:8px">${s.badge}</span>
           <span style="font-size:0.88rem;font-weight:800;color:${s.color}">${e.name}</span>
         </div>
-        <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}${e.purse ? ` · 💰 ${e.purse}` : ''}</div>
+        <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}${e.purse ? ` · 🏆 우승 ${e.purse}${_purseKRW(e.purse) ? ` <span style="color:#16a34a;font-weight:700">(${_purseKRW(e.purse)})</span>` : ''}` : ''}</div>
         ${top10.length ? `<div style="background:#fff;border-radius:8px;padding:4px 10px">${rowsHtml}</div>` : '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:4px 0">결과 없음</div>'}
       </div>`;
     }).join('');
