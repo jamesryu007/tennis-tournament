@@ -1301,43 +1301,6 @@ exports.notifyPlayerRankingChange = onValueWritten(
   }
 );
 
-// ══ 14. 팀페어 랭킹 1~3위 변동 감지 ══════════════════════════════
-function computePairTop3(stats, memberNames) {
-  const effWr = (w, d, l) => { const t = w+(d||0)+l; return t ? ((w+(d||0)*0.5)/t*100) : 0; };
-  const pairs = Object.entries(stats || {})
-    .map(([key, v]) => ({ key, wins: v.wins||0, draws: v.draws||0, losses: v.losses||0, nickname: v.nickname, players: v.players||key.split('_') }))
-    .filter(p => p.wins+p.draws+p.losses >= 1 && p.players.every(n => memberNames.includes(n)));
-  const avg = pairs.reduce((s, p) => s+p.wins+p.draws+p.losses, 0) / (pairs.length||1);
-  const thresh = avg * 0.5;
-  return pairs
-    .filter(p => p.wins+p.draws+p.losses >= thresh)
-    .sort((a, b) => effWr(b.wins,b.draws,b.losses) - effWr(a.wins,a.draws,a.losses) || b.wins-a.wins)
-    .slice(0, 3)
-    .map(p => p.nickname || ((p.players[0]||'?')[0]+(p.players[1]||'?')[0]+'팀'));
-}
-
-exports.notifyPairRankingChange = onValueWritten(
-  { ref: 'jmt/pairStats/{year}', region: 'asia-southeast1' },
-  async (event) => {
-    const year = event.params.year;
-    if (year !== new Date().getFullYear().toString()) return;
-    const memberNames = await getMemberNames();
-    const before = computePairTop3(event.data.before.val(), memberNames);
-    const after  = computePairTop3(event.data.after.val(), memberNames);
-    const medals = ['🥇','🥈','🥉'];
-    const changes = [];
-    for (let i = 0; i < 3; i++) {
-      if (after[i] && after[i] !== before[i]) {
-        const action = !before[i] ? '진입' : before.includes(after[i]) ? '탈환' : '진입';
-        changes.push(`${after[i]} ${i+1}위 ${action}`);
-      }
-    }
-    if (!changes.length) return;
-    const tokens = await getAllTokens();
-    await sendPush(tokens, `${medals[changes[0].includes('1위')?0:changes[0].includes('2위')?1:2]} 팀페어 랭킹 변동!`, changes.join(' · '), 'history');
-  }
-);
-
 // ══ 15. 새 대회 개막 감지 ═════════════════════════════════════════
 exports.notifyTournamentChange = onValueWritten(
   { ref: 'jmt/atpData', region: 'asia-southeast1' },

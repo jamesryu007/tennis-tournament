@@ -796,16 +796,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v910';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v911';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8321,12 +8321,22 @@ async function renderRankingTab(){
       const partners=Object.entries(partnerData)
         .map(([name,v])=>({name,wins:v.wins,draws:v.draws,losses:v.losses,total:v.total}))
         .sort((a,b)=>b.total-a.total||b.wins-a.wins);
+      // 단짝(경기수 최다) / 베스트(승률 최고, 2경기 이상) 선정
+      const _maxG=partners.length?partners[0].total:0;
+      const _buddies=new Set(partners.filter(p=>p.total===_maxG&&_maxG>=2).map(p=>p.name));
+      const _bestWr=partners.filter(p=>p.total>=2).reduce((best,p)=>{const w=Math.round(effWr(p.wins,p.draws,p.losses));return w>best?w:best;},-1);
+      const _bestSet=new Set(_bestWr>=0?partners.filter(p=>p.total>=2&&Math.round(effWr(p.wins,p.draws,p.losses))===_bestWr).map(p=>p.name):[]);
       return `<div class="rank-detail" style="${style}">${tabsHtml}<div class="rank-detail-title">🤝 함께 뛴 파트너 (경기수 순)</div>${
         partners.length
           ?partners.map(p=>{
             const wr=Math.round(effWr(p.wins,p.draws,p.losses));
             const g=getGender(p.name),nc=g==='male'?'#2563eb':g==='female'?'#db2777':'#1e293b';
-            return `<div class="rank-detail-row"><span style="flex:1;color:${nc};font-weight:600">${p.name}</span><span style="color:#64748b;font-size:0.72rem;min-width:36px">${p.total}경기</span><span style="color:#16a34a;font-weight:700;min-width:28px">${p.wins}승</span><span style="color:#f59e0b;font-weight:700;min-width:24px;visibility:${p.draws?'visible':'hidden'}">${p.draws}무</span><span style="color:#dc2626;font-weight:700;min-width:28px">${p.losses}패</span><span style="font-size:0.82rem;font-weight:800;min-width:38px;text-align:right;color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span></div>`;
+            const isBuddy=_buddies.has(p.name),isBest=_bestSet.has(p.name);
+            const badge=isBuddy&&isBest?'<span style="margin-left:4px;font-size:0.62rem;font-weight:800;background:linear-gradient(90deg,#7c3aed,#db2777);color:#fff;padding:1px 5px;border-radius:6px">🤝🔥</span>'
+              :isBuddy?'<span style="margin-left:4px;font-size:0.62rem;font-weight:800;background:#7c3aed;color:#fff;padding:1px 5px;border-radius:6px">🤝 단짝</span>'
+              :isBest?'<span style="margin-left:4px;font-size:0.62rem;font-weight:800;background:#f59e0b;color:#fff;padding:1px 5px;border-radius:6px">🔥 베스트</span>'
+              :'';
+            return `<div class="rank-detail-row"><span style="flex:1;color:${nc};font-weight:600">${p.name}${badge}</span><span style="color:#64748b;font-size:0.72rem;min-width:36px">${p.total}경기</span><span style="color:#16a34a;font-weight:700;min-width:28px">${p.wins}승</span><span style="color:#f59e0b;font-weight:700;min-width:24px;visibility:${p.draws?'visible':'hidden'}">${p.draws}무</span><span style="color:#dc2626;font-weight:700;min-width:28px">${p.losses}패</span><span style="font-size:0.82rem;font-weight:800;min-width:38px;text-align:right;color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span></div>`;
           }).join('')
           :'<p style="font-size:0.78rem;color:#94a3b8;text-align:center;margin:4px 0 0">파트너 기록 없음</p>'
       }</div>`;
