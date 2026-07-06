@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v919';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v920';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8353,7 +8353,8 @@ async function renderRankingTab(){
               :isBuddy?'<span style="margin-left:3px;font-size:0.6rem;font-weight:800;background:#7c3aed;color:#fff;padding:1px 4px;border-radius:5px;white-space:nowrap">🤝단짝</span>'
               :isBest?'<span style="margin-left:3px;font-size:0.6rem;font-weight:800;background:#f59e0b;color:#fff;padding:1px 4px;border-radius:5px;white-space:nowrap">🔥베스트</span>'
               :'';
-            const bagelCols=_hasBagel?`<span style="color:#16a34a;font-weight:800;flex:none;width:24px;text-align:right;font-size:0.75rem;visibility:${p.bagelGiven?'visible':'hidden'}">🥯${p.bagelGiven||0}</span><span style="color:#dc2626;font-weight:800;flex:none;width:24px;text-align:right;font-size:0.75rem;visibility:${p.bagelReceived?'visible':'hidden'}">😵${p.bagelReceived||0}</span>`:'';
+            const _curPK=_selectedRankKey;
+            const bagelCols=_hasBagel?`<span style="color:#16a34a;font-weight:800;flex:none;width:24px;text-align:right;font-size:0.75rem;visibility:${p.bagelGiven?'visible':'hidden'}${p.bagelGiven?';cursor:pointer':''}" ${p.bagelGiven?`onclick="jumpToPairBagel('${_curPK}','${p.name}')"`:''}>🥯${p.bagelGiven||0}</span><span style="color:#dc2626;font-weight:800;flex:none;width:24px;text-align:right;font-size:0.75rem;visibility:${p.bagelReceived?'visible':'hidden'}${p.bagelReceived?';cursor:pointer':''}" ${p.bagelReceived?`onclick="jumpToPairBagel('${_curPK}','${p.name}')"`:''}>😵${p.bagelReceived||0}</span>`:'';
             return `<div class="rank-detail-row"><span style="flex:1;color:${nc};font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}${badge}</span>${bagelCols}<span style="color:#64748b;font-size:0.78rem;flex:none;width:28px;text-align:right">${p.total}전</span><span style="color:#16a34a;font-weight:700;font-size:0.78rem;flex:none;width:28px;text-align:right">${p.wins}승</span><span style="color:#f59e0b;font-weight:700;font-size:0.78rem;flex:none;width:26px;text-align:right;visibility:${p.draws?'visible':'hidden'}">${p.draws}무</span><span style="color:#dc2626;font-weight:700;font-size:0.78rem;flex:none;width:28px;text-align:right">${p.losses}패</span><span style="font-size:0.82rem;font-weight:800;flex:none;width:36px;text-align:right;color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span></div>`;
           }).join('')
           :'<p style="font-size:0.78rem;color:#94a3b8;text-align:center;margin:4px 0 0">파트너 기록 없음</p>'
@@ -8633,6 +8634,23 @@ function toggleRankDetail(key){
 function switchRankDetailTab(tab){
   _rankDetailTab=tab;
   renderRankingTab();
+}
+function jumpToPairBagel(playerKey, partnerName) {
+  _rankingMode = 'pair';
+  document.getElementById('rtog-pair').className = 'rank-toggle-btn active';
+  document.getElementById('rtog-player').className = 'rank-toggle-btn';
+  document.getElementById('rtog-attendance').className = 'rank-toggle-btn';
+  const hintEl = document.getElementById('rank-hint-text');
+  if (hintEl) hintEl.textContent = '함께 많이 뛴 파트너 조합 목록 (경기수 순).';
+  _selectedRankKey = getPairKey(playerKey, partnerName);
+  _rankDetailTab = 'bagel';
+  renderRankYearRow();
+  renderRankingTab().then(() => {
+    setTimeout(() => {
+      const sel = document.querySelector('#ranking-list .rank-item.selected');
+      if (sel) sel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 150);
+  });
 }
 // 베이글: 6:0 득점한 팀 = 상대에게 베이글 먹임 / 0:6 당한 팀 = 베이글 먹음
 // 반환: null | 0(team0이 베이글 먹음) | 1(team1이 베이글 먹음)
