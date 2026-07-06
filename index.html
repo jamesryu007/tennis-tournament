@@ -435,7 +435,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .rank-detail { background:linear-gradient(135deg,#eff6ff,#f0f9ff); border:1.5px solid #bae6fd; border-radius:12px; padding:12px 14px; margin-bottom:8px; animation:rankDetailFadeIn 0.18s ease; }
 @keyframes rankDetailFadeIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
 .rank-detail-title { font-size:0.7rem; font-weight:900; color:#0369a1; margin-bottom:8px; letter-spacing:0.04em; }
-.rank-detail-row { display:flex; align-items:center; gap:6px; padding:5px 0; border-bottom:1px solid rgba(186,230,253,0.6); font-size:0.78rem; }
+.rank-detail-row { display:flex; align-items:center; gap:4px; padding:5px 0; border-bottom:1px solid rgba(186,230,253,0.6); font-size:0.82rem; }
 .rank-detail-row:last-child { border-bottom:none; }
 /* ── 오늘의 경기 페이지 헤더 ── */
 /* ── 오늘의 기록 서브탭 ─────────────────────────────────────────── */
@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v917';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v918';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8353,8 +8353,9 @@ async function renderRankingTab(){
               :isBuddy?'<span style="margin-left:3px;font-size:0.6rem;font-weight:800;background:#7c3aed;color:#fff;padding:1px 4px;border-radius:5px;white-space:nowrap">🤝단짝</span>'
               :isBest?'<span style="margin-left:3px;font-size:0.6rem;font-weight:800;background:#f59e0b;color:#fff;padding:1px 4px;border-radius:5px;white-space:nowrap">🔥베스트</span>'
               :'';
-            const bagelCols=_hasBagel?`<span style="color:#16a34a;font-weight:800;min-width:22px;font-size:0.7rem;visibility:${p.bagelGiven?'visible':'hidden'}">🥯${p.bagelGiven||0}</span><span style="color:#dc2626;font-weight:800;min-width:22px;font-size:0.7rem;visibility:${p.bagelReceived?'visible':'hidden'}">😵${p.bagelReceived||0}</span>`:'';
-            return `<div class="rank-detail-row"><span style="flex:1;color:${nc};font-weight:600;min-width:0">${p.name}${badge}</span>${bagelCols}<span style="color:#64748b;font-size:0.7rem;min-width:26px">${p.total}전</span><span style="color:#16a34a;font-weight:700;min-width:24px">${p.wins}승</span><span style="color:#f59e0b;font-weight:700;min-width:22px;visibility:${p.draws?'visible':'hidden'}">${p.draws}무</span><span style="color:#dc2626;font-weight:700;min-width:24px">${p.losses}패</span><span style="font-size:0.82rem;font-weight:800;min-width:34px;text-align:right;color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span></div>`;
+            const _fc='flex:0 0';
+            const bagelCols=_hasBagel?`<span style="color:#16a34a;font-weight:800;${_fc} 24px;text-align:right;font-size:0.75rem;visibility:${p.bagelGiven?'visible':'hidden'}">🥯${p.bagelGiven||0}</span><span style="color:#dc2626;font-weight:800;${_fc} 24px;text-align:right;font-size:0.75rem;visibility:${p.bagelReceived?'visible':'hidden'}">😵${p.bagelReceived||0}</span>`:'';
+            return `<div class="rank-detail-row"><span style="flex:1;color:${nc};font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}${badge}</span>${bagelCols}<span style="color:#64748b;font-size:0.78rem;${_fc} 28px;text-align:right">${p.total}전</span><span style="color:#16a34a;font-weight:700;font-size:0.78rem;${_fc} 28px;text-align:right">${p.wins}승</span><span style="color:#f59e0b;font-weight:700;font-size:0.78rem;${_fc} 26px;text-align:right;visibility:${p.draws?'visible':'hidden'}">${p.draws}무</span><span style="color:#dc2626;font-weight:700;font-size:0.78rem;${_fc} 28px;text-align:right">${p.losses}패</span><span style="font-size:0.82rem;font-weight:800;${_fc} 36px;text-align:right;color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span></div>`;
           }).join('')
           :'<p style="font-size:0.78rem;color:#94a3b8;text-align:center;margin:4px 0 0">파트너 기록 없음</p>'
       }</div>`;
@@ -8412,7 +8413,7 @@ async function renderRankingTab(){
       <div class="rank-item-body">
         <span class="rank-num">${rankNum}위</span>
         <span class="rank-name">${name}</span>
-        <span style="display:inline-flex;align-items:center;gap:0;font-size:0.82rem;flex-shrink:0"><span style="color:#16a34a;font-weight:700;min-width:28px">${wins}승</span><span style="color:#f59e0b;font-weight:700;min-width:26px;visibility:${draws?'visible':'hidden'}">${draws}무</span><span style="color:#dc2626;font-weight:700;min-width:28px">${losses}패</span></span>
+        <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.82rem;flex-shrink:0"><span style="color:#16a34a;font-weight:700;min-width:26px">${wins}승</span><span style="color:#f59e0b;font-weight:700;min-width:24px;visibility:${draws?'visible':'hidden'}">${draws}무</span><span style="color:#dc2626;font-weight:700;min-width:26px">${losses}패</span></span>
         <div class="rank-wr-col">
           ${isUnqualified
             ? ``
@@ -8484,7 +8485,7 @@ async function renderRankingTab(){
         <div class="rank-item-body">
           <span class="rank-num" style="font-size:0.72rem;color:#64748b;min-width:36px">${total}경기</span>
           <span class="rank-name">${disp}</span>
-          <span style="display:inline-flex;align-items:center;gap:0;font-size:0.82rem;flex-shrink:0"><span style="color:#16a34a;font-weight:800;min-width:26px;font-size:0.75rem;visibility:${bg?'visible':'hidden'}">🥯${bg}</span><span style="color:#dc2626;font-weight:800;min-width:26px;font-size:0.75rem;visibility:${br?'visible':'hidden'}">😵${br}</span><span style="color:#16a34a;font-weight:700;min-width:28px">${p.wins}승</span><span style="color:#f59e0b;font-weight:700;min-width:26px;visibility:${p.draws?'visible':'hidden'}">${p.draws}무</span><span style="color:#dc2626;font-weight:700;min-width:28px">${p.losses}패</span></span>
+          <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.82rem;flex-shrink:0"><span style="color:#16a34a;font-weight:800;min-width:24px;font-size:0.75rem;visibility:${bg?'visible':'hidden'}">🥯${bg}</span><span style="color:#dc2626;font-weight:800;min-width:24px;font-size:0.75rem;visibility:${br?'visible':'hidden'}">😵${br}</span><span style="color:#16a34a;font-weight:700;min-width:26px">${p.wins}승</span><span style="color:#f59e0b;font-weight:700;min-width:24px;visibility:${p.draws?'visible':'hidden'}">${p.draws}무</span><span style="color:#dc2626;font-weight:700;min-width:26px">${p.losses}패</span></span>
           <div class="rank-wr-col">
             <span class="rank-winrate" style="color:${wr>=50?'#16a34a':'#dc2626'}">${wr}%</span>
             <div class="rank-wr-bar"><div class="rank-wr-bar-fill ${wr>=50?'hot':'cold'}" style="width:${wr}%"></div></div>
