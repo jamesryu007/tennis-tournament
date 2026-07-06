@@ -796,16 +796,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v912';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v913';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8322,12 +8322,25 @@ async function renderRankingTab(){
         .map(([name,v])=>({name,wins:v.wins,draws:v.draws,losses:v.losses,total:v.total}))
         .sort((a,b)=>b.total-a.total||b.wins-a.wins);
       // 단짝(경기수 최다) / 베스트(승률 최고, 2경기 이상) 선정
+      const _mNames=new Set((state.members||[]).map(m=>m.name));
       const _maxG=partners.length?partners[0].total:0;
       const _buddies=new Set(partners.filter(p=>p.total===_maxG&&_maxG>=2).map(p=>p.name));
+      // 단짝 중 멤버 없으면 멤버 중 최다경기 파트너도 추가
+      if(![..._buddies].some(n=>_mNames.has(n))){
+        const _mp=partners.filter(p=>_mNames.has(p.name));
+        const _mmG=_mp.length?_mp[0].total:0;
+        if(_mmG>=2) _mp.filter(p=>p.total===_mmG).forEach(p=>_buddies.add(p.name));
+      }
       const _bestWr=partners.filter(p=>p.total>=2).reduce((best,p)=>{const w=Math.round(effWr(p.wins,p.draws,p.losses));return w>best?w:best;},-1);
       const _bestCands=_bestWr>=0?partners.filter(p=>p.total>=2&&Math.round(effWr(p.wins,p.draws,p.losses))===_bestWr):[];
       const _bestMaxG=_bestCands.reduce((m,p)=>p.total>m?p.total:m,0);
       const _bestSet=new Set(_bestCands.filter(p=>p.total===_bestMaxG).map(p=>p.name));
+      // 베스트 중 멤버 없으면 멤버 중 최고승률 파트너도 추가
+      if(![..._bestSet].some(n=>_mNames.has(n))){
+        const _mpB=partners.filter(p=>_mNames.has(p.name)&&p.total>=2);
+        const _mBwr=_mpB.reduce((best,p)=>{const w=Math.round(effWr(p.wins,p.draws,p.losses));return w>best?w:best;},-1);
+        if(_mBwr>=0){const _mBC=_mpB.filter(p=>Math.round(effWr(p.wins,p.draws,p.losses))===_mBwr);const _mBG=_mBC.reduce((m,p)=>p.total>m?p.total:m,0);_mBC.filter(p=>p.total===_mBG).forEach(p=>_bestSet.add(p.name));}
+      }
       return `<div class="rank-detail" style="${style}">${tabsHtml}<div class="rank-detail-title">🤝 함께 뛴 파트너 (경기수 순)</div>${
         partners.length
           ?partners.map(p=>{
