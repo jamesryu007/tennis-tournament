@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v907';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v908';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8405,7 +8405,7 @@ async function renderRankingTab(){
     }
     const memberNames=(state.members||[]).map(m=>m.name);
     const pairsRaw=Object.entries(stats)
-      .map(([k,v])=>({key:k,players:v.players||k.split('_'),nickname:v.nickname,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
+      .map(([k,v])=>({key:k,players:v.players||k.split('_'),nickname:v.nickname,wins:v.wins||0,draws:Math.max(0,v.draws||0),losses:v.losses||0}))
       .filter(p=>p.wins+p.draws+p.losses>=1 && p.players.every(n=>memberNames.includes(n)));
     if(!pairsRaw.length){el.innerHTML='<div class="empty-state"><div class="icon">🎾</div><p>경기 기록이 없습니다</p></div>';return;}
     const pairAvgG=pairsRaw.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/pairsRaw.length;
@@ -8530,7 +8530,7 @@ async function renderRankingTab(){
     }
     const memberNames=(state.members||[]).map(m=>m.name);
     const playersRaw=Object.entries(stats)
-      .map(([k,v])=>({name:k,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
+      .map(([k,v])=>({name:k,wins:v.wins||0,draws:Math.max(0,v.draws||0),losses:v.losses||0}))
       .filter(p=>p.wins+p.draws+p.losses>=1 && memberNames.includes(p.name));
     if(!playersRaw.length){el.innerHTML='<div class="empty-state"><div class="icon">👤</div><p>경기 기록이 없습니다</p></div>';return;}
     const playerAvgG=playersRaw.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/playersRaw.length;
