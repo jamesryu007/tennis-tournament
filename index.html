@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v929';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v930';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8705,14 +8705,13 @@ async function _renderPartnerDiagram() {
     const angle = (2 * Math.PI * i / N) - Math.PI / 2;
     pos[name] = { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle), angle };
   });
-  const maxG = Math.max(...filtered.map(p => p.total), 1);
   let edgesS = '', labelsS = '', nodesS = '';
   filtered.forEach(p => {
     const n1 = pos[p.p1], n2 = pos[p.p2];
     if (!n1 || !n2) return;
     const color = p.wr >= 50 ? '#16a34a' : '#dc2626';
     const opacity = _pdSelectedMembers.size > 0 ? 0.85 : 0.52;
-    const sw = (1.2 + (p.total / maxG) * 3.5).toFixed(1);
+    const sw = p.total >= 15 ? 8 : p.total >= 10 ? 5.5 : p.total >= 5 ? 3 : 1.8;
     const mx = ((n1.x + n2.x) / 2).toFixed(1);
     const my = ((n1.y + n2.y) / 2).toFixed(1);
     edgesS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="${color}" stroke-width="${sw}" opacity="${opacity}" stroke-linecap="round"/>`;
