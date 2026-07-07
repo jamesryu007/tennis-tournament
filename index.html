@@ -2695,7 +2695,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v940';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v941';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5691,7 +5691,33 @@ async function queryMatchHistory(){
       inner.innerHTML='<p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">조회 결과가 없습니다</p>';
       return;
     }
-    inner.innerHTML=`<div style="font-size:0.8rem;color:#64748b;font-weight:700;margin-bottom:10px">${matches.length}경기</div>`+matches.map(m=>{
+    // ── 요약 프레임 계산 ──
+    let _sqW=0,_sqD=0,_sqL=0;
+    if(p1){
+      matches.forEach(m=>{
+        const t0=toArr(m.team0),t1=toArr(m.team1);
+        if(m.winner===-1){_sqD++;return;}
+        let onTeam0;
+        if(p1&&p2){const pk=getPairKey(p1,p2);onTeam0=getPairKey(t0[0],t0[1])===pk;}
+        else{onTeam0=t0.includes(p1);}
+        (onTeam0?m.winner===0:m.winner===1)?_sqW++:_sqL++;
+      });
+    }
+    const _sqTotal=matches.length;
+    const _sqWr=(_sqW+_sqD+_sqL)>0?Math.round((_sqW+_sqD*0.5)/(_sqW+_sqD+_sqL)*100):0;
+    const _fmtDate=s=>s?s.replace(/(\d{4})-(\d{2})-(\d{2})/,'$1.$2.$3'):'';
+    const _summaryHtml=`<div style="background:linear-gradient(135deg,#eff6ff 0%,#f0fdf4 100%);border:1.5px solid #bfdbfe;border-radius:14px;padding:12px 16px;margin-bottom:14px">
+      <div style="font-size:0.72rem;color:#64748b;font-weight:600;margin-bottom:6px">${_fmtDate(from)} ~ ${_fmtDate(to)}</div>
+      ${p1?`<div style="font-size:0.9rem;font-weight:800;color:#1e293b;margin-bottom:8px">${p1}${p2?' 🤝 '+p2:''}</div>`:''}
+      <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+        <span style="font-size:0.82rem;color:#475569"><b style="font-size:1.05rem;color:#1e293b">${_sqTotal}</b>경기</span>
+        ${p1?`<span style="font-size:0.82rem;color:#16a34a"><b style="font-size:1.05rem">${_sqW}</b>승</span>
+        ${_sqD>0?`<span style="font-size:0.82rem;color:#94a3b8"><b style="font-size:1.05rem">${_sqD}</b>무</span>`:''}
+        <span style="font-size:0.82rem;color:#dc2626"><b style="font-size:1.05rem">${_sqL}</b>패</span>
+        <span style="font-size:0.85rem;font-weight:800;color:${_sqWr>=50?'#16a34a':'#dc2626'}">승률 ${_sqWr}%</span>`:''}
+      </div>
+    </div>`;
+    inner.innerHTML=_summaryHtml+`<div style="font-size:0.75rem;color:#94a3b8;font-weight:600;margin-bottom:10px">${_sqTotal}경기</div>`+matches.map(m=>{
       const t0=toArr(m.team0),t1=toArr(m.team1),sets=toArr(m.sets);
       const isDraw=m.winner===-1,t0win=m.winner===0,t1win=m.winner===1;
       const td0=_getTeamDisplay(t0),td1=_getTeamDisplay(t1);
