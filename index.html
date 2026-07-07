@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v923';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v924';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8675,13 +8675,18 @@ async function _renderPartnerDiagram() {
   const involvedSet = new Set();
   pairs.forEach(p => { involvedSet.add(p.p1); involvedSet.add(p.p2); });
   const nodes = memberNames.filter(n => involvedSet.has(n));
+  // 로그인 멤버 칩 맨 앞
+  const myName = (state.identity && state.identity.name) || '';
+  if (myName && nodes.includes(myName)) { nodes.splice(nodes.indexOf(myName), 1); nodes.unshift(myName); }
   // 필터 칩
   chipsEl.innerHTML = nodes.map(name => {
     const isSel = _pdSelectedMembers.has(name);
+    const isMe = name === myName;
     const g = getGender(name);
-    const bg = isSel ? (g === 'female' ? '#db2777' : '#2563eb') : '#f1f5f9';
-    const col = isSel ? '#fff' : '#334155';
-    return `<span onclick="_pdToggleMember('${name}')" style="display:inline-block;cursor:pointer;padding:3px 8px;margin:2px;border-radius:12px;font-size:0.72rem;font-weight:600;background:${bg};color:${col}">${name}</span>`;
+    const bg = isSel ? (g === 'female' ? '#db2777' : '#2563eb') : isMe ? '#f0fdf4' : '#f1f5f9';
+    const col = isSel ? '#fff' : isMe ? '#15803d' : '#334155';
+    const border = isMe && !isSel ? ';border:1.5px solid #86efac' : '';
+    return `<span onclick="_pdToggleMember('${name}')" style="display:inline-block;cursor:pointer;padding:4px 10px;margin:2px;border-radius:12px;font-size:0.8rem;font-weight:600;background:${bg};color:${col}${border}">${isMe ? '⭐ ' : ''}${name}</span>`;
   }).join('');
   const filtered = _pdSelectedMembers.size > 0
     ? pairs.filter(p => _pdSelectedMembers.has(p.p1) || _pdSelectedMembers.has(p.p2))
@@ -8689,11 +8694,11 @@ async function _renderPartnerDiagram() {
   const N = nodes.length;
   if (!N) { svgEl.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:20px;font-size:0.85rem">데이터 없음</p>'; return; }
   // SVG 레이아웃
-  const SIZE = 420, cx = 210, cy = 210;
-  const R = N <= 10 ? 148 : N <= 18 ? 158 : 165;
-  const nodeR = N <= 12 ? 13 : N <= 20 ? 10 : 8;
-  const labelOff = nodeR + 10;
-  const fSize = N <= 16 ? 9.5 : 8.5;
+  const SIZE = 480, cx = 240, cy = 240;
+  const R = N <= 10 ? 160 : N <= 18 ? 170 : 176;
+  const nodeR = N <= 12 ? 14 : N <= 20 ? 11 : 9;
+  const labelOff = nodeR + 16;
+  const fSize = N <= 16 ? 15 : 13;
   const pos = {};
   nodes.forEach((name, i) => {
     const angle = (2 * Math.PI * i / N) - Math.PI / 2;
@@ -8710,7 +8715,7 @@ async function _renderPartnerDiagram() {
     const mx = ((n1.x + n2.x) / 2).toFixed(1);
     const my = ((n1.y + n2.y) / 2).toFixed(1);
     edgesS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="${color}" stroke-width="${sw}" opacity="${opacity}" stroke-linecap="round"/>`;
-    labelsS += `<rect x="${(+mx-11).toFixed(1)}" y="${(+my-6).toFixed(1)}" width="22" height="11" rx="3" fill="white" opacity="0.88"/><text x="${mx}" y="${(+my+3.5).toFixed(1)}" text-anchor="middle" font-size="7.5" font-weight="800" fill="${color}" font-family="-apple-system,sans-serif">${p.wr}%</text>`;
+    labelsS += `<rect x="${(+mx-14).toFixed(1)}" y="${(+my-8).toFixed(1)}" width="28" height="15" rx="4" fill="white" opacity="0.9"/><text x="${mx}" y="${(+my+4.5).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="800" fill="${color}" font-family="-apple-system,sans-serif">${p.wr}%</text>`;
   });
   nodes.forEach(name => {
     const p = pos[name];
@@ -8729,8 +8734,45 @@ async function _renderPartnerDiagram() {
     </g>`;
   });
   const totalG = filtered.reduce((s, p) => s + p.total, 0);
-  svgEl.innerHTML = `<svg viewBox="0 0 ${SIZE} ${SIZE}" style="width:100%;display:block">${edgesS}${labelsS}${nodesS}</svg>
-    <div style="text-align:center;font-size:0.7rem;color:#94a3b8;padding:4px 0 8px">${nodes.length}명 · ${filtered.length}조합 · ${totalG}경기 &nbsp;|&nbsp; <span style="color:#16a34a;font-weight:700">━</span> 승률↑ &nbsp;<span style="color:#dc2626;font-weight:700">━</span> 승률↓ &nbsp;두께=경기수</div>`;
+  svgEl.innerHTML = `<svg viewBox="0 0 ${SIZE} ${SIZE}" style="width:100%;display:block;touch-action:none">${edgesS}${labelsS}${nodesS}</svg>
+    <div style="text-align:center;font-size:0.82rem;color:#94a3b8;padding:6px 0 10px">${nodes.length}명 · ${filtered.length}조합 · ${totalG}경기 &nbsp;|&nbsp; <span style="color:#16a34a;font-weight:700">━</span> 승률↑ &nbsp;<span style="color:#dc2626;font-weight:700">━</span> 승률↓ &nbsp;두께=경기수<br><span style="font-size:0.72rem">핀치로 확대 · 더블탭으로 초기화</span></div>`;
+  _pdSetupInteraction();
+}
+function _pdSetupInteraction() {
+  const wrap = document.getElementById('pd-svg-wrap');
+  if (!wrap) return;
+  const svg = wrap.querySelector('svg');
+  if (!svg) return;
+  svg.style.transformOrigin = 'center center';
+  svg.style.willChange = 'transform';
+  let scale = 1, tx = 0, ty = 0;
+  let startTouches = null, startScale = 1, startTx = 0, startTy = 0, lastTap = 0;
+  function applyT() { svg.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`; }
+  function dist(t) { return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY); }
+  function mid(t) { return {x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2}; }
+  wrap.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      startTouches = [{clientX:e.touches[0].clientX,clientY:e.touches[0].clientY},{clientX:e.touches[1].clientX,clientY:e.touches[1].clientY}];
+      startScale = scale; startTx = tx; startTy = ty;
+      e.preventDefault();
+    }
+  }, {passive:false});
+  wrap.addEventListener('touchmove', e => {
+    if (e.touches.length === 2 && startTouches) {
+      scale = Math.min(5, Math.max(0.8, startScale * dist(e.touches) / dist(startTouches)));
+      const c0 = mid(startTouches), c1 = mid(e.touches);
+      tx = startTx + (c1.x - c0.x); ty = startTy + (c1.y - c0.y);
+      applyT(); e.preventDefault();
+    }
+  }, {passive:false});
+  wrap.addEventListener('touchend', e => {
+    if (e.touches.length < 2) startTouches = null;
+    if (e.touches.length === 0) {
+      const now = Date.now();
+      if (now - lastTap < 300) { scale = 1; tx = 0; ty = 0; applyT(); }
+      lastTap = now;
+    }
+  });
 }
 function jumpToPairVs(playerKey, partnerName) {
   _rankingMode = 'pair';
@@ -13965,7 +14007,7 @@ async function triggerAtpRefresh() {
       <button class="modal-close" onclick="closePartnerDiagram()">✕</button>
     </div>
     <div id="pd-chips" style="padding:4px 10px 6px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid #e2e8f0;flex-shrink:0;-webkit-overflow-scrolling:touch"></div>
-    <div id="pd-svg-wrap" style="flex:1;overflow-y:auto;padding:4px 8px 0;-webkit-overflow-scrolling:touch"></div>
+    <div id="pd-svg-wrap" style="flex:1;overflow:hidden;padding:4px 8px 0"></div>
   </div>
 </div>
 
