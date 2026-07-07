@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v927';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v928';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8654,6 +8654,7 @@ function _pdToggleMember(name) {
 async function _renderPartnerDiagram() {
   const svgEl = document.getElementById('pd-svg-wrap');
   const chipsEl = document.getElementById('pd-chips');
+  const legendEl = document.getElementById('pd-legend');
   if (!svgEl || !chipsEl) return;
   const statsCacheKey = `pair_${_selectedRankYear}`;
   let stats = _rankStatsCache[statsCacheKey];
@@ -8734,8 +8735,8 @@ async function _renderPartnerDiagram() {
     </g>`;
   });
   const totalG = filtered.reduce((s, p) => s + p.total, 0);
-  svgEl.innerHTML = `<svg viewBox="0 0 ${SIZE} ${SIZE}" style="width:100%;display:block;touch-action:none">${edgesS}${labelsS}${nodesS}</svg>
-    <div style="text-align:center;font-size:0.78rem;color:#94a3b8;padding:3px 0 6px">${nodes.length}명 · ${filtered.length}조합 · ${totalG}경기 &nbsp;|&nbsp; <span style="color:#16a34a;font-weight:700">━</span> 승률↑ &nbsp;<span style="color:#dc2626;font-weight:700">━</span> 승률↓ &nbsp;두께=경기수 &nbsp;·&nbsp; <span style="font-size:0.7rem">핀치확대 · 더블탭초기화</span></div>`;
+  if (legendEl) legendEl.innerHTML = `${nodes.length}명 · ${filtered.length}조합 · ${totalG}경기 &nbsp;|&nbsp; <span style="color:#16a34a;font-weight:700">━</span> 승률↑ &nbsp;<span style="color:#dc2626;font-weight:700">━</span> 승률↓ &nbsp;두께=경기수 &nbsp;·&nbsp; 핀치확대·더블탭초기화`;
+  svgEl.innerHTML = `<svg viewBox="0 0 ${SIZE} ${SIZE}" style="max-width:100%;max-height:100%;width:auto;height:auto;display:block;touch-action:none">${edgesS}${labelsS}${nodesS}</svg>`;
   _pdSetupInteraction();
 }
 function _pdSetupInteraction() {
@@ -14016,14 +14017,15 @@ async function triggerAtpRefresh() {
 </div>
 
 <div class="modal-overlay" id="partner-diagram-modal" onclick="if(event.target===this)closePartnerDiagram()">
-  <div class="modal" style="height:98vh;max-height:98vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
+  <div class="modal" style="height:70vh;max-height:70vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
     <div class="modal-handle" style="margin:8px auto 0"></div>
     <div class="modal-header" style="padding:7px 14px 6px;flex-shrink:0;border-bottom:1px solid #f1f5f9">
       <span class="modal-round">🕸️ 파트너 다이어그램</span>
       <button class="modal-close" onclick="closePartnerDiagram()">✕</button>
     </div>
-    <div id="pd-chips" style="padding:4px 10px 4px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid #e2e8f0;flex-shrink:0;-webkit-overflow-scrolling:touch"></div>
-    <div id="pd-svg-wrap" style="flex:1;overflow:hidden;padding:2px 4px 0"></div>
+    <div id="pd-chips" style="padding:4px 10px 3px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid #e2e8f0;flex-shrink:0;-webkit-overflow-scrolling:touch"></div>
+    <div id="pd-legend" style="text-align:center;font-size:0.75rem;color:#1e293b;padding:3px 8px 3px;flex-shrink:0;border-bottom:1px solid #f1f5f9"></div>
+    <div id="pd-svg-wrap" style="flex:1;overflow:hidden;display:flex;justify-content:center;align-items:center"></div>
   </div>
 </div>
 
