@@ -619,6 +619,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 300; align-items: flex-end; justify-content: center; overscroll-behavior: none; }
 #participant-modal { z-index: 310; }
 #player-profile-modal { z-index: 400; }
+#partner-diagram-modal { z-index: 295; }  /* match-query-modal(300)이 위에 표시되도록 */
 #photo-edit-modal { z-index: 10001; }
 .modal-overlay.open { display: flex; }
 .modal { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
@@ -2694,7 +2695,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v939';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v940';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8657,12 +8658,11 @@ function _pdToggleMember(name) {
 }
 function _pdLineClick(p1, p2) {
   const today = new Date();
-  const toDateStr = d => d.toISOString().split('T')[0];
-  const yearStart = new Date(_selectedRankYear, 0, 1);
+  const toLocalDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const fromEl = document.getElementById('mq-date-from');
   const toEl = document.getElementById('mq-date-to');
-  if (fromEl) fromEl.value = toDateStr(yearStart);
-  if (toEl) toEl.value = toDateStr(today);
+  if (fromEl) fromEl.value = `${_selectedRankYear}-01-01`;
+  if (toEl) toEl.value = toLocalDate(today);
   const names = (state.members || []).map(m => m.name).filter(Boolean).sort();
   const sel1 = document.getElementById('mq-player1');
   const sel2 = document.getElementById('mq-player2');
