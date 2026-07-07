@@ -2209,6 +2209,7 @@ const firebaseConfig = {
         <div style="display:flex;align-items:center;gap:8px">
           <div class="rank-banner-title" style="text-align:left;font-size:0.96rem">🏆 자미터 랭킹</div>
           <button onclick="document.getElementById(_rankingMode==='attendance'?'att-info-modal':_rankingMode==='pair'?'pair-info-modal':'rank-info-modal').classList.add('open')" style="width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.75rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:serif">i</button>
+          <button onclick="openPartnerDiagram()" style="height:22px;border-radius:11px;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);color:#fff;font-size:0.72rem;font-weight:700;cursor:pointer;padding:0 8px;white-space:nowrap;flex-shrink:0">🕸️ 다이어그램</button>
         </div>
         <div class="rank-banner-sub" id="rank-hint-text">클릭하면 상대 전적을 볼 수 있어요.</div>
       </div>
@@ -2693,7 +2694,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v937';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v938';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8465,7 +8466,7 @@ async function renderRankingTab(){
 
     const {pairGiven:_bGiven,pairReceived:_bReceived}=await _getBagelStats(_selectedRankYear);
     _pairRankShareData = pairs;
-    let html=`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 2px 4px"><span style="font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em">─ ${_selectedRankYear} 시즌 · ${pairs.length}조합 (2경기↑) ─</span><button onclick="openPartnerDiagram()" style="font-size:0.72rem;font-weight:700;background:#eff6ff;color:#2563eb;border:1.5px solid #bfdbfe;border-radius:14px;padding:3px 10px;cursor:pointer;white-space:nowrap;flex-shrink:0">🕸️ 파트너 다이어그램</button></div>`;
+    let html=`<div style="padding:10px 2px 4px"><span style="font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em">─ ${_selectedRankYear} 시즌 · ${pairs.length}조합 (3경기↑) ─</span></div>`;
 
     html+=pairs.map(p=>{
       const isSel=p.key===_selectedRankKey;
@@ -8651,6 +8652,25 @@ function _pdToggleMember(name) {
   else _pdSelectedMembers.add(name);
   _renderPartnerDiagram();
 }
+function _pdLineClick(p1, p2) {
+  closePartnerDiagram();
+  const today = new Date();
+  const toDateStr = d => d.toISOString().split('T')[0];
+  const yearStart = new Date(_selectedRankYear, 0, 1);
+  const fromEl = document.getElementById('mq-date-from');
+  const toEl = document.getElementById('mq-date-to');
+  if (fromEl) fromEl.value = toDateStr(yearStart);
+  if (toEl) toEl.value = toDateStr(today);
+  const names = (state.members || []).map(m => m.name).filter(Boolean).sort();
+  const sel1 = document.getElementById('mq-player1');
+  const sel2 = document.getElementById('mq-player2');
+  if (sel1) { sel1.innerHTML = '<option value="">전체</option>' + names.map(n => `<option value="${n}">${n}</option>`).join(''); sel1.value = p1; }
+  if (sel2) { sel2.innerHTML = '<option value="">-</option>' + names.map(n => `<option value="${n}">${n}</option>`).join(''); sel2.value = p2; }
+  document.getElementById('match-query-inner').innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">조회 중…</p>';
+  document.body.style.overflow = 'hidden';
+  document.getElementById('match-query-modal').classList.add('open');
+  setTimeout(() => queryMatchHistory(), 150);
+}
 async function _renderPartnerDiagram() {
   const svgEl = document.getElementById('pd-svg-wrap');
   const chipsEl = document.getElementById('pd-chips');
@@ -8705,14 +8725,16 @@ async function _renderPartnerDiagram() {
     const angle = (2 * Math.PI * i / N) - Math.PI / 2;
     pos[name] = { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle), angle };
   });
-  let edgesS = '', labelsS = '', nodesS = '';
+  let edgesS = '', hitS = '', labelsS = '', nodesS = '';
   filtered.forEach(p => {
     const n1 = pos[p.p1], n2 = pos[p.p2];
     if (!n1 || !n2) return;
     const color = p.wr >= 50 ? '#16a34a' : '#dc2626';
     const opacity = _pdSelectedMembers.size > 0 ? 0.85 : 0.52;
     const sw = p.total >= 15 ? 8 : p.total >= 10 ? 5.5 : p.total >= 5 ? 3 : 1.8;
-    edgesS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="${color}" stroke-width="${sw}" opacity="${opacity}" stroke-linecap="round"/>`;
+    edgesS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="${color}" stroke-width="${sw}" opacity="${opacity}" stroke-linecap="round" pointer-events="none"/>`;
+    // 라인 클릭 히트영역 (투명 넓은 선)
+    hitS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="transparent" stroke-width="20" style="cursor:pointer" onclick="_pdLineClick('${p.p1}','${p.p2}')"/>`;
     // 라벨: 선택 없으면 숨김, 선택된 멤버와 연결된 선만 표시
     const selSize = _pdSelectedMembers.size;
     const p1sel = _pdSelectedMembers.has(p.p1), p2sel = _pdSelectedMembers.has(p.p2);
@@ -8770,7 +8792,7 @@ async function _renderPartnerDiagram() {
   });
   const totalG = filtered.reduce((s, p) => s + p.total, 0);
   if (legendEl) legendEl.innerHTML = `${nodes.length}명 · ${filtered.length}조합 · ${totalG}경기 &nbsp;·&nbsp; 두께=경기수 &nbsp;·&nbsp; 핀치확대·더블탭초기화`;
-  svgEl.innerHTML = `<svg viewBox="0 0 ${SIZE} ${SIZE}" overflow="visible" style="max-width:100%;max-height:100%;width:auto;height:auto;display:block;touch-action:none">${edgesS}${nodesS}${labelsS}</svg>`;
+  svgEl.innerHTML = `<svg viewBox="0 0 ${SIZE} ${SIZE}" overflow="visible" style="max-width:100%;max-height:100%;width:auto;height:auto;display:block;touch-action:none">${edgesS}${hitS}${nodesS}${labelsS}</svg>`;
   _pdSetupInteraction();
 }
 function _pdSetupInteraction() {
