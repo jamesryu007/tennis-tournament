@@ -2695,7 +2695,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v943';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v944';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8721,9 +8721,8 @@ async function _renderPartnerDiagram() {
       return { p1: players[0], p2: players[1], wins: w, draws: d, losses: l, total, wr: Math.round(effWr(w, d, l)) };
     })
     .filter(p => p.total >= 3 && p.p1 && p.p2 && memberNames.includes(p.p1) && memberNames.includes(p.p2));
-  const involvedSet = new Set();
-  pairs.forEach(p => { involvedSet.add(p.p1); involvedSet.add(p.p2); });
-  const nodes = memberNames.filter(n => involvedSet.has(n));
+  // 전체 멤버 노드 표시 (3경기↑ 페어 없어도 노드는 항상 표시, 라인만 기준 적용)
+  const nodes = [...memberNames];
   // 로그인 멤버 칩 맨 앞
   const myName = (state.identity && state.identity.name) || '';
   if (myName && nodes.includes(myName)) { nodes.splice(nodes.indexOf(myName), 1); nodes.unshift(myName); }
