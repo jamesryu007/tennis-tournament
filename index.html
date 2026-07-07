@@ -619,6 +619,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.75); z-index: 300; align-items: flex-end; justify-content: center; overscroll-behavior: none; }
 #participant-modal { z-index: 310; }
 #player-profile-modal { z-index: 400; }
+#partner-diagram-modal { z-index: 295; }  /* match-query-modal(300)이 위에 표시되도록 */
 #photo-edit-modal { z-index: 10001; }
 .modal-overlay.open { display: flex; }
 .modal { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
@@ -2209,6 +2210,7 @@ const firebaseConfig = {
         <div style="display:flex;align-items:center;gap:8px">
           <div class="rank-banner-title" style="text-align:left;font-size:0.96rem">🏆 자미터 랭킹</div>
           <button onclick="document.getElementById(_rankingMode==='attendance'?'att-info-modal':_rankingMode==='pair'?'pair-info-modal':'rank-info-modal').classList.add('open')" style="width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.75rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:serif">i</button>
+          <button onclick="openPartnerDiagram()" style="height:22px;border-radius:11px;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);color:#fff;font-size:0.72rem;font-weight:700;cursor:pointer;padding:0 8px;white-space:nowrap;flex-shrink:0">🕸️ 파트너 다이어그램</button>
         </div>
         <div class="rank-banner-sub" id="rank-hint-text">클릭하면 상대 전적을 볼 수 있어요.</div>
       </div>
@@ -2693,7 +2695,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v922';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v943';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5655,7 +5657,10 @@ function openMatchQueryModal(){
 
 function closeMatchQueryModal(){
   document.getElementById('match-query-modal').classList.remove('open');
-  document.body.style.overflow='';
+  // 파트너 다이어그램이 열려 있으면 overflow 유지
+  if (!document.getElementById('partner-diagram-modal').classList.contains('open')) {
+    document.body.style.overflow='';
+  }
 }
 
 async function queryMatchHistory(){
@@ -5686,7 +5691,33 @@ async function queryMatchHistory(){
       inner.innerHTML='<p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">조회 결과가 없습니다</p>';
       return;
     }
-    inner.innerHTML=`<div style="font-size:0.8rem;color:#64748b;font-weight:700;margin-bottom:10px">${matches.length}경기</div>`+matches.map(m=>{
+    // ── 요약 프레임 계산 ──
+    let _sqW=0,_sqD=0,_sqL=0;
+    if(p1){
+      matches.forEach(m=>{
+        const t0=toArr(m.team0),t1=toArr(m.team1);
+        if(m.winner===-1){_sqD++;return;}
+        let onTeam0;
+        if(p1&&p2){const pk=getPairKey(p1,p2);onTeam0=getPairKey(t0[0],t0[1])===pk;}
+        else{onTeam0=t0.includes(p1);}
+        (onTeam0?m.winner===0:m.winner===1)?_sqW++:_sqL++;
+      });
+    }
+    const _sqTotal=matches.length;
+    const _sqWr=(_sqW+_sqD+_sqL)>0?Math.round((_sqW+_sqD*0.5)/(_sqW+_sqD+_sqL)*100):0;
+    const _fmtDate=s=>s?s.replace(/(\d{4})-(\d{2})-(\d{2})/,'$1.$2.$3'):'';
+    const _summaryHtml=`<div style="background:linear-gradient(135deg,#eff6ff 0%,#f0fdf4 100%);border:1.5px solid #bfdbfe;border-radius:14px;padding:12px 16px;margin-bottom:14px">
+      <div style="font-size:0.72rem;color:#64748b;font-weight:600;margin-bottom:6px">${_fmtDate(from)} ~ ${_fmtDate(to)}</div>
+      ${p1?`<div style="font-size:0.9rem;font-weight:800;color:#1e293b;margin-bottom:8px">${p1}${p2?' 🤝 '+p2:''}</div>`:''}
+      <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
+        <span style="font-size:0.82rem;color:#475569"><b style="font-size:1.05rem;color:#1e293b">${_sqTotal}</b>경기</span>
+        ${p1?`<span style="font-size:0.82rem;color:#16a34a"><b style="font-size:1.05rem">${_sqW}</b>승</span>
+        ${_sqD>0?`<span style="font-size:0.82rem;color:#94a3b8"><b style="font-size:1.05rem">${_sqD}</b>무</span>`:''}
+        <span style="font-size:0.82rem;color:#dc2626"><b style="font-size:1.05rem">${_sqL}</b>패</span>
+        <span style="font-size:0.85rem;font-weight:800;color:${_sqWr>=50?'#16a34a':'#dc2626'}">승률 ${_sqWr}%</span>`:''}
+      </div>
+    </div>`;
+    inner.innerHTML=_summaryHtml+`<div style="font-size:0.75rem;color:#94a3b8;font-weight:600;margin-bottom:10px">${_sqTotal}경기</div>`+matches.map(m=>{
       const t0=toArr(m.team0),t1=toArr(m.team1),sets=toArr(m.sets);
       const isDraw=m.winner===-1,t0win=m.winner===0,t1win=m.winner===1;
       const td0=_getTeamDisplay(t0),td1=_getTeamDisplay(t1);
@@ -8249,6 +8280,7 @@ let _rankDetailTab='vs';   // 'vs' | 'bagel'
 const _bagelStatsCache={}; // { 2026: { given:{player:{opp:n}}, received:{...} } }
 let _playerRankShareData=[];  // 공유용 캐시
 let _pairRankShareData=[];
+let _pdSelectedMembers=new Set();
 
 // 회원관리탭용 Top3 캐시
 async function loadRankingTop3(){
@@ -8262,7 +8294,7 @@ async function loadRankingTop3(){
   // 단짝 통계: 경기수 내림차순 상위 3조합
   state._pairTop3=Object.entries(psData)
     .map(([k,v])=>({key:k,players:v.players||k.split('_'),wins:v.wins||0,draws:Math.max(0,v.draws||0),losses:v.losses||0}))
-    .filter(p=>p.wins+p.draws+p.losses>=2)
+    .filter(p=>p.wins+p.draws+p.losses>=3)
     .sort((a,b)=>{const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;return gb-ga||effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses);})
     .slice(0,3);
 
@@ -8321,23 +8353,23 @@ async function renderRankingTab(){
       const partners=Object.entries(partnerData)
         .map(([name,v])=>({name,wins:v.wins,draws:v.draws,losses:v.losses,total:v.total,bagelGiven:v.bagelGiven||0,bagelReceived:v.bagelReceived||0}))
         .sort((a,b)=>b.total-a.total||b.wins-a.wins);
-      // 단짝(경기수 최다) / 베스트(승률 최고, 2경기 이상) 선정
+      // 단짝(경기수 최다) / 베스트(승률 최고, 3경기 이상) 선정
       const _mNames=new Set((state.members||[]).map(m=>m.name));
       const _maxG=partners.length?partners[0].total:0;
-      const _buddies=new Set(partners.filter(p=>p.total===_maxG&&_maxG>=2).map(p=>p.name));
+      const _buddies=new Set(partners.filter(p=>p.total===_maxG&&_maxG>=3).map(p=>p.name));
       // 단짝 중 멤버 없으면 멤버 중 최다경기 파트너도 추가
       if(![..._buddies].some(n=>_mNames.has(n))){
         const _mp=partners.filter(p=>_mNames.has(p.name));
         const _mmG=_mp.length?_mp[0].total:0;
-        if(_mmG>=2) _mp.filter(p=>p.total===_mmG).forEach(p=>_buddies.add(p.name));
+        if(_mmG>=3) _mp.filter(p=>p.total===_mmG).forEach(p=>_buddies.add(p.name));
       }
-      const _bestWr=partners.filter(p=>p.total>=2).reduce((best,p)=>{const w=Math.round(effWr(p.wins,p.draws,p.losses));return w>best?w:best;},-1);
-      const _bestCands=_bestWr>=0?partners.filter(p=>p.total>=2&&Math.round(effWr(p.wins,p.draws,p.losses))===_bestWr):[];
+      const _bestWr=partners.filter(p=>p.total>=3).reduce((best,p)=>{const w=Math.round(effWr(p.wins,p.draws,p.losses));return w>best?w:best;},-1);
+      const _bestCands=_bestWr>=0?partners.filter(p=>p.total>=3&&Math.round(effWr(p.wins,p.draws,p.losses))===_bestWr):[];
       const _bestMaxG=_bestCands.reduce((m,p)=>p.total>m?p.total:m,0);
       const _bestSet=new Set(_bestCands.filter(p=>p.total===_bestMaxG).map(p=>p.name));
       // 베스트 중 멤버 없으면 멤버 중 최고승률 파트너도 추가
       if(![..._bestSet].some(n=>_mNames.has(n))){
-        const _mpB=partners.filter(p=>_mNames.has(p.name)&&p.total>=2);
+        const _mpB=partners.filter(p=>_mNames.has(p.name)&&p.total>=3);
         const _mBwr=_mpB.reduce((best,p)=>{const w=Math.round(effWr(p.wins,p.draws,p.losses));return w>best?w:best;},-1);
         if(_mBwr>=0){const _mBC=_mpB.filter(p=>Math.round(effWr(p.wins,p.draws,p.losses))===_mBwr);const _mBG=_mBC.reduce((m,p)=>p.total>m?p.total:m,0);_mBC.filter(p=>p.total===_mBG).forEach(p=>_bestSet.add(p.name));}
       }
@@ -8455,7 +8487,7 @@ async function renderRankingTab(){
     const memberNames=(state.members||[]).map(m=>m.name);
     const pairs=Object.entries(stats)
       .map(([k,v])=>({key:k,players:v.players||k.split('_'),nickname:v.nickname,wins:v.wins||0,draws:Math.max(0,v.draws||0),losses:v.losses||0}))
-      .filter(p=>{const t=p.wins+p.draws+p.losses; return t>=2 && p.players.every(n=>memberNames.includes(n));})
+      .filter(p=>{const t=p.wins+p.draws+p.losses; return t>=3 && p.players.every(n=>memberNames.includes(n));})
       .sort((a,b)=>{
         const ga=a.wins+a.draws+a.losses,gb=b.wins+b.draws+b.losses;
         return gb-ga||Math.round(effWr(b.wins,b.draws,b.losses))-Math.round(effWr(a.wins,a.draws,a.losses));
@@ -8464,7 +8496,7 @@ async function renderRankingTab(){
 
     const {pairGiven:_bGiven,pairReceived:_bReceived}=await _getBagelStats(_selectedRankYear);
     _pairRankShareData = pairs;
-    let html=`<div style="text-align:center;font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;padding:12px 0 6px">─ ${_selectedRankYear} 시즌 · ${pairs.length}조합 (2경기↑) ─</div>`;
+    let html=`<div style="padding:10px 2px 4px"><span style="font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em">─ ${_selectedRankYear} 시즌 · ${pairs.length}조합 (3경기↑) ─</span></div>`;
 
     html+=pairs.map(p=>{
       const isSel=p.key===_selectedRankKey;
@@ -8634,6 +8666,214 @@ function toggleRankDetail(key){
 function switchRankDetailTab(tab){
   _rankDetailTab=tab;
   renderRankingTab();
+}
+function openPartnerDiagram() {
+  _pdSelectedMembers = new Set();
+  document.getElementById('partner-diagram-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  _renderPartnerDiagram();
+}
+function closePartnerDiagram() {
+  document.getElementById('partner-diagram-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function _pdToggleMember(name) {
+  if (_pdSelectedMembers.has(name)) _pdSelectedMembers.delete(name);
+  else _pdSelectedMembers.add(name);
+  _renderPartnerDiagram();
+}
+function _pdLineClick(p1, p2) {
+  const today = new Date();
+  const toLocalDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const fromEl = document.getElementById('mq-date-from');
+  const toEl = document.getElementById('mq-date-to');
+  if (fromEl) fromEl.value = `${_selectedRankYear}-01-01`;
+  if (toEl) toEl.value = toLocalDate(today);
+  const names = (state.members || []).map(m => m.name).filter(Boolean).sort();
+  const sel1 = document.getElementById('mq-player1');
+  const sel2 = document.getElementById('mq-player2');
+  if (sel1) { sel1.innerHTML = '<option value="">전체</option>' + names.map(n => `<option value="${n}">${n}</option>`).join(''); sel1.value = p1; }
+  if (sel2) { sel2.innerHTML = '<option value="">-</option>' + names.map(n => `<option value="${n}">${n}</option>`).join(''); sel2.value = p2; }
+  document.getElementById('match-query-inner').innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">조회 중…</p>';
+  document.body.style.overflow = 'hidden';
+  document.getElementById('match-query-modal').classList.add('open');
+  setTimeout(() => queryMatchHistory(), 150);
+}
+async function _renderPartnerDiagram() {
+  const svgEl = document.getElementById('pd-svg-wrap');
+  const chipsEl = document.getElementById('pd-chips');
+  const legendEl = document.getElementById('pd-legend');
+  if (!svgEl || !chipsEl) return;
+  const statsCacheKey = `pair_${_selectedRankYear}`;
+  let stats = _rankStatsCache[statsCacheKey];
+  if (!stats) {
+    svgEl.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:0.85rem">불러오는 중...</div>';
+    const snap = await db.ref(`jmt/pairStats/${_selectedRankYear}`).once('value');
+    stats = snap.val() || {};
+    _rankStatsCache[statsCacheKey] = stats;
+  }
+  const memberNames = (state.members || []).map(m => m.name);
+  const pairs = Object.entries(stats)
+    .map(([k, v]) => {
+      const players = v.players || k.split('_');
+      const w = v.wins || 0, d = Math.max(0, v.draws || 0), l = v.losses || 0;
+      const total = w + d + l;
+      return { p1: players[0], p2: players[1], wins: w, draws: d, losses: l, total, wr: Math.round(effWr(w, d, l)) };
+    })
+    .filter(p => p.total >= 3 && p.p1 && p.p2 && memberNames.includes(p.p1) && memberNames.includes(p.p2));
+  const involvedSet = new Set();
+  pairs.forEach(p => { involvedSet.add(p.p1); involvedSet.add(p.p2); });
+  const nodes = memberNames.filter(n => involvedSet.has(n));
+  // 로그인 멤버 칩 맨 앞
+  const myName = (state.identity && state.identity.name) || '';
+  if (myName && nodes.includes(myName)) { nodes.splice(nodes.indexOf(myName), 1); nodes.unshift(myName); }
+  // 필터 칩
+  chipsEl.innerHTML = nodes.map(name => {
+    const isSel = _pdSelectedMembers.has(name);
+    const isMe = name === myName;
+    const g = getGender(name);
+    const bg = isSel ? (g === 'female' ? '#db2777' : '#2563eb') : isMe ? '#f0fdf4' : '#f1f5f9';
+    const col = isSel ? '#fff' : isMe ? '#15803d' : '#334155';
+    const border = isMe && !isSel ? ';border:1.5px solid #86efac' : '';
+    return `<span onclick="_pdToggleMember('${name}')" style="display:inline-block;cursor:pointer;padding:4px 10px;margin:2px;border-radius:12px;font-size:0.8rem;font-weight:600;background:${bg};color:${col}${border}">${isMe ? '⭐ ' : ''}${name}</span>`;
+  }).join('');
+  const filtered = _pdSelectedMembers.size > 0
+    ? pairs.filter(p => _pdSelectedMembers.has(p.p1) || _pdSelectedMembers.has(p.p2))
+    : pairs;
+  const N = nodes.length;
+  if (!N) { svgEl.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:20px;font-size:0.85rem">데이터 없음</p>'; return; }
+  // SVG 레이아웃
+  const SIZE = 480, cx = 240, cy = 240;
+  const R = N <= 10 ? 160 : N <= 18 ? 170 : 176;
+  const nodeR = N <= 12 ? 14 : N <= 20 ? 11 : 9;
+  const labelOff = nodeR + 16;
+  const fSize = N <= 16 ? 15 : 13;
+  const pos = {};
+  nodes.forEach((name, i) => {
+    const angle = (2 * Math.PI * i / N) - Math.PI / 2;
+    pos[name] = { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle), angle };
+  });
+  let edgesS = '', hitS = '', labelsS = '', nodesS = '';
+  filtered.forEach(p => {
+    const n1 = pos[p.p1], n2 = pos[p.p2];
+    if (!n1 || !n2) return;
+    const color = p.wr >= 50 ? '#16a34a' : '#dc2626';
+    const opacity = _pdSelectedMembers.size > 0 ? 0.85 : 0.52;
+    const sw = p.total >= 15 ? 8 : p.total >= 10 ? 5.5 : p.total >= 5 ? 3 : 1.8;
+    edgesS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="${color}" stroke-width="${sw}" opacity="${opacity}" stroke-linecap="round" pointer-events="none"/>`;
+    // 라인 클릭 히트영역 (투명 넓은 선)
+    hitS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="transparent" stroke-width="20" style="cursor:pointer" onclick="_pdLineClick('${p.p1}','${p.p2}')"/>`;
+    // 라벨: 선택 없으면 숨김, 선택된 멤버와 연결된 선만 표시
+    const selSize = _pdSelectedMembers.size;
+    const p1sel = _pdSelectedMembers.has(p.p1), p2sel = _pdSelectedMembers.has(p.p2);
+    if (selSize === 0 || (!p1sel && !p2sel)) return;
+    // 1명 선택 시 선택 노드에서 65% 파트너 방향으로 라벨 위치 이동
+    const _showRec = selSize === 1;
+    const t = _showRec ? (p1sel ? 0.65 : 0.35) : 0.5;
+    const mxN = n1.x + t * (n2.x - n1.x), myN = n1.y + t * (n2.y - n1.y);
+    const mx = mxN.toFixed(1), my = myN.toFixed(1);
+    const lineAngleDeg = Math.atan2(n2.y - n1.y, n2.x - n1.x) * 180 / Math.PI;
+    const rotAngle = (lineAngleDeg > 90 || lineAngleDeg < -90) ? lineAngleDeg + 180 : lineAngleDeg;
+    // rect 없이 라인 위/아래 배치 — paint-order halo로 가독성 확보, 라인 그대로 보임
+    labelsS += `<g transform="rotate(${rotAngle.toFixed(1)},${mx},${my})">`;
+    labelsS += `<text x="${mx}" y="${(myN-7).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="800" fill="${color}" stroke="white" stroke-width="3" paint-order="stroke fill" font-family="-apple-system,sans-serif">${p.wr}%</text>`;
+    if (_showRec) labelsS += `<text x="${mx}" y="${(myN+9).toFixed(1)}" text-anchor="middle" font-size="8.5" font-weight="600" fill="${color}" stroke="white" stroke-width="2.5" paint-order="stroke fill" font-family="-apple-system,sans-serif">(${p.total}/${p.wins}/${p.draws}/${p.losses})</text>`;
+    labelsS += `</g>`;
+  });
+  // 1명 선택 시 단짝/베스트 계산
+  let _pdBuddies = new Set(), _pdBestSet = new Set();
+  if (_pdSelectedMembers.size === 1) {
+    const _selN = [..._pdSelectedMembers][0];
+    const _selPairs = pairs
+      .filter(p => p.p1 === _selN || p.p2 === _selN)
+      .map(p => ({ name: p.p1 === _selN ? p.p2 : p.p1, total: p.total, wins: p.wins, draws: p.draws, losses: p.losses }));
+    const _maxG = _selPairs.reduce((m, p) => p.total > m ? p.total : m, 0);
+    if (_maxG >= 3) _selPairs.filter(p => p.total === _maxG).forEach(p => _pdBuddies.add(p.name));
+    const _bWr = _selPairs.reduce((m, p) => { const w = Math.round(effWr(p.wins, p.draws, p.losses)); return w > m ? w : m; }, -1);
+    if (_bWr >= 0) {
+      const _bC = _selPairs.filter(p => Math.round(effWr(p.wins, p.draws, p.losses)) === _bWr);
+      const _bG = _bC.reduce((m, p) => p.total > m ? p.total : m, 0);
+      _bC.filter(p => p.total === _bG).forEach(p => _pdBestSet.add(p.name));
+    }
+  }
+  nodes.forEach(name => {
+    const p = pos[name];
+    const isSel = _pdSelectedMembers.has(name);
+    const g = getGender(name);
+    const fill = isSel ? (g === 'female' ? '#db2777' : '#2563eb') : (g === 'female' ? '#fbcfe8' : '#bfdbfe');
+    const stroke = g === 'female' ? '#ec4899' : '#3b82f6';
+    const sw = isSel ? 2.5 : 1.5;
+    const lx = (cx + (R + labelOff) * Math.cos(p.angle)).toFixed(1);
+    const ly = (cy + (R + labelOff) * Math.sin(p.angle)).toFixed(1);
+    const anchor = Math.cos(p.angle) > 0.15 ? 'start' : Math.cos(p.angle) < -0.15 ? 'end' : 'middle';
+    const nm = name.length > 3 ? name.slice(0, 3) : name;
+    // 1명 선택 시 파트너 이름 옆에 단짝/베스트 뱃지 표시
+    const isBuddy = !isSel && _pdBuddies.has(name), isBestP = !isSel && _pdBestSet.has(name);
+    const badge = isBuddy && isBestP ? '🤝🔥' : isBuddy ? '🤝' : isBestP ? '🔥' : '';
+    const displayNm = badge
+      ? (anchor === 'end' ? nm + badge : badge + nm)
+      : nm;
+    nodesS += `<g onclick="_pdToggleMember('${name}')" style="cursor:pointer">
+      <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${nodeR}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>
+      <text x="${lx}" y="${ly}" text-anchor="${anchor}" dy="0.35em" font-size="${fSize}" font-weight="${isSel?'800':'600'}" fill="${isSel?'#1e293b':'#475569'}" font-family="-apple-system,sans-serif">${displayNm}</text>
+    </g>`;
+  });
+  const totalG = filtered.reduce((s, p) => s + p.total, 0);
+  if (legendEl) legendEl.innerHTML = `${nodes.length}명 · ${filtered.length}조합 · ${totalG}경기 &nbsp;·&nbsp; 두께=경기수 &nbsp;·&nbsp; 3경기↑만 라인 &nbsp;·&nbsp; 라인탭=경기조회`;
+  svgEl.innerHTML = `<svg viewBox="0 0 ${SIZE} ${SIZE}" overflow="visible" style="max-width:100%;max-height:100%;width:auto;height:auto;display:block;touch-action:none">${edgesS}${hitS}${nodesS}${labelsS}</svg>`;
+  _pdSetupInteraction();
+}
+function _pdSetupInteraction() {
+  const wrap = document.getElementById('pd-svg-wrap');
+  if (!wrap) return;
+  const svg = wrap.querySelector('svg');
+  if (!svg) return;
+  svg.style.transformOrigin = 'center center';
+  svg.style.willChange = 'transform';
+  let scale = 1, tx = 0, ty = 0;
+  let pinchStart = null, startScale = 1, startTx = 0, startTy = 0;
+  let panStart = null, panTx = 0, panTy = 0, panning = false;
+  let lastTap = 0;
+  function applyT() { svg.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`; }
+  function dist(t) { return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY); }
+  function mid(t) { return {x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2}; }
+  wrap.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      pinchStart = [{clientX:e.touches[0].clientX,clientY:e.touches[0].clientY},{clientX:e.touches[1].clientX,clientY:e.touches[1].clientY}];
+      startScale = scale; startTx = tx; startTy = ty;
+      panStart = null; panning = false;
+      e.preventDefault();
+    } else if (e.touches.length === 1) {
+      panStart = {x:e.touches[0].clientX, y:e.touches[0].clientY};
+      panTx = tx; panTy = ty; panning = false;
+      // preventDefault 안 함 — click 이벤트(노드 선택) 보존
+    }
+  }, {passive:false});
+  wrap.addEventListener('touchmove', e => {
+    if (e.touches.length === 2 && pinchStart) {
+      scale = Math.min(5, Math.max(0.8, startScale * dist(e.touches) / dist(pinchStart)));
+      const c0 = mid(pinchStart), c1 = mid(e.touches);
+      tx = startTx + (c1.x - c0.x); ty = startTy + (c1.y - c0.y);
+      applyT(); e.preventDefault();
+    } else if (e.touches.length === 1 && panStart) {
+      const dx = e.touches[0].clientX - panStart.x, dy = e.touches[0].clientY - panStart.y;
+      if (!panning && Math.hypot(dx, dy) < 8) return; // 탭과 구분: 8px 미만은 무시
+      panning = true;
+      tx = panTx + dx; ty = panTy + dy;
+      applyT(); e.preventDefault();
+    }
+  }, {passive:false});
+  wrap.addEventListener('touchend', e => {
+    if (e.touches.length < 2) pinchStart = null;
+    if (e.touches.length === 0) {
+      if (!panning) {
+        const now = Date.now();
+        if (now - lastTap < 300) { scale = 1; tx = 0; ty = 0; applyT(); }
+        lastTap = now;
+      }
+      panStart = null; panning = false;
+    }
+  });
 }
 function jumpToPairVs(playerKey, partnerName) {
   _rankingMode = 'pair';
@@ -13857,6 +14097,19 @@ async function triggerAtpRefresh() {
         <span style="color:#94a3b8;font-weight:700">비자격자:</span> 총 경기수 → 유효승률 → 총 승수
       </div>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="partner-diagram-modal" onclick="if(event.target===this)closePartnerDiagram()">
+  <div class="modal" style="height:85vh;max-height:85vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
+    <div class="modal-handle" style="margin:8px auto 0"></div>
+    <div class="modal-header" style="padding:7px 14px 6px;flex-shrink:0;border-bottom:1px solid #f1f5f9">
+      <span class="modal-round">🕸️ 파트너 다이어그램</span>
+      <button class="modal-close" onclick="closePartnerDiagram()">✕</button>
+    </div>
+    <div id="pd-chips" style="padding:4px 10px 3px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid #e2e8f0;flex-shrink:0;-webkit-overflow-scrolling:touch"></div>
+    <div id="pd-legend" style="text-align:center;font-size:0.75rem;color:#1e293b;padding:3px 8px 3px;flex-shrink:0;border-bottom:1px solid #f1f5f9"></div>
+    <div id="pd-svg-wrap" style="flex:1;overflow:hidden;display:flex;justify-content:center;align-items:center"></div>
   </div>
 </div>
 
