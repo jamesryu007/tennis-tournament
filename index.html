@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v925';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v926';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8747,7 +8747,7 @@ function _pdSetupInteraction() {
   svg.style.willChange = 'transform';
   let scale = 1, tx = 0, ty = 0;
   let pinchStart = null, startScale = 1, startTx = 0, startTy = 0;
-  let panStart = null, panTx = 0, panTy = 0;
+  let panStart = null, panTx = 0, panTy = 0, panning = false;
   let lastTap = 0;
   function applyT() { svg.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`; }
   function dist(t) { return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY); }
@@ -8756,12 +8756,12 @@ function _pdSetupInteraction() {
     if (e.touches.length === 2) {
       pinchStart = [{clientX:e.touches[0].clientX,clientY:e.touches[0].clientY},{clientX:e.touches[1].clientX,clientY:e.touches[1].clientY}];
       startScale = scale; startTx = tx; startTy = ty;
-      panStart = null;
+      panStart = null; panning = false;
       e.preventDefault();
     } else if (e.touches.length === 1) {
       panStart = {x:e.touches[0].clientX, y:e.touches[0].clientY};
-      panTx = tx; panTy = ty;
-      e.preventDefault();
+      panTx = tx; panTy = ty; panning = false;
+      // preventDefault 안 함 — click 이벤트(노드 선택) 보존
     }
   }, {passive:false});
   wrap.addEventListener('touchmove', e => {
@@ -8771,18 +8771,22 @@ function _pdSetupInteraction() {
       tx = startTx + (c1.x - c0.x); ty = startTy + (c1.y - c0.y);
       applyT(); e.preventDefault();
     } else if (e.touches.length === 1 && panStart) {
-      tx = panTx + (e.touches[0].clientX - panStart.x);
-      ty = panTy + (e.touches[0].clientY - panStart.y);
+      const dx = e.touches[0].clientX - panStart.x, dy = e.touches[0].clientY - panStart.y;
+      if (!panning && Math.hypot(dx, dy) < 8) return; // 탭과 구분: 8px 미만은 무시
+      panning = true;
+      tx = panTx + dx; ty = panTy + dy;
       applyT(); e.preventDefault();
     }
   }, {passive:false});
   wrap.addEventListener('touchend', e => {
     if (e.touches.length < 2) pinchStart = null;
     if (e.touches.length === 0) {
-      panStart = null;
-      const now = Date.now();
-      if (now - lastTap < 300) { scale = 1; tx = 0; ty = 0; applyT(); }
-      lastTap = now;
+      if (!panning) {
+        const now = Date.now();
+        if (now - lastTap < 300) { scale = 1; tx = 0; ty = 0; applyT(); }
+        lastTap = now;
+      }
+      panStart = null; panning = false;
     }
   });
 }
