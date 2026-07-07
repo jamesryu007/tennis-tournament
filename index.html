@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v922';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v923';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8249,6 +8249,7 @@ let _rankDetailTab='vs';   // 'vs' | 'bagel'
 const _bagelStatsCache={}; // { 2026: { given:{player:{opp:n}}, received:{...} } }
 let _playerRankShareData=[];  // 공유용 캐시
 let _pairRankShareData=[];
+let _pdSelectedMembers=new Set();
 
 // 회원관리탭용 Top3 캐시
 async function loadRankingTop3(){
@@ -8464,7 +8465,7 @@ async function renderRankingTab(){
 
     const {pairGiven:_bGiven,pairReceived:_bReceived}=await _getBagelStats(_selectedRankYear);
     _pairRankShareData = pairs;
-    let html=`<div style="text-align:center;font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;padding:12px 0 6px">─ ${_selectedRankYear} 시즌 · ${pairs.length}조합 (2경기↑) ─</div>`;
+    let html=`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 2px 4px"><span style="font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em">─ ${_selectedRankYear} 시즌 · ${pairs.length}조합 (2경기↑) ─</span><button onclick="openPartnerDiagram()" style="font-size:0.72rem;font-weight:700;background:#eff6ff;color:#2563eb;border:1.5px solid #bfdbfe;border-radius:14px;padding:3px 10px;cursor:pointer;white-space:nowrap;flex-shrink:0">🕸️ 파트너 다이어그램</button></div>`;
 
     html+=pairs.map(p=>{
       const isSel=p.key===_selectedRankKey;
@@ -8634,6 +8635,102 @@ function toggleRankDetail(key){
 function switchRankDetailTab(tab){
   _rankDetailTab=tab;
   renderRankingTab();
+}
+function openPartnerDiagram() {
+  _pdSelectedMembers = new Set();
+  document.getElementById('partner-diagram-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  _renderPartnerDiagram();
+}
+function closePartnerDiagram() {
+  document.getElementById('partner-diagram-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function _pdToggleMember(name) {
+  if (_pdSelectedMembers.has(name)) _pdSelectedMembers.delete(name);
+  else _pdSelectedMembers.add(name);
+  _renderPartnerDiagram();
+}
+async function _renderPartnerDiagram() {
+  const svgEl = document.getElementById('pd-svg-wrap');
+  const chipsEl = document.getElementById('pd-chips');
+  if (!svgEl || !chipsEl) return;
+  const statsCacheKey = `pair_${_selectedRankYear}`;
+  let stats = _rankStatsCache[statsCacheKey];
+  if (!stats) {
+    svgEl.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:0.85rem">불러오는 중...</div>';
+    const snap = await db.ref(`jmt/pairStats/${_selectedRankYear}`).once('value');
+    stats = snap.val() || {};
+    _rankStatsCache[statsCacheKey] = stats;
+  }
+  const memberNames = (state.members || []).map(m => m.name);
+  const pairs = Object.entries(stats)
+    .map(([k, v]) => {
+      const players = v.players || k.split('_');
+      const w = v.wins || 0, d = Math.max(0, v.draws || 0), l = v.losses || 0;
+      const total = w + d + l;
+      return { p1: players[0], p2: players[1], total, wr: Math.round(effWr(w, d, l)) };
+    })
+    .filter(p => p.total >= 2 && p.p1 && p.p2 && memberNames.includes(p.p1) && memberNames.includes(p.p2));
+  const involvedSet = new Set();
+  pairs.forEach(p => { involvedSet.add(p.p1); involvedSet.add(p.p2); });
+  const nodes = memberNames.filter(n => involvedSet.has(n));
+  // 필터 칩
+  chipsEl.innerHTML = nodes.map(name => {
+    const isSel = _pdSelectedMembers.has(name);
+    const g = getGender(name);
+    const bg = isSel ? (g === 'female' ? '#db2777' : '#2563eb') : '#f1f5f9';
+    const col = isSel ? '#fff' : '#334155';
+    return `<span onclick="_pdToggleMember('${name}')" style="display:inline-block;cursor:pointer;padding:3px 8px;margin:2px;border-radius:12px;font-size:0.72rem;font-weight:600;background:${bg};color:${col}">${name}</span>`;
+  }).join('');
+  const filtered = _pdSelectedMembers.size > 0
+    ? pairs.filter(p => _pdSelectedMembers.has(p.p1) || _pdSelectedMembers.has(p.p2))
+    : pairs;
+  const N = nodes.length;
+  if (!N) { svgEl.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:20px;font-size:0.85rem">데이터 없음</p>'; return; }
+  // SVG 레이아웃
+  const SIZE = 420, cx = 210, cy = 210;
+  const R = N <= 10 ? 148 : N <= 18 ? 158 : 165;
+  const nodeR = N <= 12 ? 13 : N <= 20 ? 10 : 8;
+  const labelOff = nodeR + 10;
+  const fSize = N <= 16 ? 9.5 : 8.5;
+  const pos = {};
+  nodes.forEach((name, i) => {
+    const angle = (2 * Math.PI * i / N) - Math.PI / 2;
+    pos[name] = { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle), angle };
+  });
+  const maxG = Math.max(...filtered.map(p => p.total), 1);
+  let edgesS = '', labelsS = '', nodesS = '';
+  filtered.forEach(p => {
+    const n1 = pos[p.p1], n2 = pos[p.p2];
+    if (!n1 || !n2) return;
+    const color = p.wr >= 50 ? '#16a34a' : '#dc2626';
+    const opacity = _pdSelectedMembers.size > 0 ? 0.85 : 0.52;
+    const sw = (1.2 + (p.total / maxG) * 3.5).toFixed(1);
+    const mx = ((n1.x + n2.x) / 2).toFixed(1);
+    const my = ((n1.y + n2.y) / 2).toFixed(1);
+    edgesS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="${color}" stroke-width="${sw}" opacity="${opacity}" stroke-linecap="round"/>`;
+    labelsS += `<rect x="${(+mx-11).toFixed(1)}" y="${(+my-6).toFixed(1)}" width="22" height="11" rx="3" fill="white" opacity="0.88"/><text x="${mx}" y="${(+my+3.5).toFixed(1)}" text-anchor="middle" font-size="7.5" font-weight="800" fill="${color}" font-family="-apple-system,sans-serif">${p.wr}%</text>`;
+  });
+  nodes.forEach(name => {
+    const p = pos[name];
+    const isSel = _pdSelectedMembers.has(name);
+    const g = getGender(name);
+    const fill = isSel ? (g === 'female' ? '#db2777' : '#2563eb') : (g === 'female' ? '#fbcfe8' : '#bfdbfe');
+    const stroke = g === 'female' ? '#ec4899' : '#3b82f6';
+    const sw = isSel ? 2.5 : 1.5;
+    const lx = (cx + (R + labelOff) * Math.cos(p.angle)).toFixed(1);
+    const ly = (cy + (R + labelOff) * Math.sin(p.angle)).toFixed(1);
+    const anchor = Math.cos(p.angle) > 0.15 ? 'start' : Math.cos(p.angle) < -0.15 ? 'end' : 'middle';
+    const nm = name.length > 3 ? name.slice(0, 3) : name;
+    nodesS += `<g onclick="_pdToggleMember('${name}')" style="cursor:pointer">
+      <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${nodeR}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>
+      <text x="${lx}" y="${ly}" text-anchor="${anchor}" dy="0.35em" font-size="${fSize}" font-weight="${isSel?'800':'600'}" fill="${isSel?'#1e293b':'#475569'}" font-family="-apple-system,sans-serif">${nm}</text>
+    </g>`;
+  });
+  const totalG = filtered.reduce((s, p) => s + p.total, 0);
+  svgEl.innerHTML = `<svg viewBox="0 0 ${SIZE} ${SIZE}" style="width:100%;display:block">${edgesS}${labelsS}${nodesS}</svg>
+    <div style="text-align:center;font-size:0.7rem;color:#94a3b8;padding:4px 0 8px">${nodes.length}명 · ${filtered.length}조합 · ${totalG}경기 &nbsp;|&nbsp; <span style="color:#16a34a;font-weight:700">━</span> 승률↑ &nbsp;<span style="color:#dc2626;font-weight:700">━</span> 승률↓ &nbsp;두께=경기수</div>`;
 }
 function jumpToPairVs(playerKey, partnerName) {
   _rankingMode = 'pair';
@@ -13857,6 +13954,18 @@ async function triggerAtpRefresh() {
         <span style="color:#94a3b8;font-weight:700">비자격자:</span> 총 경기수 → 유효승률 → 총 승수
       </div>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="partner-diagram-modal" onclick="if(event.target===this)closePartnerDiagram()">
+  <div class="modal" style="max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
+    <div class="modal-handle"></div>
+    <div class="modal-header" style="padding:12px 16px 10px;flex-shrink:0">
+      <span class="modal-round">🕸️ 파트너 다이어그램</span>
+      <button class="modal-close" onclick="closePartnerDiagram()">✕</button>
+    </div>
+    <div id="pd-chips" style="padding:4px 10px 6px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid #e2e8f0;flex-shrink:0;-webkit-overflow-scrolling:touch"></div>
+    <div id="pd-svg-wrap" style="flex:1;overflow-y:auto;padding:4px 8px 0;-webkit-overflow-scrolling:touch"></div>
   </div>
 </div>
 
