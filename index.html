@@ -2695,7 +2695,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v945';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v946';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8759,7 +8759,7 @@ async function _renderPartnerDiagram() {
   const hubBtnCol = isHubMode ? '#fff' : '#334155';
   const hubBtnBorder = isHubMode ? '#1e40af' : '#cbd5e1';
   const hubBtnLabel = isHubMode ? '⬤ 중심 보기' : '○ 중심 보기';
-  chipsEl.innerHTML = nodes.map(name => {
+  chipsEl.innerHTML = `<span onclick="${hubBtnDisabled ? '' : '_pdToggleHubMode()'}" style="display:inline-block;${hubBtnDisabled ? 'opacity:0.35;cursor:default' : 'cursor:pointer'};padding:4px 10px;margin:2px 8px 2px 2px;border-radius:12px;font-size:0.8rem;font-weight:600;background:${hubBtnBg};color:${hubBtnCol};border:1.5px solid ${hubBtnBorder}">${hubBtnLabel}</span>` + nodes.map(name => {
     const isSel = _pdSelectedMembers.has(name);
     const isMe = name === myName;
     const g = getGender(name);
@@ -8768,7 +8768,7 @@ async function _renderPartnerDiagram() {
     const border = isMe && !isSel ? ';border:1.5px solid #86efac' : '';
     const onclick = isHubMode ? `_pdHubSelectMember('${name}')` : `_pdToggleMember('${name}')`;
     return `<span onclick="${onclick}" style="display:inline-block;cursor:pointer;padding:4px 10px;margin:2px;border-radius:12px;font-size:0.8rem;font-weight:600;background:${bg};color:${col}${border}">${isMe ? '⭐ ' : ''}${name}</span>`;
-  }).join('') + `<span onclick="${hubBtnDisabled ? '' : '_pdToggleHubMode()'}" style="display:inline-block;${hubBtnDisabled ? 'opacity:0.35;cursor:default' : 'cursor:pointer'};padding:4px 10px;margin:2px 2px 2px 8px;border-radius:12px;font-size:0.8rem;font-weight:600;background:${hubBtnBg};color:${hubBtnCol};border:1.5px solid ${hubBtnBorder}">${hubBtnLabel}</span>`;
+  }).join('');
   const filtered = isHubMode
     ? pairs.filter(p => p.p1 === hubCenter || p.p2 === hubCenter)
     : _pdSelectedMembers.size > 0
