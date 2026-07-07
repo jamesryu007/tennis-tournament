@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v935';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v936';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8724,11 +8724,10 @@ async function _renderPartnerDiagram() {
     const mx = mxN.toFixed(1), my = myN.toFixed(1);
     const lineAngleDeg = Math.atan2(n2.y - n1.y, n2.x - n1.x) * 180 / Math.PI;
     const rotAngle = (lineAngleDeg > 90 || lineAngleDeg < -90) ? lineAngleDeg + 180 : lineAngleDeg;
-    const _rw = _showRec ? 46 : 28, _rh = _showRec ? 28 : 15;
+    // rect 없이 라인 위/아래 배치 — paint-order halo로 가독성 확보, 라인 그대로 보임
     labelsS += `<g transform="rotate(${rotAngle.toFixed(1)},${mx},${my})">`;
-    labelsS += `<rect x="${(mxN-_rw/2).toFixed(1)}" y="${(myN-_rh/2).toFixed(1)}" width="${_rw}" height="${_rh}" rx="4" fill="white" opacity="0.9"/>`;
-    labelsS += `<text x="${mx}" y="${(_showRec ? myN-3 : myN+4.5).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="800" fill="${color}" font-family="-apple-system,sans-serif">${p.wr}%</text>`;
-    if (_showRec) labelsS += `<text x="${mx}" y="${(myN+11).toFixed(1)}" text-anchor="middle" font-size="8.5" font-weight="600" fill="${color}" font-family="-apple-system,sans-serif">(${p.total}/${p.wins}/${p.draws}/${p.losses})</text>`;
+    labelsS += `<text x="${mx}" y="${(myN-7).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="800" fill="${color}" stroke="white" stroke-width="3" paint-order="stroke fill" font-family="-apple-system,sans-serif">${p.wr}%</text>`;
+    if (_showRec) labelsS += `<text x="${mx}" y="${(myN+9).toFixed(1)}" text-anchor="middle" font-size="8.5" font-weight="600" fill="${color}" stroke="white" stroke-width="2.5" paint-order="stroke fill" font-family="-apple-system,sans-serif">(${p.total}/${p.wins}/${p.draws}/${p.losses})</text>`;
     labelsS += `</g>`;
   });
   nodes.forEach(name => {
