@@ -2209,7 +2209,7 @@ const firebaseConfig = {
         <div style="display:flex;align-items:center;gap:8px">
           <div class="rank-banner-title" style="text-align:left;font-size:0.96rem">🏆 자미터 랭킹</div>
           <button onclick="document.getElementById(_rankingMode==='attendance'?'att-info-modal':_rankingMode==='pair'?'pair-info-modal':'rank-info-modal').classList.add('open')" style="width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.5);color:#fff;font-size:0.75rem;font-weight:900;font-style:italic;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-family:serif">i</button>
-          <button onclick="openPartnerDiagram()" style="height:22px;border-radius:11px;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);color:#fff;font-size:0.72rem;font-weight:700;cursor:pointer;padding:0 8px;white-space:nowrap;flex-shrink:0">🕸️ 다이어그램</button>
+          <button onclick="openPartnerDiagram()" style="height:22px;border-radius:11px;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);color:#fff;font-size:0.72rem;font-weight:700;cursor:pointer;padding:0 8px;white-space:nowrap;flex-shrink:0">🕸️ 파트너 다이어그램</button>
         </div>
         <div class="rank-banner-sub" id="rank-hint-text">클릭하면 상대 전적을 볼 수 있어요.</div>
       </div>
@@ -2694,7 +2694,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v938';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v939';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5656,7 +5656,10 @@ function openMatchQueryModal(){
 
 function closeMatchQueryModal(){
   document.getElementById('match-query-modal').classList.remove('open');
-  document.body.style.overflow='';
+  // 파트너 다이어그램이 열려 있으면 overflow 유지
+  if (!document.getElementById('partner-diagram-modal').classList.contains('open')) {
+    document.body.style.overflow='';
+  }
 }
 
 async function queryMatchHistory(){
@@ -8653,7 +8656,6 @@ function _pdToggleMember(name) {
   _renderPartnerDiagram();
 }
 function _pdLineClick(p1, p2) {
-  closePartnerDiagram();
   const today = new Date();
   const toDateStr = d => d.toISOString().split('T')[0];
   const yearStart = new Date(_selectedRankYear, 0, 1);
