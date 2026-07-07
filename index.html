@@ -2695,7 +2695,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v944';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v946';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8281,6 +8281,7 @@ const _bagelStatsCache={}; // { 2026: { given:{player:{opp:n}}, received:{...} }
 let _playerRankShareData=[];  // 공유용 캐시
 let _pairRankShareData=[];
 let _pdSelectedMembers=new Set();
+let _pdHubMode=false;
 
 // 회원관리탭용 Top3 캐시
 async function loadRankingTop3(){
@@ -8669,6 +8670,7 @@ function switchRankDetailTab(tab){
 }
 function openPartnerDiagram() {
   _pdSelectedMembers = new Set();
+  _pdHubMode = false;
   document.getElementById('partner-diagram-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
   _renderPartnerDiagram();
@@ -8678,8 +8680,29 @@ function closePartnerDiagram() {
   document.body.style.overflow = '';
 }
 function _pdToggleMember(name) {
-  if (_pdSelectedMembers.has(name)) _pdSelectedMembers.delete(name);
-  else _pdSelectedMembers.add(name);
+  if (_pdSelectedMembers.has(name)) {
+    _pdSelectedMembers.delete(name);
+    if (_pdSelectedMembers.size === 0) _pdHubMode = false;
+  } else {
+    _pdSelectedMembers.add(name);
+    if (_pdSelectedMembers.size > 1) _pdHubMode = false;
+  }
+  _renderPartnerDiagram();
+}
+function _pdToggleHubMode() {
+  if (_pdSelectedMembers.size !== 1) return;
+  _pdHubMode = !_pdHubMode;
+  _renderPartnerDiagram();
+}
+function _pdHubSelectMember(name) {
+  const curCenter = [..._pdSelectedMembers][0];
+  if (name === curCenter) {
+    // 현재 중심 클릭 → 허브 모드 종료
+    _pdHubMode = false;
+    _pdSelectedMembers.delete(name);
+  } else {
+    _pdSelectedMembers = new Set([name]);
+  }
   _renderPartnerDiagram();
 }
 function _pdLineClick(p1, p2) {
@@ -8713,6 +8736,10 @@ async function _renderPartnerDiagram() {
     _rankStatsCache[statsCacheKey] = stats;
   }
   const memberNames = (state.members || []).map(m => m.name);
+  // 허브 모드 여부
+  const isHubMode = _pdHubMode && _pdSelectedMembers.size === 1;
+  const hubCenter = isHubMode ? [..._pdSelectedMembers][0] : null;
+  const minGames = isHubMode ? 2 : 3;
   const pairs = Object.entries(stats)
     .map(([k, v]) => {
       const players = v.players || k.split('_');
@@ -8720,55 +8747,82 @@ async function _renderPartnerDiagram() {
       const total = w + d + l;
       return { p1: players[0], p2: players[1], wins: w, draws: d, losses: l, total, wr: Math.round(effWr(w, d, l)) };
     })
-    .filter(p => p.total >= 3 && p.p1 && p.p2 && memberNames.includes(p.p1) && memberNames.includes(p.p2));
-  // 전체 멤버 노드 표시 (3경기↑ 페어 없어도 노드는 항상 표시, 라인만 기준 적용)
+    .filter(p => p.total >= minGames && p.p1 && p.p2 && memberNames.includes(p.p1) && memberNames.includes(p.p2));
+  // 전체 멤버 노드 표시 (경기↑ 페어 없어도 노드는 항상 표시, 라인만 기준 적용)
   const nodes = [...memberNames];
   // 로그인 멤버 칩 맨 앞
   const myName = (state.identity && state.identity.name) || '';
   if (myName && nodes.includes(myName)) { nodes.splice(nodes.indexOf(myName), 1); nodes.unshift(myName); }
-  // 필터 칩
-  chipsEl.innerHTML = nodes.map(name => {
+  // 필터 칩 + 허브 토글 버튼
+  const hubBtnDisabled = _pdSelectedMembers.size !== 1;
+  const hubBtnBg = isHubMode ? '#1e40af' : '#e2e8f0';
+  const hubBtnCol = isHubMode ? '#fff' : '#334155';
+  const hubBtnBorder = isHubMode ? '#1e40af' : '#cbd5e1';
+  const hubBtnLabel = isHubMode ? '⬤ 중심 보기' : '○ 중심 보기';
+  chipsEl.innerHTML = `<span onclick="${hubBtnDisabled ? '' : '_pdToggleHubMode()'}" style="display:inline-block;${hubBtnDisabled ? 'opacity:0.35;cursor:default' : 'cursor:pointer'};padding:4px 10px;margin:2px 8px 2px 2px;border-radius:12px;font-size:0.8rem;font-weight:600;background:${hubBtnBg};color:${hubBtnCol};border:1.5px solid ${hubBtnBorder}">${hubBtnLabel}</span>` + nodes.map(name => {
     const isSel = _pdSelectedMembers.has(name);
     const isMe = name === myName;
     const g = getGender(name);
     const bg = isSel ? (g === 'female' ? '#db2777' : '#2563eb') : isMe ? '#f0fdf4' : '#f1f5f9';
     const col = isSel ? '#fff' : isMe ? '#15803d' : '#334155';
     const border = isMe && !isSel ? ';border:1.5px solid #86efac' : '';
-    return `<span onclick="_pdToggleMember('${name}')" style="display:inline-block;cursor:pointer;padding:4px 10px;margin:2px;border-radius:12px;font-size:0.8rem;font-weight:600;background:${bg};color:${col}${border}">${isMe ? '⭐ ' : ''}${name}</span>`;
+    const onclick = isHubMode ? `_pdHubSelectMember('${name}')` : `_pdToggleMember('${name}')`;
+    return `<span onclick="${onclick}" style="display:inline-block;cursor:pointer;padding:4px 10px;margin:2px;border-radius:12px;font-size:0.8rem;font-weight:600;background:${bg};color:${col}${border}">${isMe ? '⭐ ' : ''}${name}</span>`;
   }).join('');
-  const filtered = _pdSelectedMembers.size > 0
-    ? pairs.filter(p => _pdSelectedMembers.has(p.p1) || _pdSelectedMembers.has(p.p2))
-    : pairs;
+  const filtered = isHubMode
+    ? pairs.filter(p => p.p1 === hubCenter || p.p2 === hubCenter)
+    : _pdSelectedMembers.size > 0
+      ? pairs.filter(p => _pdSelectedMembers.has(p.p1) || _pdSelectedMembers.has(p.p2))
+      : pairs;
   const N = nodes.length;
   if (!N) { svgEl.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:20px;font-size:0.85rem">데이터 없음</p>'; return; }
   // SVG 레이아웃
   const SIZE = 480, cx = 240, cy = 240;
   const R = N <= 10 ? 160 : N <= 18 ? 170 : 176;
   const nodeR = N <= 12 ? 14 : N <= 20 ? 11 : 9;
+  const hubNodeR = Math.round(nodeR * 1.8);
   const labelOff = nodeR + 16;
   const fSize = N <= 16 ? 15 : 13;
   const pos = {};
-  nodes.forEach((name, i) => {
-    const angle = (2 * Math.PI * i / N) - Math.PI / 2;
-    pos[name] = { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle), angle };
-  });
+  if (isHubMode) {
+    // 허브 모드: hubCenter는 중앙, 나머지는 원형 배치
+    const circleNodes = nodes.filter(n => n !== hubCenter);
+    const circleN = circleNodes.length;
+    circleNodes.forEach((name, i) => {
+      const angle = (2 * Math.PI * i / circleN) - Math.PI / 2;
+      pos[name] = { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle), angle };
+    });
+    pos[hubCenter] = { x: cx, y: cy, angle: 0 };
+  } else {
+    nodes.forEach((name, i) => {
+      const angle = (2 * Math.PI * i / N) - Math.PI / 2;
+      pos[name] = { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle), angle };
+    });
+  }
+  // 허브 모드 연결된 노드 집합 (dimming용)
+  const connectedSet = new Set();
+  if (isHubMode) filtered.forEach(p => { connectedSet.add(p.p1); connectedSet.add(p.p2); });
   let edgesS = '', hitS = '', labelsS = '', nodesS = '';
   filtered.forEach(p => {
     const n1 = pos[p.p1], n2 = pos[p.p2];
     if (!n1 || !n2) return;
     const color = p.wr >= 50 ? '#16a34a' : '#dc2626';
-    const opacity = _pdSelectedMembers.size > 0 ? 0.85 : 0.52;
+    const opacity = (_pdSelectedMembers.size > 0 || isHubMode) ? 0.85 : 0.52;
     const sw = p.total >= 15 ? 8 : p.total >= 10 ? 5.5 : p.total >= 5 ? 3 : 1.8;
     edgesS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="${color}" stroke-width="${sw}" opacity="${opacity}" stroke-linecap="round" pointer-events="none"/>`;
     // 라인 클릭 히트영역 (투명 넓은 선)
     hitS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="transparent" stroke-width="20" style="cursor:pointer" onclick="_pdLineClick('${p.p1}','${p.p2}')"/>`;
-    // 라벨: 선택 없으면 숨김, 선택된 멤버와 연결된 선만 표시
+    // 라벨: 선택 없으면 숨김, 허브 모드는 항상 표시
     const selSize = _pdSelectedMembers.size;
     const p1sel = _pdSelectedMembers.has(p.p1), p2sel = _pdSelectedMembers.has(p.p2);
-    if (selSize === 0 || (!p1sel && !p2sel)) return;
-    // 1명 선택 시 선택 노드에서 65% 파트너 방향으로 라벨 위치 이동
-    const _showRec = selSize === 1;
-    const t = _showRec ? (p1sel ? 0.65 : 0.35) : 0.5;
+    if (!isHubMode && (selSize === 0 || (!p1sel && !p2sel))) return;
+    const _showRec = isHubMode || selSize === 1;
+    let t;
+    if (isHubMode) {
+      t = p.p1 === hubCenter ? 0.65 : 0.35;
+    } else {
+      t = _showRec ? (p1sel ? 0.65 : 0.35) : 0.5;
+    }
     const mxN = n1.x + t * (n2.x - n1.x), myN = n1.y + t * (n2.y - n1.y);
     const mx = mxN.toFixed(1), my = myN.toFixed(1);
     const lineAngleDeg = Math.atan2(n2.y - n1.y, n2.x - n1.x) * 180 / Math.PI;
@@ -8779,11 +8833,19 @@ async function _renderPartnerDiagram() {
     if (_showRec) labelsS += `<text x="${mx}" y="${(myN+9).toFixed(1)}" text-anchor="middle" font-size="8.5" font-weight="600" fill="${color}" stroke="white" stroke-width="2.5" paint-order="stroke fill" font-family="-apple-system,sans-serif">(${p.total}/${p.wins}/${p.draws}/${p.losses})</text>`;
     labelsS += `</g>`;
   });
-  // 1명 선택 시 단짝/베스트 계산
+  // 1명 선택 시 단짝/베스트 계산 (항상 3경기 기준 — 허브 모드에서도 동일)
   let _pdBuddies = new Set(), _pdBestSet = new Set();
   if (_pdSelectedMembers.size === 1) {
     const _selN = [..._pdSelectedMembers][0];
-    const _selPairs = pairs
+    const _pairs3 = isHubMode
+      ? Object.entries(stats).map(([k, v]) => {
+          const players = v.players || k.split('_');
+          const w = v.wins || 0, d = Math.max(0, v.draws || 0), l = v.losses || 0;
+          const total = w + d + l;
+          return { p1: players[0], p2: players[1], wins: w, draws: d, losses: l, total };
+        }).filter(p => p.total >= 3 && p.p1 && p.p2 && memberNames.includes(p.p1) && memberNames.includes(p.p2))
+      : pairs;
+    const _selPairs = _pairs3
       .filter(p => p.p1 === _selN || p.p2 === _selN)
       .map(p => ({ name: p.p1 === _selN ? p.p2 : p.p1, total: p.total, wins: p.wins, draws: p.draws, losses: p.losses }));
     const _maxG = _selPairs.reduce((m, p) => p.total > m ? p.total : m, 0);
@@ -8798,9 +8860,21 @@ async function _renderPartnerDiagram() {
   nodes.forEach(name => {
     const p = pos[name];
     const isSel = _pdSelectedMembers.has(name);
+    const isHubCenter = isHubMode && name === hubCenter;
     const g = getGender(name);
     const fill = isSel ? (g === 'female' ? '#db2777' : '#2563eb') : (g === 'female' ? '#fbcfe8' : '#bfdbfe');
     const stroke = g === 'female' ? '#ec4899' : '#3b82f6';
+    if (isHubCenter) {
+      // 허브 중심 노드: 큰 원, 이름 안에 표시
+      const nm = name.length > 3 ? name.slice(0, 3) : name;
+      const cFill = g === 'female' ? '#db2777' : '#2563eb';
+      const cStroke = g === 'female' ? '#ec4899' : '#3b82f6';
+      nodesS += `<g onclick="_pdHubSelectMember('${name}')" style="cursor:pointer">
+        <circle cx="${cx}" cy="${cy}" r="${hubNodeR}" fill="${cFill}" stroke="${cStroke}" stroke-width="3"/>
+        <text x="${cx}" y="${cy}" text-anchor="middle" dy="0.35em" font-size="${Math.round(hubNodeR * 0.72)}" font-weight="800" fill="white" font-family="-apple-system,sans-serif">${nm}</text>
+      </g>`;
+      return;
+    }
     const sw = isSel ? 2.5 : 1.5;
     const lx = (cx + (R + labelOff) * Math.cos(p.angle)).toFixed(1);
     const ly = (cy + (R + labelOff) * Math.sin(p.angle)).toFixed(1);
@@ -8812,13 +8886,17 @@ async function _renderPartnerDiagram() {
     const displayNm = badge
       ? (anchor === 'end' ? nm + badge : badge + nm)
       : nm;
-    nodesS += `<g onclick="_pdToggleMember('${name}')" style="cursor:pointer">
+    // 허브 모드: 연결 없는 노드 dimming
+    const nodeOpacity = isHubMode && !connectedSet.has(name) ? 0.3 : 1;
+    const nodeOnclick = isHubMode ? `_pdHubSelectMember('${name}')` : `_pdToggleMember('${name}')`;
+    nodesS += `<g onclick="${nodeOnclick}" style="cursor:pointer" opacity="${nodeOpacity}">
       <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${nodeR}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>
       <text x="${lx}" y="${ly}" text-anchor="${anchor}" dy="0.35em" font-size="${fSize}" font-weight="${isSel?'800':'600'}" fill="${isSel?'#1e293b':'#475569'}" font-family="-apple-system,sans-serif">${displayNm}</text>
     </g>`;
   });
   const totalG = filtered.reduce((s, p) => s + p.total, 0);
-  if (legendEl) legendEl.innerHTML = `${nodes.length}명 · ${filtered.length}조합 · ${totalG}경기 &nbsp;·&nbsp; 두께=경기수 &nbsp;·&nbsp; 3경기↑만 라인 &nbsp;·&nbsp; 라인탭=경기조회`;
+  const lineThresholdText = isHubMode ? '2경기↑만 라인' : '3경기↑만 라인';
+  if (legendEl) legendEl.innerHTML = `${nodes.length}명 · ${filtered.length}조합 · ${totalG}경기 &nbsp;·&nbsp; 두께=경기수 &nbsp;·&nbsp; ${lineThresholdText} &nbsp;·&nbsp; 라인탭=경기조회`;
   svgEl.innerHTML = `<svg viewBox="0 0 ${SIZE} ${SIZE}" overflow="visible" style="max-width:100%;max-height:100%;width:auto;height:auto;display:block;touch-action:none">${edgesS}${hitS}${nodesS}${labelsS}</svg>`;
   _pdSetupInteraction();
 }
