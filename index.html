@@ -2693,7 +2693,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v931';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v932';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8715,7 +8715,7 @@ async function _renderPartnerDiagram() {
     const mx = ((n1.x + n2.x) / 2).toFixed(1);
     const my = ((n1.y + n2.y) / 2).toFixed(1);
     edgesS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="${color}" stroke-width="${sw}" opacity="${opacity}" stroke-linecap="round"/>`;
-    const _showRec = _pdSelectedMembers.size > 0;
+    const _showRec = _pdSelectedMembers.size === 1;
     const _rw = _showRec ? 46 : 28, _rh = _showRec ? 28 : 15;
     labelsS += `<rect x="${(+mx-_rw/2).toFixed(1)}" y="${(+my-_rh/2).toFixed(1)}" width="${_rw}" height="${_rh}" rx="4" fill="white" opacity="0.9"/>`;
     labelsS += `<text x="${mx}" y="${(_showRec ? +my-3 : +my+4.5).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="800" fill="${color}" font-family="-apple-system,sans-serif">${p.wr}%</text>`;
