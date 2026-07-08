@@ -2698,7 +2698,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v954';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v955';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9003,11 +9003,14 @@ async function _renderPartnerDiagram() {
     </g>`;
   });
   const totalG = filtered.reduce((s, p) => s + p.total, 0);
+  const displayN = _pdSelectedMembers.size > 0
+    ? new Set(filtered.flatMap(p => [p.p1, p.p2])).size
+    : nodes.length;
   const lineThresholdText = isHubMode ? '2경기↑' : '3경기↑';
   if (legendEl) legendEl.innerHTML =
     // 1행: 통계 뱃지
     `<div style="display:flex;justify-content:center;gap:6px;padding:5px 10px 3px;flex-wrap:wrap">`
-    + `<span style="background:#4f46e5;color:#fff;font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:10px;letter-spacing:0.3px">${nodes.length}명</span>`
+    + `<span style="background:#4f46e5;color:#fff;font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:10px;letter-spacing:0.3px">${displayN}명</span>`
     + `<span style="background:#7c3aed;color:#fff;font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:10px;letter-spacing:0.3px">${filtered.length}조합</span>`
     + `<span style="background:#a21caf;color:#fff;font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:10px;letter-spacing:0.3px">${totalG}경기</span>`
     + `</div>`
