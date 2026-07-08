@@ -2698,7 +2698,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v952';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v953';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8609,10 +8609,11 @@ async function renderRankingTab(){
       const br=Object.values(_bReceived[p.key]||{}).reduce((s,v)=>s+v,0);
       const bagelData={given:_bGiven[p.key]||{},received:_bReceived[p.key]||{}};
       const det=isSel?mkDetail(vsData,stats,'pair',true,bagelData):'';
+      const totalCol=total>=15?'#d97706':total>=10?'#7c3aed':total>=5?'#2563eb':'#64748b';
       return `<div class="rank-item other${isSel?' selected':''}" onclick="toggleRankDetail('${p.key}')">
         <div class="rank-item-bar"></div>
         <div class="rank-item-body">
-          <span class="rank-num" style="font-size:0.72rem;color:#64748b;min-width:36px">${total}경기</span>
+          <span class="rank-num" style="font-size:0.82rem;font-weight:700;color:${totalCol};min-width:36px">${total}경기</span>
           <span class="rank-name">${disp}</span>
           <span style="display:inline-flex;align-items:center;gap:4px;font-size:0.82rem;flex-shrink:0"><span style="color:#16a34a;font-weight:800;min-width:24px;font-size:0.75rem;visibility:${bg?'visible':'hidden'}">🥯${bg}</span><span style="color:#dc2626;font-weight:800;min-width:24px;font-size:0.75rem;visibility:${br?'visible':'hidden'}">😵${br}</span><span style="color:#16a34a;font-weight:700;min-width:26px">${p.wins}승</span><span style="color:#f59e0b;font-weight:700;min-width:24px;visibility:${p.draws?'visible':'hidden'}">${p.draws}무</span><span style="color:#dc2626;font-weight:700;min-width:26px">${p.losses}패</span></span>
           <div class="rank-wr-col">
