@@ -2697,7 +2697,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v950';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v951';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5723,7 +5723,7 @@ async function queryMatchHistory(){
     let _insightHtml = '';
     if (p1 && _sqTotal >= 2) {
       const _oppPairMap={}, _oppMemMap={}, _partnerMap={};
-      let _bgiven=0,_brecv=0,_reverseW=0,_reverseL=0,_full3W=0,_full3L=0,_shutouts=0;
+      let _bgiven=0,_brecv=0,_reverseW=0,_reverseL=0,_full3W=0,_full3L=0;
       const _resArr=[];
       matches.forEach(m=>{
         const t0=toArr(m.team0),t1=toArr(m.team1),sets=toArr(m.sets);
@@ -5759,16 +5759,12 @@ async function queryMatchHistory(){
         }
         // 3세트 접전
         if(sets.length>=3){if(res==='w')_full3W++;else if(res==='l')_full3L++;}
-        // 완봉승
-        if(res==='w'&&sets.every(s=>{const ms=myIdx===0?+s.s0:+s.s1,os=myIdx===0?+s.s1:+s.s0;return ms>os;}))_shutouts++;
       });
       const _wr=v=>(v.w+v.d*0.5)/(v.w+v.d+v.l)*100;
       const _ins=[];
       // 베이글
       if(_bgiven>0)_ins.push({ic:'🥯',tx:`베이글 ${_bgiven}회 성공`});
       if(_brecv>0)_ins.push({ic:'😅',tx:`베이글 ${_brecv}회 허용`});
-      // 완봉승
-      if(_shutouts>=1)_ins.push({ic:'🏆',tx:`완봉승 ${_shutouts}회 (세트 무실점 완승)`});
       // 역전승/역전패
       if(_reverseW>=1)_ins.push({ic:'🔄',tx:`역전승 ${_reverseW}회`});
       if(_reverseL>=1)_ins.push({ic:'😱',tx:`역전패 ${_reverseL}회`});
