@@ -2698,7 +2698,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v953';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v954';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9005,11 +9005,20 @@ async function _renderPartnerDiagram() {
   const totalG = filtered.reduce((s, p) => s + p.total, 0);
   const lineThresholdText = isHubMode ? '2경기↑' : '3경기↑';
   if (legendEl) legendEl.innerHTML =
-    `<span style="color:#475569;font-weight:500">${nodes.length}명 · ${filtered.length}조합 · ${totalG}경기</span>`
-    + `&ensp;<span style="color:#16a34a">●</span> 승률↑&ensp;<span style="color:#dc2626">●</span> 승률↓`
-    + `&ensp;<span style="letter-spacing:-1px;color:#64748b">━━━</span> 경기수↑`
-    + `&ensp;<span style="color:#7c3aed">${lineThresholdText} 라인</span>`
-    + `&ensp;<span style="color:#2563eb">탭→경기조회</span>`;
+    // 1행: 통계 뱃지
+    `<div style="display:flex;justify-content:center;gap:6px;padding:5px 10px 3px;flex-wrap:wrap">`
+    + `<span style="background:#4f46e5;color:#fff;font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:10px;letter-spacing:0.3px">${nodes.length}명</span>`
+    + `<span style="background:#7c3aed;color:#fff;font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:10px;letter-spacing:0.3px">${filtered.length}조합</span>`
+    + `<span style="background:#a21caf;color:#fff;font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:10px;letter-spacing:0.3px">${totalG}경기</span>`
+    + `</div>`
+    // 2행: 범례
+    + `<div style="display:flex;justify-content:center;align-items:center;gap:10px;padding:2px 10px 5px;flex-wrap:wrap;font-size:0.7rem;color:#475569;font-weight:600">`
+    + `<span style="display:inline-flex;align-items:center;gap:3px"><svg width="20" height="6" viewBox="0 0 20 6"><line x1="0" y1="3" x2="20" y2="3" stroke="#16a34a" stroke-width="3" stroke-linecap="round"/></svg>승률↑</span>`
+    + `<span style="display:inline-flex;align-items:center;gap:3px"><svg width="20" height="6" viewBox="0 0 20 6"><line x1="0" y1="3" x2="20" y2="3" stroke="#dc2626" stroke-width="3" stroke-linecap="round"/></svg>승률↓</span>`
+    + `<span style="display:inline-flex;align-items:center;gap:3px"><svg width="22" height="8" viewBox="0 0 22 8"><line x1="0" y1="4" x2="10" y2="4" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="4" x2="22" y2="4" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/></svg>경기수↑</span>`
+    + `<span style="color:#7c3aed">${lineThresholdText} 라인</span>`
+    + `<span style="color:#475569">라인 탭 → 경기조회</span>`
+    + `</div>`;
   const dotBg = `<defs><pattern id="pdDot" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#c4b5fd" opacity="0.5"/></pattern></defs><rect width="${SIZE}" height="${SIZE}" fill="url(#pdDot)" rx="12" pointer-events="none"/>`;
   svgEl.innerHTML = `<svg viewBox="0 0 ${SIZE} ${SIZE}" overflow="visible" style="max-width:100%;max-height:100%;width:auto;height:auto;display:block;touch-action:none">${dotBg}${edgesS}${hitS}${nodesS}${labelsS}</svg>`;
   _pdSetupInteraction();
@@ -14299,7 +14308,7 @@ async function triggerAtpRefresh() {
       <button class="modal-close" onclick="closePartnerDiagram()" style="background:rgba(255,255,255,0.2);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
     <div id="pd-chips" style="padding:5px 10px 4px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid #e2e8f0;flex-shrink:0;-webkit-overflow-scrolling:touch;background:#faf5ff"></div>
-    <div id="pd-legend" style="text-align:center;font-size:0.72rem;color:#6d28d9;padding:4px 8px;flex-shrink:0;border-bottom:1px solid #ede9fe;background:#faf5ff;font-weight:600"></div>
+    <div id="pd-legend" style="flex-shrink:0;border-bottom:1px solid #ede9fe;background:#faf5ff"></div>
     <div id="pd-svg-wrap" style="flex:1;overflow:hidden;display:flex;justify-content:center;align-items:center;background:linear-gradient(160deg,#f5f3ff 0%,#ede9fe 100%)"></div>
   </div>
 </div>
