@@ -2214,7 +2214,7 @@ const firebaseConfig = {
         </div>
         <div class="rank-banner-sub" id="rank-hint-text">클릭하면 상대 전적을 볼 수 있어요.</div>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+      <div style="display:flex;align-items:center;gap:8px">
         <div id="rank-year-row" class="rank-year-row" style="margin:0"></div>
         <button onclick="openPartnerDiagram()" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#7c3aed);border:2px solid rgba(255,255,255,0.4);color:#fff;font-size:1.4rem;cursor:pointer;padding:0;flex-shrink:0;animation:pdBtnGlow 2.2s ease-in-out 3;box-shadow:0 3px 12px rgba(79,70,229,0.5);display:flex;align-items:center;justify-content:center;line-height:1">🕸️</button>
       </div>
@@ -2698,7 +2698,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v956';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v959';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
