@@ -2697,7 +2697,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v949';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v950';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5722,38 +5722,68 @@ async function queryMatchHistory(){
     // ── 인사이트 분석 ──
     let _insightHtml = '';
     if (p1 && _sqTotal >= 2) {
-      const _oppPairMap = {}, _oppMemMap = {};
-      let _bgiven = 0, _brecv = 0;
-      matches.forEach(m => {
+      const _oppPairMap={}, _oppMemMap={}, _partnerMap={};
+      let _bgiven=0,_brecv=0,_reverseW=0,_reverseL=0,_full3W=0,_full3L=0,_shutouts=0;
+      const _resArr=[];
+      matches.forEach(m=>{
         const t0=toArr(m.team0),t1=toArr(m.team1),sets=toArr(m.sets);
         let myIdx;
-        if (p2) { const pk=getPairKey(p1,p2); myIdx=getPairKey(t0[0],t0[1])===pk?0:1; }
-        else { myIdx=t0.includes(p1)?0:1; }
-        const opp=myIdx===0?t1:t0;
+        if(p2){const pk=getPairKey(p1,p2);myIdx=getPairKey(t0[0],t0[1])===pk?0:1;}
+        else{myIdx=t0.includes(p1)?0:1;}
+        const myTeam=myIdx===0?t0:t1, opp=myIdx===0?t1:t0;
         const res=m.winner===-1?'d':m.winner===myIdx?'w':'l';
+        _resArr.push(res);
         // 베이글
         sets.forEach(s=>{
-          const ms=myIdx===0?+s.s0:+s.s1, os=myIdx===0?+s.s1:+s.s0;
+          const ms=myIdx===0?+s.s0:+s.s1,os=myIdx===0?+s.s1:+s.s0;
           if(ms===6&&os===0)_bgiven++;
           if(ms===0&&os===6)_brecv++;
         });
-        // 상대 페어 기록
+        // 상대 페어/멤버
         if(opp.length>=2){
           const ok=getPairKey(opp[0],opp[1]);
           if(!_oppPairMap[ok])_oppPairMap[ok]={w:0,d:0,l:0,m:[opp[0],opp[1]]};
           _oppPairMap[ok][res]++;
         }
-        // 상대 멤버 기록
-        opp.forEach(nm=>{
-          if(!_oppMemMap[nm])_oppMemMap[nm]={w:0,d:0,l:0};
-          _oppMemMap[nm][res]++;
-        });
+        opp.forEach(nm=>{if(!_oppMemMap[nm])_oppMemMap[nm]={w:0,d:0,l:0};_oppMemMap[nm][res]++;});
+        // 최강 파트너 (p1 단독 조회)
+        if(!p2){
+          const pt=myTeam.find(n=>n!==p1);
+          if(pt){if(!_partnerMap[pt])_partnerMap[pt]={w:0,d:0,l:0};_partnerMap[pt][res]++;}
+        }
+        // 역전승/역전패
+        if(sets.length>=2&&res!=='d'){
+          const s0=sets[0],myS0=myIdx===0?+s0.s0:+s0.s1,oppS0=myIdx===0?+s0.s1:+s0.s0;
+          if(myS0<oppS0&&res==='w')_reverseW++;
+          if(myS0>oppS0&&res==='l')_reverseL++;
+        }
+        // 3세트 접전
+        if(sets.length>=3){if(res==='w')_full3W++;else if(res==='l')_full3L++;}
+        // 완봉승
+        if(res==='w'&&sets.every(s=>{const ms=myIdx===0?+s.s0:+s.s1,os=myIdx===0?+s.s1:+s.s0;return ms>os;}))_shutouts++;
       });
       const _wr=v=>(v.w+v.d*0.5)/(v.w+v.d+v.l)*100;
       const _ins=[];
       // 베이글
       if(_bgiven>0)_ins.push({ic:'🥯',tx:`베이글 ${_bgiven}회 성공`});
       if(_brecv>0)_ins.push({ic:'😅',tx:`베이글 ${_brecv}회 허용`});
+      // 완봉승
+      if(_shutouts>=1)_ins.push({ic:'🏆',tx:`완봉승 ${_shutouts}회 (세트 무실점 완승)`});
+      // 역전승/역전패
+      if(_reverseW>=1)_ins.push({ic:'🔄',tx:`역전승 ${_reverseW}회`});
+      if(_reverseL>=1)_ins.push({ic:'😱',tx:`역전패 ${_reverseL}회`});
+      // 연승/연패 (matches는 date DESC → reverse로 chronological)
+      let _maxWS=0,_maxLS=0,_curWS=0,_curLS=0;
+      [..._resArr].reverse().forEach(r=>{
+        if(r==='w'){_curWS++;_curLS=0;_maxWS=Math.max(_maxWS,_curWS);}
+        else if(r==='l'){_curLS++;_curWS=0;_maxLS=Math.max(_maxLS,_curLS);}
+        else{_curWS=0;_curLS=0;}
+      });
+      if(_maxWS>=3)_ins.push({ic:'🔥',tx:`최장 ${_maxWS}연승 기록`});
+      if(_maxLS>=3)_ins.push({ic:'💀',tx:`최장 ${_maxLS}연패 기록`});
+      // 3세트 접전 승률
+      const _full3T=_full3W+_full3L;
+      if(_full3T>=2)_ins.push({ic:'🤜',tx:`3세트 접전 ${_full3T}경기 중 ${_full3W}승 ${_full3L}패 (${Math.round(_full3W/_full3T*100)}%)`});
       // 상대 페어 강/약 (2경기 이상)
       const _pe=Object.entries(_oppPairMap).filter(([,v])=>v.w+v.d+v.l>=2);
       if(_pe.length){
@@ -5769,6 +5799,15 @@ async function queryMatchHistory(){
         const _mb=_me[0],_mw=_me[_me.length-1];
         if(_wr(_mb[1])>=70){const v=_mb[1],t=v.w+v.d+v.l;_ins.push({ic:'🎯',tx:`${_mb[0]} 포함 팀에 강함 (${t}전 ${v.w}승 ${v.l}패)`});}
         if(_me.length>1&&_wr(_mw[1])<=30&&_mw[0]!==_mb[0]){const v=_mw[1],t=v.w+v.d+v.l;_ins.push({ic:'🥵',tx:`${_mw[0]} 포함 팀에 약함 (${t}전 ${v.w}승 ${v.l}패)`});}
+      }
+      // 최강 파트너 (p1 단독 조회, 2경기 이상, 승률 ≥60%)
+      if(!p2){
+        const _pts=Object.entries(_partnerMap).filter(([,v])=>v.w+v.d+v.l>=2);
+        if(_pts.length){
+          _pts.sort((a,b)=>_wr(b[1])-_wr(a[1]));
+          const _bp=_pts[0],v=_bp[1],t=v.w+v.d+v.l,bwr=Math.round(_wr(v));
+          if(bwr>=60)_ins.push({ic:'👑',tx:`${_bp[0]}와 최강 파트너 (${t}전 ${v.w}승 ${v.l}패 ${bwr}%)`});
+        }
       }
       if(_ins.length){
         _insightHtml=`<div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 14px;margin-bottom:14px">
