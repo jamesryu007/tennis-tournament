@@ -797,16 +797,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2697,7 +2697,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v948';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v949';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5719,7 +5719,65 @@ async function queryMatchHistory(){
         <span style="font-size:0.85rem;font-weight:800;color:${_sqWr>=50?'#16a34a':'#dc2626'}">승률 ${_sqWr}%</span>`:''}
       </div>
     </div>`;
-    inner.innerHTML=_summaryHtml+`<div style="font-size:0.75rem;color:#94a3b8;font-weight:600;margin-bottom:10px">${_sqTotal}경기</div>`+matches.map(m=>{
+    // ── 인사이트 분석 ──
+    let _insightHtml = '';
+    if (p1 && _sqTotal >= 2) {
+      const _oppPairMap = {}, _oppMemMap = {};
+      let _bgiven = 0, _brecv = 0;
+      matches.forEach(m => {
+        const t0=toArr(m.team0),t1=toArr(m.team1),sets=toArr(m.sets);
+        let myIdx;
+        if (p2) { const pk=getPairKey(p1,p2); myIdx=getPairKey(t0[0],t0[1])===pk?0:1; }
+        else { myIdx=t0.includes(p1)?0:1; }
+        const opp=myIdx===0?t1:t0;
+        const res=m.winner===-1?'d':m.winner===myIdx?'w':'l';
+        // 베이글
+        sets.forEach(s=>{
+          const ms=myIdx===0?+s.s0:+s.s1, os=myIdx===0?+s.s1:+s.s0;
+          if(ms===6&&os===0)_bgiven++;
+          if(ms===0&&os===6)_brecv++;
+        });
+        // 상대 페어 기록
+        if(opp.length>=2){
+          const ok=getPairKey(opp[0],opp[1]);
+          if(!_oppPairMap[ok])_oppPairMap[ok]={w:0,d:0,l:0,m:[opp[0],opp[1]]};
+          _oppPairMap[ok][res]++;
+        }
+        // 상대 멤버 기록
+        opp.forEach(nm=>{
+          if(!_oppMemMap[nm])_oppMemMap[nm]={w:0,d:0,l:0};
+          _oppMemMap[nm][res]++;
+        });
+      });
+      const _wr=v=>(v.w+v.d*0.5)/(v.w+v.d+v.l)*100;
+      const _ins=[];
+      // 베이글
+      if(_bgiven>0)_ins.push({ic:'🥯',tx:`베이글 ${_bgiven}회 성공`});
+      if(_brecv>0)_ins.push({ic:'😅',tx:`베이글 ${_brecv}회 허용`});
+      // 상대 페어 강/약 (2경기 이상)
+      const _pe=Object.entries(_oppPairMap).filter(([,v])=>v.w+v.d+v.l>=2);
+      if(_pe.length){
+        _pe.sort((a,b)=>_wr(b[1])-_wr(a[1]));
+        const _pb=_pe[0][1],_pw=_pe[_pe.length-1][1];
+        if(_wr(_pb)>=70){const t=_pb.w+_pb.d+_pb.l;_ins.push({ic:'💪',tx:`${_pb.m[0]}·${_pb.m[1]} 페어에 강함 (${t}전 ${_pb.w}승 ${_pb.l}패)`});}
+        if(_pe.length>1&&_wr(_pw)<=30){const t=_pw.w+_pw.d+_pw.l;_ins.push({ic:'⚠️',tx:`${_pw.m[0]}·${_pw.m[1]} 페어에 약함 (${t}전 ${_pw.w}승 ${_pw.l}패)`});}
+      }
+      // 상대 멤버 강/약 (3경기 이상)
+      const _me=Object.entries(_oppMemMap).filter(([,v])=>v.w+v.d+v.l>=3);
+      if(_me.length){
+        _me.sort((a,b)=>_wr(b[1])-_wr(a[1]));
+        const _mb=_me[0],_mw=_me[_me.length-1];
+        if(_wr(_mb[1])>=70){const v=_mb[1],t=v.w+v.d+v.l;_ins.push({ic:'🎯',tx:`${_mb[0]} 포함 팀에 강함 (${t}전 ${v.w}승 ${v.l}패)`});}
+        if(_me.length>1&&_wr(_mw[1])<=30&&_mw[0]!==_mb[0]){const v=_mw[1],t=v.w+v.d+v.l;_ins.push({ic:'🥵',tx:`${_mw[0]} 포함 팀에 약함 (${t}전 ${v.w}승 ${v.l}패)`});}
+      }
+      if(_ins.length){
+        _insightHtml=`<div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 14px;margin-bottom:14px">
+          <div style="font-size:0.72rem;font-weight:700;color:#64748b;margin-bottom:7px;letter-spacing:0.3px">📊 인사이트</div>
+          ${_ins.map(i=>`<div style="font-size:0.82rem;color:#334155;font-weight:600;margin-bottom:4px;display:flex;align-items:flex-start;gap:6px"><span style="flex-shrink:0">${i.ic}</span><span>${i.tx}</span></div>`).join('')}
+        </div>`;
+      }
+    }
+    inner.innerHTML=_summaryHtml+_insightHtml+`<div style="font-size:0.75rem;color:#94a3b8;font-weight:600;margin-bottom:10px">${_sqTotal}경기</div>`+matches.map(m=>{
       const t0=toArr(m.team0),t1=toArr(m.team1),sets=toArr(m.sets);
       const isDraw=m.winner===-1,t0win=m.winner===0,t1win=m.winner===1;
       const td0=_getTeamDisplay(t0),td1=_getTeamDisplay(t1);
