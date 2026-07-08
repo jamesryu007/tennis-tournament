@@ -516,6 +516,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .live-badge-lg { font-size:1rem; padding:3px 10px 3px 8px; border-radius:7px; gap:5px; letter-spacing:1px; }
 .live-badge-lg::before { width:8px; height:8px; }
 @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.35;transform:scale(0.65)} }
+@keyframes pdBtnGlow { 0%,100%{box-shadow:0 0 0 0 rgba(124,58,237,0.5),0 2px 8px rgba(79,70,229,0.4)} 50%{box-shadow:0 0 0 6px rgba(124,58,237,0),0 4px 16px rgba(79,70,229,0.6)} }
 @keyframes winnerPop { 0%{opacity:0;transform:scale(0.6)} 18%{opacity:1;transform:scale(1.08)} 32%{transform:scale(0.97)} 45%{transform:scale(1.03)} 58%{transform:scale(1)} 80%{opacity:1} 100%{opacity:0;transform:scale(1.1)} }
 @keyframes winnerBg { 0%{opacity:0} 15%{opacity:1} 80%{opacity:1} 100%{opacity:0} }
 @keyframes confettiFall { 0%{transform:translateY(-20px) rotate(0deg);opacity:1} 100%{transform:translateY(120px) rotate(720deg);opacity:0} }
@@ -2215,7 +2216,7 @@ const firebaseConfig = {
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
         <div id="rank-year-row" class="rank-year-row" style="margin:0"></div>
-        <button onclick="openPartnerDiagram()" style="height:24px;border-radius:11px;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);color:#fff;font-size:0.82rem;font-weight:700;cursor:pointer;padding:0 10px;white-space:nowrap;flex-shrink:0">파트너 다이어그램</button>
+        <button onclick="openPartnerDiagram()" style="height:28px;border-radius:14px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border:1.5px solid rgba(255,255,255,0.35);color:#fff;font-size:0.82rem;font-weight:800;cursor:pointer;padding:0 12px;white-space:nowrap;flex-shrink:0;letter-spacing:0.2px;animation:pdBtnGlow 2.2s ease-in-out 3;box-shadow:0 2px 8px rgba(79,70,229,0.4)">🕸️ 파트너 다이어그램</button>
       </div>
     </div>
   </div>
@@ -2697,7 +2698,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v951';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v952';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8850,19 +8851,30 @@ async function _renderPartnerDiagram() {
   if (myName && nodes.includes(myName)) { nodes.splice(nodes.indexOf(myName), 1); nodes.unshift(myName); }
   // 필터 칩 + 허브 토글 버튼
   const hubBtnDisabled = _pdSelectedMembers.size !== 1;
-  const hubBtnBg = isHubMode ? '#1e40af' : '#e2e8f0';
-  const hubBtnCol = isHubMode ? '#fff' : '#334155';
-  const hubBtnBorder = isHubMode ? '#1e40af' : '#cbd5e1';
+  const hubBtnActive = isHubMode;
   const hubBtnLabel = isHubMode ? '⬤ 중심 보기' : '○ 중심 보기';
-  chipsEl.innerHTML = `<span onclick="${hubBtnDisabled ? '' : '_pdToggleHubMode()'}" style="display:inline-block;${hubBtnDisabled ? 'opacity:0.35;cursor:default' : 'cursor:pointer'};padding:4px 10px;margin:2px 8px 2px 2px;border-radius:12px;font-size:0.8rem;font-weight:600;background:${hubBtnBg};color:${hubBtnCol};border:1.5px solid ${hubBtnBorder}">${hubBtnLabel}</span>` + nodes.map(name => {
+  const hubBtnStyle = hubBtnDisabled
+    ? 'display:inline-block;opacity:0.3;cursor:default;padding:4px 10px;margin:2px 8px 2px 2px;border-radius:12px;font-size:0.78rem;font-weight:700;background:#e2e8f0;color:#94a3b8;border:1.5px solid #cbd5e1'
+    : hubBtnActive
+      ? 'display:inline-block;cursor:pointer;padding:4px 10px;margin:2px 8px 2px 2px;border-radius:12px;font-size:0.78rem;font-weight:700;background:linear-gradient(135deg,#1e40af,#4f46e5);color:#fff;border:none;box-shadow:0 2px 8px rgba(79,70,229,0.4)'
+      : 'display:inline-block;cursor:pointer;padding:4px 10px;margin:2px 8px 2px 2px;border-radius:12px;font-size:0.78rem;font-weight:700;background:#ede9fe;color:#5b21b6;border:1.5px solid #c4b5fd';
+  chipsEl.innerHTML = `<span onclick="${hubBtnDisabled ? '' : '_pdToggleHubMode()'}" style="${hubBtnStyle}">${hubBtnLabel}</span>` + nodes.map(name => {
     const isSel = _pdSelectedMembers.has(name);
     const isMe = name === myName;
     const g = getGender(name);
-    const bg = isSel ? (g === 'female' ? '#db2777' : '#2563eb') : isMe ? '#f0fdf4' : '#f1f5f9';
-    const col = isSel ? '#fff' : isMe ? '#15803d' : '#334155';
-    const border = isMe && !isSel ? ';border:1.5px solid #86efac' : '';
+    let chipStyle;
+    if (isSel) {
+      const grad = g === 'female'
+        ? 'background:linear-gradient(135deg,#be185d,#ec4899);box-shadow:0 2px 8px rgba(219,39,119,0.4)'
+        : 'background:linear-gradient(135deg,#1d4ed8,#4f46e5);box-shadow:0 2px 8px rgba(79,70,229,0.4)';
+      chipStyle = `display:inline-block;cursor:pointer;padding:4px 11px;margin:2px;border-radius:12px;font-size:0.8rem;font-weight:800;color:#fff;border:none;${grad}`;
+    } else if (isMe) {
+      chipStyle = 'display:inline-block;cursor:pointer;padding:4px 11px;margin:2px;border-radius:12px;font-size:0.8rem;font-weight:700;background:#f0fdf4;color:#15803d;border:1.5px solid #86efac';
+    } else {
+      chipStyle = 'display:inline-block;cursor:pointer;padding:4px 11px;margin:2px;border-radius:12px;font-size:0.8rem;font-weight:600;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0';
+    }
     const onclick = isHubMode ? `_pdHubSelectMember('${name}')` : `_pdToggleMember('${name}')`;
-    return `<span onclick="${onclick}" style="display:inline-block;cursor:pointer;padding:4px 10px;margin:2px;border-radius:12px;font-size:0.8rem;font-weight:600;background:${bg};color:${col}${border}">${isMe ? '⭐ ' : ''}${name}</span>`;
+    return `<span onclick="${onclick}" style="${chipStyle}">${isMe ? '⭐ ' : ''}${name}</span>`;
   }).join('');
   const filtered = isHubMode
     ? pairs.filter(p => p.p1 === hubCenter || p.p2 === hubCenter)
@@ -8990,9 +9002,15 @@ async function _renderPartnerDiagram() {
     </g>`;
   });
   const totalG = filtered.reduce((s, p) => s + p.total, 0);
-  const lineThresholdText = isHubMode ? '2경기↑만 라인' : '3경기↑만 라인';
-  if (legendEl) legendEl.innerHTML = `${nodes.length}명 · ${filtered.length}조합 · ${totalG}경기 &nbsp;·&nbsp; 두께=경기수 &nbsp;·&nbsp; ${lineThresholdText} &nbsp;·&nbsp; 라인탭=경기조회`;
-  svgEl.innerHTML = `<svg viewBox="0 0 ${SIZE} ${SIZE}" overflow="visible" style="max-width:100%;max-height:100%;width:auto;height:auto;display:block;touch-action:none">${edgesS}${hitS}${nodesS}${labelsS}</svg>`;
+  const lineThresholdText = isHubMode ? '2경기↑' : '3경기↑';
+  if (legendEl) legendEl.innerHTML =
+    `<span style="color:#475569;font-weight:500">${nodes.length}명 · ${filtered.length}조합 · ${totalG}경기</span>`
+    + `&ensp;<span style="color:#16a34a">●</span> 승률↑&ensp;<span style="color:#dc2626">●</span> 승률↓`
+    + `&ensp;<span style="letter-spacing:-1px;color:#64748b">━━━</span> 경기수↑`
+    + `&ensp;<span style="color:#7c3aed">${lineThresholdText} 라인</span>`
+    + `&ensp;<span style="color:#2563eb">탭→경기조회</span>`;
+  const dotBg = `<defs><pattern id="pdDot" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#c4b5fd" opacity="0.5"/></pattern></defs><rect width="${SIZE}" height="${SIZE}" fill="url(#pdDot)" rx="12" pointer-events="none"/>`;
+  svgEl.innerHTML = `<svg viewBox="0 0 ${SIZE} ${SIZE}" overflow="visible" style="max-width:100%;max-height:100%;width:auto;height:auto;display:block;touch-action:none">${dotBg}${edgesS}${hitS}${nodesS}${labelsS}</svg>`;
   _pdSetupInteraction();
 }
 function _pdSetupInteraction() {
@@ -14275,13 +14293,13 @@ async function triggerAtpRefresh() {
 <div class="modal-overlay" id="partner-diagram-modal" onclick="if(event.target===this)closePartnerDiagram()">
   <div class="modal" style="height:85vh;max-height:85vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
     <div class="modal-handle" style="margin:8px auto 0"></div>
-    <div class="modal-header" style="padding:7px 14px 6px;flex-shrink:0;border-bottom:1px solid #f1f5f9">
-      <span class="modal-round" style="font-size:1.05rem;font-weight:800">🕸️ 파트너 다이어그램</span>
-      <button class="modal-close" onclick="closePartnerDiagram()">✕</button>
+    <div class="modal-header" style="padding:9px 14px 8px;flex-shrink:0;background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);border-radius:20px 20px 0 0">
+      <span class="modal-round" style="font-size:1.05rem;font-weight:800;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.2)">🕸️ 파트너 다이어그램</span>
+      <button class="modal-close" onclick="closePartnerDiagram()" style="background:rgba(255,255,255,0.2);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
-    <div id="pd-chips" style="padding:4px 10px 3px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid #e2e8f0;flex-shrink:0;-webkit-overflow-scrolling:touch"></div>
-    <div id="pd-legend" style="text-align:center;font-size:0.75rem;color:#1e293b;padding:3px 8px 3px;flex-shrink:0;border-bottom:1px solid #f1f5f9"></div>
-    <div id="pd-svg-wrap" style="flex:1;overflow:hidden;display:flex;justify-content:center;align-items:center"></div>
+    <div id="pd-chips" style="padding:5px 10px 4px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid #e2e8f0;flex-shrink:0;-webkit-overflow-scrolling:touch;background:#faf5ff"></div>
+    <div id="pd-legend" style="text-align:center;font-size:0.72rem;color:#6d28d9;padding:4px 8px;flex-shrink:0;border-bottom:1px solid #ede9fe;background:#faf5ff;font-weight:600"></div>
+    <div id="pd-svg-wrap" style="flex:1;overflow:hidden;display:flex;justify-content:center;align-items:center;background:linear-gradient(160deg,#f5f3ff 0%,#ede9fe 100%)"></div>
   </div>
 </div>
 
