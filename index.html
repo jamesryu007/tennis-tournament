@@ -2698,7 +2698,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v965';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v966';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8478,9 +8478,9 @@ async function renderRankingTab(){
             const wr=Math.round(effWr(p.wins,p.draws,p.losses));
             const g=getGender(p.name),nc=g==='male'?'#2563eb':g==='female'?'#db2777':'#1e293b';
             const isBuddy=_buddies.has(p.name),isBest=_bestSet.has(p.name);
-            const badge=isBuddy&&isBest?'<span style="margin-left:3px;font-size:0.6rem;font-weight:800;background:linear-gradient(90deg,#7c3aed,#db2777);color:#fff;padding:1px 4px;border-radius:5px;white-space:nowrap">🤝🔥</span>'
-              :isBuddy?'<span style="margin-left:3px;font-size:0.6rem;font-weight:800;background:#7c3aed;color:#fff;padding:1px 4px;border-radius:5px;white-space:nowrap">🤝단짝</span>'
-              :isBest?'<span style="margin-left:3px;font-size:0.6rem;font-weight:800;background:#f59e0b;color:#fff;padding:1px 4px;border-radius:5px;white-space:nowrap">🔥베스트</span>'
+            const badge=isBuddy&&isBest?'<span style="margin-left:3px;font-size:0.6rem;font-weight:800;background:linear-gradient(90deg,#7c3aed,#db2777);color:#fff;padding:1px 4px;border-radius:5px;white-space:nowrap">⭐👑</span>'
+              :isBuddy?'<span style="margin-left:3px;font-size:0.6rem;font-weight:800;background:#7c3aed;color:#fff;padding:1px 4px;border-radius:5px;white-space:nowrap">⭐단짝</span>'
+              :isBest?'<span style="margin-left:3px;font-size:0.6rem;font-weight:800;background:#f59e0b;color:#fff;padding:1px 4px;border-radius:5px;white-space:nowrap">👑베스트</span>'
               :'';
             const _curPK=_selectedRankKey;
             const bagelCols=_hasBagel?`<span style="color:#16a34a;font-weight:800;flex:none;width:24px;text-align:right;font-size:0.75rem;visibility:${p.bagelGiven?'visible':'hidden'}${p.bagelGiven?';cursor:pointer':''}" ${p.bagelGiven?`onclick="jumpToPairBagel('${_curPK}','${p.name}')"`:''}>🥯${p.bagelGiven||0}</span><span style="color:#dc2626;font-weight:800;flex:none;width:24px;text-align:right;font-size:0.75rem;visibility:${p.bagelReceived?'visible':'hidden'}${p.bagelReceived?';cursor:pointer':''}" ${p.bagelReceived?`onclick="jumpToPairBagel('${_curPK}','${p.name}')"`:''}>😵${p.bagelReceived||0}</span>`:'';
@@ -9006,7 +9006,7 @@ async function _renderPartnerDiagram() {
     const nm = name.length > 3 ? name.slice(0, 3) : name;
     // 1명 선택 시 파트너 이름 성(첫글자) 위에 단짝/베스트 뱃지 표시
     const isBuddy = !isSel && _pdBuddies.has(name), isBestP = !isSel && _pdBestSet.has(name);
-    const badge = isBuddy && isBestP ? '🎾👑' : isBuddy ? '🎾' : isBestP ? '👑' : '';
+    const badge = isBuddy && isBestP ? '⭐👑' : isBuddy ? '⭐' : isBestP ? '👑' : '';
     // 허브 모드: 연결 없는 노드 dimming
     const nodeOpacity = isHubMode && !connectedSet.has(name) ? 0.3 : 1;
     const nodeOnclick = isHubMode ? `_pdHubSelectMember('${name}')` : `_pdToggleMember('${name}')`;
