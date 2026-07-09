@@ -2698,7 +2698,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v964';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v965';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9004,18 +9004,26 @@ async function _renderPartnerDiagram() {
     const ly = (cy + (R + labelOff) * Math.sin(p.angle)).toFixed(1);
     const anchor = Math.cos(p.angle) > 0.15 ? 'start' : Math.cos(p.angle) < -0.15 ? 'end' : 'middle';
     const nm = name.length > 3 ? name.slice(0, 3) : name;
-    // 1명 선택 시 파트너 이름 옆에 단짝/베스트 뱃지 표시
+    // 1명 선택 시 파트너 이름 성(첫글자) 위에 단짝/베스트 뱃지 표시
     const isBuddy = !isSel && _pdBuddies.has(name), isBestP = !isSel && _pdBestSet.has(name);
-    const badge = isBuddy && isBestP ? '🤝🔥' : isBuddy ? '🤝' : isBestP ? '🔥' : '';
-    const displayNm = badge
-      ? (anchor === 'end' ? nm + badge : badge + nm)
-      : nm;
+    const badge = isBuddy && isBestP ? '🎾👑' : isBuddy ? '🎾' : isBestP ? '👑' : '';
     // 허브 모드: 연결 없는 노드 dimming
     const nodeOpacity = isHubMode && !connectedSet.has(name) ? 0.3 : 1;
     const nodeOnclick = isHubMode ? `_pdHubSelectMember('${name}')` : `_pdToggleMember('${name}')`;
+    // 성(첫 글자) 중앙 x 계산 (CJK ≈ 1em 폭)
+    const lxN = parseFloat(lx), lyN = parseFloat(ly);
+    let badgeX = lxN;
+    if (badge) {
+      const N = nm.length;
+      if (anchor === 'start') badgeX = lxN + fSize * 0.5;
+      else if (anchor === 'end') badgeX = lxN - fSize * (N - 0.5);
+      else badgeX = lxN + fSize * (0.5 - N / 2);
+    }
+    const badgeY = lyN - fSize * 0.75;
     nodesS += `<g onclick="${nodeOnclick}" style="cursor:pointer" opacity="${nodeOpacity}">
       <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${nodeR}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>
-      <text x="${lx}" y="${ly}" text-anchor="${anchor}" dy="0.35em" font-size="${fSize}" font-weight="${isSel?'800':'600'}" fill="${isSel?'#1e293b':'#475569'}" font-family="-apple-system,sans-serif">${displayNm}</text>
+      <text x="${lx}" y="${ly}" text-anchor="${anchor}" dy="0.35em" font-size="${fSize}" font-weight="${isSel?'800':'600'}" fill="${isSel?'#1e293b':'#475569'}" font-family="-apple-system,sans-serif">${nm}</text>
+      ${badge ? `<text x="${badgeX.toFixed(1)}" y="${badgeY.toFixed(1)}" text-anchor="middle" font-size="11" font-family="-apple-system,sans-serif">${badge}</text>` : ''}
     </g>`;
   });
   const totalG = filtered.reduce((s, p) => s + p.total, 0);
