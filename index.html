@@ -2698,7 +2698,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v962';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v963';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8843,7 +8843,7 @@ async function _renderPartnerDiagram() {
   // 허브 모드 여부
   const isHubMode = _pdHubMode && _pdSelectedMembers.size === 1;
   const hubCenter = isHubMode ? [..._pdSelectedMembers][0] : null;
-  const minGames = isHubMode ? 2 : 3;
+  const minGames = isHubMode ? 1 : 3;
   const pairs = Object.entries(stats)
     .map(([k, v]) => {
       const players = v.players || k.split('_');
@@ -8921,13 +8921,17 @@ async function _renderPartnerDiagram() {
   filtered.forEach(p => {
     const n1 = pos[p.p1], n2 = pos[p.p2];
     if (!n1 || !n2) return;
-    const color = p.wr >= 50 ? '#16a34a' : '#dc2626';
+    // 1경기는 회색 점선, 그 외는 승률 기반 색상
+    const isOneGame = p.total === 1;
+    const color = isOneGame ? '#94a3b8' : (p.wr >= 50 ? '#16a34a' : '#dc2626');
     const opacity = (_pdSelectedMembers.size > 0 || isHubMode) ? 0.85 : 0.52;
-    const sw = p.total >= 15 ? 8 : p.total >= 10 ? 5.5 : p.total >= 5 ? 3 : 1.8;
-    edgesS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="${color}" stroke-width="${sw}" opacity="${opacity}" stroke-linecap="round" pointer-events="none"/>`;
+    const sw = isOneGame ? 1.5 : (p.total >= 15 ? 8 : p.total >= 10 ? 5.5 : p.total >= 5 ? 3 : 1.8);
+    const dash = isOneGame ? ' stroke-dasharray="5 4"' : '';
+    edgesS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="${color}" stroke-width="${sw}" opacity="${opacity}" stroke-linecap="round"${dash} pointer-events="none"/>`;
     // 라인 클릭 히트영역 (투명 넓은 선)
     hitS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="transparent" stroke-width="20" style="cursor:pointer" onclick="_pdLineClick('${p.p1}','${p.p2}')"/>`;
-    // 라벨: 선택 없으면 숨김, 허브 모드는 항상 표시
+    // 1경기는 라벨 없음, 선택 없으면 숨김, 허브 모드는 항상 표시
+    if (isOneGame) return;
     const selSize = _pdSelectedMembers.size;
     const p1sel = _pdSelectedMembers.has(p.p1), p2sel = _pdSelectedMembers.has(p.p2);
     if (!isHubMode && (selSize === 0 || (!p1sel && !p2sel))) return;
@@ -9018,7 +9022,7 @@ async function _renderPartnerDiagram() {
   const displayN = _pdSelectedMembers.size > 0
     ? new Set(filtered.flatMap(p => [p.p1, p.p2])).size
     : nodes.length;
-  const lineThresholdText = isHubMode ? '2경기↑' : '3경기↑';
+  const lineThresholdText = isHubMode ? '1경기↑' : '3경기↑';
   if (legendEl) legendEl.innerHTML =
     // 1행: 통계 뱃지
     `<div style="display:flex;justify-content:center;gap:6px;padding:5px 10px 3px;flex-wrap:wrap">`
@@ -9032,6 +9036,7 @@ async function _renderPartnerDiagram() {
     + `<span style="display:inline-flex;align-items:center;gap:3px"><svg width="20" height="6" viewBox="0 0 20 6"><line x1="0" y1="3" x2="20" y2="3" stroke="#dc2626" stroke-width="3" stroke-linecap="round"/></svg>승률↓</span>`
     + `<span style="display:inline-flex;align-items:center;gap:3px"><svg width="22" height="8" viewBox="0 0 22 8"><line x1="0" y1="4" x2="10" y2="4" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="4" x2="22" y2="4" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/></svg>경기수↑</span>`
     + `<span style="color:#7c3aed">${lineThresholdText} 라인</span>`
+    + (isHubMode ? `<span style="display:inline-flex;align-items:center;gap:3px"><svg width="20" height="6" viewBox="0 0 20 6"><line x1="0" y1="3" x2="20" y2="3" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4 3"/></svg>1경기</span>` : '')
     + `<span style="color:#475569">라인 탭 → 경기조회</span>`
     + `</div>`;
   const dotBg = `<defs><pattern id="pdDot" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#c4b5fd" opacity="0.5"/></pattern></defs><rect width="${SIZE}" height="${SIZE}" fill="url(#pdDot)" rx="12" pointer-events="none"/>`;
