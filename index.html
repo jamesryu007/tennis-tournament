@@ -2698,7 +2698,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v963';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v964';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8921,9 +8921,9 @@ async function _renderPartnerDiagram() {
   filtered.forEach(p => {
     const n1 = pos[p.p1], n2 = pos[p.p2];
     if (!n1 || !n2) return;
-    // 1경기는 회색 점선, 그 외는 승률 기반 색상
+    // 1경기는 점선, 그 외는 실선 — 색상은 모두 승률 기반
     const isOneGame = p.total === 1;
-    const color = isOneGame ? '#94a3b8' : (p.wr >= 50 ? '#16a34a' : '#dc2626');
+    const color = p.wr >= 50 ? '#16a34a' : '#dc2626';
     const opacity = (_pdSelectedMembers.size > 0 || isHubMode) ? 0.85 : 0.52;
     const sw = isOneGame ? 1.5 : (p.total >= 15 ? 8 : p.total >= 10 ? 5.5 : p.total >= 5 ? 3 : 1.8);
     const dash = isOneGame ? ' stroke-dasharray="5 4"' : '';
@@ -9036,7 +9036,7 @@ async function _renderPartnerDiagram() {
     + `<span style="display:inline-flex;align-items:center;gap:3px"><svg width="20" height="6" viewBox="0 0 20 6"><line x1="0" y1="3" x2="20" y2="3" stroke="#dc2626" stroke-width="3" stroke-linecap="round"/></svg>승률↓</span>`
     + `<span style="display:inline-flex;align-items:center;gap:3px"><svg width="22" height="8" viewBox="0 0 22 8"><line x1="0" y1="4" x2="10" y2="4" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="4" x2="22" y2="4" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/></svg>경기수↑</span>`
     + `<span style="color:#7c3aed">${lineThresholdText} 라인</span>`
-    + (isHubMode ? `<span style="display:inline-flex;align-items:center;gap:3px"><svg width="20" height="6" viewBox="0 0 20 6"><line x1="0" y1="3" x2="20" y2="3" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4 3"/></svg>1경기</span>` : '')
+    + (isHubMode ? `<span style="display:inline-flex;align-items:center;gap:3px"><svg width="20" height="6" viewBox="0 0 20 6"><line x1="0" y1="3" x2="20" y2="3" stroke="#16a34a" stroke-width="2" stroke-dasharray="4 3"/></svg>1경기(점선)</span>` : '')
     + `<span style="color:#475569">라인 탭 → 경기조회</span>`
     + `</div>`;
   const dotBg = `<defs><pattern id="pdDot" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#c4b5fd" opacity="0.5"/></pattern></defs><rect width="${SIZE}" height="${SIZE}" fill="url(#pdDot)" rx="12" pointer-events="none"/>`;
