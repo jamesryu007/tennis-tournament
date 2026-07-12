@@ -2698,7 +2698,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v967';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v968';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12406,6 +12406,23 @@ function renderRoundDrawPanel(el, matches, tier, tourney) {
   const selRoundMatches = roundGroups[sel] || [];
   const selLabel = ROUND_LABEL[sel] === '🏆' ? '🏆 Final' : (ROUND_LABEL[sel] || sel);
 
+  // 대회 완료 챔피언 배너 — Final 경기가 모두 끝났을 때
+  let championBanner = '';
+  const _finalMatches = roundGroups['Final'] || [];
+  if (_finalMatches.length > 0 && _finalMatches.every(m => isEffectivelyDone(m))) {
+    const _finalMatch = _finalMatches.find(m => m.player1Winner || m.player2Winner);
+    if (_finalMatch) {
+      const _champName = _finalMatch.player1Winner ? _finalMatch.player1Name : _finalMatch.player2Name;
+      if (_champName) {
+        championBanner = `<div style="text-align:center;padding:10px 16px 8px;background:linear-gradient(135deg,#fef9c3,#fffbeb);border-radius:12px;margin-bottom:12px;border:2px solid #fcd34d">
+          <div style="font-size:1.5rem">🏆</div>
+          <div style="font-size:0.96rem;font-weight:800;color:#92400e;margin-top:3px">${_champName}</div>
+          <div style="font-size:0.68rem;font-weight:600;color:#b45309;margin-top:2px">🎾 챔피언</div>
+        </div>`;
+      }
+    }
+  }
+
   // 관심선수 pills
   let favPillsHtml = '';
   if (atpState.favPlayers && atpState.favPlayers.length) {
@@ -12448,6 +12465,7 @@ function renderRoundDrawPanel(el, matches, tier, tourney) {
   }
 
   let html = `
+    ${championBanner}
     <div id="atp-round-tabs-row" style="display:flex;align-items:center;gap:4px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none">
       ${parts.join('')}
     </div>
@@ -24206,9 +24224,10 @@ function renderGolfLeaderboard(t) {
     return;
   }
   // isCut 재계산 — round 감지 실패로 저장된 값이 틀릴 수 있으므로 scores 길이로 보정
+  // _maxScoreLen - 1 기준: Final(R4) 미진입 선수(R3 완료=3라운드)를 컷아웃으로 오인 방지
   const _maxScoreLen = Math.max(...players.map(p => (p.scores || []).length), 0);
   if (_maxScoreLen > 2) {
-    players.forEach(p => { if ((p.scores || []).length < _maxScoreLen) p.isCut = true; });
+    players.forEach(p => { if ((p.scores || []).length < _maxScoreLen - 1) p.isCut = true; });
   }
 
   const roundIdx = golfState.selectedRound === 'all' ? null : parseInt(golfState.selectedRound) - 1;
@@ -24274,7 +24293,10 @@ function renderGolfLeaderboard(t) {
     const rankDisp   = roundIdx !== null ? (p._roundRank || '-') : (p._calcRank || '-');
     const totalDisp  = roundIdx !== null ? ((p.scores||[])[roundIdx] || '-') : (p.total || 'E');
     const totalColor = scoreColor(totalDisp);
-    const thruText   = p.thru && p.thru!=='-' ? (p.thru==='F' ? 'F' : (isNaN(parseInt(p.thru)) ? p.thru : parseInt(p.thru)+'H')) : '-';
+    // 대회 종료 후 stale ESPN 데이터가 숫자 thru를 남기는 버그 방지 — post면 'F' 강제
+    const thruText   = (t.state === 'post' && !p.isCut) ? 'F' : (p.thru && p.thru!=='-' ? (p.thru==='F' ? 'F' : (isNaN(parseInt(p.thru)) ? p.thru : parseInt(p.thru)+'H')) : '-');
+    // 대회 완료 후 1위 선수에게 우승 표시
+    const isChampion = t.state === 'post' && roundIdx === null && p._calcRank === 1;
     const thruColor  = p.thru==='F' ? '#16a34a' : (p.state==='in'||p.state==='active') ? '#f59e0b' : '#94a3b8';
     // 스코어 칩 헬퍼
     const _chip = (v, big=false) => {
@@ -24311,7 +24333,7 @@ function renderGolfLeaderboard(t) {
     return `<div class="golf-lb-row" style="${isFav ? 'background:#fffbeb;border-left:3px solid #f59e0b;' : ''}">
       <span style="font-size:0.72rem;font-weight:700;color:#94a3b8">${rankDisp}</span>
       <div style="min-width:0">
-        <div class="pp-name-link" style="font-size:0.86rem;font-weight:700;color:${nameColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis" onclick="openPlayerProfile('${pNameSafe}','${_golfTourKey}')">${isFav ? '⭐ ' : ''}${p.name}</div>
+        <div class="pp-name-link" style="font-size:0.86rem;font-weight:700;color:${nameColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis" onclick="openPlayerProfile('${pNameSafe}','${_golfTourKey}')">${isChampion ? '🏆 ' : ''}${isFav ? '⭐ ' : ''}${p.name}</div>
         ${p.country ? `<div style="font-size:0.70rem;color:#94a3b8">${p.country}</div>` : ''}
       </div>
       <div style="display:flex;align-items:center;gap:3px;justify-content:flex-end">${rightCells}</div>
@@ -24589,7 +24611,7 @@ function _parseGolfEvents(events, tour) {
           scores:  rounds.map(s => s.displayValue || String(s.value || '')),
           thru,
           state:   pState,
-          isCut:   round > 2 && (c.linescores || []).length < round,
+          isCut:   round > 2 && (c.linescores || []).length < round - 1,
         };
       });
     return {
