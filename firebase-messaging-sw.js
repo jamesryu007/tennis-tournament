@@ -1,21 +1,21 @@
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
 
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) ───────────────────────
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) ───────────────────────
 // importScripts('./firebase-config.js') 제거 — HTTP 캐시 오염 방지
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '296777882297',
+  appId:             '1:296777882297:web:a03b11c6c99e7a00b5a1ce',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 
 // ── 캐싱 (sw.js 통합) ──────────────────────────────────────────────
-const CACHE = 'jamite-v969';
+const CACHE = 'jamite-v970';
 const BASE = self.location.pathname.startsWith('/tennis-tournament') ? '/tennis-tournament' : '';
 
 // 아이콘만 캐시 — 팀 사진/영상/HTML은 교체 즉시 반영되도록 제외
