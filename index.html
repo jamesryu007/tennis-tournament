@@ -2698,7 +2698,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v970';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v971';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -23341,6 +23341,13 @@ const GOLF_LEVEL_STYLE = {
   lpga_tour: { bg:'linear-gradient(135deg,#fce7f3,#fbcfe8)', border:'#ec4899', badge:'🌸 LPGA',     badgeBg:'#ec4899', color:'#831843' },
   dp_world:  { bg:'linear-gradient(135deg,#d1fae5,#a7f3d0)', border:'#10b981', badge:'🌍 DP World', badgeBg:'#10b981', color:'#064e3b' },
 };
+// Firebase에 저장된 level 값이 틀렸을 경우 대회명으로 보정 (예: The Open → major)
+function _golfLevelOf(t) {
+  const n = (t.name || t.shortName || '').toLowerCase();
+  const PGA_MAJORS = ['masters', 'pga championship', 'u.s. open', 'the open championship', 'open championship'];
+  if (PGA_MAJORS.some(m => n.includes(m))) return 'major';
+  return t.level || 'pga_tour';
+}
 
 // ── 리스너 초기화 ─────────────────────────────────────────────────
 function initGolfListeners() {
@@ -23449,7 +23456,7 @@ function renderGolfTournamentSection() {
   }
   const t = golfState.tournaments[golfState.selectedId] || list[0];
   if (!t) return;
-  const s   = GOLF_LEVEL_STYLE[t.level] || GOLF_LEVEL_STYLE.pga_tour;
+  const s   = GOLF_LEVEL_STYLE[_golfLevelOf(t)] || GOLF_LEVEL_STYLE.pga_tour;
   const fmt = d => { try { return new Date(d).toLocaleDateString('ko-KR', { month:'numeric', day:'numeric' }); } catch(e) { return d; } };
   const dates = [t.startDate, t.endDate].filter(Boolean).map(fmt).join(' ~ ');
   const stateBadge = t.state === 'in'
@@ -23459,7 +23466,7 @@ function renderGolfTournamentSection() {
     : `<span style="background:#94a3b8;color:#fff;font-size:0.62rem;font-weight:600;padding:2px 7px;border-radius:8px">종료</span>`;
   // 다른 대회 전환 칩
   const otherChips = list.filter(x => x.id !== t.id).map(x => {
-    const xs = GOLF_LEVEL_STYLE[x.level] || GOLF_LEVEL_STYLE.pga_tour;
+    const xs = GOLF_LEVEL_STYLE[_golfLevelOf(x)] || GOLF_LEVEL_STYLE.pga_tour;
     return `<button onclick="selectGolfTournament('${x.id}')"
       style="flex-shrink:0;background:rgba(255,255,255,0.6);border:1.5px solid ${xs.border};border-radius:16px;padding:3px 10px;font-size:0.68rem;font-weight:700;color:${xs.color};cursor:pointer;white-space:nowrap">${xs.badge} ${x.shortName || x.name} ▶</button>`;
   }).join('');
@@ -23708,6 +23715,43 @@ async function _loadHistoryData() {
       }
     }
     allEntries.sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
+
+    // 테니스 히스토리: winner.name 비어있으면 lastGrandSlam에서 자동 복구
+    if (type === 'tennis') {
+      const emptyEntries = allEntries.filter(e => e.id && (!e.winner?.name || !e.runnerUp?.name));
+      if (emptyEntries.length > 0) {
+        await Promise.all(emptyEntries.map(async entry => {
+          try {
+            const gsSnap = await db.ref(`jmt/lastGrandSlam/${entry.id}`).once('value');
+            const gs = gsSnap.val();
+            if (!gs?.matches) return;
+            const matchArr = Object.values(gs.matches);
+            const isWomenEntry = entry.gender === 'women';
+            const finalMatch = matchArr.find(m => {
+              const rn = (m.roundName || '').toLowerCase();
+              return (rn === 'final' || rn === 'the final')
+                && m.status === 'STATUS_FINAL'
+                && (isWomenEntry ? m.gender === 'women' : m.gender !== 'women')
+                && (m.player1Winner === true || m.player2Winner === true);
+            });
+            if (!finalMatch) return;
+            const w = finalMatch.player1Winner
+              ? { name: finalMatch.player1Name, country: finalMatch.player1Country, score: finalMatch.player1Score }
+              : { name: finalMatch.player2Name, country: finalMatch.player2Country, score: finalMatch.player2Score };
+            const r = finalMatch.player1Winner
+              ? { name: finalMatch.player2Name, country: finalMatch.player2Country, score: finalMatch.player2Score }
+              : { name: finalMatch.player1Name, country: finalMatch.player1Country, score: finalMatch.player1Score };
+            if (!w.name) return;
+            entry.winner = w;
+            entry.runnerUp = r;
+            // Firebase 영구 업데이트
+            const safeKey = `${entry._year}_${entry.id}_${entry.gender}`;
+            db.ref(`jmt/tournamentHistory/tennis/${entry._year}/${safeKey}`).update({ winner: w, runnerUp: r }).catch(() => {});
+          } catch (_) {}
+        }));
+      }
+    }
+
     _historyState.data = allEntries;
     _renderHistoryYearTabs();
     _renderHistoryList();
@@ -23807,7 +23851,7 @@ function _renderHistoryList() {
     // 골프
     const GOLF_STYLE = typeof GOLF_LEVEL_STYLE !== 'undefined' ? GOLF_LEVEL_STYLE : {};
     el.innerHTML = filtered.map(e => {
-      const s     = GOLF_STYLE[e.level] || GOLF_STYLE.pga_tour || { badge:'PGA', badgeBg:'#16a34a', color:'#166534', bg:'#f0fdf4', border:'#bbf7d0' };
+      const s     = GOLF_STYLE[_golfLevelOf(e)] || GOLF_STYLE.pga_tour || { badge:'PGA', badgeBg:'#16a34a', color:'#166534', bg:'#f0fdf4', border:'#bbf7d0' };
       const dates = [e.startDate, e.endDate].filter(Boolean).map(fmtDate).join(' ~ ');
       const top10 = e.top10 || [];
       const rowsHtml = top10.map((p, i) => {
@@ -23906,7 +23950,7 @@ function _renderTourneyInfo(content, t, { info, thumbnailUrl, error }) {
   const isTennisTour = t.tour === 'atp' || t.tour === 'wta';
   const s = isTennisTour
     ? { badgeBg: t.tour === 'wta' ? '#be185d' : '#2563eb', badge: t.tour === 'wta' ? 'WTA' : 'ATP' }
-    : (GOLF_LEVEL_STYLE[t.level] || GOLF_LEVEL_STYLE.pga_tour);
+    : (GOLF_LEVEL_STYLE[_golfLevelOf(t)] || GOLF_LEVEL_STYLE.pga_tour);
   const fmt = d => { try { return new Date(d).toLocaleDateString('ko-KR', { month:'numeric', day:'numeric' }); } catch(e) { return d; } };
   const dates = [t.startDate, t.endDate].filter(Boolean).map(fmt).join(' ~ ');
 
