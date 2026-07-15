@@ -798,16 +798,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2698,7 +2698,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v968';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v969';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -24223,11 +24223,20 @@ function renderGolfLeaderboard(t) {
     wrap.innerHTML = _roundTabsHtml() + '<div style="text-align:center;padding:28px 0;color:#94a3b8;font-size:0.85rem">리더보드 데이터가 없습니다.</div>';
     return;
   }
-  // isCut 재계산 — round 감지 실패로 저장된 값이 틀릴 수 있으므로 scores 길이로 보정
-  // _maxScoreLen - 1 기준: Final(R4) 미진입 선수(R3 완료=3라운드)를 컷아웃으로 오인 방지
+  // isCut 재계산 — Firebase에 잘못 저장된 값 보정 (scores 길이 기준)
+  // _maxScoreLen - 1: Final 미진입(R3 완료=3라운드) 선수를 컷으로 오인 방지
+  // t.state=post 시 충분한 라운드 보유 선수의 isCut 명시 해제 (대회 완료 후 오염값 초기화)
   const _maxScoreLen = Math.max(...players.map(p => (p.scores || []).length), 0);
   if (_maxScoreLen > 2) {
-    players.forEach(p => { if ((p.scores || []).length < _maxScoreLen - 1) p.isCut = true; });
+    const _cutThreshold = _maxScoreLen - 1;
+    players.forEach(p => {
+      const _sLen = (p.scores || []).length;
+      if (_sLen < _cutThreshold) {
+        p.isCut = true;
+      } else if (t.state === 'post') {
+        p.isCut = false; // 대회 종료 후: 충분한 라운드 있으면 잘못된 컷 플래그 해제
+      }
+    });
   }
 
   const roundIdx = golfState.selectedRound === 'all' ? null : parseInt(golfState.selectedRound) - 1;
