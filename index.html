@@ -798,16 +798,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2698,7 +2698,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v971';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v972';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12406,18 +12406,44 @@ function renderRoundDrawPanel(el, matches, tier, tourney) {
   const selRoundMatches = roundGroups[sel] || [];
   const selLabel = ROUND_LABEL[sel] === '🏆' ? '🏆 Final' : (ROUND_LABEL[sel] || sel);
 
-  // 대회 완료 챔피언 배너 — Final 경기가 모두 끝났을 때
+  // 대회 완료 챔피언 배너 — 완료된 Final 경기 기준 (ATP/WTA 각각 확인)
   let championBanner = '';
   const _finalMatches = roundGroups['Final'] || [];
-  if (_finalMatches.length > 0 && _finalMatches.every(m => isEffectivelyDone(m))) {
-    const _finalMatch = _finalMatches.find(m => m.player1Winner || m.player2Winner);
-    if (_finalMatch) {
-      const _champName = _finalMatch.player1Winner ? _finalMatch.player1Name : _finalMatch.player2Name;
+  const _doneFinals = _finalMatches.filter(m => isEffectivelyDone(m) && (m.player1Winner || m.player2Winner));
+  if (_doneFinals.length > 0) {
+    const _wtaFinal = _doneFinals.find(m => isWtaMatch(m));
+    const _atpFinal = _doneFinals.find(m => !isWtaMatch(m));
+    const _wtaChamp = _wtaFinal ? (_wtaFinal.player1Winner ? _wtaFinal.player1Name : _wtaFinal.player2Name) : null;
+    const _atpChamp = _atpFinal ? (_atpFinal.player1Winner ? _atpFinal.player1Name : _atpFinal.player2Name) : null;
+    const _bothDone = _wtaChamp && _atpChamp;
+    if (_bothDone) {
+      // 남자 + 여자 챔피언 나란히 표시
+      championBanner = `<div style="display:flex;gap:8px;margin-bottom:12px">
+        <div style="flex:1;text-align:center;padding:10px 8px 8px;background:linear-gradient(135deg,#fef9c3,#fffbeb);border-radius:12px;border:2px solid #fcd34d">
+          <div style="font-size:1.3rem">🏆</div>
+          <div style="font-size:0.88rem;font-weight:800;color:#92400e;margin-top:3px">${_atpChamp}</div>
+          <div style="font-size:0.65rem;font-weight:600;color:#b45309;margin-top:2px">🎾 남자 챔피언</div>
+        </div>
+        <div style="flex:1;text-align:center;padding:10px 8px 8px;background:linear-gradient(135deg,#fdf2f8,#fce7f3);border-radius:12px;border:2px solid #f9a8d4">
+          <div style="font-size:1.3rem">🏆</div>
+          <div style="font-size:0.88rem;font-weight:800;color:#9d174d;margin-top:3px">${_wtaChamp}</div>
+          <div style="font-size:0.65rem;font-weight:600;color:#be185d;margin-top:2px">🎾 여자 챔피언</div>
+        </div>
+      </div>`;
+    } else {
+      // 한 명만 결정
+      const _champName = _atpChamp || _wtaChamp;
+      const _isWomen = !!_wtaChamp && !_atpChamp;
+      const _bg = _isWomen ? 'linear-gradient(135deg,#fdf2f8,#fce7f3)' : 'linear-gradient(135deg,#fef9c3,#fffbeb)';
+      const _border = _isWomen ? '#f9a8d4' : '#fcd34d';
+      const _nameColor = _isWomen ? '#9d174d' : '#92400e';
+      const _labelColor = _isWomen ? '#be185d' : '#b45309';
+      const _label = _isWomen ? '🎾 여자 챔피언' : '🎾 남자 챔피언';
       if (_champName) {
-        championBanner = `<div style="text-align:center;padding:10px 16px 8px;background:linear-gradient(135deg,#fef9c3,#fffbeb);border-radius:12px;margin-bottom:12px;border:2px solid #fcd34d">
+        championBanner = `<div style="text-align:center;padding:10px 16px 8px;background:${_bg};border-radius:12px;margin-bottom:12px;border:2px solid ${_border}">
           <div style="font-size:1.5rem">🏆</div>
-          <div style="font-size:0.96rem;font-weight:800;color:#92400e;margin-top:3px">${_champName}</div>
-          <div style="font-size:0.68rem;font-weight:600;color:#b45309;margin-top:2px">🎾 챔피언</div>
+          <div style="font-size:0.96rem;font-weight:800;color:${_nameColor};margin-top:3px">${_champName}</div>
+          <div style="font-size:0.68rem;font-weight:600;color:${_labelColor};margin-top:2px">${_label}</div>
         </div>`;
       }
     }
