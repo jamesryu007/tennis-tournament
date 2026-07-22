@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v989';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v990';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7587,13 +7587,18 @@ function _renderDailyCard(id){
     const t0=_isSingles&&d.team0.length===1?{nick:d.team0[0],memberStr:d.team0[0]}:_getTeamDisplay(d.team0);
     const t1=_isSingles&&d.team1.length===1?{nick:d.team1[0],memberStr:d.team1[0]}:_getTeamDisplay(d.team1);
     const _singlesTag=_isSingles?` <span style="font-size:0.68rem;font-weight:700;background:#dcfce7;color:#15803d;border-radius:8px;padding:1px 6px">단식</span>`:'';
+    // 자동배정 카드: 관리자/생성자면 선수 이름 ✎ 클릭으로 1명 교체 가능
+    const _canSwapPlaying=canManage&&!_isSingles;
+    const mkSwapNames=(team,side)=>team.map((n,i)=>
+      `<span onclick="_teamSwapPlayer('${id}','${side}',${i})" style="cursor:pointer">${n}<span style="font-size:0.62rem;opacity:0.65"> ✎</span></span>`
+    ).join('<span style="opacity:0.5"> · </span>');
     const left=`<div class="dc-team-left">
       <div class="dc-tnick">${t0.nick}</div>
-      ${_isSingles?'':` <div class="dc-tmembers">${_hlMemberStr(d.team0,_curName)}</div>`}
+      ${_isSingles?'':` <div class="dc-tmembers">${_canSwapPlaying?mkSwapNames(d.team0,'A'):_hlMemberStr(d.team0,_curName)}</div>`}
     </div>`;
     const right=`<div class="dc-team-right">
       <div class="dc-tnick">${t1.nick}</div>
-      ${_isSingles?'':` <div class="dc-tmembers">${_hlMemberStr(d.team1,_curName)}</div>`}
+      ${_isSingles?'':` <div class="dc-tmembers">${_canSwapPlaying?mkSwapNames(d.team1,'B'):_hlMemberStr(d.team1,_curName)}</div>`}
     </div>`;
     const canScore=canEditDailyScore(d);
     const mid=`<button class="dc-score-reg-btn"${canScore?`onclick="openDailyScore('${id}')"`:' disabled'}>🎾<br>점수<br>등록</button>`;
@@ -7847,16 +7852,22 @@ let _swapSel=null;
 
 function _teamSwapPlayer(id, side, playerIdx){
   const d=_dailyCards[id];
-  if(!d||d.phase!=='teamSetup') return;
+  if(!d||(d.phase!=='teamSetup'&&d.phase!=='playing')) return;
   const _curName=(state.identity&&state.identity.name)||'';
   const teamANames=d._teamANames||[];
   const teamBNames=d._teamBNames||[];
   const captainA=teamANames[0]||'';
   const captainB=teamBNames[0]||'';
-  const _canSwapA=isAdmin()||isManager()||teamANames.includes(_curName);
-  const _canSwapB=isAdmin()||isManager()||teamBNames.includes(_curName);
-  if(side==='A'&&!_canSwapA) return;
-  if(side==='B'&&!_canSwapB) return;
+  // 권한 체크
+  if(d.phase==='teamSetup'){
+    const _canSwapA=isAdmin()||isManager()||teamANames.includes(_curName);
+    const _canSwapB=isAdmin()||isManager()||teamBNames.includes(_curName);
+    if(side==='A'&&!_canSwapA) return;
+    if(side==='B'&&!_canSwapB) return;
+  } else {
+    // playing(자동배정): 관리자/생성자만
+    if(!isAdmin()&&!isManager()&&d.createdBy!==_curName) return;
+  }
   const myTeam=side==='A'?[...d.team0]:[...d.team1];
   const current=myTeam[playerIdx];
   const otherInCard=myTeam.filter((_,i)=>i!==playerIdx); // 같은 카드 팀동료 제외
@@ -7869,11 +7880,15 @@ function _teamSwapPlayer(id, side, playerIdx){
       (c.team1||[]).forEach(n=>usedInRound.add(n));
     }
   });
-  // 풀: 내 팀 전체 - 현재 선수 - 같은 카드 팀동료 (중복 선수도 표시)
-  const pool=(side==='A'?teamANames:teamBNames)
-    .filter(n=>n!==current&&!otherInCard.includes(n));
+  // 풀: 팀대결/팀모드=해당 팀 전체 / 자동배정 비팀모드=전체 참석자
+  let pool;
+  if(d.phase==='playing'&&!d._teamMode){
+    pool=_allPlayers().filter(n=>n!==current&&!otherInCard.includes(n));
+  } else {
+    pool=(side==='A'?teamANames:teamBNames).filter(n=>n!==current&&!otherInCard.includes(n));
+  }
   if(!pool.length){ alert('교체 가능한 선수가 없습니다.'); return; }
-  _swapCtx={id, side, playerIdx, current, usedInRound};
+  _swapCtx={id, side, playerIdx, current, usedInRound, pool};
   _swapSel=null;
   const sideLabel=side==='A'?(captainA?captainA+'팀':'A팀'):(captainB?captainB+'팀':'B팀');
   document.getElementById('team-swap-title').textContent=`선수 교체 — ${sideLabel}`;
@@ -7884,13 +7899,13 @@ function _teamSwapPlayer(id, side, playerIdx){
 
 function _renderTeamSwapList(){
   if(!_swapCtx) return;
-  const {id, side, playerIdx, current, usedInRound}=_swapCtx;
+  const {id, side, playerIdx, current, usedInRound, pool: ctxPool}=_swapCtx;
   const d=_dailyCards[id];
   if(!d) return;
   const myTeam=side==='A'?[...d.team0]:[...d.team1];
   const otherInCard=myTeam.filter((_,i)=>i!==playerIdx);
   const allTeam=side==='A'?(d._teamANames||[]):(d._teamBNames||[]);
-  const pool=allTeam.filter(n=>n!==current&&!otherInCard.includes(n));
+  const pool=ctxPool||allTeam.filter(n=>n!==current&&!otherInCard.includes(n));
   const mkGroup=(group,label)=>{
     if(!group.length) return '';
     const btns=group.map(p=>{
