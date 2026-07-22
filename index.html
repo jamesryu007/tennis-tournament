@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v990';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v991';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7798,18 +7798,21 @@ function confirmDailyPick(){
   _dailyPickCtx=null;_dailyPickSel=[];_dailyPickSingles=false;
   document.getElementById('daily-pick-modal').classList.remove('open');
   _renderDailyCard(id);
-  if(_dailyCards[id]&&_dailyCards[id].phase!=='setup') _saveCardToFirebase(id);
+  // 자동배정 카드(_round 있음)는 setup 단계여도 Firebase에 저장 (matchType·팀 변경 즉시 반영)
+  const _d=_dailyCards[id];
+  if(_d&&(_d.phase!=='setup'||_d._round)) _saveCardToFirebase(id);
 }
 
 function _togglePickMode(isSingles){
   _dailyPickSingles=isSingles;
   _dailyPickSel=[];  // 모드 변경 시 선택 초기화
   if(_dailyPickCtx){
+    const _td=_dailyCards[_dailyPickCtx.id];
     // 두 팀 모두 초기화 (복식↔단식 전환 시 인원 불일치 방지)
-    _dailyCards[_dailyPickCtx.id].team0=[];
-    _dailyCards[_dailyPickCtx.id].team1=[];
-    if(isSingles) _dailyCards[_dailyPickCtx.id].matchType='singles';
-    else delete _dailyCards[_dailyPickCtx.id].matchType;
+    _td.team0=[];
+    _td.team1=[];
+    if(isSingles) _td.matchType='singles';
+    else delete _td.matchType;
   }
   _renderDailyPickList();
 }
