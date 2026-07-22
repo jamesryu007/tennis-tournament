@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v992';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v993';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6520,9 +6520,17 @@ function _renderDrawAnalysis(d){
   const month=now.getMonth()+1;
   const day=now.getDate();
   const dateStr=`${month}/${day}`;
-  const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
-  const tName={mixed:'혼복',mens:'남복',womens:'여복'};
-  const tColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777'};
+  const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'🔵',womens_singles:'🩷',mixed_singles:'🟣'};
+  const tName={mixed:'혼복',mens:'남복',womens:'여복',mens_singles:'남단',womens_singles:'여단',mixed_singles:'혼단'};
+  const tColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777',mens_singles:'#2563eb',womens_singles:'#db2777',mixed_singles:'#7c3aed'};
+  // 단식 카드 서브타입 판별 (성별 기반)
+  const _effType=(card)=>{
+    if(card.matchType!=='singles') return card.matchType;
+    const all=[...(card.team0||[]),...(card.team1||[])];
+    const hasMale=all.some(n=>(genderMap[n]||getGender(n))==='male');
+    const hasFem=all.some(n=>(genderMap[n]||getGender(n))!=='male');
+    return hasMale&&hasFem?'mixed_singles':hasFem?'womens_singles':'mens_singles';
+  };
   // ── 팀 대결 공개 제어
   const curName=(state.identity&&state.identity.name)||'';
   // 현재 사용자가 속한 팀 ('A'|'B'|null) — null이면 마스킹 없음
@@ -6617,7 +6625,7 @@ function _renderDrawAnalysis(d){
           <div style="display:flex;align-items:center">
             <div style="${_LC};display:flex;align-items:center;gap:5px">
               <span style="font-size:0.78rem;font-weight:800;color:#475569;white-space:nowrap">제${r}경기 ${c}코트</span>
-              <span style="font-size:0.8rem;font-weight:800;color:${tColor[card.matchType]};white-space:nowrap">${tIcon[card.matchType]} ${tName[card.matchType]}</span>
+              <span style="font-size:0.8rem;font-weight:800;color:${tColor[_effType(card)]};white-space:nowrap">${tIcon[_effType(card)]} ${tName[_effType(card)]}</span>
             </div>
             <div style="flex:1;display:flex;align-items:center;min-width:0">
               <span style="flex:1;font-size:0.82rem;font-weight:600;text-align:right">${isRevealedCard(card)||myTeamSide==='A'?colorTeam(card.team0):maskTeam}</span>
@@ -6713,7 +6721,7 @@ function _renderDrawAnalysis(d){
         const card=Object.values(d.roundMap[r]).find(c=>[...c.team0,...c.team1].includes(p.name));
         // 셀 공개 여부: 내 팀 테이블이거나 카드 공개됨
         const visible=!myTeamSide||isMyTeamTable||isRevealedCard(card||{});
-        if(card&&visible){visibleGames++;t+=`<td style="text-align:center;padding:6px 3px">${tIcon[card.matchType]}</td>`;}
+        if(card&&visible){visibleGames++;t+=`<td style="text-align:center;padding:6px 3px">${tIcon[_effType(card)]}</td>`;}
         else if(card&&!visible){t+=`<td style="text-align:center;padding:6px 3px;color:#cbd5e1;font-size:0.7rem">—</td>`;}
         else{t+=`<td style="text-align:center;padding:6px 3px;color:#e2e8f0;font-size:0.7rem">—</td>`;}
       }
