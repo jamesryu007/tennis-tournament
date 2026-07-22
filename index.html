@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v984';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v985';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -14802,7 +14802,7 @@ async function triggerAtpRefresh() {
   <div class="modal" style="height:85vh;max-height:85vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
     <div class="modal-handle" style="margin:8px auto 0"></div>
     <div class="modal-header" style="padding:9px 14px 8px;flex-shrink:0;background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);border-radius:20px 20px 0 0">
-      <span class="modal-round" style="font-size:1.05rem;font-weight:800;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.2)">🕸️ 파트너 다이어그램</span>
+      <span class="modal-round" style="font-size:1.05rem;font-weight:800;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.2)">🫂 파트너 다이어그램</span>
       <button class="modal-close" onclick="closePartnerDiagram()" style="background:rgba(255,255,255,0.2);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
     <div id="pd-chips" style="padding:5px 10px 4px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid #e2e8f0;flex-shrink:0;-webkit-overflow-scrolling:touch;background:#faf5ff"></div>
