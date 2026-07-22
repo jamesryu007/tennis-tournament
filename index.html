@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v974';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v975';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5699,11 +5699,15 @@ function openMatchQueryModal(){
 
 function closeMatchQueryModal(){
   document.getElementById('match-query-modal').classList.remove('open');
-  // 파트너 다이어그램이 열려 있으면 overflow 유지
-  if (!document.getElementById('partner-diagram-modal').classList.contains('open')) {
+  _mqSinglesOpponents = false;  // 모달 닫을 때 항상 초기화
+  // 파트너/맞짱 다이어그램이 열려 있으면 overflow 유지
+  if (!document.getElementById('partner-diagram-modal').classList.contains('open') &&
+      !document.getElementById('singles-diagram-modal').classList.contains('open')) {
     document.body.style.overflow='';
   }
 }
+
+let _mqSinglesOpponents = false; // true = 맞짱 다이어그램에서 호출 (단식 상대 경기 필터)
 
 async function queryMatchHistory(){
   const from=(document.getElementById('mq-date-from').value||'').trim();
@@ -5717,7 +5721,14 @@ async function queryMatchHistory(){
     const snap=await db.ref('jmt/matches').orderByChild('date').startAt(from).endAt(to).once('value');
     const toArr=v=>Array.isArray(v)?v:(v?Object.values(v):[]);
     let matches=Object.values(snap.val()||{}).filter(m=>m.source==='daily'&&m.sets&&m.winner!==undefined);
-    if(p1&&p2){
+    if(_mqSinglesOpponents){
+      // 맞짱 다이어그램 — 단식 경기만, p1·p2가 각각 상대 팀
+      matches=matches.filter(m=>{
+        if(m.matchType!=='singles') return false;
+        const t0=toArr(m.team0),t1=toArr(m.team1);
+        return (t0.includes(p1)&&t1.includes(p2))||(t0.includes(p2)&&t1.includes(p1));
+      });
+    } else if(p1&&p2){
       // 팀페어 — 두 선수가 같은 팀에 있는 경기 (순서 무관)
       const pairKey=getPairKey(p1,p2);
       matches=matches.filter(m=>{
@@ -9127,6 +9138,7 @@ function _sdLineClick(p1, p2) {
   if (sel2) { sel2.innerHTML = '<option value="">-</option>' + names.map(n => `<option value="${n}">${n}</option>`).join(''); sel2.value = p2; }
   document.getElementById('match-query-inner').innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">조회 중…</p>';
   document.body.style.overflow = 'hidden';
+  _mqSinglesOpponents = true;  // 단식 상대 경기 필터 ON
   document.getElementById('match-query-modal').classList.add('open');
   setTimeout(() => queryMatchHistory(), 150);
 }
@@ -9170,6 +9182,7 @@ function _pdLineClick(p1, p2) {
   if (sel2) { sel2.innerHTML = '<option value="">-</option>' + names.map(n => `<option value="${n}">${n}</option>`).join(''); sel2.value = p2; }
   document.getElementById('match-query-inner').innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">조회 중…</p>';
   document.body.style.overflow = 'hidden';
+  _mqSinglesOpponents = false;  // 파트너 다이어그램: 복식 팀페어 필터
   document.getElementById('match-query-modal').classList.add('open');
   setTimeout(() => queryMatchHistory(), 150);
 }
