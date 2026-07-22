@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v979';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v980';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9130,7 +9130,7 @@ async function _renderSinglesDiagram() {
     const lbRec = isHubMode ? 11 : 8.5;
     const lbOffUp = isHubMode ? -4 : -3;
     const lbOffDn = isHubMode ? 13 : 9;
-    labelsS += `<g transform="rotate(${rotAngle.toFixed(1)},${mx},${my})">`;
+    labelsS += `<g transform="rotate(${rotAngle.toFixed(1)},${mx},${my})" onclick="_sdLineClick('${sdClick1}','${sdClick2}')" style="cursor:pointer">`;
     labelsS += `<text x="${mx}" y="${(myN+lbOffUp).toFixed(1)}" text-anchor="middle" font-size="${lbWr}" font-weight="800" fill="${color}" stroke="white" stroke-width="3" paint-order="stroke fill" font-family="-apple-system,sans-serif">${dispWr}%</text>`;
     if (_showRec) labelsS += `<text x="${mx}" y="${(myN+lbOffDn).toFixed(1)}" text-anchor="middle" font-size="${lbRec}" font-weight="600" fill="${color}" stroke="white" stroke-width="2.5" paint-order="stroke fill" font-family="-apple-system,sans-serif">(${p.total}/${dispW}/${p.draws}/${dispL})</text>`;
     labelsS += `</g>`;
@@ -9371,7 +9371,7 @@ async function _renderPartnerDiagram() {
     const lbRec = isHubMode ? 11 : 8.5;
     const lbOffUp = isHubMode ? -4 : -3;
     const lbOffDn = isHubMode ? 13 : 9;
-    labelsS += `<g transform="rotate(${rotAngle.toFixed(1)},${mx},${my})">`;
+    labelsS += `<g transform="rotate(${rotAngle.toFixed(1)},${mx},${my})" onclick="_pdLineClick('${p.p1}','${p.p2}')" style="cursor:pointer">`;
     labelsS += `<text x="${mx}" y="${(myN+lbOffUp).toFixed(1)}" text-anchor="middle" font-size="${lbWr}" font-weight="800" fill="${color}" stroke="white" stroke-width="3" paint-order="stroke fill" font-family="-apple-system,sans-serif">${p.wr}%</text>`;
     if (_showRec) labelsS += `<text x="${mx}" y="${(myN+lbOffDn).toFixed(1)}" text-anchor="middle" font-size="${lbRec}" font-weight="600" fill="${color}" stroke="white" stroke-width="2.5" paint-order="stroke fill" font-family="-apple-system,sans-serif">(${p.total}/${p.wins}/${p.draws}/${p.losses})</text>`;
     labelsS += `</g>`;
