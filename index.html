@@ -799,16 +799,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v978';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v979';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8504,7 +8504,7 @@ let _rankingMode='player';
 let _selectedRankKey=null;
 const _rankStatsCache={};  // { 'player_2025': stats, 'pair_2025': stats }
 const _rankVsCache={};     // { 'player_2025_김철수': vsData }
-let _rankDetailTab='vs';   // 'vs' | 'bagel'
+let _rankDetailTab='vs';   // 'partner' | 'singles' | 'vs' | 'bagel'
 const _bagelStatsCache={}; // { 2026: { given:{player:{opp:n}}, received:{...} } }
 let _playerRankShareData=[];  // 공유용 캐시
 let _pairRankShareData=[];
@@ -8561,7 +8561,7 @@ async function renderRankingTab(){
   if(!hasStatsCache) el.innerHTML='<div style="text-align:center;padding:20px;color:#94a3b8;font-size:0.85rem">불러오는 중...</div>';
 
   // ── 공통 헬퍼 ──
-  function mkDetail(vsData,stats,mode,indent,bagelData,partnerData){
+  function mkDetail(vsData,stats,mode,indent,bagelData,partnerData,singlesData){
     const style=indent?'margin-left:51px':'';
     const showPairTabs=mode==='pair'&&bagelData;
     const showPlayerTabs=mode==='player'&&partnerData;
@@ -8569,6 +8569,7 @@ async function renderRankingTab(){
     if(showPlayerTabs){
       tabsHtml=`<div style="display:flex;gap:5px;margin-bottom:8px">
         <button class="rank-dtab${_rankDetailTab==='partner'?' active-vs':''}" onclick="switchRankDetailTab('partner')">🤝 파트너 전적</button>
+        <button class="rank-dtab${_rankDetailTab==='singles'?' active-vs':''}" onclick="switchRankDetailTab('singles')">⚔️ 단식 전적</button>
         <button class="rank-dtab${_rankDetailTab==='vs'?' active-vs':''}" onclick="switchRankDetailTab('vs')">📊 만만한 전적</button>
       </div>`;
     } else if(showPairTabs){
@@ -8619,6 +8620,27 @@ async function renderRankingTab(){
             return `<div class="rank-detail-row"><span style="flex:1;color:${nc};font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}${badge}</span>${bagelCols}<span style="display:inline-flex;align-items:center;cursor:pointer" onclick="jumpToPairVs('${_curPK}','${p.name}')"><span style="color:#64748b;font-size:0.78rem;flex:none;width:28px;text-align:right">${p.total}전</span><span style="color:#16a34a;font-weight:700;font-size:0.78rem;flex:none;width:28px;text-align:right">${p.wins}승</span><span style="color:#f59e0b;font-weight:700;font-size:0.78rem;flex:none;width:26px;text-align:right;visibility:${p.draws?'visible':'hidden'}">${p.draws}무</span><span style="color:#dc2626;font-weight:700;font-size:0.78rem;flex:none;width:28px;text-align:right">${p.losses}패</span><span style="font-size:0.82rem;font-weight:800;flex:none;width:36px;text-align:right;color:${wr>=50?'#16a34a':'#dc2626'};margin-left:8px">${wr}%</span></span></div>`;
           }).join('')
           :'<p style="font-size:0.78rem;color:#94a3b8;text-align:center;margin:4px 0 0">파트너 기록 없음</p>'
+      }</div>`;
+    }
+    // 단식 전적 탭 (개인 랭킹)
+    if(showPlayerTabs&&_rankDetailTab==='singles'){
+      const _sData=singlesData||{};
+      const singles=Object.entries(_sData)
+        .map(([name,v])=>({name,wins:v.wins||0,draws:Math.max(0,v.draws||0),losses:v.losses||0,total:(v.wins||0)+Math.max(0,v.draws||0)+(v.losses||0)}))
+        .filter(p=>p.total>=1)
+        .sort((a,b)=>{
+          const wa=Math.round(effWr(a.wins,a.draws,a.losses)),wb=Math.round(effWr(b.wins,b.draws,b.losses));
+          return wb-wa||b.wins-a.wins||b.total-a.total;
+        });
+      return `<div class="rank-detail" style="${style}">${tabsHtml}<div class="rank-detail-title">⚔️ 단식 맞짱 전적 (승률 순)</div>${
+        singles.length
+          ?singles.map(p=>{
+            const wr=Math.round(effWr(p.wins,p.draws,p.losses));
+            const g=getGender(p.name),nc=g==='male'?'#2563eb':g==='female'?'#db2777':'#1e293b';
+            const _sel=_selectedRankKey;
+            return `<div class="rank-detail-row" style="cursor:pointer" onclick="_sdLineClick('${_sel}','${p.name}')"><span style="flex:1;color:${nc};font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</span><span style="color:#64748b;font-size:0.78rem;flex:none;width:28px;text-align:right">${p.total}전</span><span style="color:#16a34a;font-weight:700;font-size:0.78rem;flex:none;width:28px;text-align:right">${p.wins}승</span><span style="color:#f59e0b;font-weight:700;font-size:0.78rem;flex:none;width:26px;text-align:right;visibility:${p.draws?'visible':'hidden'}">${p.draws}무</span><span style="color:#dc2626;font-weight:700;font-size:0.78rem;flex:none;width:28px;text-align:right">${p.losses}패</span><span style="font-size:0.82rem;font-weight:800;flex:none;width:36px;text-align:right;color:${wr>=50?'#16a34a':'#dc2626'};margin-left:8px">${wr}%</span></div>`;
+          }).join('')
+          :'<p style="font-size:0.78rem;color:#94a3b8;text-align:center;margin:4px 0 0">단식 경기 기록 없음</p>'
       }</div>`;
     }
     if(showPairTabs&&_rankDetailTab==='bagel'){
@@ -8811,6 +8833,30 @@ async function renderRankingTab(){
         partnerData[partner].bagelReceived=Object.values(_pbR[pk]||{}).reduce((s,v)=>s+v,0);
       });
     }
+    // 단식 전적: singlesStats에서 선택 선수 상대별 W/L 추출
+    let singlesData=null;
+    if(_selectedRankKey){
+      const singlesCacheKey=`singles_${_selectedRankYear}`;
+      let allSinglesStats=_rankStatsCache[singlesCacheKey];
+      if(!allSinglesStats){
+        const ssSnap=await db.ref(`jmt/singlesStats/${_selectedRankYear}`).once('value');
+        allSinglesStats=ssSnap.val()||{};
+        _rankStatsCache[singlesCacheKey]=allSinglesStats;
+      }
+      singlesData={};
+      Object.entries(allSinglesStats).forEach(([k,v])=>{
+        const sPlayers=v.players||k.split('_');
+        if(!sPlayers.includes(_selectedRankKey)) return;
+        const opponent=sPlayers.find(p=>p!==_selectedRankKey);
+        if(!opponent) return;
+        const isFirst=sPlayers[0]===_selectedRankKey;
+        singlesData[opponent]={
+          wins:isFirst?(v.wins||0):(v.losses||0),
+          losses:isFirst?(v.losses||0):(v.wins||0),
+          draws:Math.max(0,v.draws||0)
+        };
+      });
+    }
     const memberNames=(state.members||[]).map(m=>m.name);
     const playersRaw=Object.entries(stats)
       .map(([k,v])=>({name:k,wins:v.wins||0,draws:Math.max(0,v.draws||0),losses:v.losses||0}))
@@ -8872,14 +8918,14 @@ async function renderRankingTab(){
     html+=`</div>`;
 
     if(_selectedRankKey && players.slice(0,3).find(p=>p.name===_selectedRankKey))
-      html+=mkDetail(vsData,stats,'player',false,null,partnerData);
+      html+=mkDetail(vsData,stats,'player',false,null,partnerData,singlesData);
 
     if(players.length>3){
       html+=`<div class="rank-list-label">─ 4위 이하 ─</div>`;
       html+=players.slice(3).map((p,idx)=>{
         const isSel=p.name===_selectedRankKey;
         const g=getGender(p.name),nc=g==='male'?'#2563eb':g==='female'?'#db2777':'#1e293b';
-        const det=isSel?mkDetail(vsData,stats,'player',true,null,partnerData):'';
+        const det=isSel?mkDetail(vsData,stats,'player',true,null,partnerData,singlesData):'';
         const disp=`<span style="color:${nc}">${p.name}</span>${bdayBadge(p.name)}`;
         return mkListItem(p.name,p.rank,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified);
       }).join('');
