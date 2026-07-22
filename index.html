@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v976';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v977';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5751,17 +5751,22 @@ async function queryMatchHistory(){
         const t0=toArr(m.team0),t1=toArr(m.team1);
         if(m.winner===-1){_sqD++;return;}
         let onTeam0;
-        if(p1&&p2){const pk=getPairKey(p1,p2);onTeam0=getPairKey(t0[0],t0[1])===pk;}
-        else{onTeam0=t0.includes(p1);}
+        if(_mqSinglesOpponents&&p1&&p2){
+          // 단식 상대 모드: p1이 team0에 있으면 team0 기준
+          onTeam0=t0.includes(p1);
+        } else if(p1&&p2){
+          const pk=getPairKey(p1,p2);onTeam0=getPairKey(t0[0],t0[1])===pk;
+        } else{onTeam0=t0.includes(p1);}
         (onTeam0?m.winner===0:m.winner===1)?_sqW++:_sqL++;
       });
     }
     const _sqTotal=matches.length;
     const _sqWr=(_sqW+_sqD+_sqL)>0?Math.round((_sqW+_sqD*0.5)/(_sqW+_sqD+_sqL)*100):0;
     const _fmtDate=s=>s?s.replace(/(\d{4})-(\d{2})-(\d{2})/,'$1.$2.$3'):'';
+    const _pairLabel=p1&&p2?(_mqSinglesOpponents?`${p1} ⚔️ ${p2}`:`${p1} 🤝 ${p2}`):(p1||'');
     const _summaryHtml=`<div style="background:linear-gradient(135deg,#eff6ff 0%,#f0fdf4 100%);border:1.5px solid #bfdbfe;border-radius:14px;padding:12px 16px;margin-bottom:14px">
       <div style="font-size:0.72rem;color:#64748b;font-weight:600;margin-bottom:6px">${_fmtDate(from)} ~ ${_fmtDate(to)}</div>
-      ${p1?`<div style="font-size:0.9rem;font-weight:800;color:#1e293b;margin-bottom:8px">${p1}${p2?' 🤝 '+p2:''}</div>`:''}
+      ${p1?`<div style="font-size:0.9rem;font-weight:800;color:#1e293b;margin-bottom:8px">${_pairLabel}</div>`:''}
       <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap">
         <span style="font-size:0.82rem;color:#475569"><b style="font-size:1.05rem;color:#1e293b">${_sqTotal}</b>경기</span>
         ${p1?`<span style="font-size:0.82rem;color:#16a34a"><b style="font-size:1.05rem">${_sqW}</b>승</span>
@@ -9051,12 +9056,20 @@ async function _renderSinglesDiagram() {
   filtered.forEach(p => {
     const n1 = pos[p.p1], n2 = pos[p.p2];
     if (!n1 || !n2) return;
-    const color = p.wr >= 50 ? '#16a34a' : '#dc2626';
-    const opacity = (_sdSelectedMembers.size > 0 || isHubMode) ? 0.85 : 0.52;
+    // 허브 모드에서 허브 선수가 p2(알파벳 2번째)일 경우 승률 반전 (허브 기준으로 표시)
+    const selSize = _sdSelectedMembers.size;
+    const refIsP1 = isHubMode ? (hubCenter === p.p1) : (_sdSelectedMembers.has(p.p1) || !_sdSelectedMembers.has(p.p2));
+    const dispWr = refIsP1 ? p.wr : Math.round(effWr(p.losses, p.draws, p.wins));
+    const dispW  = refIsP1 ? p.wins : p.losses;
+    const dispL  = refIsP1 ? p.losses : p.wins;
+    const color = dispWr >= 50 ? '#16a34a' : '#dc2626';
+    const opacity = (selSize > 0 || isHubMode) ? 0.85 : 0.52;
     const sw = p.total >= 10 ? 7 : p.total >= 5 ? 4 : p.total >= 3 ? 2.5 : 1.8;
     edgesS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="${color}" stroke-width="${sw}" opacity="${opacity}" stroke-linecap="round" pointer-events="none"/>`;
-    hitS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="transparent" stroke-width="20" style="cursor:pointer" onclick="_sdLineClick('${p.p1}','${p.p2}')"/>`;
-    const selSize = _sdSelectedMembers.size;
+    // 라인 클릭: 허브(또는 선택된) 선수를 선수1로 넘겨 W/L이 그 선수 기준으로 표시되도록
+    const sdClick1 = refIsP1 ? p.p1 : p.p2;
+    const sdClick2 = refIsP1 ? p.p2 : p.p1;
+    hitS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="transparent" stroke-width="20" style="cursor:pointer" onclick="_sdLineClick('${sdClick1}','${sdClick2}')"/>`;
     const p1sel = _sdSelectedMembers.has(p.p1), p2sel = _sdSelectedMembers.has(p.p2);
     if (!isHubMode && (selSize === 0 || (!p1sel && !p2sel))) return;
     const _showRec = isHubMode || selSize === 1;
@@ -9072,8 +9085,8 @@ async function _renderSinglesDiagram() {
     const lbOffUp = isHubMode ? -4 : -3;
     const lbOffDn = isHubMode ? 13 : 9;
     labelsS += `<g transform="rotate(${rotAngle.toFixed(1)},${mx},${my})">`;
-    labelsS += `<text x="${mx}" y="${(myN+lbOffUp).toFixed(1)}" text-anchor="middle" font-size="${lbWr}" font-weight="800" fill="${color}" stroke="white" stroke-width="3" paint-order="stroke fill" font-family="-apple-system,sans-serif">${p.wr}%</text>`;
-    if (_showRec) labelsS += `<text x="${mx}" y="${(myN+lbOffDn).toFixed(1)}" text-anchor="middle" font-size="${lbRec}" font-weight="600" fill="${color}" stroke="white" stroke-width="2.5" paint-order="stroke fill" font-family="-apple-system,sans-serif">(${p.total}/${p.wins}/${p.draws}/${p.losses})</text>`;
+    labelsS += `<text x="${mx}" y="${(myN+lbOffUp).toFixed(1)}" text-anchor="middle" font-size="${lbWr}" font-weight="800" fill="${color}" stroke="white" stroke-width="3" paint-order="stroke fill" font-family="-apple-system,sans-serif">${dispWr}%</text>`;
+    if (_showRec) labelsS += `<text x="${mx}" y="${(myN+lbOffDn).toFixed(1)}" text-anchor="middle" font-size="${lbRec}" font-weight="600" fill="${color}" stroke="white" stroke-width="2.5" paint-order="stroke fill" font-family="-apple-system,sans-serif">(${p.total}/${dispW}/${p.draws}/${dispL})</text>`;
     labelsS += `</g>`;
   });
   nodes.forEach(name => {
