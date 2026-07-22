@@ -621,6 +621,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 #participant-modal { z-index: 310; }
 #player-profile-modal { z-index: 400; }
 #partner-diagram-modal { z-index: 295; }  /* match-query-modal(300)이 위에 표시되도록 */
+#singles-diagram-modal { z-index: 295; }
 #photo-edit-modal { z-index: 10001; }
 .modal-overlay.open { display: flex; }
 .modal { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
@@ -2217,6 +2218,7 @@ const firebaseConfig = {
       <div style="display:flex;align-items:center;gap:8px">
         <div id="rank-year-row" class="rank-year-row" style="margin:0"></div>
         <button onclick="openPartnerDiagram()" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#4f46e5,#7c3aed);border:2px solid rgba(255,255,255,0.4);color:#fff;font-size:1.4rem;cursor:pointer;padding:0;flex-shrink:0;animation:pdBtnGlow 2.2s ease-in-out 3;box-shadow:0 3px 12px rgba(79,70,229,0.5);display:flex;align-items:center;justify-content:center;line-height:1">🕸️</button>
+        <button onclick="openSinglesDiagram()" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#15803d,#16a34a);border:2px solid rgba(255,255,255,0.4);color:#fff;font-size:1.4rem;cursor:pointer;padding:0;flex-shrink:0;box-shadow:0 3px 12px rgba(22,163,74,0.5);display:flex;align-items:center;justify-content:center;line-height:1" title="맞짱 다이어그램">⚔️</button>
       </div>
     </div>
   </div>
@@ -2553,20 +2555,30 @@ const firebaseConfig = {
 
 <!-- ══ DAILY PICK MODAL ══ -->
 <div class="modal-overlay" id="daily-pick-modal">
-  <div class="modal">
+  <div class="modal" style="height:72vh;max-height:72vh;display:flex;flex-direction:column;overflow:hidden">
     <div class="modal-handle"></div>
-    <div class="modal-header">
+    <div class="modal-header" style="flex-shrink:0">
       <span id="daily-pick-title" class="modal-round">팀 선수 선택</span>
       <button class="modal-close" onclick="closeDailyPickModal()">✕</button>
     </div>
-    <div style="padding:14px 16px">
-      <p style="font-size:0.82rem;color:#64748b;margin-bottom:10px">페어링된 닉네임을 선택하거나 선수 <strong>2명</strong>을 선택하세요</p>
-      <div id="daily-pick-info" style="font-size:0.85rem;font-weight:600;margin-bottom:10px;color:#94a3b8;display:none"></div>
-      <div id="daily-pick-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px"></div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-warning btn-full" onclick="closeDailyPickModal()">취소</button>
-        <button class="btn btn-primary btn-full" id="daily-pick-confirm" onclick="confirmDailyPick()" disabled>확인</button>
+    <div style="padding:14px 16px 0;flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;padding:8px 12px;background:#f8fafc;border-radius:10px;border:1.5px solid #e2e8f0">
+        <span style="font-size:0.78rem;font-weight:700;color:#475569">경기 형식</span>
+        <label style="display:flex;align-items:center;gap:5px;font-size:0.85rem;font-weight:700;color:#2563eb;cursor:pointer">
+          <input type="radio" name="pick-mode" id="pick-mode-doubles" checked onchange="_togglePickMode(false)" style="accent-color:#2563eb">
+          복식
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:0.85rem;font-weight:700;color:#16a34a;cursor:pointer">
+          <input type="radio" name="pick-mode" id="pick-mode-singles" onchange="_togglePickMode(true)" style="accent-color:#16a34a">
+          단식
+        </label>
       </div>
+      <div id="daily-pick-info" style="font-size:0.85rem;font-weight:600;margin-bottom:10px;color:#94a3b8;display:none"></div>
+    </div>
+    <div id="daily-pick-list" style="flex:1;overflow-y:auto;padding:0 16px;display:flex;flex-wrap:wrap;align-content:flex-start;gap:8px;-webkit-overflow-scrolling:touch"></div>
+    <div style="padding:12px 16px;flex-shrink:0;border-top:1px solid #f1f5f9;display:flex;gap:8px">
+      <button class="btn btn-warning btn-full" onclick="closeDailyPickModal()">취소</button>
+      <button class="btn btn-primary btn-full" id="daily-pick-confirm" onclick="confirmDailyPick()" disabled>확인</button>
     </div>
   </div>
 </div>
@@ -2698,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v972';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v976';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -3623,6 +3635,32 @@ async function reverseMatchStats(team0,team1,oldWinner){
   await db.ref().update(u).catch(fbErr);
 }
 
+async function updateSinglesStats(p0,p1,winner,reverse){
+  if(!db) return;
+  const INC=firebase.database.ServerValue.increment;
+  const yr=_rankYear;
+  const key=getPairKey(p0,p1);
+  const [sf]=([p0,p1].slice().sort()); // 알파벳 앞선 선수
+  const sign=reverse?-1:1;
+  const w0=winner===0?sign:0, w1=winner===1?sign:0, dr=winner===-1?sign:0;
+  // sf 기준: sf===p0이면 w0=sf승, sf===p1이면 w1=sf승
+  const sfWins=sf===p0?w0:w1;
+  const sfLoss=sf===p0?w1:w0;
+  const u={};
+  u[`jmt/singlesStats/${yr}/${key}/wins`]=INC(sfWins);
+  u[`jmt/singlesStats/${yr}/${key}/losses`]=INC(sfLoss);
+  u[`jmt/singlesStats/${yr}/${key}/draws`]=INC(dr);
+  if(!reverse) u[`jmt/singlesStats/${yr}/${key}/players`]=[sf, sf===p0?p1:p0];
+  // 개인 랭킹 통계
+  u[`jmt/playerStats/${yr}/${p0}/wins`]=INC(w0);
+  u[`jmt/playerStats/${yr}/${p0}/losses`]=INC(w1);
+  u[`jmt/playerStats/${yr}/${p0}/draws`]=INC(dr);
+  u[`jmt/playerStats/${yr}/${p1}/wins`]=INC(w1);
+  u[`jmt/playerStats/${yr}/${p1}/losses`]=INC(w0);
+  u[`jmt/playerStats/${yr}/${p1}/draws`]=INC(dr);
+  await db.ref().update(u).catch(fbErr);
+}
+
 async function updateMatchStats(team0,team1,winner,nick0,nick1){
   if(!db) return;
   const INC=firebase.database.ServerValue.increment;
@@ -4518,6 +4556,7 @@ const _dailyCards={};
 let _dailyCardCounter=0;
 let _dailyPickCtx=null;
 let _dailyPickSel=[];
+let _dailyPickSingles=false; // true = 단식 모드
 // ── 경기 만들기 세그먼트 모드 ─────────────────────────────────────
 let _dailyCreateMode='individual'; // 'individual' | 'team' | 'auto'
 
@@ -5660,11 +5699,15 @@ function openMatchQueryModal(){
 
 function closeMatchQueryModal(){
   document.getElementById('match-query-modal').classList.remove('open');
-  // 파트너 다이어그램이 열려 있으면 overflow 유지
-  if (!document.getElementById('partner-diagram-modal').classList.contains('open')) {
+  _mqSinglesOpponents = false;  // 모달 닫을 때 항상 초기화
+  // 파트너/맞짱 다이어그램이 열려 있으면 overflow 유지
+  if (!document.getElementById('partner-diagram-modal').classList.contains('open') &&
+      !document.getElementById('singles-diagram-modal').classList.contains('open')) {
     document.body.style.overflow='';
   }
 }
+
+let _mqSinglesOpponents = false; // true = 맞짱 다이어그램에서 호출 (단식 상대 경기 필터)
 
 async function queryMatchHistory(){
   const from=(document.getElementById('mq-date-from').value||'').trim();
@@ -5678,7 +5721,14 @@ async function queryMatchHistory(){
     const snap=await db.ref('jmt/matches').orderByChild('date').startAt(from).endAt(to).once('value');
     const toArr=v=>Array.isArray(v)?v:(v?Object.values(v):[]);
     let matches=Object.values(snap.val()||{}).filter(m=>m.source==='daily'&&m.sets&&m.winner!==undefined);
-    if(p1&&p2){
+    if(_mqSinglesOpponents){
+      // 맞짱 다이어그램 — 단식 경기만, p1·p2가 각각 상대 팀
+      matches=matches.filter(m=>{
+        if(m.matchType!=='singles') return false;
+        const t0=toArr(m.team0),t1=toArr(m.team1);
+        return (t0.includes(p1)&&t1.includes(p2))||(t0.includes(p2)&&t1.includes(p1));
+      });
+    } else if(p1&&p2){
       // 팀페어 — 두 선수가 같은 팀에 있는 경기 (순서 무관)
       const pairKey=getPairKey(p1,p2);
       matches=matches.filter(m=>{
@@ -7493,46 +7543,54 @@ function _renderDailyCard(id){
   }
 
   if(d.phase==='setup'){
-    const t0=_getTeamDisplay(d.team0),t1=_getTeamDisplay(d.team1);
-    const t0f=d.team0.length===2,t1f=d.team1.length===2;
+    const _isSingles=d.matchType==='singles';
+    const _teamSize=_isSingles?1:2;
+    const t0=_isSingles&&d.team0.length===1?{html:`<strong>${d.team0[0]}</strong>`,nick:d.team0[0],memberStr:d.team0[0]}:_getTeamDisplay(d.team0);
+    const t1=_isSingles&&d.team1.length===1?{html:`<strong>${d.team1[0]}</strong>`,nick:d.team1[0],memberStr:d.team1[0]}:_getTeamDisplay(d.team1);
+    const t0f=d.team0.length===_teamSize,t1f=d.team1.length===_teamSize;
     const isParticipant=[...(d.team0||[]),...(d.team1||[])].includes(_curName);
     const canStart=canManage||isParticipant;
-    // 팀대결이면 관리자/생성자만, 자동배정이면 모든 멤버 허용
     const canEditTeam=d._teamMode?canManage:!!_curName;
-    // 팀대결 세션이면 팀 라벨 표시
-    const _aLabel=d._teamMode?`🔵 ${(d._teamANames||[])[0]?(d._teamANames[0]+'팀'):'A팀'}`:'팀 A';
-    const _bLabel=d._teamMode?`🔴 ${(d._teamBNames||[])[0]?(d._teamBNames[0]+'팀'):'B팀'}`:'팀 B';
+    const _aLabel=d._teamMode?`🔵 ${(d._teamANames||[])[0]?(d._teamANames[0]+'팀'):'A팀'}`:(_isSingles?'선수 A':'팀 A');
+    const _bLabel=d._teamMode?`🔴 ${(d._teamBNames||[])[0]?(d._teamBNames[0]+'팀'):'B팀'}`:(_isSingles?'선수 B':'팀 B');
+    const _singlesTag=_isSingles?`<span style="font-size:0.68rem;font-weight:700;background:#dcfce7;color:#15803d;border-radius:8px;padding:1px 6px;margin-left:4px">단식</span>`:'';
+    const _mkMemberStr=(team)=>_isSingles?'':`<div class="dc-tmembers">${_hlMemberStr(team,_curName)}</div>`;
     const left=`<div class="dc-team-left">
       <button class="dc-team-btn${t0f?' filled':''}${canEditTeam?'':' readonly'}"${canEditTeam?`onclick="openDailyPick('${id}',0)"`:' disabled'}>
-        ${t0f?`<div class="dc-tnick">${t0.nick}${canEditTeam?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div><div class="dc-tmembers">${_hlMemberStr(d.team0,_curName)}</div>`:_aLabel}
+        ${t0f?`<div class="dc-tnick">${t0.nick}${canEditTeam?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div>${_mkMemberStr(d.team0)}`:_aLabel}
       </button>
     </div>`;
     const right=`<div class="dc-team-right">
       <button class="dc-team-btn${t1f?' filled':''}${canEditTeam?'':' readonly'}"${canEditTeam?`onclick="openDailyPick('${id}',1)"`:' disabled'}>
-        ${t1f?`<div class="dc-tnick">${t1.nick}${canEditTeam?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div><div class="dc-tmembers">${_hlMemberStr(d.team1,_curName)}</div>`:_bLabel}
+        ${t1f?`<div class="dc-tnick">${t1.nick}${canEditTeam?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div>${_mkMemberStr(d.team1)}`:_bLabel}
       </button>
     </div>`;
     const mid=`<button class="dc-start-btn" onclick="startDailyMatch('${id}')"${t0f&&t1f&&canStart?'':' disabled'}>시작</button>`;
-    el.innerHTML=mkCard(d.label||`경기${d.num}`, left, mid, right);
+    el.innerHTML=mkCard((d.label||`경기${d.num}`)+_singlesTag, left, mid, right);
 
   } else if(d.phase==='playing'){
-    const t0=_getTeamDisplay(d.team0),t1=_getTeamDisplay(d.team1);
+    const _isSingles=d.matchType==='singles';
+    const t0=_isSingles&&d.team0.length===1?{nick:d.team0[0],memberStr:d.team0[0]}:_getTeamDisplay(d.team0);
+    const t1=_isSingles&&d.team1.length===1?{nick:d.team1[0],memberStr:d.team1[0]}:_getTeamDisplay(d.team1);
+    const _singlesTag=_isSingles?` <span style="font-size:0.68rem;font-weight:700;background:#dcfce7;color:#15803d;border-radius:8px;padding:1px 6px">단식</span>`:'';
     const left=`<div class="dc-team-left">
       <div class="dc-tnick">${t0.nick}</div>
-      <div class="dc-tmembers">${_hlMemberStr(d.team0,_curName)}</div>
+      ${_isSingles?'':` <div class="dc-tmembers">${_hlMemberStr(d.team0,_curName)}</div>`}
     </div>`;
     const right=`<div class="dc-team-right">
       <div class="dc-tnick">${t1.nick}</div>
-      <div class="dc-tmembers">${_hlMemberStr(d.team1,_curName)}</div>
+      ${_isSingles?'':` <div class="dc-tmembers">${_hlMemberStr(d.team1,_curName)}</div>`}
     </div>`;
     const canScore=canEditDailyScore(d);
     const mid=`<button class="dc-score-reg-btn"${canScore?`onclick="openDailyScore('${id}')"`:' disabled'}>🎾<br>점수<br>등록</button>`;
-    el.innerHTML=mkCard(`${d.label||`경기${d.num}`} <span style="font-size:0.72rem;font-weight:600;color:#a78bfa">(경기진행 중)</span>`, left, mid, right);
+    el.innerHTML=mkCard(`${d.label||`경기${d.num}`}${_singlesTag} <span style="font-size:0.72rem;font-weight:600;color:#a78bfa">(경기진행 중)</span>`, left, mid, right);
 
   } else {
     const isDraw=d.winner===-1;
     const t0win=d.winner===0, t1win=d.winner===1;
-    const t0=_getTeamDisplay(d.team0), t1=_getTeamDisplay(d.team1);
+    const _isSingles=d.matchType==='singles';
+    const t0=_isSingles&&d.team0.length===1?{nick:d.team0[0],memberStr:d.team0[0]}:_getTeamDisplay(d.team0);
+    const t1=_isSingles&&d.team1.length===1?{nick:d.team1[0],memberStr:d.team1[0]}:_getTeamDisplay(d.team1);
     // 베이글(6:0) 체크
     const bagelSides=_dailyBagelSides(d.sets);
     const l0Bagel=!isDraw&&bagelSides.has(0)?'<div class="bagel-badge">🥯 베이글!</div>':'';
@@ -7563,24 +7621,26 @@ function _renderDailyCard(id){
       ${l0Emoji}
       ${l0Bagel}
       <div class="dc-tnick">${t0.nick}</div>
-      <div class="dc-tmembers">${_hlMemberStr(d.team0,_curName)}</div>
+      ${_isSingles?'':` <div class="dc-tmembers">${_hlMemberStr(d.team0,_curName)}</div>`}
       ${l0Badge}
     </div>`;
     const right=`<div class="dc-team-right" onclick="openDailyScore('${id}')" style="cursor:pointer">
       ${r1Emoji}
       ${r1Bagel}
       <div class="dc-tnick">${t1.nick}</div>
-      <div class="dc-tmembers">${_hlMemberStr(d.team1,_curName)}</div>
+      ${_isSingles?'':` <div class="dc-tmembers">${_hlMemberStr(d.team1,_curName)}</div>`}
       ${r1Badge}
     </div>`;
-    el.innerHTML=mkCard(`✅ ${d.label||`경기${d.num}`}`, left, mid, right, _winnerBg(d.winner, id));
+    const _doneTag=_isSingles?` <span style="font-size:0.68rem;font-weight:700;background:#dcfce7;color:#15803d;border-radius:8px;padding:1px 6px">단식</span>`:'';
+    el.innerHTML=mkCard(`✅ ${d.label||`경기${d.num}`}${_doneTag}`, left, mid, right, _winnerBg(d.winner, id));
   }
 }
 
 function openDailyPick(id,side){
   _dailyPickCtx={id,side};
-  _dailyPickSel=[..._dailyCards[id][`team${side}`]];
   const _c=_dailyCards[id];
+  _dailyPickSingles=_c&&_c.matchType==='singles';
+  _dailyPickSel=[..._c[`team${side}`]];
   let titleText;
   if(_c&&_c._teamMode){
     const _names=side===0?(_c._teamANames||[]):(_c._teamBNames||[]);
@@ -7590,6 +7650,11 @@ function openDailyPick(id,side){
     titleText=`팀 ${side===0?'A':'B'} 선수 선택`;
   }
   document.getElementById('daily-pick-title').textContent=titleText;
+  // 라디오 버튼 동기화
+  const dbRadio=document.getElementById('pick-mode-doubles');
+  const sgRadio=document.getElementById('pick-mode-singles');
+  if(dbRadio) dbRadio.checked=!_dailyPickSingles;
+  if(sgRadio) sgRadio.checked=!!_dailyPickSingles;
   _renderDailyPickList();
   document.getElementById('daily-pick-modal').classList.add('open');
 }
@@ -7628,27 +7693,31 @@ function _renderDailyPickList(){
   // 팀대결 모드: 해당 팀 선수만 표시
   const visiblePlayers=teamFilter?players.filter(p=>teamFilter.has(p)):players;
 
-  // 페어링된 닉네임 섹션 — 팀 필터 있으면 팀 내 페어만 표시
-  const allPairs=Object.entries(state.pairNicknames||{});
-  const visiblePairs=teamFilter
-    ?allPairs.filter(([key])=>{const [a,b]=key.split('_');return teamFilter.has(a)&&teamFilter.has(b);})
-    :allPairs;
-  if(visiblePairs.length){
-    const btns=visiblePairs.map(([key,nick])=>{
-      const [a,b]=key.split('_');
-      const isSel=_dailyPickSel.length===2&&_dailyPickSel.includes(a)&&_dailyPickSel.includes(b);
-      const isOtherTeam=other.length>0&&(otherSet.has(a)||otherSet.has(b));
-      const isPlaying=playingPlayers.has(a)||playingPlayers.has(b);
-      const isNotAttendee=attendeeSet&&(!attendeeSet.has(a)||!attendeeSet.has(b));
-      const dis=isOtherTeam||isPlaying||isNotAttendee;
-      const baseStyle=`font-size:0.7rem;padding:4px 7px;white-space:normal;word-break:keep-all;text-align:center;`;
-      const style=dis?baseStyle+`background:#f1f5f9;border-color:#cbd5e1;color:#94a3b8;cursor:not-allowed;`
-                    :isSel?baseStyle
-                          :baseStyle+`background:#fef3c7;border-color:#fcd34d;color:#92400e;`;
-      const click=dis?'':`onclick="selectDailyPair('${a}','${b}')"`;
-      return `<button class="player-pick-btn${isSel?' selected':''}" ${click} style="${style}">${nick}(${a}-${b})</button>`;
-    }).join('');
-    html+=`<div style="margin-bottom:12px"><div class="pick-group-label">⭐ 페어링된 닉네임</div><div style="display:flex;flex-wrap:wrap;gap:5px">${btns}</div></div>`;
+  const maxSel=_dailyPickSingles?1:2;
+
+  // 페어링된 닉네임 섹션 — 단식 모드에서는 숨김
+  if(!_dailyPickSingles){
+    const allPairs=Object.entries(state.pairNicknames||{});
+    const visiblePairs=teamFilter
+      ?allPairs.filter(([key])=>{const [a,b]=key.split('_');return teamFilter.has(a)&&teamFilter.has(b);})
+      :allPairs;
+    if(visiblePairs.length){
+      const btns=visiblePairs.map(([key,nick])=>{
+        const [a,b]=key.split('_');
+        const isSel=_dailyPickSel.length===2&&_dailyPickSel.includes(a)&&_dailyPickSel.includes(b);
+        const isOtherTeam=other.length>0&&(otherSet.has(a)||otherSet.has(b));
+        const isPlaying=playingPlayers.has(a)||playingPlayers.has(b);
+        const isNotAttendee=attendeeSet&&(!attendeeSet.has(a)||!attendeeSet.has(b));
+        const dis=isOtherTeam||isPlaying||isNotAttendee;
+        const baseStyle=`font-size:0.7rem;padding:4px 7px;white-space:normal;word-break:keep-all;text-align:center;`;
+        const style=dis?baseStyle+`background:#f1f5f9;border-color:#cbd5e1;color:#94a3b8;cursor:not-allowed;`
+                      :isSel?baseStyle
+                            :baseStyle+`background:#fef3c7;border-color:#fcd34d;color:#92400e;`;
+        const click=dis?'':`onclick="selectDailyPair('${a}','${b}')"`;
+        return `<button class="player-pick-btn${isSel?' selected':''}" ${click} style="${style}">${nick}(${a}-${b})</button>`;
+      }).join('');
+      html+=`<div style="margin-bottom:12px"><div class="pick-group-label">⭐ 페어링된 닉네임</div><div style="display:flex;flex-wrap:wrap;gap:5px">${btns}</div></div>`;
+    }
   }
 
   // 성별 그룹 — 상대팀 선수·진행 중 선수·비참석자 비활성화
@@ -7656,7 +7725,7 @@ function _renderDailyPickList(){
     if(!group.length) return '';
     const btns=group.map(p=>{
       const sel=_dailyPickSel.includes(p);
-      const dis=!sel&&(other.includes(p)||playingPlayers.has(p)||_dailyPickSel.length>=2||(attendeeSet&&!attendeeSet.has(p)));
+      const dis=!sel&&(other.includes(p)||playingPlayers.has(p)||_dailyPickSel.length>=maxSel||(attendeeSet&&!attendeeSet.has(p)));
       return `<button class="player-pick-btn${sel?' selected':''}${dis?' pick-disabled':''}" onclick="toggleDailyPick('${p}')">${p}</button>`;
     }).join('');
     return `<div style="margin-bottom:10px"><div class="pick-group-label">${label}</div><div style="display:flex;flex-wrap:wrap;gap:6px">${btns}</div></div>`;
@@ -7668,10 +7737,15 @@ function _renderDailyPickList(){
   list.innerHTML=html;
 
   const info=document.getElementById('daily-pick-info');
-  if(!_dailyPickSel.length){info.textContent='';info.style.display='none';}
-  else if(_dailyPickSel.length===1){info.textContent=`${_dailyPickSel[0]} 선택됨 · 1명 더`;info.style.color='#f59e0b';info.style.display='block';}
-  else{info.textContent=`✅ ${_dailyPickSel.join(' / ')}`;info.style.color='#16a34a';info.style.display='block';}
-  document.getElementById('daily-pick-confirm').disabled=_dailyPickSel.length!==2;
+  if(_dailyPickSingles){
+    if(!_dailyPickSel.length){info.textContent='단식 선수 1명을 선택하세요';info.style.color='#64748b';info.style.display='block';}
+    else{info.textContent=`✅ ${_dailyPickSel[0]} 선택됨`;info.style.color='#16a34a';info.style.display='block';}
+  } else {
+    if(!_dailyPickSel.length){info.textContent='';info.style.display='none';}
+    else if(_dailyPickSel.length===1){info.textContent=`${_dailyPickSel[0]} 선택됨 · 1명 더`;info.style.color='#f59e0b';info.style.display='block';}
+    else{info.textContent=`✅ ${_dailyPickSel.join(' / ')}`;info.style.color='#16a34a';info.style.display='block';}
+  }
+  document.getElementById('daily-pick-confirm').disabled=_dailyPickSel.length!==maxSel;
 }
 
 function selectDailyPair(p1,p2){
@@ -7684,24 +7758,45 @@ function selectDailyPair(p1,p2){
 }
 
 function toggleDailyPick(name){
+  const maxSel=_dailyPickSingles?1:2;
   const i=_dailyPickSel.indexOf(name);
   if(i>=0)_dailyPickSel.splice(i,1);
-  else if(_dailyPickSel.length<2)_dailyPickSel.push(name);
+  else if(_dailyPickSel.length<maxSel)_dailyPickSel.push(name);
   _renderDailyPickList();
 }
 
 function confirmDailyPick(){
-  if(!_dailyPickCtx||_dailyPickSel.length!==2) return;
+  const maxSel=_dailyPickSingles?1:2;
+  if(!_dailyPickCtx||_dailyPickSel.length!==maxSel) return;
   const {id,side}=_dailyPickCtx;
   _dailyCards[id][`team${side}`]=[..._dailyPickSel];
-  _dailyPickCtx=null;_dailyPickSel=[];
+  // 단식/복식 matchType 카드에 반영
+  if(_dailyPickSingles){
+    _dailyCards[id].matchType='singles';
+  } else if(_dailyCards[id].matchType==='singles'){
+    delete _dailyCards[id].matchType;
+  }
+  _dailyPickCtx=null;_dailyPickSel=[];_dailyPickSingles=false;
   document.getElementById('daily-pick-modal').classList.remove('open');
   _renderDailyCard(id);
   if(_dailyCards[id]&&_dailyCards[id].phase!=='setup') _saveCardToFirebase(id);
 }
 
+function _togglePickMode(isSingles){
+  _dailyPickSingles=isSingles;
+  _dailyPickSel=[];  // 모드 변경 시 선택 초기화
+  if(_dailyPickCtx){
+    // 두 팀 모두 초기화 (복식↔단식 전환 시 인원 불일치 방지)
+    _dailyCards[_dailyPickCtx.id].team0=[];
+    _dailyCards[_dailyPickCtx.id].team1=[];
+    if(isSingles) _dailyCards[_dailyPickCtx.id].matchType='singles';
+    else delete _dailyCards[_dailyPickCtx.id].matchType;
+  }
+  _renderDailyPickList();
+}
+
 function closeDailyPickModal(){
-  _dailyPickCtx=null;_dailyPickSel=[];
+  _dailyPickCtx=null;_dailyPickSel=[];_dailyPickSingles=false;
   document.getElementById('daily-pick-modal').classList.remove('open');
 }
 
@@ -7827,7 +7922,8 @@ function closeTeamSwapModal(){
 
 function startDailyMatch(id){
   const d=_dailyCards[id];
-  if(!d||d.team0.length!==2||d.team1.length!==2) return;
+  const _teamSize=d&&d.matchType==='singles'?1:2;
+  if(!d||d.team0.length!==_teamSize||d.team1.length!==_teamSize) return;
   d.phase='playing';
   if(db){
     // 자동 생성 카드(Firebase push key = 문자열 '-'로 시작): 기존 항목 update
@@ -7878,12 +7974,22 @@ function openDailyScore(id){
   }
   _dailyScoreCtx=id;
   _dailyScoreSets=Math.max(1,d.sets.length);
-  const t0=_getTeamDisplay(d.team0),t1=_getTeamDisplay(d.team1);
+  const _isSingles=d.matchType==='singles';
+  const t0=(_isSingles&&d.team0.length===1)?{nick:d.team0[0]}:_getTeamDisplay(d.team0);
+  const t1=(_isSingles&&d.team1.length===1)?{nick:d.team1[0]}:_getTeamDisplay(d.team1);
   document.getElementById('daily-score-title').textContent=`경기${d.num} · ${t0.nick} vs ${t1.nick}`;
-  // 닉네임 pre-populate
-  const k0=getPairKey(d.team0[0],d.team0[1]),k1=getPairKey(d.team1[0],d.team1[1]);
-  document.getElementById('daily-nick-0').value=(state.pairNicknames&&state.pairNicknames[k0])||'';
-  document.getElementById('daily-nick-1').value=(state.pairNicknames&&state.pairNicknames[k1])||'';
+  // 닉네임 입력: 단식은 숨김
+  const _nickRow=document.querySelector('#daily-score-modal .modal > div > div:first-child');
+  if(_nickRow) _nickRow.style.display=_isSingles?'none':'';
+  // 닉네임 pre-populate (복식만)
+  if(!_isSingles && d.team0.length===2 && d.team1.length===2){
+    const k0=getPairKey(d.team0[0],d.team0[1]),k1=getPairKey(d.team1[0],d.team1[1]);
+    document.getElementById('daily-nick-0').value=(state.pairNicknames&&state.pairNicknames[k0])||'';
+    document.getElementById('daily-nick-1').value=(state.pairNicknames&&state.pairNicknames[k1])||'';
+  } else {
+    document.getElementById('daily-nick-0').value='';
+    document.getElementById('daily-nick-1').value='';
+  }
   _renderDailyScoreSets();
   // 기존 점수 미리 채우기
   d.sets.forEach((s,i)=>{
@@ -8097,30 +8203,45 @@ async function saveDailyScore(){
   if(!sets.length){alert('세트 점수를 입력해주세요.');return;}
   const sw0=sets.filter(s=>s.s0>s.s1).length,sw1=sets.filter(s=>s.s1>s.s0).length;
   const winner=sw0>sw1?0:sw1>sw0?1:-1; // -1 = 무승부
-  const team0=[...d.team0].sort(),team1=[...d.team1].sort();
+  const _isSingles=d.matchType==='singles';
+  const team0=_isSingles?[...d.team0]:[...d.team0].sort();
+  const team1=_isSingles?[...d.team1]:[...d.team1].sort();
   const today=new Date().toISOString().split('T')[0];
-  // 닉네임 읽기
-  const nick0=document.getElementById('daily-nick-0').value.trim();
-  const nick1=document.getElementById('daily-nick-1').value.trim();
-  const k0=getPairKey(team0[0],team0[1]),k1=getPairKey(team1[0],team1[1]);
+  // 닉네임 읽기 (복식만 사용)
+  const nick0=_isSingles?'':document.getElementById('daily-nick-0').value.trim();
+  const nick1=_isSingles?'':document.getElementById('daily-nick-1').value.trim();
   try{
-    // 닉네임 저장
-    const nickUpdates={};
-    if(nick0){nickUpdates[`jmt/pairNicknames/${k0}`]=nick0;nickUpdates[`jmt/pairStats/${_rankYear}/${k0}/nickname`]=nick0;}
-    if(nick1){nickUpdates[`jmt/pairNicknames/${k1}`]=nick1;nickUpdates[`jmt/pairStats/${_rankYear}/${k1}/nickname`]=nick1;}
-    if(Object.keys(nickUpdates).length) await db.ref().update(nickUpdates);
-    if(!d.scoredAt) d.scoredAt=Date.now(); // 최초 점수 등록 시각 기록
-    if(d.matchKey){
-      const oldWinner=d.winner; // 이전 결과 (undefined이면 아직 통계 미적용)
-      await db.ref('jmt/matches/'+d.matchKey).update({sets,winner,date:today,team0,team1});
-      if(oldWinner!==undefined){
-        await reverseMatchStats(team0,team1,oldWinner); // 이전 통계 취소
+    if(!d.scoredAt) d.scoredAt=Date.now();
+    if(_isSingles){
+      // ── 단식 통계 처리 ─────────────────────────────────────────
+      const p0=team0[0], p1=team1[0];
+      if(d.matchKey){
+        const oldWinner=d.winner;
+        await db.ref('jmt/matches/'+d.matchKey).update({sets,winner,date:today,team0,team1});
+        if(oldWinner!==undefined) await updateSinglesStats(p0,p1,oldWinner,true);
+        await updateSinglesStats(p0,p1,winner,false);
+      } else {
+        const ref=await db.ref('jmt/matches').push({date:today,team0,team1,sets,winner,source:'daily',matchType:'singles'});
+        d.matchKey=ref.key;
+        await updateSinglesStats(p0,p1,winner,false);
       }
-      await updateMatchStats(team0,team1,winner,nick0,nick1); // 새 통계 적용
     } else {
-      const ref=await db.ref('jmt/matches').push({date:today,team0,team1,sets,winner,source:'daily'});
-      d.matchKey=ref.key;
-      await updateMatchStats(team0,team1,winner,nick0,nick1);
+      // ── 복식 통계 처리 ─────────────────────────────────────────
+      const k0=getPairKey(team0[0],team0[1]),k1=getPairKey(team1[0],team1[1]);
+      const nickUpdates={};
+      if(nick0){nickUpdates[`jmt/pairNicknames/${k0}`]=nick0;nickUpdates[`jmt/pairStats/${_rankYear}/${k0}/nickname`]=nick0;}
+      if(nick1){nickUpdates[`jmt/pairNicknames/${k1}`]=nick1;nickUpdates[`jmt/pairStats/${_rankYear}/${k1}/nickname`]=nick1;}
+      if(Object.keys(nickUpdates).length) await db.ref().update(nickUpdates);
+      if(d.matchKey){
+        const oldWinner=d.winner;
+        await db.ref('jmt/matches/'+d.matchKey).update({sets,winner,date:today,team0,team1});
+        if(oldWinner!==undefined) await reverseMatchStats(team0,team1,oldWinner);
+        await updateMatchStats(team0,team1,winner,nick0,nick1);
+      } else {
+        const ref=await db.ref('jmt/matches').push({date:today,team0,team1,sets,winner,source:'daily'});
+        d.matchKey=ref.key;
+        await updateMatchStats(team0,team1,winner,nick0,nick1);
+      }
     }
     d.nick0=nick0;d.nick1=nick1;
     d.sets=sets;d.winner=winner;d.phase='done';
@@ -8142,6 +8263,7 @@ async function saveDailyScore(){
     // 랭킹 캐시 무효화 → 점수 저장 시 랭킹 즉시 반영
     delete _rankStatsCache[`player_${_selectedRankYear}`];
     delete _rankStatsCache[`pair_${_selectedRankYear}`];
+    delete _rankStatsCache[`singles_${_selectedRankYear}`];
     delete _bagelStatsCache[_selectedRankYear];
     renderRankingTab();
     if (winner === 0 || winner === 1) {
@@ -8170,11 +8292,16 @@ async function adminRemoveDailyCard(id){
   const label=d.label||`경기${d.num}`;
   if(!confirm(`"${label}" 카드를 삭제하시겠습니까?\n랭킹 통계도 함께 취소됩니다.`)) return;
   // done 단계면 랭킹 stats 역산
-  if(d.phase==='done' && d.team0&&d.team1&&d.team0.length===2&&d.team1.length===2) {
-    await reverseMatchStats(d.team0, d.team1, d.winner);
-    // 랭킹 캐시 무효화 → 즉시 갱신
-    delete _rankStatsCache[`player_${_selectedRankYear}`];
-    delete _rankStatsCache[`pair_${_selectedRankYear}`];
+  if(d.phase==='done' && d.team0&&d.team1){
+    if(d.matchType==='singles'&&d.team0.length===1&&d.team1.length===1){
+      await updateSinglesStats(d.team0[0],d.team1[0],d.winner,true);
+      delete _rankStatsCache[`player_${_selectedRankYear}`];
+      delete _rankStatsCache[`singles_${_selectedRankYear}`];
+    } else if(d.team0.length===2&&d.team1.length===2){
+      await reverseMatchStats(d.team0, d.team1, d.winner);
+      delete _rankStatsCache[`player_${_selectedRankYear}`];
+      delete _rankStatsCache[`pair_${_selectedRankYear}`];
+    }
     if(document.getElementById('page-history')?.classList.contains('active')) renderRankingTab();
   }
   // Firebase 삭제
@@ -8783,6 +8910,238 @@ function closePartnerDiagram() {
   document.getElementById('partner-diagram-modal').classList.remove('open');
   document.body.style.overflow = '';
 }
+
+// ── 맞짱 다이어그램 (단식 경기 1:1 전적) ───────────────────────────
+let _sdSelectedMembers = new Set();
+let _sdHubMode = false;
+
+function openSinglesDiagram() {
+  const myName = (state.identity && state.identity.name) || '';
+  const memberNames = (state.members || []).map(m => m.name);
+  if (myName && memberNames.includes(myName)) {
+    _sdSelectedMembers = new Set([myName]);
+    _sdHubMode = true;
+  } else {
+    _sdSelectedMembers = new Set();
+    _sdHubMode = false;
+  }
+  document.getElementById('singles-diagram-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  _renderSinglesDiagram();
+}
+function closeSinglesDiagram() {
+  document.getElementById('singles-diagram-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+function _sdToggleMember(name) {
+  if (_sdSelectedMembers.has(name)) {
+    _sdSelectedMembers.delete(name);
+    if (_sdSelectedMembers.size === 0) _sdHubMode = false;
+  } else {
+    _sdSelectedMembers.add(name);
+    if (_sdSelectedMembers.size > 1) _sdHubMode = false;
+  }
+  _renderSinglesDiagram();
+}
+function _sdToggleHubMode() {
+  if (_sdSelectedMembers.size !== 1) return;
+  _sdHubMode = !_sdHubMode;
+  _renderSinglesDiagram();
+}
+function _sdHubSelectMember(name) {
+  const curCenter = [..._sdSelectedMembers][0];
+  if (name === curCenter) { _sdHubMode = false; _sdSelectedMembers.delete(name); }
+  else { _sdSelectedMembers = new Set([name]); }
+  _renderSinglesDiagram();
+}
+async function _renderSinglesDiagram() {
+  const svgEl = document.getElementById('sd-svg-wrap');
+  const chipsEl = document.getElementById('sd-chips');
+  const legendEl = document.getElementById('sd-legend');
+  if (!svgEl || !chipsEl) return;
+  const statsCacheKey = `singles_${_selectedRankYear}`;
+  let stats = _rankStatsCache[statsCacheKey];
+  if (!stats) {
+    svgEl.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:0.85rem">불러오는 중...</div>';
+    const snap = await db.ref(`jmt/singlesStats/${_selectedRankYear}`).once('value');
+    stats = snap.val() || {};
+    _rankStatsCache[statsCacheKey] = stats;
+  }
+  const memberNames = (state.members || []).map(m => m.name);
+  const isHubMode = _sdHubMode && _sdSelectedMembers.size === 1;
+  const hubCenter = isHubMode ? [..._sdSelectedMembers][0] : null;
+  const minGames = 1;
+  const pairs = Object.entries(stats)
+    .map(([k, v]) => {
+      const players = v.players || k.split('_');
+      const w = v.wins || 0, d = Math.max(0, v.draws || 0), l = v.losses || 0;
+      const total = w + d + l;
+      return { p1: players[0], p2: players[1], wins: w, draws: d, losses: l, total, wr: Math.round(effWr(w, d, l)) };
+    })
+    .filter(p => p.total >= minGames && p.p1 && p.p2 && memberNames.includes(p.p1) && memberNames.includes(p.p2));
+  if (!pairs.length) {
+    svgEl.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px 20px;font-size:0.88rem">단식 경기 데이터가 없습니다.<br><span style="font-size:0.78rem">단식 경기를 등록하면 여기에 나타나요!</span></p>';
+    chipsEl.innerHTML = '';
+    if (legendEl) legendEl.innerHTML = '';
+    return;
+  }
+  // 단식 경기에 참여한 선수만 노드로 표시
+  const activeNodes = [...new Set(pairs.flatMap(p => [p.p1, p.p2]))].filter(n => memberNames.includes(n));
+  const nodes = memberNames.filter(n => activeNodes.includes(n));
+  const myName = (state.identity && state.identity.name) || '';
+  if (myName && nodes.includes(myName)) { nodes.splice(nodes.indexOf(myName), 1); nodes.unshift(myName); }
+  // 필터 칩 + 허브 토글
+  const hubBtnDisabled = _sdSelectedMembers.size !== 1;
+  const hubBtnActive = isHubMode;
+  const hubBtnLabel = isHubMode ? '⬤ 중심 보기' : '○ 중심 보기';
+  const hubBtnStyle = hubBtnDisabled
+    ? 'display:inline-block;opacity:0.3;cursor:default;padding:4px 10px;margin:2px 8px 2px 2px;border-radius:12px;font-size:0.78rem;font-weight:700;background:#e2e8f0;color:#94a3b8;border:1.5px solid #cbd5e1'
+    : hubBtnActive
+      ? 'display:inline-block;cursor:pointer;padding:4px 10px;margin:2px 8px 2px 2px;border-radius:12px;font-size:0.78rem;font-weight:700;background:linear-gradient(135deg,#15803d,#16a34a);color:#fff;border:none;box-shadow:0 2px 8px rgba(22,163,74,0.4)'
+      : 'display:inline-block;cursor:pointer;padding:4px 10px;margin:2px 8px 2px 2px;border-radius:12px;font-size:0.78rem;font-weight:700;background:#dcfce7;color:#15803d;border:1.5px solid #86efac';
+  chipsEl.innerHTML = `<span onclick="${hubBtnDisabled ? '' : '_sdToggleHubMode()'}" style="${hubBtnStyle}">${hubBtnLabel}</span>` + nodes.map(name => {
+    const isSel = _sdSelectedMembers.has(name);
+    const isMe = name === myName;
+    const g = getGender(name);
+    let chipStyle;
+    if (isSel) {
+      const grad = g === 'female'
+        ? 'background:linear-gradient(135deg,#be185d,#ec4899);box-shadow:0 2px 8px rgba(219,39,119,0.4)'
+        : 'background:linear-gradient(135deg,#15803d,#16a34a);box-shadow:0 2px 8px rgba(22,163,74,0.4)';
+      chipStyle = `display:inline-block;cursor:pointer;padding:4px 11px;margin:2px;border-radius:12px;font-size:0.8rem;font-weight:800;color:#fff;border:none;${grad}`;
+    } else if (isMe) {
+      chipStyle = 'display:inline-block;cursor:pointer;padding:4px 11px;margin:2px;border-radius:12px;font-size:0.8rem;font-weight:700;background:#f0fdf4;color:#15803d;border:1.5px solid #86efac';
+    } else {
+      chipStyle = 'display:inline-block;cursor:pointer;padding:4px 11px;margin:2px;border-radius:12px;font-size:0.8rem;font-weight:600;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0';
+    }
+    const onclick = isHubMode ? `_sdHubSelectMember('${name}')` : `_sdToggleMember('${name}')`;
+    return `<span onclick="${onclick}" style="${chipStyle}">${isMe ? '⭐ ' : ''}${name}</span>`;
+  }).join('');
+  const filtered = isHubMode
+    ? pairs.filter(p => p.p1 === hubCenter || p.p2 === hubCenter)
+    : _sdSelectedMembers.size > 0
+      ? pairs.filter(p => _sdSelectedMembers.has(p.p1) || _sdSelectedMembers.has(p.p2))
+      : pairs;
+  const N = nodes.length;
+  if (!N) { svgEl.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:20px;font-size:0.85rem">데이터 없음</p>'; return; }
+  const SIZE = 480, cx = 240, cy = 240;
+  const R = N <= 10 ? 160 : N <= 18 ? 170 : 176;
+  const nodeR = N <= 12 ? 14 : N <= 20 ? 11 : 9;
+  const hubNodeR = Math.round(nodeR * 1.8);
+  const labelOff = nodeR + 16;
+  const fSize = N <= 16 ? 15 : 13;
+  const pos = {};
+  if (isHubMode) {
+    const circleNodes = nodes.filter(n => n !== hubCenter);
+    const circleN = circleNodes.length;
+    circleNodes.forEach((name, i) => {
+      const angle = (2 * Math.PI * i / circleN) - Math.PI / 2;
+      pos[name] = { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle), angle };
+    });
+    pos[hubCenter] = { x: cx, y: cy, angle: 0 };
+  } else {
+    nodes.forEach((name, i) => {
+      const angle = (2 * Math.PI * i / N) - Math.PI / 2;
+      pos[name] = { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle), angle };
+    });
+  }
+  const connectedSet = new Set();
+  if (isHubMode) filtered.forEach(p => { connectedSet.add(p.p1); connectedSet.add(p.p2); });
+  let edgesS = '', hitS = '', labelsS = '', nodesS = '';
+  filtered.forEach(p => {
+    const n1 = pos[p.p1], n2 = pos[p.p2];
+    if (!n1 || !n2) return;
+    const color = p.wr >= 50 ? '#16a34a' : '#dc2626';
+    const opacity = (_sdSelectedMembers.size > 0 || isHubMode) ? 0.85 : 0.52;
+    const sw = p.total >= 10 ? 7 : p.total >= 5 ? 4 : p.total >= 3 ? 2.5 : 1.8;
+    edgesS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="${color}" stroke-width="${sw}" opacity="${opacity}" stroke-linecap="round" pointer-events="none"/>`;
+    hitS += `<line x1="${n1.x.toFixed(1)}" y1="${n1.y.toFixed(1)}" x2="${n2.x.toFixed(1)}" y2="${n2.y.toFixed(1)}" stroke="transparent" stroke-width="20" style="cursor:pointer" onclick="_sdLineClick('${p.p1}','${p.p2}')"/>`;
+    const selSize = _sdSelectedMembers.size;
+    const p1sel = _sdSelectedMembers.has(p.p1), p2sel = _sdSelectedMembers.has(p.p2);
+    if (!isHubMode && (selSize === 0 || (!p1sel && !p2sel))) return;
+    const _showRec = isHubMode || selSize === 1;
+    let t;
+    if (isHubMode) { t = p.p1 === hubCenter ? 0.65 : 0.35; }
+    else { t = _showRec ? (p1sel ? 0.65 : 0.35) : 0.5; }
+    const mxN = n1.x + t * (n2.x - n1.x), myN = n1.y + t * (n2.y - n1.y);
+    const mx = mxN.toFixed(1), my = myN.toFixed(1);
+    const lineAngleDeg = Math.atan2(n2.y - n1.y, n2.x - n1.x) * 180 / Math.PI;
+    const rotAngle = (lineAngleDeg > 90 || lineAngleDeg < -90) ? lineAngleDeg + 180 : lineAngleDeg;
+    const lbWr = isHubMode ? 14 : 11;
+    const lbRec = isHubMode ? 11 : 8.5;
+    const lbOffUp = isHubMode ? -4 : -3;
+    const lbOffDn = isHubMode ? 13 : 9;
+    labelsS += `<g transform="rotate(${rotAngle.toFixed(1)},${mx},${my})">`;
+    labelsS += `<text x="${mx}" y="${(myN+lbOffUp).toFixed(1)}" text-anchor="middle" font-size="${lbWr}" font-weight="800" fill="${color}" stroke="white" stroke-width="3" paint-order="stroke fill" font-family="-apple-system,sans-serif">${p.wr}%</text>`;
+    if (_showRec) labelsS += `<text x="${mx}" y="${(myN+lbOffDn).toFixed(1)}" text-anchor="middle" font-size="${lbRec}" font-weight="600" fill="${color}" stroke="white" stroke-width="2.5" paint-order="stroke fill" font-family="-apple-system,sans-serif">(${p.total}/${p.wins}/${p.draws}/${p.losses})</text>`;
+    labelsS += `</g>`;
+  });
+  nodes.forEach(name => {
+    const p = pos[name];
+    if (!p) return;
+    const isSel = _sdSelectedMembers.has(name);
+    const isHubCenter = isHubMode && name === hubCenter;
+    const g = getGender(name);
+    const fill = isSel ? (g === 'female' ? '#db2777' : '#16a34a') : (g === 'female' ? '#fbcfe8' : '#bbf7d0');
+    const stroke = g === 'female' ? '#ec4899' : '#16a34a';
+    if (isHubCenter) {
+      const nm = name.length > 3 ? name.slice(0, 3) : name;
+      const cFill = g === 'female' ? '#db2777' : '#15803d';
+      const cStroke = g === 'female' ? '#ec4899' : '#16a34a';
+      nodesS += `<g onclick="_sdHubSelectMember('${name}')" style="cursor:pointer">
+        <circle cx="${cx}" cy="${cy}" r="${hubNodeR}" fill="${cFill}" stroke="${cStroke}" stroke-width="3"/>
+        <text x="${cx}" y="${cy}" text-anchor="middle" dy="0.35em" font-size="${Math.round(hubNodeR * 0.72)}" font-weight="800" fill="white" font-family="-apple-system,sans-serif">${nm}</text>
+      </g>`;
+      return;
+    }
+    const sw = isSel ? 2.5 : 1.5;
+    const lx = (cx + (R + labelOff) * Math.cos(p.angle)).toFixed(1);
+    const ly = (cy + (R + labelOff) * Math.sin(p.angle)).toFixed(1);
+    const anchor = Math.cos(p.angle) > 0.15 ? 'start' : Math.cos(p.angle) < -0.15 ? 'end' : 'middle';
+    const nm = name.length > 3 ? name.slice(0, 3) : name;
+    const nodeOpacity = isHubMode && !connectedSet.has(name) ? 0.3 : 1;
+    const nodeOnclick = isHubMode ? `_sdHubSelectMember('${name}')` : `_sdToggleMember('${name}')`;
+    nodesS += `<g onclick="${nodeOnclick}" style="cursor:pointer" opacity="${nodeOpacity}">
+      <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${nodeR}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>
+      <text x="${lx}" y="${ly}" text-anchor="${anchor}" dy="0.35em" font-size="${fSize}" font-weight="${isSel?'800':'600'}" fill="${isSel?'#1e293b':'#475569'}" font-family="-apple-system,sans-serif">${nm}</text>
+    </g>`;
+  });
+  const totalG = filtered.reduce((s, p) => s + p.total, 0);
+  const svgHTML = `<svg width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}" style="max-width:100%;max-height:100%;touch-action:none">
+    ${edgesS}${hitS}${labelsS}${nodesS}
+  </svg>`;
+  svgEl.innerHTML = svgHTML;
+  if (legendEl) legendEl.innerHTML =
+    `<div style="display:flex;justify-content:center;gap:6px;padding:5px 10px 3px;flex-wrap:wrap">`
+    + `<span style="background:#15803d;color:#fff;font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:10px">${nodes.length}명</span>`
+    + `<span style="background:#16a34a;color:#fff;font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:10px">${filtered.length}조합</span>`
+    + `<span style="background:#15803d;color:#fff;font-size:0.72rem;font-weight:800;padding:2px 8px;border-radius:10px">${totalG}경기</span>`
+    + `</div>`
+    + `<div style="display:flex;justify-content:center;align-items:center;gap:10px;padding:2px 10px 5px;flex-wrap:wrap;font-size:0.7rem;color:#475569;font-weight:600">`
+    + `<span style="display:inline-flex;align-items:center;gap:3px"><svg width="20" height="6" viewBox="0 0 20 6"><line x1="0" y1="3" x2="20" y2="3" stroke="#16a34a" stroke-width="3" stroke-linecap="round"/></svg>선공(알파벳순 1st)↑</span>`
+    + `<span style="display:inline-flex;align-items:center;gap:3px"><svg width="20" height="6" viewBox="0 0 20 6"><line x1="0" y1="3" x2="20" y2="3" stroke="#dc2626" stroke-width="3" stroke-linecap="round"/></svg>선공↓</span>`
+    + `<span style="display:inline-flex;align-items:center;gap:3px"><svg width="22" height="8" viewBox="0 0 22 8"><line x1="0" y1="4" x2="10" y2="4" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/><line x1="12" y1="4" x2="22" y2="4" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/></svg>경기수↑</span>`
+    + `<span style="color:#15803d">1경기↑ 라인</span>`
+    + `</div>`;
+}
+function _sdLineClick(p1, p2) {
+  const today = new Date();
+  const toLocalDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const fromEl = document.getElementById('mq-date-from');
+  const toEl = document.getElementById('mq-date-to');
+  if (fromEl) fromEl.value = `${_selectedRankYear}-01-01`;
+  if (toEl) toEl.value = toLocalDate(today);
+  const names = (state.members || []).map(m => m.name).filter(Boolean).sort();
+  const sel1 = document.getElementById('mq-player1');
+  const sel2 = document.getElementById('mq-player2');
+  if (sel1) { sel1.innerHTML = '<option value="">전체</option>' + names.map(n => `<option value="${n}">${n}</option>`).join(''); sel1.value = p1; }
+  if (sel2) { sel2.innerHTML = '<option value="">-</option>' + names.map(n => `<option value="${n}">${n}</option>`).join(''); sel2.value = p2; }
+  document.getElementById('match-query-inner').innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">조회 중…</p>';
+  document.body.style.overflow = 'hidden';
+  _mqSinglesOpponents = true;  // 단식 상대 경기 필터 ON
+  document.getElementById('match-query-modal').classList.add('open');
+  setTimeout(() => queryMatchHistory(), 150);
+}
 function _pdToggleMember(name) {
   if (_pdSelectedMembers.has(name)) {
     _pdSelectedMembers.delete(name);
@@ -8823,6 +9182,7 @@ function _pdLineClick(p1, p2) {
   if (sel2) { sel2.innerHTML = '<option value="">-</option>' + names.map(n => `<option value="${n}">${n}</option>`).join(''); sel2.value = p2; }
   document.getElementById('match-query-inner').innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">조회 중…</p>';
   document.body.style.overflow = 'hidden';
+  _mqSinglesOpponents = false;  // 파트너 다이어그램: 복식 팀페어 필터
   document.getElementById('match-query-modal').classList.add('open');
   setTimeout(() => queryMatchHistory(), 150);
 }
@@ -14382,6 +14742,19 @@ async function triggerAtpRefresh() {
     <div id="pd-chips" style="padding:5px 10px 4px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid #e2e8f0;flex-shrink:0;-webkit-overflow-scrolling:touch;background:#faf5ff"></div>
     <div id="pd-legend" style="flex-shrink:0;border-bottom:1px solid #ede9fe;background:#faf5ff"></div>
     <div id="pd-svg-wrap" style="flex:1;overflow:hidden;display:flex;justify-content:center;align-items:center;background:linear-gradient(160deg,#f5f3ff 0%,#ede9fe 100%)"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="singles-diagram-modal" onclick="if(event.target===this)closeSinglesDiagram()">
+  <div class="modal" style="height:85vh;max-height:85vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
+    <div class="modal-handle" style="margin:8px auto 0"></div>
+    <div class="modal-header" style="padding:9px 14px 8px;flex-shrink:0;background:linear-gradient(135deg,#15803d 0%,#16a34a 100%);border-radius:20px 20px 0 0">
+      <span class="modal-round" style="font-size:1.05rem;font-weight:800;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.2)">⚔️ 맞짱 다이어그램</span>
+      <button class="modal-close" onclick="closeSinglesDiagram()" style="background:rgba(255,255,255,0.2);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    <div id="sd-chips" style="padding:5px 10px 4px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid #e2e8f0;flex-shrink:0;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:#f0fdf4"></div>
+    <div id="sd-legend" style="flex-shrink:0;border-bottom:1px solid #bbf7d0;background:#f0fdf4"></div>
+    <div id="sd-svg-wrap" style="flex:1;overflow:hidden;display:flex;justify-content:center;align-items:center;background:linear-gradient(160deg,#f0fdf4 0%,#dcfce7 100%)"></div>
   </div>
 </div>
 
