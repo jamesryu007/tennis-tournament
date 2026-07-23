@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v995';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v996';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6040,8 +6040,18 @@ function _computeDrawAnalysis(){
   // 빈 슬롯
   let emptySlots=0;
   roundNums.forEach(r=>{emptySlots+=(courtCount-Object.keys(roundMap[r]).length);});
-  const typeCounts={mixed:0,mens:0,womens:0};
-  autoCards.forEach(c=>{typeCounts[c.matchType]++;});
+  const typeCounts={mixed:0,mens:0,womens:0,mens_singles:0,womens_singles:0,mixed_singles:0};
+  autoCards.forEach(c=>{
+    if(c.matchType==='singles'){
+      const _all=[...(c.team0||[]),...(c.team1||[])];
+      const _hM=_all.some(n=>getGender(n)==='male');
+      const _hF=_all.some(n=>getGender(n)!=='male');
+      const _sub=_hM&&_hF?'mixed_singles':_hF?'womens_singles':'mens_singles';
+      typeCounts[_sub]++;
+    } else if(c.matchType){
+      typeCounts[c.matchType]=(typeCounts[c.matchType]||0)+1;
+    }
+  });
   // 설정값 (입력창에서 읽기)
   const hrsEl=document.getElementById('auto-time-hrs');
   const courtEl=document.getElementById('auto-court-cnt');
@@ -6520,9 +6530,9 @@ function _renderDrawAnalysis(d){
   const month=now.getMonth()+1;
   const day=now.getDate();
   const dateStr=`${month}/${day}`;
-  const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'🔵',womens_singles:'🩷',mixed_singles:'🟣'};
+  const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'💙',womens_singles:'💗',mixed_singles:'💜'};
   const tName={mixed:'혼복',mens:'남복',womens:'여복',mens_singles:'남단',womens_singles:'여단',mixed_singles:'혼단'};
-  const tColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777',mens_singles:'#2563eb',womens_singles:'#db2777',mixed_singles:'#7c3aed'};
+  const tColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777',mens_singles:'#0369a1',womens_singles:'#9d174d',mixed_singles:'#6d28d9'};
   // 단식 카드 서브타입 판별 (성별 기반)
   const _effType=(card)=>{
     if(card.matchType!=='singles') return card.matchType;
@@ -6550,10 +6560,13 @@ function _renderDrawAnalysis(d){
   // ── 헤더 배지
   html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
     <div style="font-size:0.82rem;color:#64748b;font-weight:600">📅 ${dateStr} 생성</div>
-    <div style="display:flex;gap:6px">
+    <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">
       <span style="background:#ede9fe;color:#6d28d9;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mixed}혼복 ${d.typeCounts.mixed}</span>
       <span style="background:#dbeafe;color:#1d4ed8;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mens}남복 ${d.typeCounts.mens}</span>
       <span style="background:#fce7f3;color:#be185d;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.womens}여복 ${d.typeCounts.womens}</span>
+      ${d.typeCounts.mens_singles?`<span style="background:#e0f2fe;color:#0369a1;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mens_singles}남단 ${d.typeCounts.mens_singles}</span>`:''}
+      ${d.typeCounts.womens_singles?`<span style="background:#fce7f3;color:#9d174d;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.womens_singles}여단 ${d.typeCounts.womens_singles}</span>`:''}
+      ${d.typeCounts.mixed_singles?`<span style="background:#f3e8ff;color:#6d28d9;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mixed_singles}혼단 ${d.typeCounts.mixed_singles}</span>`:''}
     </div>
   </div>`;
   // ── 참석자
@@ -6682,11 +6695,18 @@ function _renderDrawAnalysis(d){
     html+=`<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:13px 15px;margin-bottom:12px">
       <div style="font-size:0.85rem;font-weight:800;color:#1e293b;margin-bottom:10px">➕ 개별 추가 경기 (${d.manualCards.length}경기)</div>`;
     d.manualCards.forEach((c,idx)=>{
-      const tIcon2={mixed:'🟣',mens:'🔵',womens:'🩷',singles:'⚔️'};
+      const tIcon2={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'💙',womens_singles:'💗',mixed_singles:'💜'};
+      const _mType=(card)=>{
+        if(card.matchType!=='singles') return card.matchType;
+        const _a=[...(card.team0||[]),...(card.team1||[])];
+        const _hM=_a.some(n=>getGender(n)==='male');
+        const _hF=_a.some(n=>getGender(n)!=='male');
+        return _hM&&_hF?'mixed_singles':_hF?'womens_singles':'mens_singles';
+      };
       const aTeamBadge=c._teamMode?`<span style="font-size:0.62rem;font-weight:800;color:#1e40af;background:#dbeafe;padding:1px 5px;border-radius:5px;margin-right:3px">${(c._teamANames||[])[0]?c._teamANames[0]+'팀':'A'}</span>`:'';
       const bTeamBadge=c._teamMode?`<span style="font-size:0.62rem;font-weight:800;color:#9d174d;background:#fce7f3;padding:1px 5px;border-radius:5px;margin-right:3px">${(c._teamBNames||[])[0]?c._teamBNames[0]+'팀':'B'}</span>`:'';
       const isLast=idx===d.manualCards.length-1;
-      const typeIcon=c.matchType?tIcon2[c.matchType]:'⚪';
+      const typeIcon=c.matchType?tIcon2[_mType(c)]:'⚪';
       const aCol=colorTeam(c.team0);
       const bCol=colorTeam(c.team1);
       html+=`<div style="padding:7px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
