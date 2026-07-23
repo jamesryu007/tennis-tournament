@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v996';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v997';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6530,9 +6530,9 @@ function _renderDrawAnalysis(d){
   const month=now.getMonth()+1;
   const day=now.getDate();
   const dateStr=`${month}/${day}`;
-  const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'💙',womens_singles:'💗',mixed_singles:'💜'};
+  const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'<span style="color:#2563eb">▲</span>',womens_singles:'<span style="color:#db2777">▲</span>',mixed_singles:'<span style="color:#7c3aed">▲</span>'};
   const tName={mixed:'혼복',mens:'남복',womens:'여복',mens_singles:'남단',womens_singles:'여단',mixed_singles:'혼단'};
-  const tColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777',mens_singles:'#0369a1',womens_singles:'#9d174d',mixed_singles:'#6d28d9'};
+  const tColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777',mens_singles:'#2563eb',womens_singles:'#db2777',mixed_singles:'#7c3aed'};
   // 단식 카드 서브타입 판별 (성별 기반)
   const _effType=(card)=>{
     if(card.matchType!=='singles') return card.matchType;
@@ -6564,9 +6564,9 @@ function _renderDrawAnalysis(d){
       <span style="background:#ede9fe;color:#6d28d9;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mixed}혼복 ${d.typeCounts.mixed}</span>
       <span style="background:#dbeafe;color:#1d4ed8;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mens}남복 ${d.typeCounts.mens}</span>
       <span style="background:#fce7f3;color:#be185d;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.womens}여복 ${d.typeCounts.womens}</span>
-      ${d.typeCounts.mens_singles?`<span style="background:#e0f2fe;color:#0369a1;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mens_singles}남단 ${d.typeCounts.mens_singles}</span>`:''}
-      ${d.typeCounts.womens_singles?`<span style="background:#fce7f3;color:#9d174d;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.womens_singles}여단 ${d.typeCounts.womens_singles}</span>`:''}
-      ${d.typeCounts.mixed_singles?`<span style="background:#f3e8ff;color:#6d28d9;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mixed_singles}혼단 ${d.typeCounts.mixed_singles}</span>`:''}
+      ${d.typeCounts.mens_singles?`<span style="background:#dbeafe;color:#1d4ed8;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mens_singles}남단 ${d.typeCounts.mens_singles}</span>`:''}
+      ${d.typeCounts.womens_singles?`<span style="background:#fce7f3;color:#be185d;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.womens_singles}여단 ${d.typeCounts.womens_singles}</span>`:''}
+      ${d.typeCounts.mixed_singles?`<span style="background:#ede9fe;color:#6d28d9;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mixed_singles}혼단 ${d.typeCounts.mixed_singles}</span>`:''}
     </div>
   </div>`;
   // ── 참석자
@@ -6695,7 +6695,7 @@ function _renderDrawAnalysis(d){
     html+=`<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:13px 15px;margin-bottom:12px">
       <div style="font-size:0.85rem;font-weight:800;color:#1e293b;margin-bottom:10px">➕ 개별 추가 경기 (${d.manualCards.length}경기)</div>`;
     d.manualCards.forEach((c,idx)=>{
-      const tIcon2={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'💙',womens_singles:'💗',mixed_singles:'💜'};
+      const tIcon2={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'<span style="color:#2563eb">▲</span>',womens_singles:'<span style="color:#db2777">▲</span>',mixed_singles:'<span style="color:#7c3aed">▲</span>'};
       const _mType=(card)=>{
         if(card.matchType!=='singles') return card.matchType;
         const _a=[...(card.team0||[]),...(card.team1||[])];
