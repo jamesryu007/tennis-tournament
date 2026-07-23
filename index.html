@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v998';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v999';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6558,16 +6558,13 @@ function _renderDrawAnalysis(d){
     <div style="font-size:1.35rem;font-weight:900;color:#2563eb;margin-top:6px;letter-spacing:-0.3px">경기 대진표 (${month}월 ${day}일)</div>
   </div>`;
   // ── 헤더 배지
-  html+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-    <div style="font-size:0.82rem;color:#64748b;font-weight:600">📅 ${dateStr} 생성</div>
-    <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">
-      <span style="background:#ede9fe;color:#6d28d9;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mixed}혼복 ${d.typeCounts.mixed}</span>
-      <span style="background:#dbeafe;color:#1d4ed8;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mens}남복 ${d.typeCounts.mens}</span>
-      <span style="background:#fce7f3;color:#be185d;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.womens}여복 ${d.typeCounts.womens}</span>
-      ${d.typeCounts.mens_singles?`<span style="background:#dbeafe;color:#1d4ed8;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mens_singles}남단 ${d.typeCounts.mens_singles}</span>`:''}
-      ${d.typeCounts.womens_singles?`<span style="background:#fce7f3;color:#be185d;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.womens_singles}여단 ${d.typeCounts.womens_singles}</span>`:''}
-      ${d.typeCounts.mixed_singles?`<span style="background:#ede9fe;color:#6d28d9;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mixed_singles}혼단 ${d.typeCounts.mixed_singles}</span>`:''}
-    </div>
+  html+=`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px">
+      <span style="background:#ede9fe;color:#6d28d9;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mixed} 혼복 ${d.typeCounts.mixed}</span>
+      <span style="background:#dbeafe;color:#1d4ed8;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mens} 남복 ${d.typeCounts.mens}</span>
+      <span style="background:#fce7f3;color:#be185d;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.womens} 여복 ${d.typeCounts.womens}</span>
+      ${d.typeCounts.mens_singles?`<span style="background:#dbeafe;color:#1d4ed8;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mens_singles} 남단 ${d.typeCounts.mens_singles}</span>`:''}
+      ${d.typeCounts.womens_singles?`<span style="background:#fce7f3;color:#be185d;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.womens_singles} 여단 ${d.typeCounts.womens_singles}</span>`:''}
+      ${d.typeCounts.mixed_singles?`<span style="background:#ede9fe;color:#6d28d9;font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px">${tIcon.mixed_singles} 혼단 ${d.typeCounts.mixed_singles}</span>`:''}
   </div>`;
   // ── 참석자
   html+=`<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:14px;padding:13px 15px;margin-bottom:12px">
