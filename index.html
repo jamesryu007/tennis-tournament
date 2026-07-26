@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1018';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1019';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6113,12 +6113,17 @@ function _renderTeamFinalResult(){
     const bTeam=t0side==='A'?c.team1:c.team0;
     const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'🟦',womens_singles:'🟥',mixed_singles:'🟪',singles:'⚪'};
     const _matchLabel=c._round!=null?`제${c._round}경기`:`추가경기${_extraIdx++}`;
+    const _sets=Array.isArray(c.sets)?c.sets:Object.values(c.sets||{});
+    const _scoreStr=_sets.map(s=>{
+      const hasTB=s.tb0!=null&&s.tb1!=null;
+      return `(${s.s0}:${s.s1})${hasTB?` TB(${s.tb0}:${s.tb1})`:''}`;
+    }).join(' ');
     rows.push(`<tr style="border-bottom:1px solid #f1f5f9">
       <td style="padding:5px 6px;font-size:0.72rem;color:#64748b">${_matchLabel}</td>
       <td style="padding:5px 4px;font-size:0.72rem">${tIcon[c.matchType]||''}</td>
-      <td style="padding:5px 4px;font-size:0.75rem;font-weight:700;color:#1e40af">${aTeam.join('-')}</td>
-      <td style="padding:5px 4px;font-size:0.75rem;font-weight:700;color:#9d174d">${bTeam.join('-')}</td>
-      <td style="padding:5px 6px;text-align:center;font-weight:800;font-size:0.8rem;color:${winSide==='A'?'#1e40af':'#9d174d'}">${winSide==='A'?'🔵 '+aName:'🔴 '+bName}</td>
+      <td style="padding:5px 4px;font-size:0.75rem;font-weight:700;color:#1e40af">${winSide==='A'?'🏆 ':''}${aTeam.join('-')}</td>
+      <td style="padding:5px 4px;font-size:0.75rem;font-weight:700;color:#9d174d">${winSide==='B'?'🏆 ':''}${bTeam.join('-')}</td>
+      <td style="padding:5px 6px;font-size:0.72rem;font-weight:700;color:#475569;white-space:nowrap">${_scoreStr}</td>
     </tr>`);
   }
   const aWin=aWins>bWins,tie=aWins===bWins;
@@ -6146,7 +6151,7 @@ function _renderTeamFinalResult(){
           <th style="padding:5px 4px;color:#64748b"></th>
           <th style="padding:5px 4px;text-align:left;color:#1e40af">🔵 ${aName}</th>
           <th style="padding:5px 4px;text-align:left;color:#9d174d">🔴 ${bName}</th>
-          <th style="padding:5px 6px;text-align:center;color:#64748b">승</th>
+          <th style="padding:5px 6px;text-align:left;color:#64748b">스코어</th>
         </tr></thead>
         <tbody>${rows.join('')}</tbody>
       </table>
