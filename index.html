@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1019';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1020';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6111,7 +6111,16 @@ function _renderTeamFinalResult(){
     if(winSide==='A') aWins++; else bWins++;
     const aTeam=t0side==='A'?c.team0:c.team1;
     const bTeam=t0side==='A'?c.team1:c.team0;
-    const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'🟦',womens_singles:'🟥',mixed_singles:'🟪',singles:'⚪'};
+    const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'🟦',womens_singles:'🟥',mixed_singles:'🟪'};
+    const _getMatchTypeIcon=(card)=>{
+      if(card.matchType!=='singles') return tIcon[card.matchType]||'';
+      const all=[...(card.team0||[]),...(card.team1||[])].filter(Boolean);
+      const hM=all.some(n=>getGender(n)==='male');
+      const hF=all.some(n=>getGender(n)==='female');
+      if(hM&&!hF) return tIcon['mens_singles'];
+      if(hF&&!hM) return tIcon['womens_singles'];
+      return tIcon['mixed_singles'];
+    };
     const _matchLabel=c._round!=null?`제${c._round}경기`:`추가경기${_extraIdx++}`;
     const _sets=Array.isArray(c.sets)?c.sets:Object.values(c.sets||{});
     const _scoreStr=_sets.map(s=>{
@@ -6120,7 +6129,7 @@ function _renderTeamFinalResult(){
     }).join(' ');
     rows.push(`<tr style="border-bottom:1px solid #f1f5f9">
       <td style="padding:5px 6px;font-size:0.72rem;color:#64748b">${_matchLabel}</td>
-      <td style="padding:5px 4px;font-size:0.72rem">${tIcon[c.matchType]||''}</td>
+      <td style="padding:5px 4px;font-size:0.72rem">${_getMatchTypeIcon(c)}</td>
       <td style="padding:5px 4px;font-size:0.75rem;font-weight:700;color:#1e40af">${winSide==='A'?'🏆 ':''}${aTeam.join('-')}</td>
       <td style="padding:5px 4px;font-size:0.75rem;font-weight:700;color:#9d174d">${winSide==='B'?'🏆 ':''}${bTeam.join('-')}</td>
       <td style="padding:5px 6px;font-size:0.72rem;font-weight:700;color:#475569;white-space:nowrap">${_scoreStr}</td>
