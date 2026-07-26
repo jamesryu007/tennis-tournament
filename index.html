@@ -799,16 +799,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1022';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1023';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4818,11 +4818,21 @@ function _setupDailyCardsListener(){
     });
     _restoreLocalDailyCards(); // 로컬 전용 카드 병합
     _reGroupDailyCards(); // 라운드 그룹 프레임으로 DOM 구성
-    // 서버 카운터 초기화 (없으면 현재 최대 num으로 설정)
-    db.ref('jmt/dailyCardCounter').once('value').then(csnap=>{
-      if(csnap.val()===null){
+    // 서버 카운터 날짜 기반 리셋 + 초기화
+    const _cntToday=new Date().toISOString().slice(0,10);
+    Promise.all([
+      db.ref('jmt/dailyCardCounter').once('value'),
+      db.ref('jmt/dailyCardDate').once('value')
+    ]).then(([csnap,dsnap])=>{
+      if(dsnap.val()!==_cntToday){
+        // 날짜가 바뀌면 카운터 리셋 (다음 생성 시 1번부터)
+        db.ref('jmt/dailyCardCounter').remove().catch(()=>{});
+        db.ref('jmt/dailyCardDate').set(_cntToday).catch(()=>{});
+      } else if(csnap.val()===null){
+        // 당일이지만 카운터 누락 시 현재 최대 num으로 복원
         const maxNum=Math.max(0,...Object.values(_dailyCards).map(d=>d.num||0));
         if(maxNum>0) db.ref('jmt/dailyCardCounter').set(maxNum).catch(()=>{});
+        db.ref('jmt/dailyCardDate').set(_cntToday).catch(()=>{});
       }
     });
     // matchKey 복구 (네트워크 불안정으로 jmt/matches 저장 실패한 경우)
@@ -4883,6 +4893,7 @@ function _clearDailyCards(){
   if(db){
     db.ref('jmt/dailyCards').remove().catch(()=>{});
     db.ref('jmt/dailyCardCounter').remove().catch(()=>{}); // 카드 번호 카운터 리셋
+    db.ref('jmt/dailyCardDate').remove().catch(()=>{});    // 날짜 태그 리셋
     // 자동대진 락·세션도 함께 초기화 (다음 주 대진 생성 가능하도록)
     db.ref('jmt/autoDrawLock').remove().catch(()=>{});
     db.ref('jmt/autoDrawSession').remove().catch(()=>{});
@@ -7490,6 +7501,7 @@ async function generateAutoDrawCards(){
     const bgImages=_DC_BG_IMAGES;
     // 서버 카운터로 N개 num 한번에 원자 예약 (중복 방지)
     const _cntRes=await db.ref('jmt/dailyCardCounter').transaction(n=>(n||0)+scheduled.length);
+    db.ref('jmt/dailyCardDate').set(new Date().toISOString().slice(0,10)).catch(()=>{});
     let numBase=(_cntRes.snapshot.val()||scheduled.length)-scheduled.length;
     // createdAt: 같은 라운드 내에서 코트 순으로 정렬되도록 si 역순 부여
     for(let si=0;si<scheduled.length;si++){
@@ -7711,6 +7723,7 @@ function addDailyMatchCard(){
     });
     // 서버 카운터로 원자적 num 채번 → 중복 방지
     db.ref('jmt/dailyCardCounter').transaction(n=>(n||0)+1).then(res=>{
+      db.ref('jmt/dailyCardDate').set(new Date().toISOString().slice(0,10)).catch(()=>{});
       _doAdd(res.snapshot.val());
     }).catch(()=>_doAdd());
   }).catch(()=>_doAdd());
