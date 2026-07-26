@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1010';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1022';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4670,14 +4670,26 @@ function selectScoreField(id){
   if(_dscoreAdvTimer){ clearTimeout(_dscoreAdvTimer); _dscoreAdvTimer=null; }
   if(_dscoreActive){
     const prev=document.getElementById(_dscoreActive.replace('dscore-','dscore-btn-'));
-    if(prev) prev.classList.remove('active');
+    if(prev){
+      prev.classList.remove('active');
+      // TB 버튼 원래 스타일 복원
+      if(_dscoreActive.includes('-tba-')||_dscoreActive.includes('-tbb-')){
+        prev.style.background='#fef9c3';prev.style.borderColor='#fcd34d';
+      }
+    }
   }
   _dscoreActive=id;
   // 커서 이동 시 기존 값 초기화
   const inp=document.getElementById(id);
   if(inp){ inp.value=''; }
   const btn=document.getElementById(id.replace('dscore-','dscore-btn-'));
-  if(btn){ btn.textContent='-'; btn.classList.remove('filled'); btn.classList.add('active'); }
+  if(btn){
+    btn.textContent='-'; btn.classList.remove('filled'); btn.classList.add('active');
+    // TB 버튼은 인라인 스타일 override (active 시각화)
+    if(id.includes('-tba-')||id.includes('-tbb-')){
+      btn.style.background='#eff6ff';btn.style.borderColor='#3b82f6';
+    }
+  }
 }
 
 function _dscoreAdvance(){
@@ -4719,7 +4731,7 @@ function numpadInput(val){
   if(_ap[1]==='b') _checkAndUpdateTB(parseInt(_ap[2]));
   if(val!=='⌫' && inp.value.length>0){
     if(inp.value.length>=2) _dscoreAdvance();       // 2자리: 즉시 이동
-    else _dscoreAdvTimer=setTimeout(_dscoreAdvance, 800); // 1자리: 0.8초 후 이동
+    else _dscoreAdvTimer=setTimeout(_dscoreAdvance, 400); // 1자리: 0.4초 후 이동
   }
 }
 let _dailyCardsListenerSet=false;
@@ -4849,6 +4861,15 @@ function _setupDailyCardsListener(){
     delete _dailyCards[id];
     const el=document.getElementById(`daily-card-${id}`);
     if(el) el.remove();
+    _reGroupDailyCards();
+  });
+  // 다른 기기에서 추가된 새 카드 실시간 반영 (child_added는 초기 데이터도 발화 — 이미 로컬에 있는 카드는 스킵)
+  db.ref('jmt/dailyCards').on('child_added', snap=>{
+    const id=snap.key;
+    const raw=snap.val();
+    if(!raw||!id) return;
+    if(_dailyCards[id]) return; // 이미 로컬에 있는 카드 (내가 생성했거나 once('value')로 로드됨)
+    _dailyCards[id]=_normCard(raw);
     _reGroupDailyCards();
   });
 }
@@ -5974,7 +5995,7 @@ function _computeDrawAnalysis(){
   if(autoCards.length===0) return null;
   // 개별 추가 경기 (팀 지정 완료된 수동 카드)
   const manualCards=Object.entries(_dailyCards)
-    .filter(([,d])=>(!d.matchType||d.matchType==='singles')&&!d._round&&d.team0&&d.team0.length>=1&&d.team1&&d.team1.length>=1)
+    .filter(([,d])=>!d._round&&d.team0&&d.team0.length>=1&&d.team1&&d.team1.length>=1)
     .sort(([,a],[,b])=>(a.createdAt||0)-(b.createdAt||0))
     .map(([id,d])=>({...d,_manualId:id}));
   // 대진표 분석의 참석자 = 실제 카드에 등장한 선수
@@ -6080,7 +6101,7 @@ function _computeDrawAnalysis(){
 // 팀 대결 최종 결과 렌더링
 function _renderTeamFinalResult(){
   // 팀대결 카드: 자동생성(_round) + 개별추가(팀 지정 완료) 모두 포함
-  const cards=Object.values(_dailyCards).filter(c=>c._teamMode&&(c._round||(c.team0&&c.team0.length===2&&c.team1&&c.team1.length===2)));
+  const cards=Object.values(_dailyCards).filter(c=>c._teamMode&&(c._round!=null||(c.team0&&c.team0.length>=1&&c.team1&&c.team1.length>=1)));
   if(!cards.length){alert('팀 대결 경기 카드가 없습니다.');return;}
   const tmCard=cards[0];
   const teamANames=tmCard._teamANames||[];
@@ -6102,14 +6123,28 @@ function _renderTeamFinalResult(){
     if(winSide==='A') aWins++; else bWins++;
     const aTeam=t0side==='A'?c.team0:c.team1;
     const bTeam=t0side==='A'?c.team1:c.team0;
-    const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
+    const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'🟦',womens_singles:'🟥',mixed_singles:'🟪'};
+    const _getMatchTypeIcon=(card)=>{
+      if(card.matchType!=='singles') return tIcon[card.matchType]||'';
+      const all=[...(card.team0||[]),...(card.team1||[])].filter(Boolean);
+      const hM=all.some(n=>getGender(n)==='male');
+      const hF=all.some(n=>getGender(n)==='female');
+      if(hM&&!hF) return tIcon['mens_singles'];
+      if(hF&&!hM) return tIcon['womens_singles'];
+      return tIcon['mixed_singles'];
+    };
     const _matchLabel=c._round!=null?`제${c._round}경기`:`추가경기${_extraIdx++}`;
+    const _sets=Array.isArray(c.sets)?c.sets:Object.values(c.sets||{});
+    const _scoreStr=_sets.map(s=>{
+      const hasTB=s.tb0!=null&&s.tb1!=null;
+      return `(${s.s0}:${s.s1})${hasTB?` TB(${s.tb0}:${s.tb1})`:''}`;
+    }).join(' ');
     rows.push(`<tr style="border-bottom:1px solid #f1f5f9">
       <td style="padding:5px 6px;font-size:0.72rem;color:#64748b">${_matchLabel}</td>
-      <td style="padding:5px 4px;font-size:0.72rem">${tIcon[c.matchType]||''}</td>
-      <td style="padding:5px 4px;font-size:0.75rem;font-weight:700;color:#1e40af">${aTeam.join('-')}</td>
-      <td style="padding:5px 4px;font-size:0.75rem;font-weight:700;color:#9d174d">${bTeam.join('-')}</td>
-      <td style="padding:5px 6px;text-align:center;font-weight:800;font-size:0.8rem;color:${winSide==='A'?'#1e40af':'#9d174d'}">${winSide==='A'?'🔵 '+aName:'🔴 '+bName}</td>
+      <td style="padding:5px 4px;font-size:0.72rem">${_getMatchTypeIcon(c)}</td>
+      <td style="padding:5px 4px;font-size:0.75rem;font-weight:700;color:#1e40af">${winSide==='A'?'🏆 ':''}${aTeam.join('-')}</td>
+      <td style="padding:5px 4px;font-size:0.75rem;font-weight:700;color:#9d174d">${winSide==='B'?'🏆 ':''}${bTeam.join('-')}</td>
+      <td style="padding:5px 6px;font-size:0.72rem;font-weight:700;color:#475569;white-space:nowrap">${_scoreStr}</td>
     </tr>`);
   }
   const aWin=aWins>bWins,tie=aWins===bWins;
@@ -6137,7 +6172,7 @@ function _renderTeamFinalResult(){
           <th style="padding:5px 4px;color:#64748b"></th>
           <th style="padding:5px 4px;text-align:left;color:#1e40af">🔵 ${aName}</th>
           <th style="padding:5px 4px;text-align:left;color:#9d174d">🔴 ${bName}</th>
-          <th style="padding:5px 6px;text-align:center;color:#64748b">승</th>
+          <th style="padding:5px 6px;text-align:left;color:#64748b">스코어</th>
         </tr></thead>
         <tbody>${rows.join('')}</tbody>
       </table>
@@ -6362,9 +6397,9 @@ function _openDrawEditModal(){
   const colorMap={};let _mi=0,_fi=0;
   d.attendees.forEach(p=>{colorMap[p.name]=p.gender==='male'?maleColors[_mi++%maleColors.length]:femColors[_fi++%femColors.length];});
   _drawEditCtx={colorMap,d,mySide,cardKeyMap};
-  const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
-  const tName={mixed:'혼복',mens:'남복',womens:'여복'};
-  const tColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777'};
+  const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'🟦',womens_singles:'🟥',mixed_singles:'🟪'};
+  const tName={mixed:'혼복',mens:'남복',womens:'여복',mens_singles:'남단',womens_singles:'여단',mixed_singles:'혼단'};
+  const tColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777',mens_singles:'#2563eb',womens_singles:'#db2777',mixed_singles:'#7c3aed'};
   const teamColor=mySide==='A'?'#1e40af':'#9d174d';
   const teamLabel=mySide==='A'?(capA?capA+'팀':'A팀'):(capB?capB+'팀':'B팀');
   const teamBadgeColor=mySide==='A'?'#eff6ff':'#fdf2f8';
@@ -6409,6 +6444,55 @@ function _openDrawEditModal(){
         ${mkSel(p1,opts1,'1')}
       </div>`;
     }
+    html+=`</div>`;
+  }
+  // ── 번외경기 수정 섹션 (팀 대결 모드 — 자기 팀 슬롯만)
+  if(d.manualCards&&d.manualCards.length>0){
+    const _mcLabel=mySide==='A'?(capA?capA+'팀':'A팀'):(capB?capB+'팀':'B팀');
+    const _mcColor=mySide==='A'?'#1e40af':'#9d174d';
+    const _mcBg=mySide==='A'?'#eff6ff':'#fdf2f8';
+    const _mcBorder=mySide==='A'?'#3b82f6':'#ec4899';
+    html+=`<div style="background:${_mcBg};border:1px solid ${_mcBorder};border-radius:8px;margin-top:6px;padding:6px 10px">
+      <div style="font-size:0.75rem;font-weight:800;color:${_mcColor};margin-bottom:4px">${mySide==='A'?'🔵':'🔴'} ${_mcLabel} — ➕ 번외경기 출전 선수</div>`;
+    d.manualCards.forEach((mc,idx)=>{
+      const mcId=mc._manualId;if(!mcId) return;
+      const isSingles=mc.matchType==='singles';
+      const myTeamArr=mySide==='A'?[...mc.team0]:[...mc.team1];
+      const p0=myTeamArr[0]||'',p1=myTeamArr[1]||'';
+      const isLast=idx===d.manualCards.length-1;
+      const _mcDispLabel=(mc.label||'').replace(/\s*·?\s*\d{1,2}\/\d{1,2}\s*$/,'').trim();
+      // 경기 유형 동적 판별
+      const _mcType=(()=>{
+        const all=[...(mc.team0||[]),...(mc.team1||[])].filter(Boolean);
+        const hM=all.some(n=>teamMales.includes(n)||getGender(n)==='male');
+        const hF=all.some(n=>teamFemales.includes(n)||getGender(n)==='female');
+        if(isSingles){
+          if(hM&&!hF) return 'mens_singles';
+          if(hF&&!hM) return 'womens_singles';
+          return 'mixed_singles';
+        }
+        if(hM&&hF) return 'mixed';
+        if(hM) return 'mens';
+        return 'womens';
+      })();
+      // 자기 팀 전체 선수 중 선택 (번외경기는 본인 팀 내 자유 선택)
+      const _mcAllOpts=[...teamMales,...teamFemales];
+      const mkMcSel=(val,opts,slot)=>{
+        const optHtml=opts.map(n=>`<option value="${n}"${n===val?' selected':''}>${n}</option>`).join('');
+        return `<select data-card="${mcId}" data-slot="${slot}" onchange="_onDrawEditChange(this)" style="${selStyle}">${optHtml}</select>`;
+      };
+      const col0=colorMap[p0]||'#94a3b8';
+      const col1=colorMap[p1]||'#94a3b8';
+      html+=`<div style="display:flex;align-items:center;padding:6px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
+        <span style="font-size:0.72rem;font-weight:800;color:#475569;white-space:nowrap;flex-shrink:0;min-width:66px;margin-right:8px">번외${idx+1}${_mcDispLabel?` · ${_mcDispLabel}`:''}</span>
+        <span style="font-size:0.72rem;font-weight:800;color:${tColor[_mcType]||'#475569'};white-space:nowrap;flex-shrink:0;margin-right:8px">${tIcon[_mcType]||''} ${tName[_mcType]||''}</span>
+        <span id="dedot-${mcId}-0" style="width:8px;height:8px;border-radius:50%;background:${col0};flex-shrink:0;margin-right:4px"></span>
+        ${mkMcSel(p0,_mcAllOpts,'0')}
+        ${isSingles?'':(`<span style="color:#94a3b8;font-size:0.8rem;flex-shrink:0;margin:0 5px">-</span>
+        <span id="dedot-${mcId}-1" style="width:8px;height:8px;border-radius:50%;background:${col1};flex-shrink:0;margin-right:4px"></span>
+        ${mkMcSel(p1,_mcAllOpts,'1')}`)}
+      </div>`;
+    });
     html+=`</div>`;
   }
   html+=`<div id="draw-edit-participation-wrap" style="margin-top:10px;padding-top:10px;border-top:1.5px solid #e2e8f0"></div>`;
@@ -6592,12 +6676,23 @@ function _applyDrawEdits(){
   const mySide=d.teamANames.includes(curName)?'A':d.teamBNames.includes(curName)?'B':(isAdmin()?'A':null);
   if(!mySide) return;
   Object.entries(edits).forEach(([cardId,slots])=>{
-    if(!slots[0]||!slots[1]) return;
     const card=_dailyCards[cardId];if(!card) return;
-    const players=[slots[0],slots[1]];
-    if(mySide==='A') card.team0=players; else card.team1=players;
-    const upd=mySide==='A'?{team0:players}:{team1:players};
-    db.ref(`jmt/dailyCards/${cardId}`).update(upd).catch(fbErr);
+    const isSingles=card.matchType==='singles';
+    if(isSingles){
+      // 단식: slot 0만 사용
+      if(!slots[0]) return;
+      const players=[slots[0]];
+      if(mySide==='A') card.team0=players; else card.team1=players;
+      const upd=mySide==='A'?{team0:players}:{team1:players};
+      db.ref(`jmt/dailyCards/${cardId}`).update(upd).catch(fbErr);
+    } else {
+      // 복식: slot 0, 1 모두 필요
+      if(!slots[0]||!slots[1]) return;
+      const players=[slots[0],slots[1]];
+      if(mySide==='A') card.team0=players; else card.team1=players;
+      const upd=mySide==='A'?{team0:players}:{team1:players};
+      db.ref(`jmt/dailyCards/${cardId}`).update(upd).catch(fbErr);
+    }
     _renderDailyCard(cardId);
   });
   closeDrawEditModal();
@@ -6680,8 +6775,13 @@ function _renderDrawAnalysis(d){
     :null;
   // 카드 공개 여부: 양 팀 모두 ready(playing/done) 또는 마스킹 대상 아님
   const isRevealedCard=card=>!myTeamSide||card.phase!=='teamSetup';
+  // 번외경기 카드 공개 여부: setup 단계에서는 상대팀 숨김 (playing/done이면 공개)
+  const isManualRevealed=card=>!myTeamSide||card.phase==='playing'||card.phase==='done';
   // 팀별 공개 헬퍼 — team0=A팀, team1=B팀 (항상)
   const maskTeam='<span style="color:#94a3b8;font-weight:700">미정 — 미정</span>';
+  const maskSingle='<span style="color:#94a3b8;font-weight:700">미정</span>';
+  // 단식 여부에 따라 마스크 문구 분기
+  const maskFor=card=>(card.matchType==='singles'||(card.team0||[]).length<=1)?maskSingle:maskTeam;
   let html=`<div style="font-family:-apple-system,'Segoe UI',sans-serif;padding:28px 4px 40px">`;
   // ── 타이틀
   html+=`<div style="text-align:center;margin-bottom:22px">
@@ -6769,9 +6869,9 @@ function _renderDrawAnalysis(d){
               <span style="font-size:0.8rem;font-weight:800;color:${tColor[_effType(card)]};white-space:nowrap">${tIcon[_effType(card)]} ${tName[_effType(card)]}</span>
             </div>
             <div style="flex:1;display:flex;align-items:center;min-width:0">
-              <span style="flex:1;font-size:0.82rem;font-weight:600;text-align:right">${isRevealedCard(card)||myTeamSide==='A'?colorTeam(card.team0):maskTeam}</span>
+              <span style="flex:1;font-size:0.82rem;font-weight:600;text-align:right">${isRevealedCard(card)||myTeamSide==='A'?colorTeam(card.team0):maskFor(card)}</span>
               ${_vsSpan}
-              <span style="flex:1;font-size:0.82rem;font-weight:600">${isRevealedCard(card)||myTeamSide==='B'?colorTeam(card.team1):maskTeam}</span>
+              <span style="flex:1;font-size:0.82rem;font-weight:600">${isRevealedCard(card)||myTeamSide==='B'?colorTeam(card.team1):maskFor(card)}</span>
             </div>
           </div>
         </div>`;
@@ -6826,8 +6926,10 @@ function _renderDrawAnalysis(d){
       const isLast=idx===d.manualCards.length-1;
       const _et=_effType(c);
       const _dispLabel=(c.label||'').replace(/\s*·?\s*\d{1,2}\/\d{1,2}\s*$/,'').trim();
-      const aCol=colorTeam(c.team0);
-      const bCol=colorTeam(c.team1);
+      // 팀 모드: setup 단계에서 상대팀 선수 숨김
+      const _revealed=isManualRevealed(c);
+      const aCol=(_revealed||myTeamSide==='A')?colorTeam(c.team0):maskFor(c);
+      const bCol=(_revealed||myTeamSide==='B')?colorTeam(c.team1):maskFor(c);
       html+=`<div style="padding:8px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
         <div style="display:flex;align-items:center">
           <div style="${_LC};display:flex;align-items:center;gap:5px">
@@ -6875,8 +6977,11 @@ function _renderDrawAnalysis(d){
       }
       d.manualCards.forEach((mc,i)=>{
         const inGame=[...mc.team0,...mc.team1].includes(p.name);
-        t+=`<td style="text-align:center;padding:6px 3px">${inGame?_manualCardIcons[i]:'<span style="color:#e2e8f0;font-size:0.7rem">—</span>'}</td>`;
-        if(inGame) visibleGames++;
+        // 팀 모드 + setup 단계: 상대팀 테이블에서는 마스킹
+        const mcVisible=!myTeamSide||isMyTeamTable||isManualRevealed(mc);
+        const showInGame=inGame&&mcVisible;
+        t+=`<td style="text-align:center;padding:6px 3px">${showInGame?_manualCardIcons[i]:'<span style="color:#e2e8f0;font-size:0.7rem">—</span>'}</td>`;
+        if(showInGame) visibleGames++;
       });
       t+=`<td style="text-align:right;padding:6px 6px;font-weight:800;color:#1e293b">${visibleGames}</td>
       </tr>`;
@@ -7555,17 +7660,25 @@ function addDailyMatchCard(){
     // 개별 추가 카드 — 라운드 배정 없이 독립 카드로 추가
     // 자동대진 카드가 있으면 맨 아래, 없으면 맨 위
     const autoCards=Object.values(_dailyCards).filter(d=>d._round);
-    _dailyCards[id]=cardData;
+    // setup 단계부터 즉시 Firebase push → 전 기기 동기화 (오프라인 fallback: 로컬 numeric id)
+    let finalId;
+    if(db){
+      const _newRef=db.ref('jmt/dailyCards').push(cardData);
+      finalId=_newRef.key;
+    } else {
+      finalId=++_dailyCardCounter;
+    }
+    _dailyCards[finalId]=cardData;
     const container=document.getElementById('daily-match-cards');
     const el=document.createElement('div');
-    el.id=`daily-card-${id}`;
+    el.id=`daily-card-${finalId}`;
     el.dataset.createdAt=createdAt;
     if(autoCards.length>0){
       container.appendChild(el);
     } else {
       container.insertBefore(el,container.firstChild);
     }
-    _renderDailyCard(id);
+    _renderDailyCard(finalId);
     // 자동배정/팀대결 카드 있으면 맨 아래, 없으면 맨 위로 스크롤
     setTimeout(()=>{
       if(autoCards.length>0) window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
@@ -7721,22 +7834,33 @@ function _renderDailyCard(id){
     const t1=_isSingles&&d.team1.length===1?{html:`<strong>${d.team1[0]}</strong>`,nick:d.team1[0],memberStr:d.team1[0]}:_getTeamDisplay(d.team1);
     const t0f=d.team0.length===_teamSize,t1f=d.team1.length===_teamSize;
     const isParticipant=[...(d.team0||[]),...(d.team1||[])].includes(_curName);
-    const canStart=canManage||isParticipant;
-    const canEditTeam=d._teamMode?canManage:!!_curName;
+    // 팀 모드: 자기 팀 멤버는 자기 팀 선수 선택 가능 (팀장 포함)
+    const _isTeamA=d._teamMode&&(d._teamANames||[]).includes(_curName);
+    const _isTeamB=d._teamMode&&(d._teamBNames||[]).includes(_curName);
+    const canEditTeam0=d._teamMode?(canManage||_isTeamA):!!_curName;
+    const canEditTeam1=d._teamMode?(canManage||_isTeamB):!!_curName;
+    const canStart=canManage||isParticipant||_isTeamA||_isTeamB;
     const _aLabel=d._teamMode?`🔵 ${(d._teamANames||[])[0]?(d._teamANames[0]+'팀'):'A팀'}`:(_isSingles?'선수 A':'팀 A');
     const _bLabel=d._teamMode?`🔴 ${(d._teamBNames||[])[0]?(d._teamBNames[0]+'팀'):'B팀'}`:(_isSingles?'선수 B':'팀 B');
     const _singlesTag=_isSingles?`<span style="font-size:0.68rem;font-weight:700;background:#dcfce7;color:#15803d;border-radius:8px;padding:1px 6px;margin-left:4px">단식</span>`:'';
     const _mkMemberStr=(team)=>_isSingles?'':`<div class="dc-tmembers">${_hlMemberStr(team,_curName)}</div>`;
-    const left=`<div class="dc-team-left">
-      <button class="dc-team-btn${t0f?' filled':''}${canEditTeam?'':' readonly'}"${canEditTeam?`onclick="openDailyPick('${id}',0)"`:' disabled'}>
-        ${t0f?`<div class="dc-tnick">${t0.nick}${canEditTeam?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div>${_mkMemberStr(d.team0)}`:_aLabel}
+    // 팀 모드: 상대팀 선수는 경기 시작(playing) 전까지 숨김 — teamSetup과 동일한 정책
+    const showTeam0=!d._teamMode||canManage||_isTeamA;
+    const showTeam1=!d._teamMode||canManage||_isTeamB;
+    const left=showTeam0
+      ?`<div class="dc-team-left">
+      <button class="dc-team-btn${t0f?' filled':''}${canEditTeam0?'':' readonly'}"${canEditTeam0?`onclick="openDailyPick('${id}',0)"`:' disabled'}>
+        ${t0f?`<div class="dc-tnick">${t0.nick}${canEditTeam0?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div>${_mkMemberStr(d.team0)}`:_aLabel}
       </button>
-    </div>`;
-    const right=`<div class="dc-team-right">
-      <button class="dc-team-btn${t1f?' filled':''}${canEditTeam?'':' readonly'}"${canEditTeam?`onclick="openDailyPick('${id}',1)"`:' disabled'}>
-        ${t1f?`<div class="dc-tnick">${t1.nick}${canEditTeam?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div>${_mkMemberStr(d.team1)}`:_bLabel}
+    </div>`
+      :`<div class="dc-team-left" style="opacity:0.5;align-items:center;justify-content:center"><div class="dc-tnick" style="font-size:0.8rem">준비 중...</div></div>`;
+    const right=showTeam1
+      ?`<div class="dc-team-right">
+      <button class="dc-team-btn${t1f?' filled':''}${canEditTeam1?'':' readonly'}"${canEditTeam1?`onclick="openDailyPick('${id}',1)"`:' disabled'}>
+        ${t1f?`<div class="dc-tnick">${t1.nick}${canEditTeam1?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div>${_mkMemberStr(d.team1)}`:_bLabel}
       </button>
-    </div>`;
+    </div>`
+      :`<div class="dc-team-right" style="opacity:0.5;align-items:center;justify-content:center"><div class="dc-tnick" style="font-size:0.8rem">준비 중...</div></div>`;
     const mid=`<button class="dc-start-btn" onclick="startDailyMatch('${id}')"${t0f&&t1f&&canStart?'':' disabled'}>시작</button>`;
     el.innerHTML=mkCard((d.label||`경기${d.num}`)+_singlesTag, left, mid, right);
 
@@ -7980,9 +8104,9 @@ function confirmDailyPick(){
   _dailyPickCtx=null;_dailyPickSel=[];_dailyPickSingles=false;
   document.getElementById('daily-pick-modal').classList.remove('open');
   _renderDailyCard(id);
-  // 자동배정 카드(_round 있음)는 setup 단계여도 Firebase에 저장 (matchType·팀 변경 즉시 반영)
+  // setup 포함 모든 단계에서 Firebase 저장 (선수 선택 즉시 전 기기 반영)
   const _d=_dailyCards[id];
-  if(_d&&(_d.phase!=='setup'||_d._round)) _saveCardToFirebase(id);
+  if(_d) _saveCardToFirebase(id);
 }
 
 function _togglePickMode(isSingles){
@@ -8130,10 +8254,10 @@ function startDailyMatch(id){
   if(!d||d.team0.length!==_teamSize||d.team1.length!==_teamSize) return;
   d.phase='playing';
   if(db){
-    // 자동 생성 카드(Firebase push key = 문자열 '-'로 시작): 기존 항목 update
+    // Firebase push key('-'로 시작): 기존 항목 update (자동 생성 + 개별 추가 모두 포함)
     const isFirebaseKey=typeof id==='string'&&id.startsWith('-');
     if(isFirebaseKey){
-      db.ref(`jmt/dailyCards/${id}`).update({phase:'playing',team0:[...d.team0],team1:[...d.team1],sets:[],winner:-1}).catch(fbErr);
+      db.ref(`jmt/dailyCards/${id}`).update({phase:'playing',team0:[...d.team0],team1:[...d.team1],sets:[],winner:-1,...(d.matchType?{matchType:d.matchType}:{})}).catch(fbErr);
       _renderDailyCard(id);
     } else {
       // 수동 생성 카드(숫자 id): 새 Firebase 항목 push
@@ -8400,7 +8524,12 @@ async function saveDailyScore(){
     if(tbRow&&tbRow.style.display!=='none'){
       const ta=parseInt(document.getElementById(`dscore-tba-${i}`)?.value);
       const tb=parseInt(document.getElementById(`dscore-tbb-${i}`)?.value);
-      if(!isNaN(ta)&&!isNaN(tb)){ setObj.tb0=ta; setObj.tb1=tb; }
+      if(!isNaN(ta)&&!isNaN(tb)){
+        if(Math.max(ta,tb)<7){alert(`${i+1}세트 TB: 승자가 7점 이상이어야 합니다.`);return;}
+        if(Math.abs(ta-tb)<2){alert(`${i+1}세트 TB: 승자와 패자의 차이가 2점 이상이어야 합니다.`);return;}
+        if((na>nb)!==(ta>tb)){alert(`${i+1}세트 TB: 게임 승자(${na}:${nb})와 TB 승자가 일치하지 않습니다.`);return;}
+        setObj.tb0=ta; setObj.tb1=tb;
+      }
     }
     sets.push(setObj);
   }
@@ -10662,13 +10791,25 @@ function selectTournamentField(id){
   if(_tScoreAdvTimer){clearTimeout(_tScoreAdvTimer);_tScoreAdvTimer=null;}
   if(_tScoreActive){
     const prev=document.getElementById('bscore-btn-'+_tScoreActive.replace('bscore-',''));
-    if(prev) prev.classList.remove('active');
+    if(prev){
+      prev.classList.remove('active');
+      // TB 버튼 원래 스타일 복원
+      if(_tScoreActive==='bscore-tba'||_tScoreActive==='bscore-tbb'){
+        prev.style.background='#fef9c3';prev.style.borderColor='#fcd34d';
+      }
+    }
   }
   _tScoreActive=id;
   const inp=document.getElementById(id);
   if(inp) inp.value='';
   const btn=document.getElementById('bscore-btn-'+id.replace('bscore-',''));
-  if(btn){btn.textContent='-';btn.classList.remove('filled');btn.classList.add('active');}
+  if(btn){
+    btn.textContent='-';btn.classList.remove('filled');btn.classList.add('active');
+    // TB 버튼은 인라인 스타일 override (active 시각화)
+    if(id==='bscore-tba'||id==='bscore-tbb'){
+      btn.style.background='#eff6ff';btn.style.borderColor='#3b82f6';
+    }
+  }
 }
 
 function _checkTournamentTBNew(){
@@ -10726,7 +10867,7 @@ function numpadTournamentInput(val){
   }
   if(val!=='⌫'&&inp.value.length>0){
     if(inp.value.length>=2) _tScoreAdvance();
-    else _tScoreAdvTimer=setTimeout(_tScoreAdvance,800);
+    else _tScoreAdvTimer=setTimeout(_tScoreAdvance,400);
   }
 }
 
@@ -10746,7 +10887,12 @@ function submitScore() {
   if (tbRow && tbRow.style.display !== 'none') {
     const tv0 = parseInt(document.getElementById('bscore-tba').value);
     const tv1 = parseInt(document.getElementById('bscore-tbb').value);
-    if (!isNaN(tv0) && !isNaN(tv1)) { tb0 = tv0; tb1 = tv1; }
+    if (!isNaN(tv0) && !isNaN(tv1)) {
+      if(Math.max(tv0,tv1)<7){alert('TB: 승자가 7점 이상이어야 합니다.');return;}
+      if(Math.abs(tv0-tv1)<2){alert('TB: 승자와 패자의 차이가 2점 이상이어야 합니다.');return;}
+      if((n0>n1)!==(tv0>tv1)){alert(`TB: 게임 승자(${n0}:${n1})와 TB 승자가 일치하지 않습니다.`);return;}
+      tb0 = tv0; tb1 = tv1;
+    }
   }
   const isNewScore = !match.score0; // 첫 입력 여부
   const oldWinner = match.winner;   // 이전 승자 (스코어 변경 시 통계 취소용)
