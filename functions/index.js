@@ -2340,12 +2340,19 @@ exports.notifyGolfWinner = onValueWritten(
       const before = event.data.before.val() || {};
       const after  = event.data.after.val()  || {};
 
-      // 이번 업데이트에서 처음 post 상태가 된 대회
+      // 대회 종료 판정: post 상태 OR 비컷 선수 전원 thru==='F'
+      const _isTournamentDone = (t) => {
+        if (t.state === 'post') return true;
+        const nonCut = (t.leaderboard || []).filter(p => p.name && !p.isCut);
+        return nonCut.length > 0 && nonCut.every(p => p.thru === 'F');
+      };
+
+      // 이번 업데이트에서 처음 종료 상태가 된 대회
       const newlyFinished = Object.values(after).filter(t => {
         if (!t || !t.id) return false;
-        if (t.state !== 'post') return false;
+        if (!_isTournamentDone(t)) return false;
         const prev = before[t.id];
-        return !prev || prev.state !== 'post';
+        return !prev || !_isTournamentDone(prev);
       });
 
       if (!newlyFinished.length) return;
