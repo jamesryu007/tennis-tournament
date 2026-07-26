@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1020';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1021';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4670,14 +4670,26 @@ function selectScoreField(id){
   if(_dscoreAdvTimer){ clearTimeout(_dscoreAdvTimer); _dscoreAdvTimer=null; }
   if(_dscoreActive){
     const prev=document.getElementById(_dscoreActive.replace('dscore-','dscore-btn-'));
-    if(prev) prev.classList.remove('active');
+    if(prev){
+      prev.classList.remove('active');
+      // TB 버튼 원래 스타일 복원
+      if(_dscoreActive.includes('-tba-')||_dscoreActive.includes('-tbb-')){
+        prev.style.background='#fef9c3';prev.style.borderColor='#fcd34d';
+      }
+    }
   }
   _dscoreActive=id;
   // 커서 이동 시 기존 값 초기화
   const inp=document.getElementById(id);
   if(inp){ inp.value=''; }
   const btn=document.getElementById(id.replace('dscore-','dscore-btn-'));
-  if(btn){ btn.textContent='-'; btn.classList.remove('filled'); btn.classList.add('active'); }
+  if(btn){
+    btn.textContent='-'; btn.classList.remove('filled'); btn.classList.add('active');
+    // TB 버튼은 인라인 스타일 override (active 시각화)
+    if(id.includes('-tba-')||id.includes('-tbb-')){
+      btn.style.background='#eff6ff';btn.style.borderColor='#3b82f6';
+    }
+  }
 }
 
 function _dscoreAdvance(){
@@ -4719,7 +4731,7 @@ function numpadInput(val){
   if(_ap[1]==='b') _checkAndUpdateTB(parseInt(_ap[2]));
   if(val!=='⌫' && inp.value.length>0){
     if(inp.value.length>=2) _dscoreAdvance();       // 2자리: 즉시 이동
-    else _dscoreAdvTimer=setTimeout(_dscoreAdvance, 800); // 1자리: 0.8초 후 이동
+    else _dscoreAdvTimer=setTimeout(_dscoreAdvance, 400); // 1자리: 0.4초 후 이동
   }
 }
 let _dailyCardsListenerSet=false;
@@ -8512,7 +8524,12 @@ async function saveDailyScore(){
     if(tbRow&&tbRow.style.display!=='none'){
       const ta=parseInt(document.getElementById(`dscore-tba-${i}`)?.value);
       const tb=parseInt(document.getElementById(`dscore-tbb-${i}`)?.value);
-      if(!isNaN(ta)&&!isNaN(tb)){ setObj.tb0=ta; setObj.tb1=tb; }
+      if(!isNaN(ta)&&!isNaN(tb)){
+        if(Math.max(ta,tb)<7){alert(`${i+1}세트 TB: 승자가 7점 이상이어야 합니다.`);return;}
+        if(Math.abs(ta-tb)<2){alert(`${i+1}세트 TB: 승자와 패자의 차이가 2점 이상이어야 합니다.`);return;}
+        if((na>nb)!==(ta>tb)){alert(`${i+1}세트 TB: 게임 승자(${na}:${nb})와 TB 승자가 일치하지 않습니다.`);return;}
+        setObj.tb0=ta; setObj.tb1=tb;
+      }
     }
     sets.push(setObj);
   }
@@ -10774,13 +10791,25 @@ function selectTournamentField(id){
   if(_tScoreAdvTimer){clearTimeout(_tScoreAdvTimer);_tScoreAdvTimer=null;}
   if(_tScoreActive){
     const prev=document.getElementById('bscore-btn-'+_tScoreActive.replace('bscore-',''));
-    if(prev) prev.classList.remove('active');
+    if(prev){
+      prev.classList.remove('active');
+      // TB 버튼 원래 스타일 복원
+      if(_tScoreActive==='bscore-tba'||_tScoreActive==='bscore-tbb'){
+        prev.style.background='#fef9c3';prev.style.borderColor='#fcd34d';
+      }
+    }
   }
   _tScoreActive=id;
   const inp=document.getElementById(id);
   if(inp) inp.value='';
   const btn=document.getElementById('bscore-btn-'+id.replace('bscore-',''));
-  if(btn){btn.textContent='-';btn.classList.remove('filled');btn.classList.add('active');}
+  if(btn){
+    btn.textContent='-';btn.classList.remove('filled');btn.classList.add('active');
+    // TB 버튼은 인라인 스타일 override (active 시각화)
+    if(id==='bscore-tba'||id==='bscore-tbb'){
+      btn.style.background='#eff6ff';btn.style.borderColor='#3b82f6';
+    }
+  }
 }
 
 function _checkTournamentTBNew(){
@@ -10838,7 +10867,7 @@ function numpadTournamentInput(val){
   }
   if(val!=='⌫'&&inp.value.length>0){
     if(inp.value.length>=2) _tScoreAdvance();
-    else _tScoreAdvTimer=setTimeout(_tScoreAdvance,800);
+    else _tScoreAdvTimer=setTimeout(_tScoreAdvance,400);
   }
 }
 
@@ -10858,7 +10887,12 @@ function submitScore() {
   if (tbRow && tbRow.style.display !== 'none') {
     const tv0 = parseInt(document.getElementById('bscore-tba').value);
     const tv1 = parseInt(document.getElementById('bscore-tbb').value);
-    if (!isNaN(tv0) && !isNaN(tv1)) { tb0 = tv0; tb1 = tv1; }
+    if (!isNaN(tv0) && !isNaN(tv1)) {
+      if(Math.max(tv0,tv1)<7){alert('TB: 승자가 7점 이상이어야 합니다.');return;}
+      if(Math.abs(tv0-tv1)<2){alert('TB: 승자와 패자의 차이가 2점 이상이어야 합니다.');return;}
+      if((n0>n1)!==(tv0>tv1)){alert(`TB: 게임 승자(${n0}:${n1})와 TB 승자가 일치하지 않습니다.`);return;}
+      tb0 = tv0; tb1 = tv1;
+    }
   }
   const isNewScore = !match.score0; // 첫 입력 여부
   const oldWinner = match.winner;   // 이전 승자 (스코어 변경 시 통계 취소용)
