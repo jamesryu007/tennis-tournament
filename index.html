@@ -799,16 +799,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v999';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1000';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6209,11 +6209,19 @@ function _openDrawEditModal(){
     const colorMap={};let _cmi=0,_cfi=0;
     d.attendees.forEach(p=>{colorMap[p.name]=p.gender==='male'?maleColors[_cmi++%maleColors.length]:femColors[_cfi++%femColors.length];});
     _drawEditCtx={colorMap,d,mySide:'ALL',cardKeyMap,isAutoMode:true};
-    const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
-    const tName={mixed:'혼복',mens:'남복',womens:'여복'};
-    const tColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777'};
+    const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'🟦',womens_singles:'🟥',mixed_singles:'🟪'};
+    const tName={mixed:'혼복',mens:'남복',womens:'여복',mens_singles:'남단',womens_singles:'여단',mixed_singles:'혼단'};
+    const tColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777',mens_singles:'#2563eb',womens_singles:'#db2777',mixed_singles:'#7c3aed'};
     const males=d.attendees.filter(p=>p.gender==='male').map(p=>p.name);
     const females=d.attendees.filter(p=>p.gender!=='male').map(p=>p.name);
+    // 단식 서브타입 판별
+    const _deCardType=(card)=>{
+      if(card.matchType!=='singles') return card.matchType;
+      const all=[...(card.team0||[]),...(card.team1||[])];
+      const hM=all.some(n=>males.includes(n)||getGender(n)==='male');
+      const hF=all.some(n=>females.includes(n)||getGender(n)!=='male');
+      return hM&&hF?'mixed_singles':hF?'womens_singles':'mens_singles';
+    };
     const roundPastels=['#eff6ff','#fdf4ff','#fff7ed','#f0fdf4','#fef2f2','#f0f9ff','#fefce8','#fdf2f8'];
     const selStyle='font-size:0.75rem;font-weight:700;padding:3px 2px;border:1.5px solid #e2e8f0;border-radius:8px;background:#fff;width:62px;color:#1e293b;font-family:inherit;flex-shrink:0;text-align:center;text-align-last:center';
     const mkSel=(val,opts,cardId,slot)=>{
@@ -6228,26 +6236,43 @@ function _openDrawEditModal(){
       for(let c=1;c<=d.courtCount;c++){
         const card=d.roundMap[r][c];if(!card) continue;
         const cardId=cardKeyMap[`${r}_${c}`];if(!cardId) continue;
-        let opts0,opts1,opts2,opts3;
-        if(card.matchType==='mixed'){opts0=opts2=males.length?males:['?'];opts1=opts3=females.length?females:['?'];}
-        else if(card.matchType==='mens'){opts0=opts1=opts2=opts3=males.length?males:['?'];}
-        else{opts0=opts1=opts2=opts3=females.length?females:['?'];}
-        const [a0,a1,b0,b1]=[card.team0[0]||'',card.team0[1]||'',card.team1[0]||'',card.team1[1]||''];
+        const ct=_deCardType(card);
         const isLast=c===d.courtCount;
-        const _dash='<span style="color:#94a3b8;font-size:0.8rem;flex-shrink:0;margin:0 2px">-</span>';
         const _vs='<span style="color:#94a3b8;font-size:0.75rem;font-weight:600;flex-shrink:0;margin:0 4px">vs</span>';
-        html+=`<div style="padding:6px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
-          <div style="font-size:0.72rem;font-weight:800;color:#475569;margin-bottom:4px">제${r}경기 ${c}코트 <span style="color:${tColor[card.matchType]}">${tIcon[card.matchType]} ${tName[card.matchType]}</span></div>
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;flex-wrap:nowrap">
-            <div style="display:flex;align-items:center;flex-shrink:0">
-              ${mkSel(a0,opts0,cardId,'0')}${_dash}${mkSel(a1,opts1,cardId,'1')}
+        const _titleHtml=`<div style="font-size:0.72rem;font-weight:800;color:#475569;margin-bottom:4px">제${r}경기 ${c}코트 <span style="color:${tColor[ct]}">${tIcon[ct]} ${tName[ct]}</span></div>`;
+        if(card.matchType==='singles'){
+          // 단식: 1명씩 select
+          const optsAll=[...males,...females].filter(Boolean);
+          const [a0,b0]=[card.team0[0]||'',card.team1[0]||''];
+          html+=`<div style="padding:6px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
+            ${_titleHtml}
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;flex-wrap:nowrap">
+              <div style="display:flex;align-items:center;flex-shrink:0">${mkSel(a0,optsAll,cardId,'0')}</div>
+              ${_vs}
+              <div style="display:flex;align-items:center;flex-shrink:0">${mkSel(b0,optsAll,cardId,'2')}</div>
             </div>
-            ${_vs}
-            <div style="display:flex;align-items:center;flex-shrink:0">
-              ${mkSel(b0,opts2,cardId,'2')}${_dash}${mkSel(b1,opts3,cardId,'3')}
+          </div>`;
+        } else {
+          // 복식: 2명씩 select
+          let opts0,opts1,opts2,opts3;
+          if(card.matchType==='mixed'){opts0=opts2=males.length?males:['?'];opts1=opts3=females.length?females:['?'];}
+          else if(card.matchType==='mens'){opts0=opts1=opts2=opts3=males.length?males:['?'];}
+          else{opts0=opts1=opts2=opts3=females.length?females:['?'];}
+          const [a0,a1,b0,b1]=[card.team0[0]||'',card.team0[1]||'',card.team1[0]||'',card.team1[1]||''];
+          const _dash='<span style="color:#94a3b8;font-size:0.8rem;flex-shrink:0;margin:0 2px">-</span>';
+          html+=`<div style="padding:6px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
+            ${_titleHtml}
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:4px;flex-wrap:nowrap">
+              <div style="display:flex;align-items:center;flex-shrink:0">
+                ${mkSel(a0,opts0,cardId,'0')}${_dash}${mkSel(a1,opts1,cardId,'1')}
+              </div>
+              ${_vs}
+              <div style="display:flex;align-items:center;flex-shrink:0">
+                ${mkSel(b0,opts2,cardId,'2')}${_dash}${mkSel(b1,opts3,cardId,'3')}
+              </div>
             </div>
-          </div>
-        </div>`;
+          </div>`;
+        }
       }
       html+=`</div>`;
     }
@@ -6353,7 +6378,14 @@ function _updateDrawEditParticipation(){
   const wrap=document.getElementById('draw-edit-participation-wrap');
   if(!wrap||!_drawEditCtx) return;
   const {colorMap,d,mySide,cardKeyMap,isAutoMode}=_drawEditCtx;
-  const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
+  const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'🟦',womens_singles:'🟥',mixed_singles:'🟪'};
+  const _deCtType=(card)=>{
+    if(card.matchType!=='singles') return card.matchType;
+    const all=[...(card.team0||[]),...(card.team1||[])];
+    const hM=all.some(n=>getGender(n)==='male');
+    const hF=all.some(n=>getGender(n)!=='male');
+    return hM&&hF?'mixed_singles':hF?'womens_singles':'mens_singles';
+  };
   // 현재 select 값에서 수정된 선수 읽기
   const edits={};
   document.querySelectorAll('#draw-edit-inner select').forEach(sel=>{
@@ -6385,8 +6417,8 @@ function _updateDrawEditParticipation(){
         for(let c=1;c<=d.courtCount;c++){
           const card=d.roundMap[r][c];if(!card) continue;
           const cid=cardKeyMap[`${r}_${c}`];
-          const cur=cid&&edits[cid]?[edits[cid][0],edits[cid][1],edits[cid][2],edits[cid][3]]:[...card.team0,...card.team1];
-          if(cur.includes(p.name)){icon=tIcon[card.matchType];games++;break;}
+          const cur=cid&&edits[cid]?[edits[cid][0],edits[cid][1],edits[cid][2],edits[cid][3]].filter(Boolean):[...card.team0,...card.team1];
+          if(cur.includes(p.name)){icon=tIcon[_deCtType(card)];games++;break;}
         }
         t+=`<td style="text-align:center;padding:4px 2px">${icon||'<span style="color:#e2e8f0;font-size:0.6rem">—</span>'}</td>`;
       }
@@ -6417,8 +6449,8 @@ function _updateDrawEditParticipation(){
       for(let c=1;c<=d.courtCount;c++){
         const card=d.roundMap[r][c];if(!card) continue;
         const cid=cardKeyMap[`${r}_${c}`];
-        const cur=cid&&edits[cid]?edits[cid]:(mySide==='A'?[...card.team0]:[...card.team1]);
-        if(cur.includes(p.name)){icon=tIcon[card.matchType];games++;break;}
+        const cur=cid&&edits[cid]?edits[cid].filter(Boolean):(mySide==='A'?[...card.team0]:[...card.team1]);
+        if(cur.includes(p.name)){icon=tIcon[_deCtType(card)];games++;break;}
       }
       t+=`<td style="text-align:center;padding:4px 2px">${icon||'<span style="color:#e2e8f0;font-size:0.6rem">—</span>'}</td>`;
     }
