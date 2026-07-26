@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1008';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1009';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6215,13 +6215,16 @@ function _openDrawEditModal(){
     const tColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777',mens_singles:'#2563eb',womens_singles:'#db2777',mixed_singles:'#7c3aed'};
     const males=d.attendees.filter(p=>p.gender==='male').map(p=>p.name);
     const females=d.attendees.filter(p=>p.gender!=='male').map(p=>p.name);
-    // 단식 서브타입 판별
+    // 경기 타입 동적 판별 (복식/단식 모두 실제 선수 성별 기반)
     const _deCardType=(card)=>{
-      if(card.matchType!=='singles') return card.matchType;
-      const all=[...(card.team0||[]),...(card.team1||[])];
+      const all=[...(card.team0||[]),...(card.team1||[])].filter(Boolean);
       const hM=all.some(n=>males.includes(n)||getGender(n)==='male');
       const hF=all.some(n=>females.includes(n)||getGender(n)!=='male');
-      return hM&&hF?'mixed_singles':hF?'womens_singles':'mens_singles';
+      if(card.matchType==='singles'){
+        return hM&&hF?'mixed_singles':hF?'womens_singles':'mens_singles';
+      }
+      if(!all.length) return card.matchType||'mixed';
+      return hM&&hF?'mixed':hF?'womens':'mens';
     };
     const roundPastels=['#eff6ff','#fdf4ff','#fff7ed','#f0fdf4','#fef2f2','#f0f9ff','#fefce8','#fdf2f8'];
     const selStyle='font-size:0.8rem;font-weight:700;padding:5px 4px;border:1.5px solid #cbd5e1;border-radius:9px;background:#fff;width:82px;color:#1e293b;font-family:inherit;flex-shrink:0;text-align:center;text-align-last:center';
@@ -6292,13 +6295,15 @@ function _openDrawEditModal(){
         const _mcDispLabel=(mc.label||'').replace(/\s*·?\s*\d{1,2}\/\d{1,2}\s*$/,'').trim();
         const _titleHtml=`<div style="font-size:0.72rem;font-weight:800;color:#475569;margin-bottom:6px;margin-top:2px">번외${idx+1}${_mcDispLabel?` · ${_mcDispLabel}`:''} <span style="color:${tColor[_mct]}">${tIcon[_mct]} ${tName[_mct]}</span></div>`;
         if(mc.matchType==='singles'){
+          // 남단→남자만, 여단→여자만, 혼단→전체
+          const _mcOpts=(_mct==='mens_singles'?(optsM.length?optsM:optsAll):_mct==='womens_singles'?(optsF.length?optsF:optsAll):optsAll);
           const [a0,b0]=[mc.team0[0]||'',mc.team1[0]||''];
           html+=`<div style="padding:7px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.08)'}">
             ${_titleHtml}
             <div style="display:flex;align-items:center">
-              <div style="flex:1;display:flex;justify-content:flex-end">${mkSel(a0,optsAll,mcId,'0')}</div>
+              <div style="flex:1;display:flex;justify-content:flex-end">${mkSel(a0,_mcOpts,mcId,'0')}</div>
               ${_vsC}
-              <div style="flex:1;display:flex;justify-content:flex-start">${mkSel(b0,optsAll,mcId,'2')}</div>
+              <div style="flex:1;display:flex;justify-content:flex-start">${mkSel(b0,_mcOpts,mcId,'2')}</div>
             </div>
           </div>`;
         } else {
