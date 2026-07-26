@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1017';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1018';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6089,7 +6089,7 @@ function _computeDrawAnalysis(){
 // 팀 대결 최종 결과 렌더링
 function _renderTeamFinalResult(){
   // 팀대결 카드: 자동생성(_round) + 개별추가(팀 지정 완료) 모두 포함
-  const cards=Object.values(_dailyCards).filter(c=>c._teamMode&&(c._round||(c.team0&&c.team0.length===2&&c.team1&&c.team1.length===2)));
+  const cards=Object.values(_dailyCards).filter(c=>c._teamMode&&(c._round!=null||(c.team0&&c.team0.length>=1&&c.team1&&c.team1.length>=1)));
   if(!cards.length){alert('팀 대결 경기 카드가 없습니다.');return;}
   const tmCard=cards[0];
   const teamANames=tmCard._teamANames||[];
@@ -6111,7 +6111,7 @@ function _renderTeamFinalResult(){
     if(winSide==='A') aWins++; else bWins++;
     const aTeam=t0side==='A'?c.team0:c.team1;
     const bTeam=t0side==='A'?c.team1:c.team0;
-    const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
+    const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'🟦',womens_singles:'🟥',mixed_singles:'🟪',singles:'⚪'};
     const _matchLabel=c._round!=null?`제${c._round}경기`:`추가경기${_extraIdx++}`;
     rows.push(`<tr style="border-bottom:1px solid #f1f5f9">
       <td style="padding:5px 6px;font-size:0.72rem;color:#64748b">${_matchLabel}</td>
