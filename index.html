@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1009';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1010';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6260,9 +6260,10 @@ function _openDrawEditModal(){
             </div>
           </div>`;
         } else {
+          // 저장된 matchType 대신 동적 계산 타입(ct) 기준으로 옵션 결정
           let opts0,opts1,opts2,opts3;
-          if(card.matchType==='mixed'){opts0=opts2=males.length?males:['?'];opts1=opts3=females.length?females:['?'];}
-          else if(card.matchType==='mens'){opts0=opts1=opts2=opts3=males.length?males:['?'];}
+          if(ct==='mixed'){opts0=opts2=males.length?males:['?'];opts1=opts3=females.length?females:['?'];}
+          else if(ct==='mens'){opts0=opts1=opts2=opts3=males.length?males:['?'];}
           else{opts0=opts1=opts2=opts3=females.length?females:['?'];}
           const [a0,a1,b0,b1]=[card.team0[0]||'',card.team0[1]||'',card.team1[0]||'',card.team1[1]||''];
           html+=`<div style="padding:7px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.08)'}">
@@ -7954,6 +7955,27 @@ function confirmDailyPick(){
     _dailyCards[id].matchType='singles';
   } else if(_dailyCards[id].matchType==='singles'){
     delete _dailyCards[id].matchType;
+  } else if(_dailyCards[id].matchType&&_dailyCards[id].matchType!=='singles'){
+    // 복식: 실제 선수 성별로 matchType 재계산 (혼복→남복/여복 자동 갱신)
+    const _t0=_dailyCards[id].team0||[];
+    const _t1=_dailyCards[id].team1||[];
+    const _all=[..._t0,..._t1].filter(Boolean);
+    if(_all.length>0){
+      const _hM=_all.some(n=>getGender(n)==='male');
+      const _hF=_all.some(n=>getGender(n)!=='male');
+      const _newType=_hM&&_hF?'mixed':_hF?'womens':'mens';
+      if(_newType!==_dailyCards[id].matchType){
+        const _ti={mixed:'🟣',mens:'🔵',womens:'🩷'};
+        const _tn={mixed:'혼복',mens:'남복',womens:'여복'};
+        if(_dailyCards[id].label&&_ti[_dailyCards[id].matchType]){
+          _dailyCards[id].label=_dailyCards[id].label.replace(
+            `${_ti[_dailyCards[id].matchType]} ${_tn[_dailyCards[id].matchType]}`,
+            `${_ti[_newType]} ${_tn[_newType]}`
+          );
+        }
+        _dailyCards[id].matchType=_newType;
+      }
+    }
   }
   _dailyPickCtx=null;_dailyPickSel=[];_dailyPickSingles=false;
   document.getElementById('daily-pick-modal').classList.remove('open');
