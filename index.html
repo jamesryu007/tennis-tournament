@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1011';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1012';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7738,20 +7738,24 @@ function _renderDailyCard(id){
     const t1=_isSingles&&d.team1.length===1?{html:`<strong>${d.team1[0]}</strong>`,nick:d.team1[0],memberStr:d.team1[0]}:_getTeamDisplay(d.team1);
     const t0f=d.team0.length===_teamSize,t1f=d.team1.length===_teamSize;
     const isParticipant=[...(d.team0||[]),...(d.team1||[])].includes(_curName);
-    const canStart=canManage||isParticipant;
-    const canEditTeam=d._teamMode?canManage:!!_curName;
+    // 팀 모드: 자기 팀 멤버는 자기 팀 선수 선택 가능 (팀장 포함)
+    const _isTeamA=d._teamMode&&(d._teamANames||[]).includes(_curName);
+    const _isTeamB=d._teamMode&&(d._teamBNames||[]).includes(_curName);
+    const canEditTeam0=d._teamMode?(canManage||_isTeamA):!!_curName;
+    const canEditTeam1=d._teamMode?(canManage||_isTeamB):!!_curName;
+    const canStart=canManage||isParticipant||_isTeamA||_isTeamB;
     const _aLabel=d._teamMode?`🔵 ${(d._teamANames||[])[0]?(d._teamANames[0]+'팀'):'A팀'}`:(_isSingles?'선수 A':'팀 A');
     const _bLabel=d._teamMode?`🔴 ${(d._teamBNames||[])[0]?(d._teamBNames[0]+'팀'):'B팀'}`:(_isSingles?'선수 B':'팀 B');
     const _singlesTag=_isSingles?`<span style="font-size:0.68rem;font-weight:700;background:#dcfce7;color:#15803d;border-radius:8px;padding:1px 6px;margin-left:4px">단식</span>`:'';
     const _mkMemberStr=(team)=>_isSingles?'':`<div class="dc-tmembers">${_hlMemberStr(team,_curName)}</div>`;
     const left=`<div class="dc-team-left">
-      <button class="dc-team-btn${t0f?' filled':''}${canEditTeam?'':' readonly'}"${canEditTeam?`onclick="openDailyPick('${id}',0)"`:' disabled'}>
-        ${t0f?`<div class="dc-tnick">${t0.nick}${canEditTeam?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div>${_mkMemberStr(d.team0)}`:_aLabel}
+      <button class="dc-team-btn${t0f?' filled':''}${canEditTeam0?'':' readonly'}"${canEditTeam0?`onclick="openDailyPick('${id}',0)"`:' disabled'}>
+        ${t0f?`<div class="dc-tnick">${t0.nick}${canEditTeam0?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div>${_mkMemberStr(d.team0)}`:_aLabel}
       </button>
     </div>`;
     const right=`<div class="dc-team-right">
-      <button class="dc-team-btn${t1f?' filled':''}${canEditTeam?'':' readonly'}"${canEditTeam?`onclick="openDailyPick('${id}',1)"`:' disabled'}>
-        ${t1f?`<div class="dc-tnick">${t1.nick}${canEditTeam?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div>${_mkMemberStr(d.team1)}`:_bLabel}
+      <button class="dc-team-btn${t1f?' filled':''}${canEditTeam1?'':' readonly'}"${canEditTeam1?`onclick="openDailyPick('${id}',1)"`:' disabled'}>
+        ${t1f?`<div class="dc-tnick">${t1.nick}${canEditTeam1?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div>${_mkMemberStr(d.team1)}`:_bLabel}
       </button>
     </div>`;
     const mid=`<button class="dc-start-btn" onclick="startDailyMatch('${id}')"${t0f&&t1f&&canStart?'':' disabled'}>시작</button>`;
