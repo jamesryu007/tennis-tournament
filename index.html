@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1005';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1006';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6289,7 +6289,8 @@ function _openDrawEditModal(){
         const optsM=[...new Set([...males,...mc.team0.filter(n=>getGender(n)==='male'),...mc.team1.filter(n=>getGender(n)==='male')])].filter(Boolean);
         const optsF=[...new Set([...females,...mc.team0.filter(n=>getGender(n)!=='male'),...mc.team1.filter(n=>getGender(n)!=='male')])].filter(Boolean);
         const optsAll=[...new Set([...males,...females,...mc.team0,...mc.team1])].filter(Boolean);
-        const _titleHtml=`<div style="font-size:0.72rem;font-weight:800;color:#475569;margin-bottom:4px">번외${idx+1}${mc.label?` · ${mc.label}`:''} <span style="color:${tColor[_mct]}">${tIcon[_mct]} ${tName[_mct]}</span></div>`;
+        const _mcDispLabel=(mc.label||'').replace(/\s*·?\s*\d{1,2}\/\d{1,2}\s*$/,'').trim();
+        const _titleHtml=`<div style="font-size:0.72rem;font-weight:800;color:#475569;margin-bottom:4px">번외${idx+1}${_mcDispLabel?` · ${_mcDispLabel}`:''} <span style="color:${tColor[_mct]}">${tIcon[_mct]} ${tName[_mct]}</span></div>`;
         if(mc.matchType==='singles'){
           const [a0,b0]=[mc.team0[0]||'',mc.team1[0]||''];
           html+=`<div style="padding:6px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
@@ -6794,12 +6795,13 @@ function _renderDrawAnalysis(d){
     d.manualCards.forEach((c,idx)=>{
       const isLast=idx===d.manualCards.length-1;
       const _et=_effType(c);
+      const _dispLabel=(c.label||'').replace(/\s*·?\s*\d{1,2}\/\d{1,2}\s*$/,'').trim();
       const aCol=colorTeam(c.team0);
       const bCol=colorTeam(c.team1);
       html+=`<div style="padding:8px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
         <div style="display:flex;align-items:center">
           <div style="${_LC};display:flex;align-items:center;gap:5px">
-            <span style="font-size:0.78rem;font-weight:800;color:#475569;white-space:nowrap">번외${idx+1}${c.label?` · ${c.label}`:''}</span>
+            <span style="font-size:0.78rem;font-weight:800;color:#475569;white-space:nowrap">번외${idx+1}${_dispLabel?` · ${_dispLabel}`:''}</span>
             <span style="font-size:0.8rem;font-weight:800;color:${tColor[_et]};white-space:nowrap">${tIcon[_et]} ${tName[_et]}</span>
           </div>
           <div style="flex:1;display:flex;align-items:center;min-width:0">
