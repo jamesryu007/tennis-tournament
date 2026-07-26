@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1013';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1014';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6689,6 +6689,8 @@ function _renderDrawAnalysis(d){
     :null;
   // 카드 공개 여부: 양 팀 모두 ready(playing/done) 또는 마스킹 대상 아님
   const isRevealedCard=card=>!myTeamSide||card.phase!=='teamSetup';
+  // 번외경기 카드 공개 여부: setup 단계에서는 상대팀 숨김 (playing/done이면 공개)
+  const isManualRevealed=card=>!myTeamSide||card.phase==='playing'||card.phase==='done';
   // 팀별 공개 헬퍼 — team0=A팀, team1=B팀 (항상)
   const maskTeam='<span style="color:#94a3b8;font-weight:700">미정 — 미정</span>';
   let html=`<div style="font-family:-apple-system,'Segoe UI',sans-serif;padding:28px 4px 40px">`;
@@ -6835,8 +6837,10 @@ function _renderDrawAnalysis(d){
       const isLast=idx===d.manualCards.length-1;
       const _et=_effType(c);
       const _dispLabel=(c.label||'').replace(/\s*·?\s*\d{1,2}\/\d{1,2}\s*$/,'').trim();
-      const aCol=colorTeam(c.team0);
-      const bCol=colorTeam(c.team1);
+      // 팀 모드: setup 단계에서 상대팀 선수 숨김
+      const _revealed=isManualRevealed(c);
+      const aCol=(_revealed||myTeamSide==='A')?colorTeam(c.team0):maskTeam;
+      const bCol=(_revealed||myTeamSide==='B')?colorTeam(c.team1):maskTeam;
       html+=`<div style="padding:8px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
         <div style="display:flex;align-items:center">
           <div style="${_LC};display:flex;align-items:center;gap:5px">
