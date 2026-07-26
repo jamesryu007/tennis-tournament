@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1021';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1022';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5995,7 +5995,7 @@ function _computeDrawAnalysis(){
   if(autoCards.length===0) return null;
   // 개별 추가 경기 (팀 지정 완료된 수동 카드)
   const manualCards=Object.entries(_dailyCards)
-    .filter(([,d])=>(!d.matchType||d.matchType==='singles')&&!d._round&&d.team0&&d.team0.length>=1&&d.team1&&d.team1.length>=1)
+    .filter(([,d])=>!d._round&&d.team0&&d.team0.length>=1&&d.team1&&d.team1.length>=1)
     .sort(([,a],[,b])=>(a.createdAt||0)-(b.createdAt||0))
     .map(([id,d])=>({...d,_manualId:id}));
   // 대진표 분석의 참석자 = 실제 카드에 등장한 선수
