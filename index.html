@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1002';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1003';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6393,15 +6393,8 @@ function _updateDrawEditParticipation(){
     if(!edits[id]) edits[id]=[null,null,null,null];
     edits[id][slot]=sel.value;
   });
-  // 개별추가 카드에서 선수별 이모지 수집
-  const manualIcons={};
-  d.manualCards.forEach(mc=>{
-    const _ic=tIcon[_deCtType(mc)]||'⚪';
-    [...mc.team0,...mc.team1].forEach(name=>{
-      if(!manualIcons[name]) manualIcons[name]=[];
-      manualIcons[name].push(_ic);
-    });
-  });
+  // 번외경기별 이모지 배열 (인덱스=번외경기 순서)
+  const manualCardIcons=d.manualCards.map(mc=>tIcon[_deCtType(mc)]||'⚪');
   const hasManual=d.manualCards.length>0;
   // ── 자동배정 모드: 전체 참석자 참여현황 (autoCards + manualCards 합집합)
   if(isAutoMode){
@@ -6422,7 +6415,7 @@ function _updateDrawEditParticipation(){
     t+=`<table style="width:100%;border-collapse:collapse;font-size:0.75rem"><thead><tr style="border-bottom:1.5px solid #e2e8f0">
       <th style="text-align:left;padding:4px 3px;font-size:0.72rem;color:#64748b;font-weight:700">선수</th>`;
     for(const r of d.roundNums){t+=`<th style="padding:4px 2px;color:#64748b;font-size:0.68rem;font-weight:700;text-align:center">제${r}</th>`;}
-    if(hasManual) t+=`<th style="padding:4px 2px;color:#64748b;font-size:0.68rem;font-weight:700;text-align:center">추가</th>`;
+    d.manualCards.forEach((_,i)=>{t+=`<th style="padding:4px 2px;color:#0891b2;font-size:0.68rem;font-weight:700;text-align:center;white-space:nowrap">번외${i+1}</th>`;});
     t+=`<th style="padding:4px 3px;color:#64748b;font-weight:700;text-align:right;font-size:0.72rem">합계</th></tr></thead><tbody>`;
     allParticipants.forEach(p=>{
       const col=colorMap[p.name]||'#64748b';let games=0;
@@ -6437,9 +6430,11 @@ function _updateDrawEditParticipation(){
         }
         t+=`<td style="text-align:center;padding:4px 2px">${icon||'<span style="color:#e2e8f0;font-size:0.6rem">—</span>'}</td>`;
       }
-      const mIcons=manualIcons[p.name]||[];
-      if(hasManual) t+=`<td style="text-align:center;padding:4px 2px">${mIcons.length?mIcons.join(''):'<span style="color:#e2e8f0;font-size:0.6rem">—</span>'}</td>`;
-      games+=mIcons.length;
+      d.manualCards.forEach((mc,i)=>{
+        const inGame=[...mc.team0,...mc.team1].includes(p.name);
+        t+=`<td style="text-align:center;padding:4px 2px">${inGame?manualCardIcons[i]:'<span style="color:#e2e8f0;font-size:0.6rem">—</span>'}</td>`;
+        if(inGame) games++;
+      });
       t+=`<td style="text-align:right;padding:4px 3px;font-weight:800;color:#1e293b">${games}</td></tr>`;
     });
     t+=`</tbody></table>`;
@@ -6453,7 +6448,7 @@ function _updateDrawEditParticipation(){
   t+=`<table style="width:100%;border-collapse:collapse;font-size:0.75rem"><thead><tr style="border-bottom:1.5px solid #e2e8f0">
     <th style="text-align:left;padding:4px 3px;font-size:0.72rem;color:#64748b;font-weight:700">선수</th>`;
   for(const r of d.roundNums){t+=`<th style="padding:4px 2px;color:#64748b;font-size:0.68rem;font-weight:700;text-align:center">제${r}</th>`;}
-  if(hasManual) t+=`<th style="padding:4px 2px;color:#64748b;font-size:0.68rem;font-weight:700;text-align:center">추가</th>`;
+  d.manualCards.forEach((_,i)=>{t+=`<th style="padding:4px 2px;color:#0891b2;font-size:0.68rem;font-weight:700;text-align:center;white-space:nowrap">번외${i+1}</th>`;});
   t+=`<th style="padding:4px 3px;color:#64748b;font-weight:700;text-align:right;font-size:0.72rem">합계</th></tr></thead><tbody>`;
   teamPlayers.forEach(p=>{
     const col=colorMap[p.name]||'#64748b';
@@ -6469,9 +6464,11 @@ function _updateDrawEditParticipation(){
       }
       t+=`<td style="text-align:center;padding:4px 2px">${icon||'<span style="color:#e2e8f0;font-size:0.6rem">—</span>'}</td>`;
     }
-    const mIcons=manualIcons[p.name]||[];
-    if(hasManual) t+=`<td style="text-align:center;padding:4px 2px">${mIcons.length?mIcons.join(''):'<span style="color:#e2e8f0;font-size:0.6rem">—</span>'}</td>`;
-    games+=mIcons.length;
+    d.manualCards.forEach((mc,i)=>{
+      const inGame=[...mc.team0,...mc.team1].includes(p.name);
+      t+=`<td style="text-align:center;padding:4px 2px">${inGame?manualCardIcons[i]:'<span style="color:#e2e8f0;font-size:0.6rem">—</span>'}</td>`;
+      if(inGame) games++;
+    });
     t+=`<td style="text-align:right;padding:4px 3px;font-weight:800;color:#1e293b">${games}</td></tr>`;
   });
   t+=`</tbody></table>`;
@@ -6764,22 +6761,15 @@ function _renderDrawAnalysis(d){
   html+=`<div style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:13px 15px;margin-bottom:12px;overflow-x:auto">
     <div style="font-size:0.85rem;font-weight:800;color:#1e293b;margin-bottom:10px">📊 선수별 참여 현황</div>`;
   // 테이블 헤더 생성 헬퍼
-  // 개별추가 카드 선수별 이모지 수집
-  const _manualIcons={};
-  d.manualCards.forEach(mc=>{
-    const _ic=tIcon[_effType(mc)]||'⚪';
-    [...mc.team0,...mc.team1].forEach(name=>{
-      if(!_manualIcons[name]) _manualIcons[name]=[];
-      _manualIcons[name].push(_ic);
-    });
-  });
+  // 번외경기별 이모지 배열 (인덱스=번외경기 순서)
+  const _manualCardIcons=d.manualCards.map(mc=>tIcon[_effType(mc)]||'⚪');
   const _hasManual=d.manualCards.length>0;
   const _makePlayerTable=(players,headerHtml,isMyTeamTable)=>{
     let t=`<table style="width:100%;border-collapse:collapse;font-size:0.76rem;min-width:280px;margin-bottom:${d.teamMode?'10px':'0'}">
       <thead><tr style="border-bottom:2px solid #e2e8f0">
         <th style="text-align:left;padding:5px 6px;white-space:nowrap">${headerHtml}</th>`;
     for(const r of d.roundNums){t+=`<th style="padding:5px 3px;color:#64748b;font-size:0.68rem;font-weight:700;text-align:center">제${r}</th>`;}
-    if(_hasManual) t+=`<th style="padding:5px 3px;color:#0891b2;font-size:0.68rem;font-weight:700;text-align:center">추가</th>`;
+    d.manualCards.forEach((_,i)=>{t+=`<th style="padding:5px 3px;color:#0891b2;font-size:0.68rem;font-weight:700;text-align:center;white-space:nowrap">번외${i+1}</th>`;});
     t+=`<th style="padding:5px 6px;color:#64748b;font-weight:700;text-align:right">합계</th>
       </tr></thead><tbody>`;
     players.forEach(p=>{
@@ -6795,9 +6785,11 @@ function _renderDrawAnalysis(d){
         else if(card&&!visible){t+=`<td style="text-align:center;padding:6px 3px;color:#cbd5e1;font-size:0.7rem">—</td>`;}
         else{t+=`<td style="text-align:center;padding:6px 3px;color:#e2e8f0;font-size:0.7rem">—</td>`;}
       }
-      const mIc=_manualIcons[p.name]||[];
-      if(_hasManual) t+=`<td style="text-align:center;padding:6px 3px">${mIc.length?mIc.join(''):'<span style="color:#e2e8f0;font-size:0.7rem">—</span>'}</td>`;
-      visibleGames+=mIc.length;
+      d.manualCards.forEach((mc,i)=>{
+        const inGame=[...mc.team0,...mc.team1].includes(p.name);
+        t+=`<td style="text-align:center;padding:6px 3px">${inGame?_manualCardIcons[i]:'<span style="color:#e2e8f0;font-size:0.7rem">—</span>'}</td>`;
+        if(inGame) visibleGames++;
+      });
       t+=`<td style="text-align:right;padding:6px 6px;font-weight:800;color:#1e293b">${visibleGames}</td>
       </tr>`;
     });
