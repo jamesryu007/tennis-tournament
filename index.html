@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1016';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1017';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6371,9 +6371,9 @@ function _openDrawEditModal(){
   const colorMap={};let _mi=0,_fi=0;
   d.attendees.forEach(p=>{colorMap[p.name]=p.gender==='male'?maleColors[_mi++%maleColors.length]:femColors[_fi++%femColors.length];});
   _drawEditCtx={colorMap,d,mySide,cardKeyMap};
-  const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷'};
-  const tName={mixed:'혼복',mens:'남복',womens:'여복'};
-  const tColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777'};
+  const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'🟦',womens_singles:'🟥',mixed_singles:'🟪'};
+  const tName={mixed:'혼복',mens:'남복',womens:'여복',mens_singles:'남단',womens_singles:'여단',mixed_singles:'혼단'};
+  const tColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777',mens_singles:'#2563eb',womens_singles:'#db2777',mixed_singles:'#7c3aed'};
   const teamColor=mySide==='A'?'#1e40af':'#9d174d';
   const teamLabel=mySide==='A'?(capA?capA+'팀':'A팀'):(capB?capB+'팀':'B팀');
   const teamBadgeColor=mySide==='A'?'#eff6ff':'#fdf2f8';
@@ -6435,6 +6435,20 @@ function _openDrawEditModal(){
       const p0=myTeamArr[0]||'',p1=myTeamArr[1]||'';
       const isLast=idx===d.manualCards.length-1;
       const _mcDispLabel=(mc.label||'').replace(/\s*·?\s*\d{1,2}\/\d{1,2}\s*$/,'').trim();
+      // 경기 유형 동적 판별
+      const _mcType=(()=>{
+        const all=[...(mc.team0||[]),...(mc.team1||[])].filter(Boolean);
+        const hM=all.some(n=>teamMales.includes(n)||getGender(n)==='male');
+        const hF=all.some(n=>teamFemales.includes(n)||getGender(n)==='female');
+        if(isSingles){
+          if(hM&&!hF) return 'mens_singles';
+          if(hF&&!hM) return 'womens_singles';
+          return 'mixed_singles';
+        }
+        if(hM&&hF) return 'mixed';
+        if(hM) return 'mens';
+        return 'womens';
+      })();
       // 자기 팀 전체 선수 중 선택 (번외경기는 본인 팀 내 자유 선택)
       const _mcAllOpts=[...teamMales,...teamFemales];
       const mkMcSel=(val,opts,slot)=>{
@@ -6445,6 +6459,7 @@ function _openDrawEditModal(){
       const col1=colorMap[p1]||'#94a3b8';
       html+=`<div style="display:flex;align-items:center;padding:6px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
         <span style="font-size:0.72rem;font-weight:800;color:#475569;white-space:nowrap;flex-shrink:0;min-width:66px;margin-right:8px">번외${idx+1}${_mcDispLabel?` · ${_mcDispLabel}`:''}</span>
+        <span style="font-size:0.72rem;font-weight:800;color:${tColor[_mcType]||'#475569'};white-space:nowrap;flex-shrink:0;margin-right:8px">${tIcon[_mcType]||''} ${tName[_mcType]||''}</span>
         <span id="dedot-${mcId}-0" style="width:8px;height:8px;border-radius:50%;background:${col0};flex-shrink:0;margin-right:4px"></span>
         ${mkMcSel(p0,_mcAllOpts,'0')}
         ${isSingles?'':(`<span style="color:#94a3b8;font-size:0.8rem;flex-shrink:0;margin:0 5px">-</span>
