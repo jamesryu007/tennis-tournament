@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1000';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1001';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6401,15 +6401,28 @@ function _updateDrawEditParticipation(){
     });
   });
   const hasManual=d.manualCards.length>0;
-  // ── 자동배정 모드: 전체 참석자 참여현황
+  // ── 자동배정 모드: 전체 참석자 참여현황 (autoCards + manualCards 합집합)
   if(isAutoMode){
+    // 번외경기 선수도 포함한 전체 선수 목록
+    const _memberMap=Object.fromEntries((state.members||[]).map(m=>[m.name,m]));
+    const _allNames=new Set([
+      ...d.attendees.map(p=>p.name),
+      ...d.manualCards.flatMap(mc=>[...mc.team0,...mc.team1])
+    ]);
+    const allParticipants=[...d.attendees];
+    _allNames.forEach(n=>{
+      if(!allParticipants.some(p=>p.name===n)){
+        const m=_memberMap[n]||{};
+        allParticipants.push({name:n,gender:m.gender||getGender(n)||'male'});
+      }
+    });
     let t=`<div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">📊 선수별 참여 현황</div>`;
     t+=`<table style="width:100%;border-collapse:collapse;font-size:0.75rem"><thead><tr style="border-bottom:1.5px solid #e2e8f0">
       <th style="text-align:left;padding:4px 3px;font-size:0.72rem;color:#64748b;font-weight:700">선수</th>`;
     for(const r of d.roundNums){t+=`<th style="padding:4px 2px;color:#64748b;font-size:0.68rem;font-weight:700;text-align:center">제${r}</th>`;}
     if(hasManual) t+=`<th style="padding:4px 2px;color:#64748b;font-size:0.68rem;font-weight:700;text-align:center">추가</th>`;
     t+=`<th style="padding:4px 3px;color:#64748b;font-weight:700;text-align:right;font-size:0.72rem">합계</th></tr></thead><tbody>`;
-    d.attendees.forEach(p=>{
+    allParticipants.forEach(p=>{
       const col=colorMap[p.name]||'#64748b';let games=0;
       t+=`<tr style="border-bottom:1px solid #f1f5f9"><td style="padding:4px 3px;font-weight:800;color:${col};white-space:nowrap">${p.name}</td>`;
       for(const r of d.roundNums){
