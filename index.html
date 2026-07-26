@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1015';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1016';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6420,6 +6420,40 @@ function _openDrawEditModal(){
     }
     html+=`</div>`;
   }
+  // ── 번외경기 수정 섹션 (팀 대결 모드 — 자기 팀 슬롯만)
+  if(d.manualCards&&d.manualCards.length>0){
+    const _mcLabel=mySide==='A'?(capA?capA+'팀':'A팀'):(capB?capB+'팀':'B팀');
+    const _mcColor=mySide==='A'?'#1e40af':'#9d174d';
+    const _mcBg=mySide==='A'?'#eff6ff':'#fdf2f8';
+    const _mcBorder=mySide==='A'?'#3b82f6':'#ec4899';
+    html+=`<div style="background:${_mcBg};border:1px solid ${_mcBorder};border-radius:8px;margin-top:6px;padding:6px 10px">
+      <div style="font-size:0.75rem;font-weight:800;color:${_mcColor};margin-bottom:4px">${mySide==='A'?'🔵':'🔴'} ${_mcLabel} — ➕ 번외경기 출전 선수</div>`;
+    d.manualCards.forEach((mc,idx)=>{
+      const mcId=mc._manualId;if(!mcId) return;
+      const isSingles=mc.matchType==='singles';
+      const myTeamArr=mySide==='A'?[...mc.team0]:[...mc.team1];
+      const p0=myTeamArr[0]||'',p1=myTeamArr[1]||'';
+      const isLast=idx===d.manualCards.length-1;
+      const _mcDispLabel=(mc.label||'').replace(/\s*·?\s*\d{1,2}\/\d{1,2}\s*$/,'').trim();
+      // 자기 팀 전체 선수 중 선택 (번외경기는 본인 팀 내 자유 선택)
+      const _mcAllOpts=[...teamMales,...teamFemales];
+      const mkMcSel=(val,opts,slot)=>{
+        const optHtml=opts.map(n=>`<option value="${n}"${n===val?' selected':''}>${n}</option>`).join('');
+        return `<select data-card="${mcId}" data-slot="${slot}" onchange="_onDrawEditChange(this)" style="${selStyle}">${optHtml}</select>`;
+      };
+      const col0=colorMap[p0]||'#94a3b8';
+      const col1=colorMap[p1]||'#94a3b8';
+      html+=`<div style="display:flex;align-items:center;padding:6px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
+        <span style="font-size:0.72rem;font-weight:800;color:#475569;white-space:nowrap;flex-shrink:0;min-width:66px;margin-right:8px">번외${idx+1}${_mcDispLabel?` · ${_mcDispLabel}`:''}</span>
+        <span id="dedot-${mcId}-0" style="width:8px;height:8px;border-radius:50%;background:${col0};flex-shrink:0;margin-right:4px"></span>
+        ${mkMcSel(p0,_mcAllOpts,'0')}
+        ${isSingles?'':(`<span style="color:#94a3b8;font-size:0.8rem;flex-shrink:0;margin:0 5px">-</span>
+        <span id="dedot-${mcId}-1" style="width:8px;height:8px;border-radius:50%;background:${col1};flex-shrink:0;margin-right:4px"></span>
+        ${mkMcSel(p1,_mcAllOpts,'1')}`)}
+      </div>`;
+    });
+    html+=`</div>`;
+  }
   html+=`<div id="draw-edit-participation-wrap" style="margin-top:10px;padding-top:10px;border-top:1.5px solid #e2e8f0"></div>`;
   document.getElementById('draw-edit-inner').innerHTML=html;
   _updateDrawEditParticipation();
@@ -6601,12 +6635,23 @@ function _applyDrawEdits(){
   const mySide=d.teamANames.includes(curName)?'A':d.teamBNames.includes(curName)?'B':(isAdmin()?'A':null);
   if(!mySide) return;
   Object.entries(edits).forEach(([cardId,slots])=>{
-    if(!slots[0]||!slots[1]) return;
     const card=_dailyCards[cardId];if(!card) return;
-    const players=[slots[0],slots[1]];
-    if(mySide==='A') card.team0=players; else card.team1=players;
-    const upd=mySide==='A'?{team0:players}:{team1:players};
-    db.ref(`jmt/dailyCards/${cardId}`).update(upd).catch(fbErr);
+    const isSingles=card.matchType==='singles';
+    if(isSingles){
+      // 단식: slot 0만 사용
+      if(!slots[0]) return;
+      const players=[slots[0]];
+      if(mySide==='A') card.team0=players; else card.team1=players;
+      const upd=mySide==='A'?{team0:players}:{team1:players};
+      db.ref(`jmt/dailyCards/${cardId}`).update(upd).catch(fbErr);
+    } else {
+      // 복식: slot 0, 1 모두 필요
+      if(!slots[0]||!slots[1]) return;
+      const players=[slots[0],slots[1]];
+      if(mySide==='A') card.team0=players; else card.team1=players;
+      const upd=mySide==='A'?{team0:players}:{team1:players};
+      db.ref(`jmt/dailyCards/${cardId}`).update(upd).catch(fbErr);
+    }
     _renderDailyCard(cardId);
   });
   closeDrawEditModal();
