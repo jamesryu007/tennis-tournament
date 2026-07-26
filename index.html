@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1012';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1013';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7748,16 +7748,23 @@ function _renderDailyCard(id){
     const _bLabel=d._teamMode?`🔴 ${(d._teamBNames||[])[0]?(d._teamBNames[0]+'팀'):'B팀'}`:(_isSingles?'선수 B':'팀 B');
     const _singlesTag=_isSingles?`<span style="font-size:0.68rem;font-weight:700;background:#dcfce7;color:#15803d;border-radius:8px;padding:1px 6px;margin-left:4px">단식</span>`:'';
     const _mkMemberStr=(team)=>_isSingles?'':`<div class="dc-tmembers">${_hlMemberStr(team,_curName)}</div>`;
-    const left=`<div class="dc-team-left">
+    // 팀 모드: 상대팀 선수는 경기 시작(playing) 전까지 숨김 — teamSetup과 동일한 정책
+    const showTeam0=!d._teamMode||canManage||_isTeamA;
+    const showTeam1=!d._teamMode||canManage||_isTeamB;
+    const left=showTeam0
+      ?`<div class="dc-team-left">
       <button class="dc-team-btn${t0f?' filled':''}${canEditTeam0?'':' readonly'}"${canEditTeam0?`onclick="openDailyPick('${id}',0)"`:' disabled'}>
         ${t0f?`<div class="dc-tnick">${t0.nick}${canEditTeam0?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div>${_mkMemberStr(d.team0)}`:_aLabel}
       </button>
-    </div>`;
-    const right=`<div class="dc-team-right">
+    </div>`
+      :`<div class="dc-team-left" style="opacity:0.5;align-items:center;justify-content:center"><div class="dc-tnick" style="font-size:0.8rem">준비 중...</div></div>`;
+    const right=showTeam1
+      ?`<div class="dc-team-right">
       <button class="dc-team-btn${t1f?' filled':''}${canEditTeam1?'':' readonly'}"${canEditTeam1?`onclick="openDailyPick('${id}',1)"`:' disabled'}>
         ${t1f?`<div class="dc-tnick">${t1.nick}${canEditTeam1?'<span style="font-size:0.6rem;opacity:0.6"> ✎</span>':''}</div>${_mkMemberStr(d.team1)}`:_bLabel}
       </button>
-    </div>`;
+    </div>`
+      :`<div class="dc-team-right" style="opacity:0.5;align-items:center;justify-content:center"><div class="dc-tnick" style="font-size:0.8rem">준비 중...</div></div>`;
     const mid=`<button class="dc-start-btn" onclick="startDailyMatch('${id}')"${t0f&&t1f&&canStart?'':' disabled'}>시작</button>`;
     el.innerHTML=mkCard((d.label||`경기${d.num}`)+_singlesTag, left, mid, right);
 
