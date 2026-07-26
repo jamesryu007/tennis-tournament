@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1014';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1015';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6693,6 +6693,9 @@ function _renderDrawAnalysis(d){
   const isManualRevealed=card=>!myTeamSide||card.phase==='playing'||card.phase==='done';
   // 팀별 공개 헬퍼 — team0=A팀, team1=B팀 (항상)
   const maskTeam='<span style="color:#94a3b8;font-weight:700">미정 — 미정</span>';
+  const maskSingle='<span style="color:#94a3b8;font-weight:700">미정</span>';
+  // 단식 여부에 따라 마스크 문구 분기
+  const maskFor=card=>(card.matchType==='singles'||(card.team0||[]).length<=1)?maskSingle:maskTeam;
   let html=`<div style="font-family:-apple-system,'Segoe UI',sans-serif;padding:28px 4px 40px">`;
   // ── 타이틀
   html+=`<div style="text-align:center;margin-bottom:22px">
@@ -6780,9 +6783,9 @@ function _renderDrawAnalysis(d){
               <span style="font-size:0.8rem;font-weight:800;color:${tColor[_effType(card)]};white-space:nowrap">${tIcon[_effType(card)]} ${tName[_effType(card)]}</span>
             </div>
             <div style="flex:1;display:flex;align-items:center;min-width:0">
-              <span style="flex:1;font-size:0.82rem;font-weight:600;text-align:right">${isRevealedCard(card)||myTeamSide==='A'?colorTeam(card.team0):maskTeam}</span>
+              <span style="flex:1;font-size:0.82rem;font-weight:600;text-align:right">${isRevealedCard(card)||myTeamSide==='A'?colorTeam(card.team0):maskFor(card)}</span>
               ${_vsSpan}
-              <span style="flex:1;font-size:0.82rem;font-weight:600">${isRevealedCard(card)||myTeamSide==='B'?colorTeam(card.team1):maskTeam}</span>
+              <span style="flex:1;font-size:0.82rem;font-weight:600">${isRevealedCard(card)||myTeamSide==='B'?colorTeam(card.team1):maskFor(card)}</span>
             </div>
           </div>
         </div>`;
@@ -6839,8 +6842,8 @@ function _renderDrawAnalysis(d){
       const _dispLabel=(c.label||'').replace(/\s*·?\s*\d{1,2}\/\d{1,2}\s*$/,'').trim();
       // 팀 모드: setup 단계에서 상대팀 선수 숨김
       const _revealed=isManualRevealed(c);
-      const aCol=(_revealed||myTeamSide==='A')?colorTeam(c.team0):maskTeam;
-      const bCol=(_revealed||myTeamSide==='B')?colorTeam(c.team1):maskTeam;
+      const aCol=(_revealed||myTeamSide==='A')?colorTeam(c.team0):maskFor(c);
+      const bCol=(_revealed||myTeamSide==='B')?colorTeam(c.team1):maskFor(c);
       html+=`<div style="padding:8px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.06)'}">
         <div style="display:flex;align-items:center">
           <div style="${_LC};display:flex;align-items:center;gap:5px">
@@ -6888,8 +6891,11 @@ function _renderDrawAnalysis(d){
       }
       d.manualCards.forEach((mc,i)=>{
         const inGame=[...mc.team0,...mc.team1].includes(p.name);
-        t+=`<td style="text-align:center;padding:6px 3px">${inGame?_manualCardIcons[i]:'<span style="color:#e2e8f0;font-size:0.7rem">—</span>'}</td>`;
-        if(inGame) visibleGames++;
+        // 팀 모드 + setup 단계: 상대팀 테이블에서는 마스킹
+        const mcVisible=!myTeamSide||isMyTeamTable||isManualRevealed(mc);
+        const showInGame=inGame&&mcVisible;
+        t+=`<td style="text-align:center;padding:6px 3px">${showInGame?_manualCardIcons[i]:'<span style="color:#e2e8f0;font-size:0.7rem">—</span>'}</td>`;
+        if(showInGame) visibleGames++;
       });
       t+=`<td style="text-align:right;padding:6px 6px;font-weight:800;color:#1e293b">${visibleGames}</td>
       </tr>`;
