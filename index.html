@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1007';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1008';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -6244,7 +6244,9 @@ function _openDrawEditModal(){
         const isLast=c===d.courtCount;
         const _titleHtml=`<div style="font-size:0.72rem;font-weight:800;color:#475569;margin-bottom:6px;margin-top:2px">제${r}경기 ${c}코트 <span style="color:${tColor[ct]}">${tIcon[ct]} ${tName[ct]}</span></div>`;
         if(card.matchType==='singles'){
-          const optsAll=[...males,...females].filter(Boolean);
+          // 남단→남자만, 여단→여자만, 혼단→전체
+          const _st=_deCardType(card);
+          const optsAll=(_st==='mens_singles'?males:_st==='womens_singles'?females:[...males,...females]).filter(Boolean);
           const [a0,b0]=[card.team0[0]||'',card.team1[0]||''];
           html+=`<div style="padding:7px 0;${isLast?'':'border-bottom:1px solid rgba(0,0,0,0.08)'}">
             ${_titleHtml}
@@ -6539,6 +6541,8 @@ function _applyDrawEdits(){
   if(!d) return;
   // ── 자동배정 모드
   if(_drawEditCtx&&_drawEditCtx.isAutoMode){
+    const _tIconMap={mixed:'🟣',mens:'🔵',womens:'🩷'};
+    const _tNameMap={mixed:'혼복',mens:'남복',womens:'여복'};
     Object.entries(edits).forEach(([cardId,slots])=>{
       const card=_dailyCards[cardId];if(!card) return;
       let t0,t1;
@@ -6549,9 +6553,28 @@ function _applyDrawEdits(){
         if(!slots[0]||!slots[1]||!slots[2]||!slots[3]) return;
         t0=[slots[0],slots[1]];t1=[slots[2],slots[3]];
       }
+      const upd={team0:t0,team1:t1};
+      // 복식: 실제 선수 성별로 matchType 재계산 → label·Firebase도 업데이트
+      if(card.matchType&&card.matchType!=='singles'){
+        const _all=[...t0,...t1];
+        const _hM=_all.some(n=>getGender(n)==='male');
+        const _hF=_all.some(n=>getGender(n)!=='male');
+        const _newType=_hM&&_hF?'mixed':_hF?'womens':'mens';
+        if(_newType!==card.matchType&&_tIconMap[card.matchType]){
+          if(card.label){
+            card.label=card.label.replace(
+              `${_tIconMap[card.matchType]} ${_tNameMap[card.matchType]}`,
+              `${_tIconMap[_newType]} ${_tNameMap[_newType]}`
+            );
+            upd.label=card.label;
+          }
+          card.matchType=_newType;
+          upd.matchType=_newType;
+        }
+      }
       card.team0=t0;card.team1=t1;
       if(typeof cardId==='string'&&cardId.startsWith('-')){
-        db.ref(`jmt/dailyCards/${cardId}`).update({team0:t0,team1:t1}).catch(fbErr);
+        db.ref(`jmt/dailyCards/${cardId}`).update(upd).catch(fbErr);
       }
       _renderDailyCard(cardId);
     });
@@ -6631,13 +6654,17 @@ function _renderDrawAnalysis(d){
   const tIcon={mixed:'🟣',mens:'🔵',womens:'🩷',mens_singles:'🟦',womens_singles:'🟥',mixed_singles:'🟪'};
   const tName={mixed:'혼복',mens:'남복',womens:'여복',mens_singles:'남단',womens_singles:'여단',mixed_singles:'혼단'};
   const tColor={mixed:'#7c3aed',mens:'#2563eb',womens:'#db2777',mens_singles:'#2563eb',womens_singles:'#db2777',mixed_singles:'#7c3aed'};
-  // 단식 카드 서브타입 판별 (성별 기반)
+  // 경기 타입 판별 (실제 선수 성별 기반 — 복식/단식 모두 동적 재계산)
   const _effType=(card)=>{
-    if(card.matchType!=='singles') return card.matchType;
     const all=[...(card.team0||[]),...(card.team1||[])];
     const hasMale=all.some(n=>(genderMap[n]||getGender(n))==='male');
     const hasFem=all.some(n=>(genderMap[n]||getGender(n))!=='male');
-    return hasMale&&hasFem?'mixed_singles':hasFem?'womens_singles':'mens_singles';
+    if(card.matchType==='singles'){
+      return hasMale&&hasFem?'mixed_singles':hasFem?'womens_singles':'mens_singles';
+    }
+    // 복식: 선수 없으면 저장값 fallback
+    if(!all.length) return card.matchType||'mixed';
+    return hasMale&&hasFem?'mixed':hasFem?'womens':'mens';
   };
   // ── 팀 대결 공개 제어
   const curName=(state.identity&&state.identity.name)||'';
