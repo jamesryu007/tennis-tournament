@@ -36,6 +36,7 @@ body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f0f4fb; 
 /* ── BOTTOM NAV ── */
 .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: calc(76px + env(safe-area-inset-bottom, 0px)); background: #ffffff; border-top: 1px solid #e2e8f0; display: flex; z-index: 50; padding-bottom: env(safe-area-inset-bottom, 0px); box-shadow: 0 -2px 10px rgba(0,0,0,0.06); }
 .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; color: #94a3b8; font-size: 0.65rem; letter-spacing: 0.2px; transition: color 0.15s, transform 0.08s, background 0.08s; padding: 8px 2px; position: relative; user-select: none; -webkit-tap-highlight-color: transparent; }
+.nav-badge { position:absolute; top:4px; left:calc(50% + 6px); min-width:16px; height:16px; background:#dc2626; border-radius:8px; border:2px solid #fff; display:none; align-items:center; justify-content:center; font-size:0.58rem; font-weight:900; color:#fff; padding:0 3px; line-height:1; box-shadow:0 1px 4px rgba(220,38,38,0.5); pointer-events:none; }
 .nav-item .ni { font-size: 1.45rem; line-height: 1; transition: transform 0.15s, filter 0.15s; }
 .nav-item:active { transform: translateY(2px); background: rgba(37,99,235,0.06); border-radius: 10px; }
 .nav-item:active .ni { transform: scale(0.88); }
@@ -799,16 +800,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2663,15 +2664,18 @@ const firebaseConfig = {
 <nav class="bottom-nav">
   <div class="nav-item" id="nav-history" onclick="switchPage('history')">
     <span class="ni">🏅</span><span>랭킹</span>
+    <span class="nav-badge" id="badge-history"></span>
   </div>
   <div class="nav-item" id="nav-checkin" onclick="switchPage('checkin')">
     <span class="ni">✋</span><span>출첵</span>
+    <span class="nav-badge" id="badge-checkin"></span>
   </div>
   <div class="nav-item active" id="nav-matches" onclick="switchPage('matches')">
     <span class="ni">⚡</span><span>자록</span>
   </div>
   <div class="nav-item" id="nav-setup" onclick="switchPage('setup')">
     <span class="ni">🏆</span><span>행모</span>
+    <span class="nav-badge" id="badge-setup"></span>
   </div>
   <div class="nav-item" id="nav-atp" onclick="switchPage('atp')">
     <span class="ni">🏟️</span><span class="live-badge">Live</span>
@@ -2710,7 +2714,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1024';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1025';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -3249,12 +3253,14 @@ function setupFirebaseListeners() {
         _pollDataRef.on('value', pSnap => {
           state.pollData = pSnap.val();
           if(document.getElementById('page-checkin').classList.contains('active')) renderCheckinPage();
+          _updateCheckinBadge();
         }, fbErr);
       }
     } else {
       state.pollData = null;
     }
     if(document.getElementById('page-checkin').classList.contains('active')) renderCheckinPage();
+    _updateCheckinBadge();
   }, fbErr);
 
   // 기존 jmt/meetingPoll → jmt/meetingPolls 마이그레이션 (1회)
@@ -3277,6 +3283,7 @@ function setupFirebaseListeners() {
       _mpData = _mpPolls[_mpActivePollId] || null;
       renderMpDetail();
     }
+    _updateSetupBadge();
   });
 }
 
@@ -9219,6 +9226,9 @@ async function renderRankingTab(){
       const wr=Math.round(effWr(p.wins,p.draws,p.losses)),pwr=Math.round(effWr(prev.wins,prev.draws,prev.losses));
       p.rank=(wr===pwr&&p.wins===prev.wins&&p.qualified===prev.qualified)?prev.rank:i+1;
     });
+    // 내 랭킹 변동 배지 업데이트
+    const _myName=state.identity&&state.identity.name;
+    if(_myName){const _me=players.find(p=>p.name===_myName);if(_me)_updateHistoryBadge(_me.rank);}
 
     const curMonth = String(new Date().getMonth()+1).padStart(2,'0');
     function getMemberBirthday(name) {
@@ -11123,6 +11133,8 @@ function switchPage(id) {
   const _navEl = document.getElementById(`nav-${id}`);
   if (_navEl) _navEl.classList.add('active');
   window.scrollTo(0,0);
+  // 탭 진입 시 배지 클리어
+  if(id === 'history' || id === 'checkin' || id === 'setup') _clearNavBadge(id);
   // 랭킹 탭 진입 시 랜덤 사진 선택 (직전과 다른 것으로)
   if(id === 'history') {
     changeTeamPhotoRandom();
@@ -17925,6 +17937,105 @@ function _bzUpdateUnreadBadge() {
     badge.textContent = _bzUnreadCount > 99 ? '99+' : String(_bzUnreadCount);
     badge.style.display = 'flex';
     if ('setAppBadge' in navigator) navigator.setAppBadge(_bzUnreadCount).catch(() => {});
+  }
+}
+
+// ══ 탭 배지 관리 ══════════════════════════════════════════════════════
+// localStorage 키
+const _NB_LS_RANK     = 'jmt_badge_rank';           // 마지막 확인 시 내 랭킹 (숫자)
+const _NB_LS_CHECKIN  = 'jmt_badge_checkin';        // 마지막 확인 시 출첵댓글수 (weekId:N)
+const _NB_LS_SETUP    = 'jmt_badge_setup';          // 마지막 확인 시 행모댓글수 (pollId:N)
+
+// 배지 표시/숨김 헬퍼
+function _setNavBadge(tab, count) {
+  const el = document.getElementById('badge-' + tab);
+  if (!el) return;
+  if (count > 0) {
+    el.textContent = count > 99 ? '99+' : String(count);
+    el.style.display = 'flex';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// 출첵 탭 배지 업데이트 — pollState/pollData 변경 시 호출
+function _updateCheckinBadge() {
+  const myName = state.identity && state.identity.name;
+  if (!myName || !state.pollState) { _setNavBadge('checkin', 0); return; }
+  const ps = state.pollState;
+  // 출첵 탭이 열려있으면 배지 없음
+  if (document.getElementById('page-checkin').classList.contains('active')) { _setNavBadge('checkin', 0); return; }
+  let count = 0;
+  // 조건1: 출첵 오픈 상태이고 아직 미투표
+  if (ps.status === 'open') {
+    const votes = (state.pollData && state.pollData.votes) || {};
+    const voted = Object.values(votes).some(v => v.name === myName);
+    if (!voted) count += 1;
+  }
+  // 조건2: 새 댓글
+  const comments = (state.pollData && state.pollData.comments) || {};
+  const commentCount = Object.keys(comments).length;
+  const stored = localStorage.getItem(_NB_LS_CHECKIN) || '';
+  const [storedWeekId, storedCount] = stored.split(':');
+  const weekId = ps.weekId || '';
+  const prevCount = (storedWeekId === weekId) ? parseInt(storedCount || '0', 10) : 0;
+  if (commentCount > prevCount) count += (commentCount - prevCount);
+  _setNavBadge('checkin', count);
+}
+
+// 행모 탭 배지 업데이트 — meetingPolls 변경 시 호출
+function _updateSetupBadge() {
+  if (document.getElementById('page-setup').classList.contains('active')) { _setNavBadge('setup', 0); return; }
+  if (!_mpActivePollId || !_mpPolls[_mpActivePollId]) { _setNavBadge('setup', 0); return; }
+  const comments = _mpPolls[_mpActivePollId].comments || {};
+  const commentCount = Object.keys(comments).length;
+  const stored = localStorage.getItem(_NB_LS_SETUP) || '';
+  const [storedPollId, storedCount] = stored.split(':');
+  const prevCount = (storedPollId === _mpActivePollId) ? parseInt(storedCount || '0', 10) : 0;
+  _setNavBadge('setup', commentCount > prevCount ? commentCount - prevCount : 0);
+}
+
+// 랭킹 탭 배지 업데이트 — renderRankingTab 완료 후 내 랭킹 계산 시 호출
+function _updateHistoryBadge(myCurrentRank) {
+  if (document.getElementById('page-history').classList.contains('active')) { _setNavBadge('history', 0); return; }
+  if (!myCurrentRank) { _setNavBadge('history', 0); return; }
+  const prevRank = parseInt(localStorage.getItem(_NB_LS_RANK) || '0', 10);
+  _setNavBadge('history', (prevRank > 0 && prevRank !== myCurrentRank) ? 1 : 0);
+}
+
+// 탭 진입 시 배지 클리어 + 마지막 확인값 저장
+function _clearNavBadge(tab) {
+  _setNavBadge(tab, 0);
+  if (tab === 'checkin') {
+    const ps = state.pollState;
+    if (ps && ps.weekId) {
+      const comments = (state.pollData && state.pollData.comments) || {};
+      localStorage.setItem(_NB_LS_CHECKIN, ps.weekId + ':' + Object.keys(comments).length);
+    }
+  } else if (tab === 'setup') {
+    if (_mpActivePollId && _mpPolls[_mpActivePollId]) {
+      const comments = _mpPolls[_mpActivePollId].comments || {};
+      localStorage.setItem(_NB_LS_SETUP, _mpActivePollId + ':' + Object.keys(comments).length);
+    }
+  } else if (tab === 'history') {
+    const myName = state.identity && state.identity.name;
+    if (myName) {
+      // 현재 내 랭킹 찾기 (player 모드, _rankStatsCache 기반)
+      const yr = _selectedRankYear || String(new Date().getFullYear());
+      const cached = _rankStatsCache['player_' + yr];
+      if (cached) {
+        const memberNames = (state.members || []).map(m => m.name);
+        const raw = Object.entries(cached)
+          .map(([k, v]) => ({ name: k, wins: v.wins || 0, draws: Math.max(0, v.draws || 0), losses: v.losses || 0 }))
+          .filter(p => p.wins + p.draws + p.losses >= 1 && memberNames.includes(p.name));
+        const avg = raw.reduce((s, p) => s + p.wins + p.draws + p.losses, 0) / (raw.length || 1);
+        const thresh = avg * 0.5;
+        const q = raw.filter(p => p.wins + p.draws + p.losses >= thresh)
+          .sort((a, b) => effWr(b.wins, b.draws, b.losses) - effWr(a.wins, a.draws, a.losses) || b.wins - a.wins);
+        const myIdx = q.findIndex(p => p.name === myName);
+        if (myIdx >= 0) localStorage.setItem(_NB_LS_RANK, String(myIdx + 1));
+      }
+    }
   }
 }
 
