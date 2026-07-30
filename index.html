@@ -800,16 +800,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2679,6 +2679,7 @@ const firebaseConfig = {
   </div>
   <div class="nav-item" id="nav-atp" onclick="switchPage('atp')">
     <span class="ni">🏟️</span><span class="live-badge">Live</span>
+    <span class="nav-badge" id="badge-atp"></span>
   </div>
 </nav>
 
@@ -2714,7 +2715,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1025';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1026';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11134,7 +11135,7 @@ function switchPage(id) {
   if (_navEl) _navEl.classList.add('active');
   window.scrollTo(0,0);
   // 탭 진입 시 배지 클리어
-  if(id === 'history' || id === 'checkin' || id === 'setup') _clearNavBadge(id);
+  if(id === 'history' || id === 'checkin' || id === 'setup' || id === 'atp') _clearNavBadge(id);
   // 랭킹 탭 진입 시 랜덤 사진 선택 (직전과 다른 것으로)
   if(id === 'history') {
     changeTeamPhotoRandom();
@@ -12683,6 +12684,7 @@ function initAtpListeners() {
     atpState.gsRoundTab = null;
     atpState.loaded = true;
     if (document.getElementById('page-atp').classList.contains('active')) renderAtpPage();
+    _updateLiveBadge();
   });
 
   // 직전 Grand Slam 구독
@@ -17932,12 +17934,11 @@ function _bzUpdateUnreadBadge() {
   if (!badge) return;
   if (_bzFromFloat || _bzFromMemory || _bzUnreadCount === 0) {
     badge.style.display = 'none';
-    if ('setAppBadge' in navigator) navigator.setAppBadge(0).catch(() => {});
   } else {
     badge.textContent = _bzUnreadCount > 99 ? '99+' : String(_bzUnreadCount);
     badge.style.display = 'flex';
-    if ('setAppBadge' in navigator) navigator.setAppBadge(_bzUnreadCount).catch(() => {});
   }
+  _updateAppBadge();
 }
 
 // ══ 탭 배지 관리 ══════════════════════════════════════════════════════
@@ -17946,16 +17947,31 @@ const _NB_LS_RANK     = 'jmt_badge_rank';           // 마지막 확인 시 내 
 const _NB_LS_CHECKIN  = 'jmt_badge_checkin';        // 마지막 확인 시 출첵댓글수 (weekId:N)
 const _NB_LS_SETUP    = 'jmt_badge_setup';          // 마지막 확인 시 행모댓글수 (pollId:N)
 
+// 탭별 배지 카운트 (앱 아이콘 배지 합산용)
+const _navBadgeCounts = { history: 0, checkin: 0, setup: 0, atp: 0 };
+
+// 앱 아이콘 배지 = 자미톡 미읽음 + 모든 탭 배지 합산
+function _updateAppBadge() {
+  const tabTotal = Object.values(_navBadgeCounts).reduce((s, v) => s + v, 0);
+  const total = _bzUnreadCount + tabTotal;
+  if ('setAppBadge' in navigator) {
+    if (total > 0) navigator.setAppBadge(total).catch(() => {});
+    else navigator.clearAppBadge ? navigator.clearAppBadge().catch(() => {}) : navigator.setAppBadge(0).catch(() => {});
+  }
+}
+
 // 배지 표시/숨김 헬퍼
 function _setNavBadge(tab, count) {
   const el = document.getElementById('badge-' + tab);
   if (!el) return;
+  _navBadgeCounts[tab] = count;
   if (count > 0) {
     el.textContent = count > 99 ? '99+' : String(count);
     el.style.display = 'flex';
   } else {
     el.style.display = 'none';
   }
+  _updateAppBadge();
 }
 
 // 출첵 탭 배지 업데이트 — pollState/pollData 변경 시 호출
@@ -18001,6 +18017,14 @@ function _updateHistoryBadge(myCurrentRank) {
   if (!myCurrentRank) { _setNavBadge('history', 0); return; }
   const prevRank = parseInt(localStorage.getItem(_NB_LS_RANK) || '0', 10);
   _setNavBadge('history', (prevRank > 0 && prevRank !== myCurrentRank) ? 1 : 0);
+}
+
+// Live 탭 배지 업데이트 — ATP/골프 데이터 로드 후 호출
+function _updateLiveBadge() {
+  if (document.getElementById('page-atp').classList.contains('active')) { _setNavBadge('atp', 0); return; }
+  const hasLiveTennis = (atpState.matches || []).some(m => m.status === 'STATUS_IN_PROGRESS');
+  const hasLiveGolf = Object.values(golfState.tournaments || {}).some(t => t && t.state === 'in');
+  _setNavBadge('atp', (hasLiveTennis || hasLiveGolf) ? 1 : 0);
 }
 
 // 탭 진입 시 배지 클리어 + 마지막 확인값 저장
@@ -24286,6 +24310,7 @@ function initGolfListeners() {
     golfState.tournaments = snap.val() || {};
     golfState.loaded = true;
     if (document.getElementById('sport-panel-golf').style.display !== 'none') renderGolfPage();
+    _updateLiveBadge();
   });
 
   // 뉴스
