@@ -15,7 +15,7 @@ const firebaseConfig = {
 };
 
 // ── 캐싱 (sw.js 통합) ──────────────────────────────────────────────
-const CACHE = 'jamite-v1026';
+const CACHE = 'jamite-v1027';
 const BASE = self.location.pathname.startsWith('/tennis-tournament') ? '/tennis-tournament' : '';
 
 // 아이콘만 캐시 — 팀 사진/영상/HTML은 교체 즉시 반영되도록 제외
@@ -94,6 +94,12 @@ messaging.onBackgroundMessage(payload => {
   const n = payload.notification || {};
   const d = payload.data || {};
   const title = n.title || d.title || '자미터 테니스';
+  // 출첵 리마인드 푸시 수신 시 클라이언트에 알림 → 미투표 배지 억제 해제
+  if ((d.tab === 'checkin') && title) {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      list.forEach(c => c.postMessage({ type: 'CHECKIN_REMINDER_RECEIVED' }));
+    });
+  }
   const body  = n.body  || d.body  || '';
   const tab       = d.tab       || 'checkin';
   const commentId = d.commentId || '';

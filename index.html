@@ -2715,7 +2715,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1026';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1027';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -15061,6 +15061,12 @@ async function triggerAtpRefresh() {
     });
     // SW postMessage로 탭 이동
     navigator.serviceWorker.addEventListener('message', e => {
+      // 출첵 리마인드 푸시 수신 → 억제 플래그 해제 → 미투표 배지 재표시
+      if (e.data && e.data.type === 'CHECKIN_REMINDER_RECEIVED') {
+        localStorage.removeItem(_NB_LS_CHECKIN_SUPPRESS);
+        _updateCheckinBadge();
+        return;
+      }
       if (e.data && e.data.type === 'NAVIGATE_TAB') {
         const { tab, commentId, betId, isWinner, subScreen } = e.data;
         const isWinnerHint = isWinner === 'true' ? true : isWinner === 'false' ? false : undefined;
@@ -17946,6 +17952,7 @@ function _bzUpdateUnreadBadge() {
 const _NB_LS_RANK     = 'jmt_badge_rank';           // 마지막 확인 시 내 랭킹 (숫자)
 const _NB_LS_CHECKIN  = 'jmt_badge_checkin';        // 마지막 확인 시 출첵댓글수 (weekId:N)
 const _NB_LS_SETUP    = 'jmt_badge_setup';          // 마지막 확인 시 행모댓글수 (pollId:N)
+const _NB_LS_CHECKIN_SUPPRESS = 'jmt_badge_checkin_suppress'; // 출첵 미투표 배지 억제 (weekId:ts)
 
 // 탭별 배지 카운트 (앱 아이콘 배지 합산용)
 const _navBadgeCounts = { history: 0, checkin: 0, setup: 0, atp: 0 };
@@ -17982,11 +17989,15 @@ function _updateCheckinBadge() {
   // 출첵 탭이 열려있으면 배지 없음
   if (document.getElementById('page-checkin').classList.contains('active')) { _setNavBadge('checkin', 0); return; }
   let count = 0;
-  // 조건1: 출첵 오픈 상태이고 아직 미투표
+  // 조건1: 출첵 오픈 상태이고 아직 미투표 (억제 플래그 없을 때만)
   if (ps.status === 'open') {
     const votes = (state.pollData && state.pollData.votes) || {};
     const voted = Object.values(votes).some(v => v.name === myName);
-    if (!voted) count += 1;
+    if (!voted) {
+      const suppress = localStorage.getItem(_NB_LS_CHECKIN_SUPPRESS) || '';
+      const [suppWeekId] = suppress.split(':');
+      if (suppWeekId !== (ps.weekId || '')) count += 1;  // 억제 없으면 배지
+    }
   }
   // 조건2: 새 댓글
   const comments = (state.pollData && state.pollData.comments) || {};
@@ -18035,6 +18046,17 @@ function _clearNavBadge(tab) {
     if (ps && ps.weekId) {
       const comments = (state.pollData && state.pollData.comments) || {};
       localStorage.setItem(_NB_LS_CHECKIN, ps.weekId + ':' + Object.keys(comments).length);
+      // 미투표 상태이면 억제 플래그 저장 — 다음 리마인드 푸시 수신 시 해제
+      if (ps.status === 'open') {
+        const myName = state.identity && state.identity.name;
+        const votes = (state.pollData && state.pollData.votes) || {};
+        const voted = myName && Object.values(votes).some(v => v.name === myName);
+        if (!voted) {
+          localStorage.setItem(_NB_LS_CHECKIN_SUPPRESS, ps.weekId + ':' + Date.now());
+        } else {
+          localStorage.removeItem(_NB_LS_CHECKIN_SUPPRESS);
+        }
+      }
     }
   } else if (tab === 'setup') {
     if (_mpActivePollId && _mpPolls[_mpActivePollId]) {
