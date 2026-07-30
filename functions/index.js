@@ -13,38 +13,49 @@ setGlobalOptions({ maxInstances: 5, region: 'asia-southeast1' });
 const db  = getDatabase();
 const fcm = getMessaging();
 
-// ── 유틸: 전체 FCM 토큰 목록 ───────────────────────────────────────
-async function getAllTokens() {
+// ── 유틸: 전체 FCM 엔트리 {name, token} 목록 ──────────────────────
+async function getAllEntries() {
   const snap = await db.ref('jmt/fcmTokens').once('value');
   const data = snap.val();
   if (!data) return [];
-  return Object.values(data).map(v => v.token).filter(Boolean);
+  return Object.values(data).filter(v => v.token).map(v => ({ name: v.name || '', token: v.token }));
 }
 
-// ── 유틸: 특정 이름들의 FCM 토큰 ──────────────────────────────────
-async function getTokensByNames(names) {
+// ── 유틸: 특정 이름들의 FCM 엔트리 {name, token} ──────────────────
+async function getEntriesByNames(names) {
   const snap = await db.ref('jmt/fcmTokens').once('value');
   const data = snap.val();
   if (!data) return [];
   return Object.values(data)
     .filter(v => names.includes(v.name) && v.token)
-    .map(v => v.token);
+    .map(v => ({ name: v.name, token: v.token }));
 }
 
-// ── 유틸: FCM 멀티캐스트 발송 ─────────────────────────────────────
-async function sendPush(tokens, title, body, tab = 'checkin', commentId = '', betId = '', extraData = {}) {
-  if (!tokens || tokens.length === 0) return;
-  const chunks = [];
-  for (let i = 0; i < tokens.length; i += 500) chunks.push(tokens.slice(i, i + 500));
-  for (const chunk of chunks) {
-    const data = { title, body, tab, badgeCount: '1', ...extraData };
+// ── 유틸: FCM 개별 발송 — 사용자별 자미톡 미읽음+1 = badgeCount ────
+// entries: [{name, token}] 배열
+async function sendPush(entries, title, body, tab = 'checkin', commentId = '', betId = '', extraData = {}) {
+  if (!entries || entries.length === 0) return;
+  // 자미톡 미읽음 수 조회 → 사용자별 badgeCount 계산
+  const [lastReadSnap, msgsSnap] = await Promise.all([
+    db.ref('jmt/banzige/lastRead').once('value'),
+    db.ref('jmt/banzige/current/messages').orderByChild('ts').limitToLast(200).once('value'),
+  ]);
+  const lastReadMap = lastReadSnap.val() || {};
+  const msgs = [];
+  msgsSnap.forEach(c => { const v = c.val(); if (v && v.ts) msgs.push(v); });
+
+  const messages = entries.map(({ name, token }) => {
+    const lastRead = lastReadMap[name] || 0;
+    const bzUnread = msgs.filter(m => m.ts > lastRead).length;
+    const badgeCount = bzUnread + 1; // 자미톡 미읽음 + 이번 탭 이벤트 최소 1
+    const data = { title, body, tab, ...extraData, badgeCount: String(badgeCount) };
     if (commentId) data.commentId = commentId;
     if (betId) data.betId = betId;
-    await fcm.sendEachForMulticast({
-      tokens: chunk,
-      data,
-      webpush: { headers: { Urgency: 'high' } }
-    });
+    return { token, data, webpush: { headers: { Urgency: 'high' } } };
+  });
+
+  for (let i = 0; i < messages.length; i += 500) {
+    await fcm.sendEach(messages.slice(i, i + 500));
   }
 }
 
@@ -99,7 +110,7 @@ exports.autoOpenCheckin = onSchedule(
 exports.notifyCheckinOpen = onSchedule(
   { schedule: '0 9 * * 1', timeZone: 'Asia/Seoul' },
   async () => {
-    const tokens = await getAllTokens();
+    const tokens = await getAllEntries();
     await sendPush(tokens, '🎾 자미터 테니스 출첵 오픈!', '이번 주 토요일 모임 출첵을 해주세요 ✋');
   }
 );
@@ -121,7 +132,7 @@ exports.notifyCheckinReminder = onSchedule(
     const members = Object.values(membersSnap.val() || {});
     const unvotedNames = members.map(m => m.name).filter(n => !voted.has(n));
 
-    const tokens = await getTokensByNames(unvotedNames);
+    const tokens = await getEntriesByNames(unvotedNames);
     await sendPush(tokens, '⏰ 출첵 마감 30분 전!', '아직 출첵을 안 하셨어요. 지금 바로 참석 여부를 알려주세요!');
   }
 );
@@ -143,7 +154,7 @@ exports.notifyCheckinReminderTue = onSchedule(
     const members = Object.values(membersSnap.val() || {});
     const unvotedNames = members.map(m => m.name).filter(n => !voted.has(n));
 
-    const tokens = await getTokensByNames(unvotedNames);
+    const tokens = await getEntriesByNames(unvotedNames);
     await sendPush(tokens, '🎾 이번 주 출첵 하셨나요?', '아직 출첵을 안 하셨어요. 지금 바로 참석 여부를 알려주세요!');
   }
 );
@@ -165,7 +176,7 @@ exports.notifyCheckinReminderWed = onSchedule(
     const members = Object.values(membersSnap.val() || {});
     const unvotedNames = members.map(m => m.name).filter(n => !voted.has(n));
 
-    const tokens = await getTokensByNames(unvotedNames);
+    const tokens = await getEntriesByNames(unvotedNames);
     await sendPush(tokens, '🎾 이번 주 출첵 하셨나요?', '아직 출첵을 안 하셨어요. 지금 바로 참석 여부를 알려주세요!');
   }
 );
@@ -187,7 +198,7 @@ exports.notifyCheckinReminderThu = onSchedule(
     const members = Object.values(membersSnap.val() || {});
     const unvotedNames = members.map(m => m.name).filter(n => !voted.has(n));
 
-    const tokens = await getTokensByNames(unvotedNames);
+    const tokens = await getEntriesByNames(unvotedNames);
     await sendPush(tokens, '🎾 내일이 출첵 마감이에요!', '아직 출첵을 안 하셨어요. 지금 바로 참석 여부를 알려주세요!');
   }
 );
@@ -201,7 +212,7 @@ exports.notifyCheckinClose = onSchedule(
     if (ps && ps.status === 'open') {
       await db.ref('jmt/pollState').update({ status: 'closed', closedAt: new Date().toISOString() });
     }
-    const tokens = await getAllTokens();
+    const tokens = await getAllEntries();
     await sendPush(tokens, '🔴 출첵이 마감되었습니다', '이번 주 출첵이 마감되었습니다. 참석 인원을 확인해 주세요.', 'checkin');
   }
 );
@@ -217,10 +228,9 @@ exports.notifyNewComment = onValueCreated(
     // 작성자 본인 제외
     const snap = await db.ref('jmt/fcmTokens').once('value');
     const data = snap.val() || {};
-    const otherTokens = Object.values(data)
-      .filter(v => v.name !== author && v.token)
-      .map(v => v.token);
-    await sendPush(otherTokens, `💬 ${author}님이 댓글을 달았습니다`, text || '', 'checkin', event.params.commentId);
+    const otherEntries = Object.values(data)
+      .filter(v => v.name !== author && v.token);
+    await sendPush(otherEntries, `💬 ${author}님이 댓글을 달았습니다`, text || '', 'checkin', event.params.commentId);
   }
 );
 
@@ -251,19 +261,19 @@ exports.notifyPhotoUploaded = onValueCreated(
     // 태그된 멤버 → 태그 알림 (업로더 본인 제외)
     const tagTargets = taggedMembers.filter(name => name !== uploader);
     if (tagTargets.length > 0) {
-      const tagTokens = allEntries.filter(v => tagTargets.includes(v.name)).map(v => v.token);
-      if (tagTokens.length > 0) {
+      const tagEntries = allEntries.filter(v => tagTargets.includes(v.name));
+      if (tagEntries.length > 0) {
         const tagTitle = isVideo ? `🎬 ${uploader}님이 영상에 나를 태그했어요` : `🏷️ ${uploader}님이 사진에 나를 태그했어요`;
-        await sendPush(tagTokens, tagTitle, '자만추 탭에서 확인해 보세요!', 'matches');
+        await sendPush(tagEntries, tagTitle, '자만추 탭에서 확인해 보세요!', 'matches');
       }
     }
 
     // 나머지 멤버 → 업로드 알림 (업로더 본인 + 태그된 멤버 제외)
     const excludeNames = new Set([uploader, ...tagTargets]);
-    const otherTokens = allEntries.filter(v => !excludeNames.has(v.name)).map(v => v.token);
-    if (otherTokens.length > 0) {
+    const otherEntries = allEntries.filter(v => !excludeNames.has(v.name));
+    if (otherEntries.length > 0) {
       const uploadTitle = isVideo ? `🎬 ${uploader}님이 영상을 올렸어요` : `📸 ${uploader}님이 사진을 올렸어요`;
-      await sendPush(otherTokens, uploadTitle, '자만추 탭에서 확인해 보세요!', 'matches');
+      await sendPush(otherEntries, uploadTitle, '자만추 탭에서 확인해 보세요!', 'matches');
     }
   }
 );
@@ -277,7 +287,7 @@ exports.notifyCommentReply = onValueCreated(
     const { commentAuthor, author, text } = reply;
     if (!commentAuthor || commentAuthor === author) return;
     const commentId = event.params.commentId;
-    const tokens = await getTokensByNames([commentAuthor]);
+    const tokens = await getEntriesByNames([commentAuthor]);
     await sendPush(tokens, `💬 ${author}님이 답글을 달았습니다`, text, 'checkin', commentId);
   }
 );
@@ -293,10 +303,9 @@ exports.notifyBetNewComment = onValueCreated(
     const betId = event.params.betId;
     const snap = await db.ref('jmt/fcmTokens').once('value');
     const data = snap.val() || {};
-    const otherTokens = Object.values(data)
-      .filter(v => v.name !== author && v.token)
-      .map(v => v.token);
-    await sendPush(otherTokens, `💬 ${author}님이 댓글을 달았습니다`, text, 'atp', '', betId);
+    const otherEntries = Object.values(data)
+      .filter(v => v.name !== author && v.token);
+    await sendPush(otherEntries, `💬 ${author}님이 댓글을 달았습니다`, text, 'atp', '', betId);
   }
 );
 
@@ -314,7 +323,7 @@ exports.notifyBetCommentReply = onValueCreated(
     const parentComment = parentSnap.val();
     const commentAuthor = parentComment && parentComment.author;
     if (!commentAuthor || commentAuthor === author) return;
-    const tokens = await getTokensByNames([commentAuthor]);
+    const tokens = await getEntriesByNames([commentAuthor]);
     await sendPush(tokens, `💬 ${author}님이 답글을 달았습니다`, text, 'atp', '', betId);
   }
 );
@@ -882,7 +891,7 @@ exports.notifyAtpBetOpen = onValueCreated(
   async (event) => {
     const bet = event.data.val();
     if (!bet || !bet.open) return;
-    const tokens = await getAllTokens();
+    const tokens = await getAllEntries();
     const matchName = bet.matchName || '경기';
     const stake = bet.stake || '';
     await sendPush(tokens, '🎯 ATP 베팅 오픈!',
@@ -916,7 +925,7 @@ exports.notifyBetResult = onValueCreated(
 
     // 위너 푸시
     if (winnerMemberNames.length > 0) {
-      const winnerTokens = await getTokensByNames(winnerMemberNames);
+      const winnerTokens = await getEntriesByNames(winnerMemberNames);
       const winnerBody = `🏆 ${winnerName} 우승! 🎊 ${winnerMemberNames.join(', ')}님 정답입니다!`;
       await sendPush(winnerTokens, '🎯 베팅 결과 발표!', winnerBody, 'atp', '', betId, { isWinner: 'true' });
     }
@@ -925,8 +934,7 @@ exports.notifyBetResult = onValueCreated(
     const allTokensSnap = await db.ref('jmt/fcmTokens').once('value');
     const allTokensData = allTokensSnap.val() || {};
     const nonWinnerTokens = Object.values(allTokensData)
-      .filter(v => v.token && !winnerMemberNames.includes(v.name))
-      .map(v => v.token);
+      .filter(v => v.token && !winnerMemberNames.includes(v.name));
     const loserBody = loserMemberNames.length > 0
       ? `🏆 ${winnerName} 우승! 아쉽게도 이번엔 틀렸네요 😅`
       : `🏆 ${winnerName} 우승! 베팅 결과를 확인하세요`;
@@ -1048,7 +1056,7 @@ exports.notifyBetReminderScheduled = onSchedule(
         const unparticipated = allNames.filter(n => !participated.has(n));
         if (!unparticipated.length) continue;
 
-        const tokens = await getTokensByNames(unparticipated);
+        const tokens = await getEntriesByNames(unparticipated);
         if (tokens.length) {
           const title = bet.tournamentName || bet.matchName || '베팅';
           await sendPush(tokens, '🎯 베팅 미참여 알림', `${title} 베팅에 아직 참여하지 않으셨어요! 지금 바로 참여하세요.`, 'atp');
@@ -1066,7 +1074,7 @@ exports.notifyBetReminder = onCall(
   async (request) => {
     const { names, betTitle } = request.data || {};
     if (!names || !names.length) return { success: false, error: 'no names' };
-    const tokens = await getTokensByNames(names);
+    const tokens = await getEntriesByNames(names);
     if (tokens.length) {
       await sendPush(tokens, '🎯 베팅에 참여해주세요!', `${betTitle} 베팅이 진행 중입니다. 지금 바로 참여하세요!`, 'atp');
     }
@@ -1191,7 +1199,7 @@ exports.notifyBracketUpdate = onValueWritten(
     if (parsed.guests && parsed.guests.length) {
       parsed.guests.forEach(g => { if (g.name) participantNames.push(g.name); });
     }
-    const tokens = participantNames.length ? await getTokensByNames(participantNames) : await getAllTokens();
+    const tokens = participantNames.length ? await getEntriesByNames(participantNames) : await getAllEntries();
     if (!hadTournament) {
       await sendPush(tokens, '🎾 대진표가 생성되었습니다!', '경기 진행 탭에서 이번 주 대진표를 확인하세요.', 'setup');
     } else {
@@ -1226,7 +1234,7 @@ exports.notifyLadderBracket = onValueWritten(
     const participants = parsed.ladderGameSnapshot && parsed.ladderGameSnapshot.participants;
     if (!participants || !participants.length) return;
 
-    const tokens = await getTokensByNames(participants);
+    const tokens = await getEntriesByNames(participants);
     if (!tokens.length) return;
     const nameStr = participants.length <= 6 ? participants.join(', ') : `${participants.slice(0, 6).join(', ')} 외 ${participants.length - 6}명`;
     await sendPush(tokens, '🪜 사다리 복식 대진표 생성!', `${nameStr} — 경기 진행 탭에서 확인하세요.`, 'setup');
@@ -1249,7 +1257,7 @@ exports.sendCheckinPressure = onCall(
     const unvotedNames = Object.values(membersSnap.val() || {}).map(m => m.name).filter(n => !voted.has(n));
     if (!unvotedNames.length) return { success: true, sent: 0 };
 
-    const tokens = await getTokensByNames(unvotedNames);
+    const tokens = await getEntriesByNames(unvotedNames);
     if (tokens.length) {
       await sendPush(tokens, '📣 출첵하세요!', '아직 이번 주 출첵을 안 하셨어요. 지금 바로 참석 여부를 알려주세요!', 'checkin');
     }
@@ -1296,7 +1304,7 @@ exports.notifyPlayerRankingChange = onValueWritten(
       }
     }
     if (!changes.length) return;
-    const tokens = await getAllTokens();
+    const tokens = await getAllEntries();
     await sendPush(tokens, `${medals[changes[0].includes('1위')?0:changes[0].includes('2위')?1:2]} 개인 랭킹 변동!`, changes.join(' · '), 'history');
   }
 );
@@ -1314,7 +1322,7 @@ exports.notifyTournamentChange = onValueWritten(
     const tier = tAfter.tier || 'atp250';
     const tierLabel = tier === 'grandslam' ? ' [Grand Slam 🏆]' : tier === 'atp1000' ? ' [ATP 1000 ⭐]' : '';
     const name = tAfter.displayName || tAfter.name;
-    const tokens = await getAllTokens();
+    const tokens = await getAllEntries();
     const msg = idChanged
       ? `${name}${tierLabel} 대회가 시작되었습니다.`
       : `${name}${tierLabel} 대회 정보가 업데이트되었습니다.`;
@@ -1357,7 +1365,7 @@ exports.notifyTennisWinner = onValueWritten(
         : tier === 'atp500'  ? '🎯 ATP 500' : '🎾 ATP';
       const purseStr = tInfo.purse ? ` | 💰 ${tInfo.purse}` : '';
       const tName   = tInfo.displayName || tInfo.name || '';
-      const tokens  = await getAllTokens();
+      const tokens  = await getAllEntries();
 
       for (const final of newFinals) {
         const isWomen   = final.gender === 'women';
@@ -1409,10 +1417,10 @@ exports.notifyFavPlayerMatch = onValueWritten(
         favNames.some(fn => (m.player1Name||'').toLowerCase().includes(fn) || (m.player2Name||'').toLowerCase().includes(fn))
       );
       if (!myMatches.length) continue;
-      const tokens = Object.values(fcmData).filter(v => v.name === memberName && v.token).map(v => v.token);
-      if (!tokens.length) continue;
+      const entries = Object.values(fcmData).filter(v => v.name === memberName && v.token);
+      if (!entries.length) continue;
       const body = myMatches.map(m => `${m.player1Name} vs ${m.player2Name} 경기가 시작되었습니다.`).join(' ');
-      await sendPush(tokens, '⭐ 관심선수 경기 시작!', body, 'atp');
+      await sendPush(entries, '⭐ 관심선수 경기 시작!', body, 'atp');
     }
   }
 );
@@ -1799,7 +1807,7 @@ async function _runWeeklyMvp(isDryRun = false, skipMinCheck = false) {
   if (!isDryRun) {
     // 말풍선 ① — 예고 + 전체 푸시
     await _postBotMsg({ text: '이번 주 경기 결과를 발표하겠습니다 🏆' });
-    const allTokens = await getAllTokens();
+    const allTokens = await getAllEntries();
     await sendPush(allTokens, '🏆 이번 주 경기 결과 발표', '자미터 채팅방을 확인하세요!', 'banzige');
     // 3초 딜레이 후 말풍선 ②
     await new Promise(r => setTimeout(r, 3000));
@@ -1862,7 +1870,7 @@ exports.notifyMeetingPollOpen = onValueCreated(
     const pollSnap = await db.ref(`jmt/meetingPolls/${pollId}`).once('value');
     const poll = pollSnap.val();
     if (!poll) return;
-    const tokens = await getAllTokens();
+    const tokens = await getAllEntries();
     await sendPush(tokens, '🗳️ 머든 정하기 투표 오픈!', `"${poll.title||'머든 정하기'}" 투표에 참여해 주세요!`, 'setup');
   }
 );
@@ -1909,7 +1917,7 @@ exports.notifyMeetingPollClosed = onValueWritten(
       ? `"${title}"가 ${detail}로 결정되었습니다. 일정표에 표기해 주세요!`
       : `"${title}" 투표가 마감되었습니다.`;
 
-    const tokens = await getAllTokens();
+    const tokens = await getAllEntries();
     await sendPush(tokens, '🗳️ 머든 정하기 확정!', body, 'setup');
   }
 );
@@ -1933,7 +1941,7 @@ exports.notifyMeetingPollNudge = onCall(
 
     if (!nonVoters.length) return { message: '모든 멤버가 투표에 참여했습니다!' };
 
-    const tokens = await getTokensByNames(nonVoters);
+    const tokens = await getEntriesByNames(nonVoters);
     if (!tokens.length) return { message: '독촉 알림을 보낼 대상이 없습니다.' };
 
     await sendPush(tokens, '🔔 머든 정하기 투표 미참여 알림', `"${poll.title||'머든 정하기'}" 투표에 아직 참여하지 않으셨습니다. 지금 참여해 주세요!`, 'setup');
@@ -1956,7 +1964,7 @@ exports.notifyMeetingPollAutoNudge = onSchedule(
       const voterNames = Object.values(votes).map(v => v.name).filter(Boolean);
       const nonVoters = members.filter(n => !voterNames.includes(n));
       if (!nonVoters.length) continue;
-      const tokens = await getTokensByNames(nonVoters);
+      const tokens = await getEntriesByNames(nonVoters);
       if (!tokens.length) continue;
       await sendPush(tokens, '🗳️ 머든 정하기 투표 미참여 알림', `"${poll.title||'머든 정하기'}" 투표에 참여해 주세요!`, 'setup');
     }
@@ -1990,10 +1998,9 @@ exports.notifyMeetingPollComment = onValueCreated(
     if (!author) return;
     const snap = await db.ref('jmt/fcmTokens').once('value');
     const data = snap.val() || {};
-    const otherTokens = Object.values(data)
-      .filter(v => v.name !== author && v.token)
-      .map(v => v.token);
-    await sendPush(otherTokens, `💬 ${author}님이 댓글을 달았습니다`, text, 'setup', event.params.commentId);
+    const otherEntries = Object.values(data)
+      .filter(v => v.name !== author && v.token);
+    await sendPush(otherEntries, `💬 ${author}님이 댓글을 달았습니다`, text, 'setup', event.params.commentId);
   }
 );
 
@@ -2008,7 +2015,7 @@ exports.notifyMeetingPollReply = onValueCreated(
     const commentSnap = await db.ref(`jmt/meetingPolls/${event.params.pollId}/comments/${event.params.commentId}`).once('value');
     const comment = commentSnap.val();
     if (!comment || !comment.author || comment.author === author) return;
-    const tokens = await getTokensByNames([comment.author]);
+    const tokens = await getEntriesByNames([comment.author]);
     await sendPush(tokens, `💬 ${author}님이 답글을 달았습니다`, text, 'setup', event.params.commentId);
   }
 );
@@ -2046,7 +2053,7 @@ exports.notifyMeetingPollFinalDecision = onValueWritten(
       ? `"${pollTitle}"가 ${detail}로 결정되었습니다. 일정표에 표기해 주세요!`
       : `"${pollTitle}"가 확정되었습니다. 일정표에 표기해 주세요!`;
 
-    const tokens = await getAllTokens();
+    const tokens = await getAllEntries();
     await sendPush(tokens, '📅 모임 날짜/내용 확정!', body, 'setup');
   }
 );
@@ -2357,7 +2364,7 @@ exports.notifyGolfWinner = onValueWritten(
 
       if (!newlyFinished.length) return;
 
-      const tokens = await getAllTokens();
+      const tokens = await getAllEntries();
 
       for (const t of newlyFinished) {
         const winner = (t.leaderboard || []).filter(p => p.name && !p.isCut)[0];
@@ -3996,7 +4003,7 @@ exports.sendNoticeAsBot = onCall({ region: 'asia-southeast1' }, async (req) => {
     text: `📢 ${notice.title || '공지사항'}`, // 푸시 미리보기·검색용
   });
   // 전체 멤버에게 FCM 푸시 (쿨다운 없이 항상 발송)
-  const tokens = await getAllTokens();
+  const tokens = await getAllEntries();
   const pushTitle = `📢 공지사항${notice.title ? ` — ${notice.title}` : ''}`;
   const plainBody = _htmlToPlainText(notice.content);
   const pushBody  = plainBody.length > 60 ? plainBody.slice(0, 60) + '…' : plainBody;
