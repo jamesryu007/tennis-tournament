@@ -2347,10 +2347,14 @@ exports.notifyGolfWinner = onValueWritten(
       const before = event.data.before.val() || {};
       const after  = event.data.after.val()  || {};
 
-      // 대회 종료 판정: post 상태 OR 비컷 선수 전원 thru==='F'
+      // 대회 종료 판정: post 상태 OR 4라운드 완료 후 비컷 선수 전원 thru==='F'
+      // scores >= 4 조건 추가 — R1 완료 시 전원 F로 오판 방지
       const _isTournamentDone = (t) => {
         if (t.state === 'post') return true;
-        const nonCut = (t.leaderboard || []).filter(p => p.name && !p.isCut);
+        const lb = t.leaderboard || [];
+        const maxScores = Math.max(...lb.map(p => (p.scores || []).length), 0);
+        if (maxScores < 4) return false;
+        const nonCut = lb.filter(p => p.name && !p.isCut);
         return nonCut.length > 0 && nonCut.every(p => p.thru === 'F');
       };
 
