@@ -2351,11 +2351,13 @@ exports.notifyGolfWinner = onValueWritten(
       // scores >= 4 조건 추가 — R1 완료 시 전원 F로 오판 방지
       const _isTournamentDone = (t) => {
         const lb = t.leaderboard || [];
-        const maxScores = Math.max(...lb.map(p => (p.scores || []).length), 0);
-        if (maxScores < 4) return false; // 4라운드 미만이면 post 여부 무관하게 미완료
-        if (t.state === 'post') return true;
         const nonCut = lb.filter(p => p.name && !p.isCut);
-        return nonCut.length > 0 && nonCut.every(p => p.thru === 'F');
+        if (nonCut.length === 0) return false;
+        // 비컷 선수 전원 4라운드 완료 여부 개인별 체크 (글로벌 max 오판 방지)
+        const allFour = nonCut.every(p => (p.scores || []).length >= 4);
+        if (!allFour) return false;
+        if (t.state === 'post') return true;
+        return nonCut.every(p => p.thru === 'F');
       };
 
       // 이번 업데이트에서 처음 종료 상태가 된 대회
