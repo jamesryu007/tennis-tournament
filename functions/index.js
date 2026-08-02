@@ -2354,7 +2354,7 @@ exports.notifyGolfWinner = onValueWritten(
         const nonCut = lb.filter(p => p.name && !p.isCut);
         if (nonCut.length === 0) return false;
         // 비컷 선수 전원 4라운드 완료 여부 개인별 체크 (글로벌 max 오판 방지)
-        const allFour = nonCut.every(p => (p.scores || []).length >= 4);
+        const allFour = nonCut.every(p => (p.scores || []).filter(s => s !== '').length >= 4);
         if (!allFour) return false;
         if (t.state === 'post') return true;
         return nonCut.every(p => p.thru === 'F');

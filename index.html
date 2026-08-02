@@ -800,16 +800,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2715,7 +2715,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1031';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1032';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -25405,11 +25405,12 @@ function renderGolfLeaderboard(t) {
   // 대회 완료 우승자 프레임 (테니스 챔피언 배너와 동일 스타일)
   // ESPN이 post로 전환 안 해도, Final 라운드 비컷 선수 전원 'F'면 배너 표시
   const _nonCutPlayers = displayPlayers.filter(p => !p.isCut);
-  // 비컷 선수 개인별 4라운드 완료 체크 — 글로벌 max가 아닌 per-player 확인
+  // 비컷 선수 개인별 4라운드 완료 체크 — 빈 스코어('') 제외 (ESPN이 미래 라운드를 빈 항목으로 포함)
+  const _realScoreCount = (p) => (p.scores || []).filter(s => s !== '').length;
   const _allFinalDone = _nonCutPlayers.length > 0 &&
-    _nonCutPlayers.every(p => (p.scores || []).length >= 4 && p.thru === 'F');
+    _nonCutPlayers.every(p => _realScoreCount(p) >= 4 && p.thru === 'F');
   const _postAllDone = t.state === 'post' &&
-    _nonCutPlayers.length > 0 && _nonCutPlayers.every(p => (p.scores || []).length >= 4);
+    _nonCutPlayers.length > 0 && _nonCutPlayers.every(p => _realScoreCount(p) >= 4);
   let golfChampionBanner = '';
   if ((_postAllDone || _allFinalDone) && roundIdx === null) {
     const _champ = displayPlayers.find(p => !p.isCut && p._calcRank === 1);
