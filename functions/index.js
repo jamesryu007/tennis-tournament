@@ -2568,7 +2568,9 @@ exports.fetchTennisPastWinner = onCall(
         if (genderFilter) {
           const typeText = ((c.type && c.type.text) || '').toLowerCase();
           const typeSlug = ((c.type && c.type.slug) || '').toLowerCase();
-          const isWomenComp = typeText.includes('women') || typeSlug.includes('women');
+          // "Ladies'" = Wimbledon 공식 명칭 대응
+          const isWomenComp = typeText.includes('women') || typeSlug.includes('women')
+                            || typeText.includes('ladies') || typeSlug.includes('ladies');
           if (genderFilter === 'women' && !isWomenComp) return false;
           if (genderFilter === 'men' && isWomenComp) return false;
         }
@@ -2592,11 +2594,12 @@ exports.fetchTennisPastWinner = onCall(
       };
     };
 
-    // 이름 양방향 overlap 비율 (>= 2자 포함)
+    // 이름 overlap — targetWords가 event name에 포함되면 매칭
+    // Math.min 사용: "Wimbledon" vs "The Championships Wimbledon" = 1/min(1,3) = 1.0 (max 사용 시 0.33 → 미매칭)
     const _overlap = (name) => {
       const words = new Set(normalize(name).split(' ').filter(w => w.length >= 2));
       const cnt = targetWords.filter(w => words.has(w)).length;
-      return cnt / Math.max(targetWords.length, words.size, 1);
+      return cnt / Math.min(targetWords.length, words.size, 1);
     };
 
     try {
@@ -2622,7 +2625,27 @@ exports.fetchTennisPastWinner = onCall(
 
       if (!bestEvent || bestOvlp < 0.5) return { found: false };
 
-      const winnerObj = _extractFinalWinner(bestEvent, espnTour === 'wta' ? 'women' : 'men');
+      let winnerObj = _extractFinalWinner(bestEvent, espnTour === 'wta' ? 'women' : 'men');
+
+      // WTA genderFilter 실패 시 ATP endpoint fallback (Grand Slam에서 WTA endpoint가 type.text 누락/오기)
+      if (!winnerObj && espnTour === 'wta') {
+        let bestAtpEvent = null, bestAtpOvlp = 0;
+        for (const dateStr of datesToTry) {
+          try {
+            const r = await fetch(`https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=${dateStr}`);
+            const j = await r.json();
+            for (const ev of (j.events || [])) {
+              const ovlp = _overlap(ev.name || ev.shortName || '');
+              if (ovlp > bestAtpOvlp) { bestAtpOvlp = ovlp; bestAtpEvent = ev; }
+            }
+            if (bestAtpOvlp >= 0.8) break;
+          } catch (_) {}
+        }
+        if (bestAtpEvent && bestAtpOvlp >= 0.5) {
+          winnerObj = _extractFinalWinner(bestAtpEvent, 'women');
+        }
+      }
+
       if (!winnerObj) return { found: false };
 
       // Firebase 저장 — gender 포함 deterministic key (남녀 동명 대회 덮어쓰기 방지)
