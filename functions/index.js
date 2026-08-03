@@ -2548,7 +2548,7 @@ exports.fetchTennisPastWinner = onCall(
     // 테니스 이벤트에서 결승 우승자 추출
     // ESPN tennis 이벤트는 event.groupings[*].competitions 구조 (event.competitions 아님)
     // 결승 매치는 competition.round.displayName === 'Final' 로 판별
-    const _extractFinalWinner = (event) => {
+    const _extractFinalWinner = (event, genderFilter) => {
       if (!event) return null;
       // groupings 배열 → 각 grouping의 competitions 합산
       let allComps = [];
@@ -2560,11 +2560,19 @@ exports.fetchTennisPastWinner = onCall(
         allComps = event.competitions || [];
       }
 
-      // round.displayName 으로 결승 찾기 (type.text 는 "Men's Singles" 등 종목명)
-      // qualifying 제외: "Qualifying Final" 이 Final 보다 먼저 나와 오매칭되는 버그 방지
+      // round.displayName 으로 결승 찾기, competition.type.text 로 성별 검증
+      // ESPN WTA 엔드포인트가 Grand Slam에서 Men's Singles 데이터를 돌려주는 버그 방어
       const finalComp = allComps.find(c => {
-        const rn = (c.round && c.round.displayName) || (c.type && c.type.text) || '';
-        return /\bfinal\b/i.test(rn) && !/semi|quarter|qualifying/i.test(rn);
+        const rn = (c.round && c.round.displayName) || '';
+        if (!/\bfinal\b/i.test(rn) || /semi|quarter|qualifying/i.test(rn)) return false;
+        if (genderFilter) {
+          const typeText = ((c.type && c.type.text) || '').toLowerCase();
+          const typeSlug = ((c.type && c.type.slug) || '').toLowerCase();
+          const isWomenComp = typeText.includes('women') || typeSlug.includes('women');
+          if (genderFilter === 'women' && !isWomenComp) return false;
+          if (genderFilter === 'men' && isWomenComp) return false;
+        }
+        return true;
       });
       if (!finalComp) return null;
 
@@ -2614,7 +2622,7 @@ exports.fetchTennisPastWinner = onCall(
 
       if (!bestEvent || bestOvlp < 0.5) return { found: false };
 
-      const winnerObj = _extractFinalWinner(bestEvent);
+      const winnerObj = _extractFinalWinner(bestEvent, espnTour === 'wta' ? 'women' : 'men');
       if (!winnerObj) return { found: false };
 
       // Firebase 저장 — gender 포함 deterministic key (남녀 동명 대회 덮어쓰기 방지)
