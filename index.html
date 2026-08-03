@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1054';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1055';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13071,8 +13071,9 @@ function _buildTennisChampionBanner(tourneyInfo, matches) {
     const gLabel = m.gender === 'women' ? '여' : '남';
     const genderTag = finals.length > 1 ? `<div style="font-size:0.62rem;color:${style.color};font-weight:700;margin-top:1px">${gLabel}자 단식</div>` : '';
     const panelId = `tpw-${_tSafeId}${finals.length > 1 ? '_' + m.gender : ''}`;
+    const _mTour = m.gender === 'women' ? 'wta' : 'atp';
     return `<div style="position:relative;text-align:center;padding:10px 32px 10px;background:${style.bg};border-radius:12px;margin:6px 0 8px;border:2px solid ${style.border}">
-      <button onclick="_toggleTennisPastWinners('${_tNameSafe}',${m.gender==='women'?'wta':'atp'},'${panelId}','${m.gender||''}')" style="position:absolute;top:7px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.5);border:1.5px solid ${style.border};color:${style.color};font-size:0.68rem;font-weight:900;cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;justify-content:center" title="역대 우승자">i</button>
+      <button onclick="_toggleTennisPastWinners('${_tNameSafe}','${_mTour}','${panelId}','${m.gender||''}')" style="position:absolute;top:7px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.5);border:1.5px solid ${style.border};color:${style.color};font-size:0.68rem;font-weight:900;cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;justify-content:center" title="역대 우승자">i</button>
       <div style="font-size:1.5rem">🏆</div>
       <div style="font-size:0.96rem;font-weight:800;color:${nc};margin-top:3px">${winner.name}</div>
       ${winner.country ? `<div style="font-size:0.72rem;color:${style.color};margin-top:1px;opacity:0.8">${winner.country}</div>` : ''}
@@ -25023,7 +25024,9 @@ function _renderHistoryList() {
   };
 
   if (type === 'tennis') {
-    el.innerHTML = filtered.map(e => {
+    el.innerHTML = filtered
+      .filter(e => e.startDate)  // CF 캐시 항목(startDate 없음) 히스토리 목록 제외
+      .map(e => {
       const tier  = e.tier || 'atp250';
       const style = (typeof TIER_STYLE !== 'undefined' && TIER_STYLE[tier]) || { badge:'ATP', badgeBg:'#2563eb', badgeColor:'#fff', bg:'#eff6ff', border:'#bfdbfe', color:'#2563eb' };
       const dates = [e.startDate, e.endDate].filter(Boolean).map(fmtDate).join(' ~ ');
