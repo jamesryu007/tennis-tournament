@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1041';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1042';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13037,16 +13037,51 @@ function renderTourneyInfoHtml(t, ended) {
         <!-- 관심선수 버튼 -->
         <button onclick="openFavPlayerModal()" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:16px;padding:5px 10px;font-size:0.78rem;font-weight:700;color:${style.color};cursor:pointer;white-space:nowrap">⭐ 관심선수</button>
       </div>
-      <!-- 역대 우승자 인라인 패널 -->
-      <div id="tpw-${_tSafeId}" style="display:none"></div>
-      <!-- 하단 우측 버튼: ℹ️ 역대우승자 인라인 | 📅 히스토리 모달 -->
-      <button onclick="_toggleTennisPastWinners('${_tNameSafe}','${_tennisTour}','tpw-${_tSafeId}')" title="역대 우승자" style="position:absolute;bottom:8px;right:46px;background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:50%;width:24px;height:24px;font-size:0.68rem;font-weight:900;color:${style.color};cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;justify-content:center">i</button>
+      <!-- 하단 우측 버튼: 📅 히스토리 모달 -->
       <button onclick="openTournamentHistory('tennis','${_tennisTour}')" title="대회 히스토리" style="position:absolute;bottom:8px;right:10px;background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:10px;padding:3px 7px;font-size:1rem;line-height:1;cursor:pointer">📅</button>
     </div>
   `;
 }
 
 // ── 대회 정보 렌더 ────────────────────────────────────────────────
+// ── 테니스 우승자 배너 생성 (Final 경기 우승자 표시) ──────────────
+function _buildTennisChampionBanner(tourneyInfo, matches) {
+  const matchArr = Array.isArray(matches) ? matches : Object.values(matches || {});
+  // Final + 완료된 경기 찾기 (남성/여성 모두)
+  const finals = matchArr.filter(m => {
+    const rn = (m.roundName || '').toLowerCase();
+    return (rn === 'final' || rn === 'the final') && m.status === 'STATUS_FINAL' &&
+      (m.player1Winner === true || m.player2Winner === true);
+  });
+  if (!finals.length) return '';
+
+  const tier  = tourneyInfo.tier || 'atp250';
+  const style = getGsStyle(tourneyInfo) || TIER_STYLE[tier] || TIER_STYLE.atp250;
+  const _tennisTour = tier.toLowerCase().includes('wta') ? 'wta' : 'atp';
+  const _tName = tourneyInfo.displayName || tourneyInfo.name || '';
+  const _tNameSafe = _tName.replace(/'/g, "\\'");
+  const _tSafeId = (_tName).replace(/[^a-z0-9]/gi, '_');
+
+  return finals.map(m => {
+    const isW1 = m.player1Winner;
+    const winner = { name: isW1 ? m.player1Name : m.player2Name, country: isW1 ? m.player1Country : m.player2Country, score: isW1 ? m.player1Score : m.player2Score };
+    const isKor = (winner.country || '').toLowerCase().includes('kor');
+    const nc = isKor ? '#CD2E3A' : style.color;
+    const gLabel = m.gender === 'women' ? '여' : '남';
+    const genderTag = finals.length > 1 ? `<div style="font-size:0.62rem;color:${style.color};font-weight:700;margin-top:1px">${gLabel}자 단식</div>` : '';
+    const panelId = `tpw-${_tSafeId}${finals.length > 1 ? '_' + m.gender : ''}`;
+    return `<div style="position:relative;text-align:center;padding:10px 32px 10px;background:${style.bg};border-radius:12px;margin:6px 0 8px;border:2px solid ${style.border}">
+      <button onclick="_toggleTennisPastWinners('${_tNameSafe}','${_tennisTour}','${panelId}')" style="position:absolute;top:7px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.5);border:1.5px solid ${style.border};color:${style.color};font-size:0.68rem;font-weight:900;cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;justify-content:center" title="역대 우승자">i</button>
+      <div style="font-size:1.5rem">🏆</div>
+      <div style="font-size:0.96rem;font-weight:800;color:${nc};margin-top:3px">${winner.name}</div>
+      ${winner.country ? `<div style="font-size:0.72rem;color:${style.color};margin-top:1px;opacity:0.8">${winner.country}</div>` : ''}
+      ${genderTag}
+      <div style="font-size:0.82rem;font-weight:700;color:${style.color};margin-top:3px;opacity:0.9">${winner.score || ''} · 우승</div>
+      <div id="${panelId}" style="display:none"></div>
+    </div>`;
+  }).join('');
+}
+
 function renderAtpTourneyInfo() {
   const el = document.getElementById('atp-tourney-info');
   if (!el) return;
@@ -13065,14 +13100,17 @@ function renderAtpTourneyInfo() {
     // 활성 대회 없으면 직전 Grand Slam 표시
     const gs = atpState.lastGrandSlam;
     if (gs && gs.tournamentInfo && gs.tournamentInfo.name) {
-      el.innerHTML = renderTourneyInfoHtml(gs.tournamentInfo, true) +
+      const champBanner = _buildTennisChampionBanner(gs.tournamentInfo, gs.matches || {});
+      el.innerHTML = renderTourneyInfoHtml(gs.tournamentInfo, true) + champBanner +
         (isAdmin() ? `<div style="text-align:center;padding:4px 0 0"><button onclick="triggerAtpRefresh()" style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:20px;padding:5px 11px;font-size:0.75rem;font-weight:600;color:#64748b;cursor:pointer">🔄 새로고침</button></div>` : '');
     } else {
       el.innerHTML = '<div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.85rem">현재 진행 중인 대회 정보가 없습니다.</div>' + (isAdmin() ? '<div style="text-align:center"><button onclick="triggerAtpRefresh()" style="margin-top:8px;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:0.8rem;cursor:pointer">🔄 새로고침</button></div>' : '');
     }
     return;
   }
-  el.innerHTML = renderTourneyInfoHtml(t, false);
+  // 활성 대회 — Final 완료 시 우승자 배너 표시
+  const champBanner = _buildTennisChampionBanner(t, atpState.matches || []);
+  el.innerHTML = renderTourneyInfoHtml(t, false) + champBanner;
 }
 
 // ── 관심선수 이름 매칭 헬퍼 ──────────────────────────────────────
