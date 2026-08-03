@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1049';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1050';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -24697,7 +24697,8 @@ async function _toggleGolfPastWinners(tournamentName, tour, panelId) {
   const _matchEntry = (entry) => {
     const entryWords = new Set(normalize(entry.name || '').split(' ').filter(w => w.length > 2));
     const overlap = [...targetWords].filter(w => entryWords.has(w)).length;
-    return overlap / Math.max(targetWords.size, 1) >= 0.5;
+    // 양방향 overlap: max(target, entry) 분모 → 이름이 다른 대회가 짧은 공통어("open")로 잘못 매칭되는 것 방지
+    return overlap / Math.max(targetWords.size, entryWords.size, 1) >= 0.6;
   };
 
   try {
@@ -24770,7 +24771,8 @@ async function _toggleTennisPastWinners(tournamentName, tour, panelId) {
   const _matchEntry = (entry) => {
     const entryWords = new Set(normalize(entry.name || '').split(' ').filter(w => w.length > 2));
     const overlap = [...targetWords].filter(w => entryWords.has(w)).length;
-    return overlap / Math.max(targetWords.size, 1) >= 0.5;
+    // 양방향 overlap: max(target, entry) 분모 → 이름이 다른 대회 오매칭 방지
+    return overlap / Math.max(targetWords.size, entryWords.size, 1) >= 0.6;
   };
 
   const _renderPanel = (entries) => {

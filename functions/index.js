@@ -2446,11 +2446,12 @@ exports.fetchGolfPastWinner = onCall(
     // PGA 메이저는 EUR에도 있으므로 fallback 시도
     const tourCandidates = espnTour === 'pga' ? ['pga', 'eur'] : [espnTour];
 
-    // 이름 overlap 비율 계산
+    // 이름 양방향 overlap 비율 — max(target, entry) 분모로 오매칭 방지
+    // 예: "3M Open"(words:["open"]) vs "The Open"(words:["the","open"]) = 1/max(1,2) = 0.5 → 임계값 미달
     const _overlap = (name) => {
       const words = new Set(normalize(name).split(' ').filter(w => w.length > 2));
       const cnt = targetWords.filter(w => words.has(w)).length;
-      return cnt / Math.max(targetWords.length, 1);
+      return cnt / Math.max(targetWords.length, words.size, 1);
     };
 
     // 1단계: calendar에서 대회 찾기 → endDate 획득
@@ -2558,9 +2559,10 @@ exports.fetchTennisPastWinner = onCall(
       }
 
       // round.displayName 으로 결승 찾기 (type.text 는 "Men's Singles" 등 종목명)
+      // qualifying 제외: "Qualifying Final" 이 Final 보다 먼저 나와 오매칭되는 버그 방지
       const finalComp = allComps.find(c => {
         const rn = (c.round && c.round.displayName) || (c.type && c.type.text) || '';
-        return /\bfinal\b/i.test(rn) && !/semi|quarter/i.test(rn);
+        return /\bfinal\b/i.test(rn) && !/semi|quarter|qualifying/i.test(rn);
       });
       if (!finalComp) return null;
 
@@ -2580,11 +2582,11 @@ exports.fetchTennisPastWinner = onCall(
       };
     };
 
-    // 이름 overlap 비율 계산
+    // 이름 양방향 overlap 비율 — max(target, entry) 분모
     const _overlap = (name) => {
       const words = new Set(normalize(name).split(' ').filter(w => w.length > 2));
       const cnt = targetWords.filter(w => words.has(w)).length;
-      return cnt / Math.max(targetWords.length, 1);
+      return cnt / Math.max(targetWords.length, words.size, 1);
     };
 
     try {
