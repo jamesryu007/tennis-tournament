@@ -2426,7 +2426,7 @@ exports.fetchGolfNews = onSchedule(
   }
 );
 
-// ══ 16. 골프 역대 우승자 조회 (ESPN scoreboard?dates={year}) ════════
+// ══ 16. 골프 역대 우승자 조회 (scoreboard → summary fallback) ═══════
 exports.fetchGolfPastWinner = onCall(
   { region: 'asia-southeast1' },
   async (req) => {
@@ -2438,27 +2438,35 @@ exports.fetchGolfPastWinner = onCall(
 
     const tourMap = { lpga: 'lpga', pga: 'pga', euro: 'eur', dp: 'eur', liv: 'liv' };
     const espnTour = tourMap[tour.toLowerCase()] || tour.toLowerCase();
+    // PGA 메이저(The Open 등) 는 EUR에도 있으므로 fallback 시도
+    const tourCandidates = espnTour === 'pga' ? ['pga', 'eur'] : [espnTour];
 
-    try {
-      const url = `https://site.api.espn.com/apis/site/v2/sports/golf/${espnTour}/scoreboard?dates=${year}`;
-      const res  = await fetch(url);
+    // 대회 이름 매칭으로 이벤트 탐색
+    const _findEvent = async (tkey) => {
+      const res  = await fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tkey}/scoreboard?dates=${year}`);
       const json = await res.json();
       const events = json.events || [];
-
-      // 이름 매칭으로 대회 찾기
-      let bestEvent = null;
-      let bestOverlap = 0;
+      let bestEvent = null, bestOverlap = 0;
       for (const ev of events) {
         const evWords = new Set(normalize(ev.name || ev.shortName || '').split(' ').filter(w => w.length > 2));
         const overlap = targetWords.filter(w => evWords.has(w)).length;
         if (overlap > bestOverlap) { bestOverlap = overlap; bestEvent = ev; }
       }
+      if (!bestEvent || bestOverlap / Math.max(targetWords.length, 1) < 0.4) return null;
+      return { event: bestEvent, tkey };
+    };
 
-      if (!bestEvent || bestOverlap / Math.max(targetWords.length, 1) < 0.4) {
-        return { found: false };
+    try {
+      // 1. 이벤트 탐색 (PGA 먼저, 없으면 EUR)
+      let found = null;
+      for (const tkey of tourCandidates) {
+        found = await _findEvent(tkey);
+        if (found) break;
       }
+      if (!found) return { found: false };
 
-      // 우승자 추출 — 완료된 대회만
+      const { event: bestEvent, tkey: matchedTour } = found;
+
       const statusType = bestEvent.status && bestEvent.status.type;
       const isCompleted = statusType && (
         statusType.name === 'STATUS_FINAL' ||
@@ -2467,21 +2475,46 @@ exports.fetchGolfPastWinner = onCall(
       );
       if (!isCompleted) return { found: false, reason: 'not_completed' };
 
+      // 2. 우승자 추출 — scoreboard competitors 먼저 시도
+      let winnerObj = null;
       const comp = (bestEvent.competitions || [])[0];
-      if (!comp) return { found: false };
-
-      const competitors = (comp.competitors || []).slice();
+      const competitors = comp ? (comp.competitors || []).slice() : [];
       competitors.sort((a, b) => (a.order || a.position || 9999) - (b.order || b.position || 9999));
-      const winner = competitors[0];
-      if (!winner) return { found: false };
+      const firstComp = competitors[0];
+      if (firstComp) {
+        const ath = firstComp.athlete || {};
+        const name = ath.displayName || ath.fullName || firstComp.displayName || '';
+        if (name) {
+          winnerObj = {
+            name,
+            country: (ath.flag && ath.flag.alt) || (ath.country && ath.country.abbreviation) || '',
+            score:   firstComp.score || '',
+          };
+        }
+      }
 
-      const ath = winner.athlete || {};
-      const winnerObj = {
-        name:    ath.displayName || ath.fullName || winner.displayName || '',
-        country: (ath.flag && ath.flag.alt) || (ath.country && ath.country.abbreviation) || '',
-        score:   winner.score || '',
-      };
-      if (!winnerObj.name) return { found: false };
+      // 3. scoreboard에 데이터 없으면 summary API fallback (과거 대회 리더보드)
+      if ((!winnerObj || !winnerObj.name) && bestEvent.id) {
+        const sumRes  = await fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${matchedTour}/summary?event=${bestEvent.id}`);
+        const sumJson = await sumRes.json();
+
+        const leaders = (sumJson.leaderboard || []).slice();
+        leaders.sort((a, b) => (a.sortOrder || a.displayOrder || 9999) - (b.sortOrder || b.displayOrder || 9999));
+        const top = leaders[0];
+        if (top) {
+          const topAth = (top.athletes && top.athletes[0]) || top.athlete || {};
+          const name = topAth.displayName || topAth.fullName || top.displayName || '';
+          if (name) {
+            winnerObj = {
+              name,
+              country: (topAth.flag && topAth.flag.alt) || topAth.country || '',
+              score:   top.total || top.totalDisplay || top.score || '',
+            };
+          }
+        }
+      }
+
+      if (!winnerObj || !winnerObj.name) return { found: false };
 
       // Firebase 저장
       const entry = {
@@ -2501,7 +2534,7 @@ exports.fetchGolfPastWinner = onCall(
   }
 );
 
-// ══ 17. 테니스 역대 우승자 조회 (ESPN scoreboard?dates={year}) ═════
+// ══ 17. 테니스 역대 우승자 조회 (scoreboard → summary fallback) ════
 exports.fetchTennisPastWinner = onCall(
   { region: 'asia-southeast1' },
   async (req) => {
@@ -2512,15 +2545,35 @@ exports.fetchTennisPastWinner = onCall(
     const targetWords = normalize(tournamentName).split(' ').filter(w => w.length > 2);
     const espnTour = tour.toLowerCase() === 'wta' ? 'wta' : 'atp';
 
+    const _extractFinalWinner = (competitions) => {
+      const comps = competitions || [];
+      const finalComp = comps.find(c => {
+        const rn = (c.type && c.type.text) || c.roundName || '';
+        return /final/i.test(rn) && !/semi|quarter/i.test(rn);
+      }) || comps[comps.length - 1];
+      if (!finalComp) return null;
+      const statusType = finalComp.status && finalComp.status.type;
+      const isCompleted = statusType && (statusType.name === 'STATUS_FINAL' || statusType.completed === true);
+      if (!isCompleted) return null;
+      const competitors = (finalComp.competitors || []).slice();
+      const winner = competitors.find(c => c.winner === true) || competitors[0];
+      if (!winner) return null;
+      const ath = winner.athlete || {};
+      const name = ath.displayName || ath.fullName || winner.displayName || '';
+      if (!name) return null;
+      return {
+        name,
+        country: (ath.flag && ath.flag.alt) || (ath.country && ath.country.abbreviation) || '',
+      };
+    };
+
     try {
-      const url = `https://site.api.espn.com/apis/site/v2/sports/tennis/${espnTour}/scoreboard?dates=${year}`;
-      const res  = await fetch(url);
+      // 1. 이벤트 탐색
+      const res  = await fetch(`https://site.api.espn.com/apis/site/v2/sports/tennis/${espnTour}/scoreboard?dates=${year}`);
       const json = await res.json();
       const events = json.events || [];
 
-      // 이름 매칭으로 대회 찾기
-      let bestEvent = null;
-      let bestOverlap = 0;
+      let bestEvent = null, bestOverlap = 0;
       for (const ev of events) {
         const evWords = new Set(normalize(ev.name || ev.shortName || '').split(' ').filter(w => w.length > 2));
         const overlap = targetWords.filter(w => evWords.has(w)).length;
@@ -2531,29 +2584,19 @@ exports.fetchTennisPastWinner = onCall(
         return { found: false };
       }
 
-      // Final 경기에서 우승자 추출
-      const comps = bestEvent.competitions || [];
-      const finalComp = comps.find(c => {
-        const rn = (c.type && c.type.text) || (c.roundName) || '';
-        return /final/i.test(rn) && !/semi|quarter/i.test(rn);
-      }) || comps[comps.length - 1];
+      // 2. scoreboard competitions에서 Final 우승자 추출
+      let winnerObj = _extractFinalWinner(bestEvent.competitions);
 
-      if (!finalComp) return { found: false };
+      // 3. 없으면 summary API fallback (과거 대회 브래킷 데이터)
+      if (!winnerObj && bestEvent.id) {
+        const sumRes  = await fetch(`https://site.api.espn.com/apis/site/v2/sports/tennis/${espnTour}/summary?event=${bestEvent.id}`);
+        const sumJson = await sumRes.json();
+        // summary는 competitions 배열 또는 header.competitions 구조
+        winnerObj = _extractFinalWinner(sumJson.competitions);
+        if (!winnerObj) winnerObj = _extractFinalWinner(sumJson.header && sumJson.header.competitions);
+      }
 
-      const statusType = finalComp.status && finalComp.status.type;
-      const isCompleted = statusType && (statusType.name === 'STATUS_FINAL' || statusType.completed === true);
-      if (!isCompleted) return { found: false, reason: 'not_completed' };
-
-      const competitors = (finalComp.competitors || []).slice();
-      const winner = competitors.find(c => c.winner === true) || competitors[0];
-      if (!winner) return { found: false };
-
-      const ath = winner.athlete || {};
-      const winnerObj = {
-        name:    ath.displayName || ath.fullName || winner.displayName || '',
-        country: (ath.flag && ath.flag.alt) || (ath.country && ath.country.abbreviation) || '',
-      };
-      if (!winnerObj.name) return { found: false };
+      if (!winnerObj) return { found: false };
 
       // Firebase 저장
       const entry = {
