@@ -2715,7 +2715,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1035';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1036';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -25413,8 +25413,9 @@ function renderGolfLeaderboard(t) {
   const _postAllDone = t.state === 'post' &&
     _nonCutPlayers.length > 0 && _nonCutPlayers.every(p => _realScoreCount(p) >= 4);
   // 라운드 합산으로 실제 토탈 계산 (ESPN total 필드 오류 대비)
+  // .slice(0,4): ESPN이 플레이오프 홀 스코어를 5번째 이후에 추가하므로 4라운드만 사용
   const _calcTotal = (p) => {
-    const sc = (p.scores || []).filter(s => s !== '');
+    const sc = (p.scores || []).filter(s => s !== '').slice(0, 4);
     if (!sc.length) return 9999;
     return sc.reduce((sum, s) => sum + parseScore(s), 0);
   };
@@ -25427,13 +25428,6 @@ function renderGolfLeaderboard(t) {
       const _nc = _isKor ? '#CD2E3A' : '#92400e';
       // 플레이오프 감지 — 라운드 합산 기준으로 동점자 찾기 (ESPN total 오류 대비)
       const _champCalcTotal = _calcTotal(_champ);
-      // 디버그 로그 (임시)
-      console.log('[playoff debug]', _champ.name, 'calcTotal:', _champCalcTotal, 'espnTotal:', _champ.total,
-        'scores:', _champ.scores,
-        'candidates:', displayPlayers.filter(p=>p!==_champ&&_realScoreCount(p)>=4).map(p=>({
-          name:p.name, calcTotal:_calcTotal(p), espnTotal:p.total, scores:p.scores, realCount:_realScoreCount(p)
-        }))
-      );
       // isCut 여부 무관하게 4라운드 완료 선수 중 동점자 탐색 (ESPN isCut 오판 대비)
       const _playoffWith = displayPlayers.filter(p =>
         p !== _champ && _realScoreCount(p) >= 4 && _calcTotal(p) === _champCalcTotal && _champCalcTotal !== 9999
