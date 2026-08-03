@@ -2631,7 +2631,7 @@ exports.fetchTennisPastWinner = onCall(
       const cfKey = 'cf_' + entryName.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + espnTour;
       await db.ref(`jmt/tournamentHistory/tennis/${year}/${cfKey}`).set(entry);
 
-      return { found: true, winner: winnerObj, name: entry.name, year: parseInt(year) };
+      return { found: true, winner: winnerObj, name: entry.name, year: parseInt(year), gender: entryGender };
     } catch (e) {
       console.error('fetchTennisPastWinner error:', e);
       throw new Error('조회 실패: ' + e.message);

@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1053';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1054';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13072,7 +13072,7 @@ function _buildTennisChampionBanner(tourneyInfo, matches) {
     const genderTag = finals.length > 1 ? `<div style="font-size:0.62rem;color:${style.color};font-weight:700;margin-top:1px">${gLabel}자 단식</div>` : '';
     const panelId = `tpw-${_tSafeId}${finals.length > 1 ? '_' + m.gender : ''}`;
     return `<div style="position:relative;text-align:center;padding:10px 32px 10px;background:${style.bg};border-radius:12px;margin:6px 0 8px;border:2px solid ${style.border}">
-      <button onclick="_toggleTennisPastWinners('${_tNameSafe}','${_tennisTour}','${panelId}','${m.gender||''}')" style="position:absolute;top:7px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.5);border:1.5px solid ${style.border};color:${style.color};font-size:0.68rem;font-weight:900;cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;justify-content:center" title="역대 우승자">i</button>
+      <button onclick="_toggleTennisPastWinners('${_tNameSafe}',${m.gender==='women'?'wta':'atp'},'${panelId}','${m.gender||''}')" style="position:absolute;top:7px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.5);border:1.5px solid ${style.border};color:${style.color};font-size:0.68rem;font-weight:900;cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;justify-content:center" title="역대 우승자">i</button>
       <div style="font-size:1.5rem">🏆</div>
       <div style="font-size:0.96rem;font-weight:800;color:${nc};margin-top:3px">${winner.name}</div>
       ${winner.country ? `<div style="font-size:0.72rem;color:${style.color};margin-top:1px;opacity:0.8">${winner.country}</div>` : ''}
@@ -24745,8 +24745,11 @@ async function _toggleGolfPastWinners(tournamentName, tour, panelId) {
         try {
           const res = await fn({ tournamentName, tour, year: y });
           const d = res.data;
+          // gender 검증: CF가 잘못된 성별 데이터 반환 시 차단
           if (d && d.found && d.winner && d.winner.name && !entriesMap[y]) {
-            entriesMap[y] = { winner: d.winner, name: d.name, _year: String(y) };
+            if (!gender || !d.gender || d.gender === gender) {
+              entriesMap[y] = { winner: d.winner, name: d.name, _year: String(y) };
+            }
           }
         } catch (_) {}
       }));
