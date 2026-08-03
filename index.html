@@ -800,16 +800,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2715,7 +2715,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1036';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1037';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -24619,6 +24619,54 @@ function closeTourneyInfoModal() {
 // ══ 대회 히스토리 ══════════════════════════════════════════════
 const _historyState = { type: null, tour: null, data: null, year: 'all' };
 
+// ── 골프 챔피언 배너 — 역대 우승자 인라인 패널 ──────────────────────
+async function _toggleGolfPastWinners(tournamentName, tour, panelId) {
+  const panel = document.getElementById(panelId);
+  if (!panel) return;
+  if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+
+  panel.style.display = 'block';
+  panel.innerHTML = '<div style="padding:6px 0 2px;color:#94a3b8;font-size:0.7rem">불러오는 중...</div>';
+
+  try {
+    const snap = await db.ref(`jmt/tournamentHistory/golf/${tour}`).once('value');
+    const raw  = snap.val() || {};
+    const normalize = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+    const targetWords = new Set(normalize(tournamentName).split(' ').filter(w => w.length > 2));
+
+    const entries = [];
+    for (const [year, yearEntries] of Object.entries(raw)) {
+      for (const entry of Object.values(yearEntries)) {
+        if (!entry.winner?.name) continue;
+        const entryWords = new Set(normalize(entry.name || '').split(' ').filter(w => w.length > 2));
+        const overlap = [...targetWords].filter(w => entryWords.has(w)).length;
+        if (overlap / Math.max(targetWords.size, 1) >= 0.5) entries.push({ ...entry, _year: year });
+      }
+    }
+    entries.sort((a, b) => b._year - a._year);
+    const recent = entries.slice(0, 6);
+
+    if (!recent.length) {
+      panel.innerHTML = '<div style="border-top:1px solid #fcd34d;margin-top:6px;padding-top:6px;font-size:0.7rem;color:#94a3b8">이전 기록 없음</div>';
+      return;
+    }
+    panel.innerHTML = `<div style="border-top:1px solid #fcd34d;margin-top:7px;padding-top:6px">
+      <div style="font-size:0.65rem;color:#b45309;font-weight:800;margin-bottom:5px;letter-spacing:0.3px">역대 우승자</div>
+      ${recent.map(e => {
+        const isKor = (e.winner.country || '').toLowerCase().includes('kor') || (e.winner.country || '').toLowerCase().includes('korea');
+        const nc = isKor ? '#CD2E3A' : '#92400e';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;border-bottom:1px dashed #fde68a">
+          <span style="font-size:0.7rem;color:#b45309;font-weight:700;min-width:32px">${e._year}</span>
+          <span style="font-size:0.72rem;font-weight:800;color:${nc};flex:1;text-align:center">${e.winner.name}</span>
+          <span style="font-size:0.65rem;color:#b45309;min-width:28px;text-align:right">${e.winner.country || ''}</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  } catch (_) {
+    panel.innerHTML = '<div style="padding:4px 0;color:#ef4444;font-size:0.7rem">불러오기 실패</div>';
+  }
+}
+
 async function openTournamentHistory(type, tour) {
   _historyState.type = type;
   _historyState.tour = tour || (type === 'tennis' ? 'atp' : 'pga');
@@ -25435,12 +25483,18 @@ function renderGolfLeaderboard(t) {
       const _playoffLine = _playoffWith.length > 0
         ? `<div style="font-size:0.72rem;color:#7c3aed;margin-top:5px;font-weight:700">🔄 ${_playoffWith.map(p => p.name).join(', ')}와 연장 승부 끝 우승</div>`
         : '';
-      golfChampionBanner = `<div style="text-align:center;padding:10px 16px 8px;background:linear-gradient(135deg,#fef9c3,#fffbeb);border-radius:12px;margin:6px 14px 8px;border:2px solid #fcd34d">
+      const _tSafeId = (t.id || t.name || '').replace(/[^a-z0-9]/gi, '_');
+      const _tTourKey = t.tour || 'pga';
+      const _tNameSafe = (t.name || '').replace(/'/g, "\\'");
+      golfChampionBanner = `<div style="position:relative;text-align:center;padding:10px 32px 28px;background:linear-gradient(135deg,#fef9c3,#fffbeb);border-radius:12px;margin:6px 14px 8px;border:2px solid #fcd34d">
+        <button onclick="_toggleGolfPastWinners('${_tNameSafe}','${_tTourKey}','gpw-${_tSafeId}')" style="position:absolute;top:6px;right:8px;background:none;border:none;cursor:pointer;font-size:1rem;padding:2px;line-height:1" title="역대 우승자">ℹ️</button>
+        <button onclick="openTournamentHistory('golf','${_tTourKey}')" style="position:absolute;bottom:6px;right:8px;background:none;border:none;cursor:pointer;font-size:1rem;padding:2px;line-height:1" title="대회 히스토리">🗂️</button>
         <div style="font-size:1.5rem">🏆</div>
         <div style="font-size:0.96rem;font-weight:800;color:${_nc};margin-top:3px">${_champ.name}</div>
         ${_champ.country ? `<div style="font-size:0.72rem;color:#b45309;margin-top:1px">${_champ.country}</div>` : ''}
         <div style="font-size:0.82rem;font-weight:700;color:#92400e;margin-top:3px">${_champ.total || 'E'} · 우승</div>
         ${_playoffLine}
+        <div id="gpw-${_tSafeId}" style="display:none"></div>
       </div>`;
     }
   }
