@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1058';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1059';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -24733,13 +24733,14 @@ async function _toggleGolfPastWinners(tournamentName, tour, panelId) {
     if (missingYears.length > 0) {
       // 현재까지 가진 것 먼저 표시
       const soFar = Object.values(entriesMap).sort((a, b) => b._year - a._year).slice(0, 6);
-      _renderPastWinnersPanel(panel, soFar);
+      _renderPastWinnersPanel(document.getElementById(panelId), soFar);
 
       // 로딩 인디케이터 추가
       const loadingEl = document.createElement('div');
       loadingEl.style.cssText = 'font-size:0.65rem;color:#94a3b8;padding:4px 0';
       loadingEl.textContent = '⏳ 추가 기록 검색 중...';
-      panel.querySelector('div') && panel.appendChild(loadingEl);
+      const gPanelForLoad = document.getElementById(panelId);
+      gPanelForLoad && gPanelForLoad.querySelector('div') && gPanelForLoad.appendChild(loadingEl);
 
       const fn = firebase.app().functions('asia-southeast1').httpsCallable('fetchGolfPastWinner');
       await Promise.allSettled(missingYears.map(async (y) => {
@@ -24759,7 +24760,7 @@ async function _toggleGolfPastWinners(tournamentName, tour, panelId) {
     }
 
     const allEntries = Object.values(entriesMap).sort((a, b) => b._year - a._year).slice(0, 6);
-    _renderPastWinnersPanel(panel, allEntries);
+    _renderPastWinnersPanel(document.getElementById(panelId) || panel, allEntries);
   } catch (_) {
     panel.innerHTML = '<div style="padding:4px 0;color:#ef4444;font-size:0.7rem">불러오기 실패</div>';
   }
@@ -24785,11 +24786,14 @@ async function _toggleTennisPastWinners(tournamentName, tour, panelId, gender) {
   };
 
   const _renderPanel = (entries) => {
+    const p = document.getElementById(panelId) || panel;
     if (!entries.length) {
-      panel.innerHTML = '<div style="border-top:1px solid #e2e8f0;margin-top:6px;padding-top:6px;font-size:0.7rem;color:#94a3b8">이전 기록 없음</div>';
+      p.innerHTML = '<div style="border-top:1px solid #e2e8f0;margin-top:6px;padding-top:6px;font-size:0.7rem;color:#94a3b8">이전 기록 없음</div>';
+      p.style.display = 'block';
       return;
     }
-    panel.innerHTML = `<div style="border-top:1px solid #e2e8f0;margin-top:7px;padding-top:6px">
+    p.style.display = 'block';
+    p.innerHTML = `<div style="border-top:1px solid #e2e8f0;margin-top:7px;padding-top:6px">
       <div style="font-size:0.65rem;color:#475569;font-weight:800;margin-bottom:5px;letter-spacing:0.3px">역대 우승자</div>
       ${entries.map(e => {
         const isKor = (e.winner.country || '').toLowerCase().includes('kor') || (e.winner.country || '').toLowerCase().includes('korea');
@@ -24833,7 +24837,8 @@ async function _toggleTennisPastWinners(tournamentName, tour, panelId, gender) {
       const loadingEl = document.createElement('div');
       loadingEl.style.cssText = 'font-size:0.65rem;color:#94a3b8;padding:4px 0';
       loadingEl.textContent = '⏳ 추가 기록 검색 중...';
-      panel.appendChild(loadingEl);
+      const tPanelForLoad = document.getElementById(panelId) || panel;
+      tPanelForLoad.appendChild(loadingEl);
 
       const fn = firebase.app().functions('asia-southeast1').httpsCallable('fetchTennisPastWinner');
       await Promise.allSettled(missingYears.map(async (y) => {
