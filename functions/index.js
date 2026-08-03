@@ -2403,6 +2403,81 @@ exports.fetchGolfNews = onSchedule(
   }
 );
 
+// ══ 16. 골프 역대 우승자 조회 (ESPN scoreboard?dates={year}) ════════
+exports.fetchGolfPastWinner = onCall(
+  { region: 'asia-southeast1' },
+  async (req) => {
+    const { tournamentName, tour, year } = req.data || {};
+    if (!tournamentName || !tour || !year) throw new Error('tournamentName, tour, year 필수');
+
+    const normalize = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+    const targetWords = normalize(tournamentName).split(' ').filter(w => w.length > 2);
+
+    const tourMap = { lpga: 'lpga', pga: 'pga', euro: 'eur', dp: 'eur', liv: 'liv' };
+    const espnTour = tourMap[tour.toLowerCase()] || tour.toLowerCase();
+
+    try {
+      const url = `https://site.api.espn.com/apis/site/v2/sports/golf/${espnTour}/scoreboard?dates=${year}`;
+      const res  = await fetch(url);
+      const json = await res.json();
+      const events = json.events || [];
+
+      // 이름 매칭으로 대회 찾기
+      let bestEvent = null;
+      let bestOverlap = 0;
+      for (const ev of events) {
+        const evWords = new Set(normalize(ev.name || ev.shortName || '').split(' ').filter(w => w.length > 2));
+        const overlap = targetWords.filter(w => evWords.has(w)).length;
+        if (overlap > bestOverlap) { bestOverlap = overlap; bestEvent = ev; }
+      }
+
+      if (!bestEvent || bestOverlap / Math.max(targetWords.length, 1) < 0.4) {
+        return { found: false };
+      }
+
+      // 우승자 추출 — 완료된 대회만
+      const statusType = bestEvent.status && bestEvent.status.type;
+      const isCompleted = statusType && (
+        statusType.name === 'STATUS_FINAL' ||
+        statusType.name === 'STATUS_FINAL_ATS' ||
+        statusType.completed === true
+      );
+      if (!isCompleted) return { found: false, reason: 'not_completed' };
+
+      const comp = (bestEvent.competitions || [])[0];
+      if (!comp) return { found: false };
+
+      const competitors = (comp.competitors || []).slice();
+      competitors.sort((a, b) => (a.order || a.position || 9999) - (b.order || b.position || 9999));
+      const winner = competitors[0];
+      if (!winner) return { found: false };
+
+      const ath = winner.athlete || {};
+      const winnerObj = {
+        name:    ath.displayName || ath.fullName || winner.displayName || '',
+        country: (ath.flag && ath.flag.alt) || (ath.country && ath.country.abbreviation) || '',
+        score:   winner.score || '',
+      };
+      if (!winnerObj.name) return { found: false };
+
+      // Firebase 저장
+      const entry = {
+        name:    bestEvent.name || tournamentName,
+        winner:  winnerObj,
+        year:    parseInt(year),
+        savedAt: Date.now(),
+      };
+      const pushKey = db.ref(`jmt/tournamentHistory/golf/${tour}/${year}`).push().key;
+      await db.ref(`jmt/tournamentHistory/golf/${tour}/${year}/${pushKey}`).set(entry);
+
+      return { found: true, winner: winnerObj, name: entry.name, year: parseInt(year) };
+    } catch (e) {
+      console.error('fetchGolfPastWinner error:', e);
+      throw new Error('조회 실패: ' + e.message);
+    }
+  }
+);
+
 // ══ 자미봇 — 채팅 트리거 자동 응답 ══════════════════════════════════
 
 const _BOT_NAME = '제이';
