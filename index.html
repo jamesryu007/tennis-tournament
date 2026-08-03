@@ -800,16 +800,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2715,7 +2715,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1033';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1034';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12255,7 +12255,7 @@ function selectIdentity(name) {
   localStorage.setItem(LS_IDENTITY, JSON.stringify(state.identity));
   document.getElementById('identity-modal').classList.remove('open');
   // 푸시 알림으로 진입한 경우 해당 탭으로 이동
-  if (window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen, nid=window._pendingNoticeId, mid=window._pendingMsgId, pid=window._pendingPollId; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; window._pendingNoticeId=null; window._pendingMsgId=null; window._pendingPollId=null; setTimeout(() => { switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); if(mid) window._bzDeepLinkMsgKey=mid; setTimeout(bzShowRoomFromMemory,100); },300); if(ss==='notices') setTimeout(()=>{ openNoticeModal(); if(nid) setTimeout(()=>_scrollToNotice(nid),700); },400); if(ss==='meetingPoll'&&pid) setTimeout(()=>openMpDetailModal(pid),500); }, 100); }
+  if (window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen, nid=window._pendingNoticeId, mid=window._pendingMsgId, pid=window._pendingPollId; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; window._pendingNoticeId=null; window._pendingMsgId=null; window._pendingPollId=null; setTimeout(() => { switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='golf') setTimeout(()=>switchSportTab('golf'),300); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); if(mid) window._bzDeepLinkMsgKey=mid; setTimeout(bzShowRoomFromMemory,100); },300); if(ss==='notices') setTimeout(()=>{ openNoticeModal(); if(nid) setTimeout(()=>_scrollToNotice(nid),700); },400); if(ss==='meetingPoll'&&pid) setTimeout(()=>openMpDetailModal(pid),500); }, 100); }
   // FCM: 처음 로그인이면 초기화(권한 요청 포함), 이미 초기화됐으면 토큰 재매핑
   if (!_fcmMessaging) {
     initFCM(true); // 사용자 클릭 제스처 시점이므로 권한 요청 가능
@@ -12515,7 +12515,7 @@ setTimeout(() => { if (!_photoAllItems.length) loadPhotos(); }, 500);
 // FCM 초기화 (접속자 선택 후 실행 — identity 모달 닫힐 때 호출)
 setTimeout(() => {
   if(state.identity) initFCM();
-  if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen, nid=window._pendingNoticeId, mid=window._pendingMsgId, pid=window._pendingPollId; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; window._pendingNoticeId=null; window._pendingMsgId=null; window._pendingPollId=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); if(mid) window._bzDeepLinkMsgKey=mid; setTimeout(bzShowRoomFromMemory,100); },300); if(ss==='notices') setTimeout(()=>{ openNoticeModal(); if(nid) setTimeout(()=>_scrollToNotice(nid),700); },400); if(ss==='meetingPoll'&&pid) setTimeout(()=>openMpDetailModal(pid),500); }
+  if(window._pendingTab) { const t=window._pendingTab, cid=window._pendingCommentId, bid=window._pendingBetId, iw=window._pendingIsWinner, ss=window._pendingSubScreen, nid=window._pendingNoticeId, mid=window._pendingMsgId, pid=window._pendingPollId; window._pendingTab=null; window._pendingCommentId=null; window._pendingBetId=null; window._pendingIsWinner=undefined; window._pendingSubScreen=null; window._pendingNoticeId=null; window._pendingMsgId=null; window._pendingPollId=null; switchPage(t); if(cid) setTimeout(()=>scrollToComment(cid),400); if(bid) setTimeout(()=>{ switchAtpTab('bet'); showBetResultCelebration(bid,iw); },500); if(ss==='golf') setTimeout(()=>switchSportTab('golf'),300); if(ss==='banzige') setTimeout(()=>{ switchPage('matches'); switchMatchesTab('memory'); if(mid) window._bzDeepLinkMsgKey=mid; setTimeout(bzShowRoomFromMemory,100); },300); if(ss==='notices') setTimeout(()=>{ openNoticeModal(); if(nid) setTimeout(()=>_scrollToNotice(nid),700); },400); if(ss==='meetingPoll'&&pid) setTimeout(()=>openMpDetailModal(pid),500); }
 }, 1500);
 document.getElementById('t-date').value = new Date().toISOString().split('T')[0];
 // 랜덤 사진 변경 — 자.만.추. landscape 이미지 우선, 없으면 팀 사진 fallback
@@ -15076,6 +15076,7 @@ async function triggerAtpRefresh() {
           switchPage(tab);
           if (commentId) setTimeout(() => scrollToComment(commentId), 400);
           if (betId) setTimeout(() => { switchAtpTab('bet'); showBetResultCelebration(betId, isWinnerHint); }, 500);
+          if (subScreen === 'golf') setTimeout(() => switchSportTab('golf'), 300);
           if (subScreen === 'banzige') setTimeout(() => { switchPage('matches'); switchMatchesTab('memory'); setTimeout(bzShowRoomFromMemory, 100); }, 300);
           if (subScreen === 'notices') setTimeout(() => { const m = document.getElementById('notice-list-modal'); if (m && m.style.display !== 'flex') openNoticeModal(); }, 400);
         } else {
@@ -25426,8 +25427,9 @@ function renderGolfLeaderboard(t) {
       const _nc = _isKor ? '#CD2E3A' : '#92400e';
       // 플레이오프 감지 — 라운드 합산 기준으로 동점자 찾기 (ESPN total 오류 대비)
       const _champCalcTotal = _calcTotal(_champ);
-      const _playoffWith = _nonCutPlayers.filter(p =>
-        p !== _champ && _calcTotal(p) === _champCalcTotal && _champCalcTotal !== 9999
+      // isCut 여부 무관하게 4라운드 완료 선수 중 동점자 탐색 (ESPN isCut 오판 대비)
+      const _playoffWith = displayPlayers.filter(p =>
+        p !== _champ && _realScoreCount(p) >= 4 && _calcTotal(p) === _champCalcTotal && _champCalcTotal !== 9999
       );
       const _playoffLine = _playoffWith.length > 0
         ? `<div style="font-size:0.72rem;color:#7c3aed;margin-top:5px;font-weight:700">🔄 ${_playoffWith.map(p => p.name).join(', ')}와 연장 승부 끝 우승</div>`

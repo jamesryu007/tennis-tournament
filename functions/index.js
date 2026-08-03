@@ -2382,7 +2382,10 @@ exports.notifyGolfWinner = onValueWritten(
           tokens,
           `${tourTag} — ${t.name} 우승!`,
           `🥇 ${winner.name}${winner.country ? ' ('+winner.country+')' : ''}${purseStr}`,
-          'atp'
+          'atp',
+          '',
+          '',
+          { subScreen: 'golf' }
         );
         console.log(`notifyGolfWinner: push sent — ${t.name} winner ${winner.name}`);
       }
