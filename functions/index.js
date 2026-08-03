@@ -2452,7 +2452,10 @@ exports.fetchGolfPastWinner = onCall(
     const _overlap = (name) => {
       const words = new Set(normalize(name).split(' ').filter(w => w.length >= 2));
       const cnt = targetWords.filter(w => words.has(w)).length;
-      return cnt / Math.min(targetWords.length, words.size, 1);
+      // 타겟 단어 전체 포함 시 1.0 (예: "Wimbledon" ⊂ "The Championships Wimbledon")
+      // 부분 일치는 max 분모 → 짧은 ESPN 라벨 오매칭 방지
+      if (cnt === targetWords.length) return 1.0;
+      return cnt / Math.max(targetWords.length, words.size, 1);
     };
 
     // 1단계: calendar에서 대회 찾기 → endDate 획득
@@ -2600,7 +2603,10 @@ exports.fetchTennisPastWinner = onCall(
     const _overlap = (name) => {
       const words = new Set(normalize(name).split(' ').filter(w => w.length >= 2));
       const cnt = targetWords.filter(w => words.has(w)).length;
-      return cnt / Math.min(targetWords.length, words.size, 1);
+      // 타겟 단어 전체 포함 시 1.0 (예: "Wimbledon" ⊂ "The Championships Wimbledon")
+      // 부분 일치는 max 분모 → 짧은 ESPN 라벨 오매칭 방지
+      if (cnt === targetWords.length) return 1.0;
+      return cnt / Math.max(targetWords.length, words.size, 1);
     };
 
     try {

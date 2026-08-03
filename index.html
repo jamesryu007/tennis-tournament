@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1064';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1065';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -24715,8 +24715,10 @@ async function _toggleGolfPastWinners(tournamentName, tour, panelId) {
   const _matchEntry = (entry) => {
     const entryWords = new Set(normalize(entry.name || '').split(' ').filter(w => w.length >= 2));
     const overlap = [...targetWords].filter(w => entryWords.has(w)).length;
-    // min 분모: "Wimbledon" vs "The Championships Wimbledon" = 1/min(1,3) = 1.0 (max 사용 시 0.33 → 미매칭)
-    return overlap / Math.min(targetWords.size, entryWords.size, 1) >= 0.6;
+    // 타겟 단어 전체 포함 시 매칭 (예: "Wimbledon" ⊂ "The Championships Wimbledon")
+    // 부분 일치는 max 분모 → 짧은 ESPN 저장명 오매칭 방지
+    if (overlap === targetWords.size) return true;
+    return overlap / Math.max(targetWords.size, entryWords.size, 1) >= 0.6;
   };
 
   try {
@@ -24797,8 +24799,10 @@ async function _toggleTennisPastWinners(tournamentName, tour, panelId, gender) {
   const _matchEntry = (entry) => {
     const entryWords = new Set(normalize(entry.name || '').split(' ').filter(w => w.length >= 2));
     const overlap = [...targetWords].filter(w => entryWords.has(w)).length;
-    // min 분모: "Wimbledon" vs "The Championships Wimbledon" = 1/min(1,3) = 1.0 (max 사용 시 0.33 → 미매칭)
-    return overlap / Math.min(targetWords.size, entryWords.size, 1) >= 0.6;
+    // 타겟 단어 전체 포함 시 매칭 (예: "Wimbledon" ⊂ "The Championships Wimbledon")
+    // 부분 일치는 max 분모 → 짧은 ESPN 저장명 오매칭 방지
+    if (overlap === targetWords.size) return true;
+    return overlap / Math.max(targetWords.size, entryWords.size, 1) >= 0.6;
   };
 
   const _renderPanel = (entries) => {
