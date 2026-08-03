@@ -800,16 +800,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2715,7 +2715,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1037';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1038';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -24485,6 +24485,10 @@ function renderGolfTournamentSection() {
           <div style="font-size:0.68rem;font-weight:700;color:#94a3b8;letter-spacing:0.4px;margin-bottom:5px">⛳ 다른 대회</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">${otherChips}</div>
         </div>` : ''}
+        <!-- 대회 히스토리 버튼 -->
+        <div style="margin-top:10px">
+          <button onclick="openTournamentHistory('golf','${t.tour || 'pga'}')" style="background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:14px;padding:4px 14px;font-size:0.72rem;font-weight:700;color:${s.color};cursor:pointer">🏆 대회 히스토리</button>
+        </div>
       </div>
       <!-- 관심선수 버튼 -->
       <button onclick="openGolfFavModal()" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:16px;padding:5px 10px;font-size:0.72rem;font-weight:700;color:${s.color};cursor:pointer;white-space:nowrap">⭐ 관심선수</button>
@@ -25486,9 +25490,8 @@ function renderGolfLeaderboard(t) {
       const _tSafeId = (t.id || t.name || '').replace(/[^a-z0-9]/gi, '_');
       const _tTourKey = t.tour || 'pga';
       const _tNameSafe = (t.name || '').replace(/'/g, "\\'");
-      golfChampionBanner = `<div style="position:relative;text-align:center;padding:10px 32px 28px;background:linear-gradient(135deg,#fef9c3,#fffbeb);border-radius:12px;margin:6px 14px 8px;border:2px solid #fcd34d">
-        <button onclick="_toggleGolfPastWinners('${_tNameSafe}','${_tTourKey}','gpw-${_tSafeId}')" style="position:absolute;top:6px;right:8px;background:none;border:none;cursor:pointer;font-size:1rem;padding:2px;line-height:1" title="역대 우승자">ℹ️</button>
-        <button onclick="openTournamentHistory('golf','${_tTourKey}')" style="position:absolute;bottom:6px;right:8px;background:none;border:none;cursor:pointer;font-size:1rem;padding:2px;line-height:1" title="대회 히스토리">🗂️</button>
+      golfChampionBanner = `<div style="position:relative;text-align:center;padding:10px 32px 10px;background:linear-gradient(135deg,#fef9c3,#fffbeb);border-radius:12px;margin:6px 14px 8px;border:2px solid #fcd34d">
+        <button onclick="_toggleGolfPastWinners('${_tNameSafe}','${_tTourKey}','gpw-${_tSafeId}')" style="position:absolute;top:7px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(37,99,235,0.1);border:1.5px solid #93c5fd;color:#2563eb;font-size:0.68rem;font-weight:900;cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;justify-content:center" title="역대 우승자">i</button>
         <div style="font-size:1.5rem">🏆</div>
         <div style="font-size:0.96rem;font-weight:800;color:${_nc};margin-top:3px">${_champ.name}</div>
         ${_champ.country ? `<div style="font-size:0.72rem;color:#b45309;margin-top:1px">${_champ.country}</div>` : ''}
@@ -25499,8 +25502,7 @@ function renderGolfLeaderboard(t) {
     }
   }
 
-  const historyBtnHtml = `<div style="text-align:center;padding:12px 0 6px"><button onclick="openTournamentHistory('golf','${(t.tour || 'pga')}')" style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:20px;padding:6px 16px;font-size:0.78rem;font-weight:700;color:#475569;cursor:pointer">🏆 대회 히스토리</button></div>`;
-  wrap.innerHTML = `${_roundTabsHtml()}${golfChampionBanner}<div style="display:grid;grid-template-columns:28px 1fr auto;gap:4px;padding:8px 14px 6px;border-bottom:1.5px solid #e2e8f0">${headerHtml}</div>${favSection}${rows}${updatedStr ? `<div style="text-align:center;padding:7px 0;font-size:0.62rem;color:#cbd5e1">업데이트 ${updatedStr}</div>` : ''}${historyBtnHtml}`;
+  wrap.innerHTML = `${_roundTabsHtml()}${golfChampionBanner}<div style="display:grid;grid-template-columns:28px 1fr auto;gap:4px;padding:8px 14px 6px;border-bottom:1.5px solid #e2e8f0">${headerHtml}</div>${favSection}${rows}${updatedStr ? `<div style="text-align:center;padding:7px 0;font-size:0.62rem;color:#cbd5e1">업데이트 ${updatedStr}</div>` : ''}`;
 }
 
 // ── 메인 탭 전환 (리더보드 / 뉴스) ───────────────────────────────
