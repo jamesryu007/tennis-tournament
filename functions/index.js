@@ -2439,17 +2439,17 @@ exports.fetchGolfPastWinner = onCall(
     if (!tournamentName || !tour || !year) throw new Error('tournamentName, tour, year 필수');
 
     const normalize = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
-    const targetWords = normalize(tournamentName).split(' ').filter(w => w.length > 2);
+    const targetWords = normalize(tournamentName).split(' ').filter(w => w.length >= 2);
 
     const tourMap = { lpga: 'lpga', pga: 'pga', euro: 'eur', dp: 'eur', liv: 'liv' };
     const espnTour = tourMap[tour.toLowerCase()] || tour.toLowerCase();
     // PGA 메이저는 EUR에도 있으므로 fallback 시도
     const tourCandidates = espnTour === 'pga' ? ['pga', 'eur'] : [espnTour];
 
-    // 이름 양방향 overlap 비율 — max(target, entry) 분모로 오매칭 방지
-    // 예: "3M Open"(words:["open"]) vs "The Open"(words:["the","open"]) = 1/max(1,2) = 0.5 → 임계값 미달
+    // 이름 양방향 overlap 비율 (>= 2자 포함 — "3M", "US" 등 구별 가능)
+    // 예: "3M Open"(["3m","open"]) vs "US Open"(["us","open"]) = 1/max(2,2) = 0.5 → 임계값 미달
     const _overlap = (name) => {
-      const words = new Set(normalize(name).split(' ').filter(w => w.length > 2));
+      const words = new Set(normalize(name).split(' ').filter(w => w.length >= 2));
       const cnt = targetWords.filter(w => words.has(w)).length;
       return cnt / Math.max(targetWords.length, words.size, 1);
     };
@@ -2514,15 +2514,17 @@ exports.fetchGolfPastWinner = onCall(
 
       if (!winnerObj || !winnerObj.name) return { found: false };
 
-      // Firebase 저장 (클라이언트 재조회 불필요하도록 캐싱)
+      // Firebase 저장 — deterministic key로 재조회 시 덮어쓰기, cfVersion으로 구버전 구별
+      const entryName = bestEvent.name || tournamentName;
       const entry = {
-        name:    bestEvent.name || tournamentName,
-        winner:  winnerObj,
-        year:    parseInt(year),
-        savedAt: Date.now(),
+        name:      entryName,
+        winner:    winnerObj,
+        year:      parseInt(year),
+        savedAt:   Date.now(),
+        cfVersion: 2,
       };
-      const pushKey = db.ref(`jmt/tournamentHistory/golf/${tour}/${year}`).push().key;
-      await db.ref(`jmt/tournamentHistory/golf/${tour}/${year}/${pushKey}`).set(entry);
+      const cfKey = 'cf_' + entryName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      await db.ref(`jmt/tournamentHistory/golf/${tour}/${year}/${cfKey}`).set(entry);
 
       return { found: true, winner: winnerObj, name: entry.name, year: parseInt(year) };
     } catch (e) {
@@ -2540,7 +2542,7 @@ exports.fetchTennisPastWinner = onCall(
     if (!tournamentName || !tour || !year) throw new Error('tournamentName, tour, year 필수');
 
     const normalize = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
-    const targetWords = normalize(tournamentName).split(' ').filter(w => w.length > 2);
+    const targetWords = normalize(tournamentName).split(' ').filter(w => w.length >= 2);
     const espnTour = tour.toLowerCase() === 'wta' ? 'wta' : 'atp';
 
     // 테니스 이벤트에서 결승 우승자 추출
@@ -2582,9 +2584,9 @@ exports.fetchTennisPastWinner = onCall(
       };
     };
 
-    // 이름 양방향 overlap 비율 — max(target, entry) 분모
+    // 이름 양방향 overlap 비율 (>= 2자 포함)
     const _overlap = (name) => {
-      const words = new Set(normalize(name).split(' ').filter(w => w.length > 2));
+      const words = new Set(normalize(name).split(' ').filter(w => w.length >= 2));
       const cnt = targetWords.filter(w => words.has(w)).length;
       return cnt / Math.max(targetWords.length, words.size, 1);
     };
@@ -2610,20 +2612,22 @@ exports.fetchTennisPastWinner = onCall(
         } catch (_) {}
       }
 
-      if (!bestEvent || bestOvlp < 0.4) return { found: false };
+      if (!bestEvent || bestOvlp < 0.5) return { found: false };
 
       const winnerObj = _extractFinalWinner(bestEvent);
       if (!winnerObj) return { found: false };
 
-      // Firebase 저장 (클라이언트 재조회 불필요하도록 캐싱)
+      // Firebase 저장 — deterministic key로 덮어쓰기, cfVersion으로 구버전 구별
+      const entryName = bestEvent.name || tournamentName;
       const entry = {
-        name:    bestEvent.name || tournamentName,
-        winner:  winnerObj,
-        year:    parseInt(year),
-        savedAt: Date.now(),
+        name:      entryName,
+        winner:    winnerObj,
+        year:      parseInt(year),
+        savedAt:   Date.now(),
+        cfVersion: 2,
       };
-      const pushKey = db.ref(`jmt/tournamentHistory/tennis/${year}`).push().key;
-      await db.ref(`jmt/tournamentHistory/tennis/${year}/${pushKey}`).set(entry);
+      const cfKey = 'cf_' + entryName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      await db.ref(`jmt/tournamentHistory/tennis/${year}/${cfKey}`).set(entry);
 
       return { found: true, winner: winnerObj, name: entry.name, year: parseInt(year) };
     } catch (e) {

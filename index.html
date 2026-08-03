@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1050';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1051';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -24692,12 +24692,13 @@ async function _toggleGolfPastWinners(tournamentName, tour, panelId) {
   panel.innerHTML = '<div style="padding:6px 0 2px;color:#94a3b8;font-size:0.7rem">불러오는 중...</div>';
 
   const normalize = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
-  const targetWords = new Set(normalize(tournamentName).split(' ').filter(w => w.length > 2));
+  // >= 2자 포함 — "3M", "US" 등 2자 약어도 구별 (> 2이면 필터되어 "3M Open" = "US Open" 오매칭)
+  const targetWords = new Set(normalize(tournamentName).split(' ').filter(w => w.length >= 2));
 
   const _matchEntry = (entry) => {
-    const entryWords = new Set(normalize(entry.name || '').split(' ').filter(w => w.length > 2));
+    const entryWords = new Set(normalize(entry.name || '').split(' ').filter(w => w.length >= 2));
     const overlap = [...targetWords].filter(w => entryWords.has(w)).length;
-    // 양방향 overlap: max(target, entry) 분모 → 이름이 다른 대회가 짧은 공통어("open")로 잘못 매칭되는 것 방지
+    // 양방향 overlap: max(target, entry) 분모 → 이름이 다른 대회 오매칭 방지
     return overlap / Math.max(targetWords.size, entryWords.size, 1) >= 0.6;
   };
 
@@ -24709,6 +24710,9 @@ async function _toggleGolfPastWinners(tournamentName, tour, panelId) {
     const entriesMap = {}; // year → entry (중복 방지)
     for (const [year, yearEntries] of Object.entries(raw)) {
       for (const entry of Object.values(yearEntries)) {
+        // 구버전 CF 캐시(잘못된 데이터 가능) 무시 — startDate 없고 cfVersion < 2인 항목은 CF 재조회
+        const isTrusted = entry.startDate || (entry.cfVersion && entry.cfVersion >= 2);
+        if (!isTrusted) continue;
         // winner 필드 없으면 top10[0]에서 추출 (app 저장 항목은 winner 없이 top10만 있음)
         const w = (entry.winner && entry.winner.name)
           ? entry.winner
@@ -24766,10 +24770,11 @@ async function _toggleTennisPastWinners(tournamentName, tour, panelId) {
   panel.innerHTML = '<div style="padding:6px 0 2px;color:#94a3b8;font-size:0.7rem">불러오는 중...</div>';
 
   const normalize = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
-  const targetWords = new Set(normalize(tournamentName).split(' ').filter(w => w.length > 2));
+  // >= 2자 포함 — "US", "WB" 등 2자 약어도 구별
+  const targetWords = new Set(normalize(tournamentName).split(' ').filter(w => w.length >= 2));
 
   const _matchEntry = (entry) => {
-    const entryWords = new Set(normalize(entry.name || '').split(' ').filter(w => w.length > 2));
+    const entryWords = new Set(normalize(entry.name || '').split(' ').filter(w => w.length >= 2));
     const overlap = [...targetWords].filter(w => entryWords.has(w)).length;
     // 양방향 overlap: max(target, entry) 분모 → 이름이 다른 대회 오매칭 방지
     return overlap / Math.max(targetWords.size, entryWords.size, 1) >= 0.6;
@@ -24801,6 +24806,9 @@ async function _toggleTennisPastWinners(tournamentName, tour, panelId) {
     const entriesMap = {};
     for (const [year, yearEntries] of Object.entries(raw)) {
       for (const entry of Object.values(yearEntries)) {
+        // 구버전 CF 캐시(잘못된 데이터 가능) 무시 — startDate 없고 cfVersion < 2인 항목은 CF 재조회
+        const isTrusted = entry.startDate || (entry.cfVersion && entry.cfVersion >= 2);
+        if (!isTrusted) continue;
         if (!entry.winner || !entry.winner.name) continue;
         if (_matchEntry(entry) && !entriesMap[year]) entriesMap[year] = { ...entry, _year: year };
       }
