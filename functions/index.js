@@ -2634,7 +2634,7 @@ exports.fetchTennisPastWinner = onCall(
         year:      parseInt(year),
         gender:    entryGender,
         savedAt:   Date.now(),
-        cfVersion: 2,
+        cfVersion: 3,
       };
       const cfKey = 'cf_' + entryName.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + espnTour;
       await db.ref(`jmt/tournamentHistory/tennis/${year}/${cfKey}`).set(entry);

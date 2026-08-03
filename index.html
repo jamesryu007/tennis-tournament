@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1056';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1057';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -24810,8 +24810,9 @@ async function _toggleTennisPastWinners(tournamentName, tour, panelId, gender) {
     const entriesMap = {};
     for (const [year, yearEntries] of Object.entries(raw)) {
       for (const entry of Object.values(yearEntries)) {
-        // 구버전 CF 캐시(잘못된 데이터 가능) 무시 — startDate 없고 cfVersion < 2인 항목은 CF 재조회
-        const isTrusted = entry.startDate || (entry.cfVersion && entry.cfVersion >= 2);
+        // startDate 있는 정식 아카이브 항목만 신뢰
+        // CF 캐시(cfVersion)는 v3 이상만 신뢰 — v2 이하는 genderFilter 없이 저장된 오염 가능
+        const isTrusted = entry.startDate || (entry.cfVersion && entry.cfVersion >= 3);
         if (!isTrusted) continue;
         if (!entry.winner || !entry.winner.name) continue;
         // gender 필터: men/women 동명 대회(Wimbledon 등) 구별
@@ -25028,7 +25029,7 @@ function _renderHistoryList() {
 
   if (type === 'tennis') {
     el.innerHTML = filtered
-      .filter(e => e.startDate)  // CF 캐시 항목(startDate 없음) 히스토리 목록 제외
+      .filter(e => e.startDate && e.winner && e.winner.name)  // CF캐시·이름없는 항목 제외
       .map(e => {
       const tier  = e.tier || 'atp250';
       const style = (typeof TIER_STYLE !== 'undefined' && TIER_STYLE[tier]) || { badge:'ATP', badgeBg:'#2563eb', badgeColor:'#fff', bg:'#eff6ff', border:'#bfdbfe', color:'#2563eb' };
@@ -25048,22 +25049,22 @@ function _renderHistoryList() {
           <span style="font-size:0.88rem;font-weight:800;color:${style.color}">${e.name}</span>
         </div>
         <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}${e.purse ? ` · 🏆 우승 ${e.purse}${_purseKRW(e.purse) ? ` <span style="color:#2563eb;font-weight:700">(${_purseKRW(e.purse)})</span>` : ''}` : ''}</div>
-        <div style="display:flex;flex-direction:column;gap:5px">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:1rem">🥇</span>
-            <div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:1rem;flex-shrink:0">🥇</span>
+            <span style="flex:1;min-width:0">
               ${_wName ? `<span class="pp-name-link" style="font-size:0.88rem;font-weight:800;color:#1e293b;cursor:pointer" onclick="openPlayerProfile('${winnerSafe}','${_pTour}')">${_wName}</span>` : '<span style="font-size:0.88rem;font-weight:800;color:#94a3b8">-</span>'}
-              ${e.winner?.country ? `<span style="font-size:0.72rem;color:#94a3b8;margin-left:5px">${e.winner.country}</span>` : ''}
-              ${e.winner?.score ? `<span style="font-size:0.76rem;color:#64748b;margin-left:6px">${e.winner.score}</span>` : ''}
-            </div>
+              ${e.winner?.country ? `<span style="font-size:0.72rem;color:#94a3b8;margin-left:4px">${e.winner.country}</span>` : ''}
+            </span>
+            <span style="font-size:0.8rem;font-weight:700;color:#475569;white-space:nowrap;min-width:40px;text-align:right">${e.winner?.score || ''}</span>
           </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:1rem">🥈</span>
-            <div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:1rem;flex-shrink:0">🥈</span>
+            <span style="flex:1;min-width:0">
               ${_rName ? `<span class="pp-name-link" style="font-size:0.86rem;font-weight:700;color:#475569;cursor:pointer" onclick="openPlayerProfile('${runnerSafe}','${_pTour}')">${_rName}</span>` : '<span style="font-size:0.86rem;font-weight:700;color:#94a3b8">-</span>'}
-              ${e.runnerUp?.country ? `<span style="font-size:0.72rem;color:#94a3b8;margin-left:5px">${e.runnerUp.country}</span>` : ''}
-              ${e.runnerUp?.score ? `<span style="font-size:0.76rem;color:#64748b;margin-left:6px">${e.runnerUp.score}</span>` : ''}
-            </div>
+              ${e.runnerUp?.country ? `<span style="font-size:0.72rem;color:#94a3b8;margin-left:4px">${e.runnerUp.country}</span>` : ''}
+            </span>
+            <span style="font-size:0.8rem;font-weight:600;color:#64748b;white-space:nowrap;min-width:40px;text-align:right">${e.runnerUp?.score || ''}</span>
           </div>
         </div>
         <div id="${_tHistPanelId}" style="display:none"></div>
