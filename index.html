@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1059';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1060';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13084,6 +13084,18 @@ function _buildTennisChampionBanner(tourneyInfo, matches) {
   }).join('');
 }
 
+// ── 역대 우승자 패널 캐시 (atpData re-render 시 패널 복원용) ─────────
+const _tennisPastWinnersCache = {}; // panelId → { html, open }
+function _restoreTennisPastWinnerPanels() {
+  for (const [pid, cache] of Object.entries(_tennisPastWinnersCache)) {
+    if (!cache.open) continue;
+    const p = document.getElementById(pid);
+    if (!p) continue;
+    p.innerHTML = cache.html;
+    p.style.display = 'block';
+  }
+}
+
 function renderAtpTourneyInfo() {
   const el = document.getElementById('atp-tourney-info');
   if (!el) return;
@@ -13108,11 +13120,13 @@ function renderAtpTourneyInfo() {
     } else {
       el.innerHTML = '<div style="text-align:center;padding:16px 0;color:#94a3b8;font-size:0.85rem">현재 진행 중인 대회 정보가 없습니다.</div>' + (isAdmin() ? '<div style="text-align:center"><button onclick="triggerAtpRefresh()" style="margin-top:8px;background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:0.8rem;cursor:pointer">🔄 새로고침</button></div>' : '');
     }
+    _restoreTennisPastWinnerPanels();
     return;
   }
   // 활성 대회 — Final 완료 시 우승자 배너 표시
   const champBanner = _buildTennisChampionBanner(t, atpState.matches || []);
   el.innerHTML = renderTourneyInfoHtml(t, false) + champBanner;
+  _restoreTennisPastWinnerPanels();
 }
 
 // ── 관심선수 이름 매칭 헬퍼 ──────────────────────────────────────
@@ -24769,7 +24783,7 @@ async function _toggleGolfPastWinners(tournamentName, tour, panelId) {
 async function _toggleTennisPastWinners(tournamentName, tour, panelId, gender) {
   const panel = document.getElementById(panelId);
   if (!panel) return;
-  if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+  if (panel.style.display !== 'none') { panel.style.display = 'none'; if (_tennisPastWinnersCache[panelId]) _tennisPastWinnersCache[panelId].open = false; return; }
 
   panel.style.display = 'block';
   panel.innerHTML = '<div style="padding:6px 0 2px;color:#94a3b8;font-size:0.7rem">⏳ 불러오는 중...</div>';
@@ -24787,13 +24801,9 @@ async function _toggleTennisPastWinners(tournamentName, tour, panelId, gender) {
 
   const _renderPanel = (entries) => {
     const p = document.getElementById(panelId) || panel;
-    if (!entries.length) {
-      p.innerHTML = '<div style="border-top:1px solid #e2e8f0;margin-top:6px;padding-top:6px;font-size:0.7rem;color:#94a3b8">이전 기록 없음</div>';
-      p.style.display = 'block';
-      return;
-    }
-    p.style.display = 'block';
-    p.innerHTML = `<div style="border-top:1px solid #e2e8f0;margin-top:7px;padding-top:6px">
+    const html = !entries.length
+      ? '<div style="border-top:1px solid #e2e8f0;margin-top:6px;padding-top:6px;font-size:0.7rem;color:#94a3b8">이전 기록 없음</div>'
+      : `<div style="border-top:1px solid #e2e8f0;margin-top:7px;padding-top:6px">
       <div style="font-size:0.65rem;color:#475569;font-weight:800;margin-bottom:5px;letter-spacing:0.3px">역대 우승자</div>
       ${entries.map(e => {
         const isKor = (e.winner.country || '').toLowerCase().includes('kor') || (e.winner.country || '').toLowerCase().includes('korea');
@@ -24805,6 +24815,9 @@ async function _toggleTennisPastWinners(tournamentName, tour, panelId, gender) {
         </div>`;
       }).join('')}
     </div>`;
+    _tennisPastWinnersCache[panelId] = { html, open: true };
+    p.innerHTML = html;
+    p.style.display = 'block';
   };
 
   try {
