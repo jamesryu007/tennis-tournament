@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1046';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1047';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13002,7 +13002,7 @@ function renderTourneyInfoHtml(t, ended) {
   const _tNameSafe = displayName.replace(/'/g, "\\'");
 
   return `
-    <div style="position:relative;background:${style.bg};border:1.5px solid ${style.border};border-radius:14px;padding:12px 14px 32px 14px">
+    <div style="position:relative;background:${style.bg};border:1.5px solid ${style.border};border-radius:14px;padding:12px 14px">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
         <div style="min-width:0;flex:1">
           <!-- 배지 행 -->
@@ -13026,6 +13026,7 @@ function renderTourneyInfoHtml(t, ended) {
             ${address ? `<span style="font-size:0.80rem;color:#64748b">📍 ${address}</span>` : ''}
             <a href="${mapsUrl}" target="_blank" rel="noopener"
                style="font-size:0.78rem;font-weight:700;color:${style.color};text-decoration:none;background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:10px;padding:3px 10px;white-space:nowrap">🗺️ 지도보기</a>
+            <span onclick="openTournamentHistory('tennis','${_tennisTour}')" title="대회 히스토리" style="margin-left:auto;cursor:pointer;font-size:1.2rem;line-height:1;flex-shrink:0">📅</span>
           </div>
           <!-- 버튼들 (관리자만 표시) -->
           <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -13037,7 +13038,6 @@ function renderTourneyInfoHtml(t, ended) {
         <!-- 관심선수 버튼 -->
         <button onclick="openFavPlayerModal()" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:16px;padding:5px 10px;font-size:0.78rem;font-weight:700;color:${style.color};cursor:pointer;white-space:nowrap">⭐ 관심선수</button>
       </div>
-      <span onclick="openTournamentHistory('tennis','${_tennisTour}')" title="대회 히스토리" style="position:absolute;bottom:8px;right:10px;cursor:pointer;font-size:1.2rem;line-height:1">📅</span>
     </div>
   `;
 }
@@ -24495,7 +24495,7 @@ function renderGolfTournamentSection() {
   const mapQuery   = encodeURIComponent(courseName ? `${courseName}${location ? ', ' + location : ''}` : t.name);
   const mapUrl     = `https://maps.google.com/?q=${mapQuery}`;
 
-  el.innerHTML = `<div style="position:relative;background:${s.bg};border:1.5px solid ${s.border};border-radius:14px;padding:12px 14px 32px 14px">
+  el.innerHTML = `<div style="position:relative;background:${s.bg};border:1.5px solid ${s.border};border-radius:14px;padding:12px 14px">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
       <div style="min-width:0;flex:1">
         <!-- 배지 행 -->
@@ -24518,17 +24518,17 @@ function renderGolfTournamentSection() {
           ${location ? `<span style="font-size:0.80rem;color:#64748b">📍 ${location}</span>` : ''}
           <a href="${mapUrl}" target="_blank" rel="noopener"
             style="font-size:0.78rem;color:${s.color};font-weight:700;text-decoration:none;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:10px;padding:3px 10px;white-space:nowrap">🗺️ 지도보기</a>
+          ${!otherChips ? `<span onclick="openTournamentHistory('golf','${t.tour || 'pga'}')" title="대회 히스토리" style="margin-left:auto;cursor:pointer;font-size:1.2rem;line-height:1;flex-shrink:0">📅</span>` : ''}
         </div>
         <!-- 다른 대회 전환 -->
         ${otherChips ? `<div style="margin-top:4px">
           <div style="font-size:0.68rem;font-weight:700;color:#94a3b8;letter-spacing:0.4px;margin-bottom:5px">⛳ 다른 대회</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">${otherChips}</div>
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">${otherChips}<span onclick="openTournamentHistory('golf','${t.tour || 'pga'}')" title="대회 히스토리" style="margin-left:auto;cursor:pointer;font-size:1.2rem;line-height:1;flex-shrink:0">📅</span></div>
         </div>` : ''}
       </div>
       <!-- 관심선수 버튼 -->
       <button onclick="openGolfFavModal()" style="flex-shrink:0;background:rgba(255,255,255,0.7);border:1.5px solid ${s.border};border-radius:16px;padding:5px 10px;font-size:0.72rem;font-weight:700;color:${s.color};cursor:pointer;white-space:nowrap">⭐ 관심선수</button>
     </div>
-    <span onclick="openTournamentHistory('golf','${t.tour || 'pga'}')" title="대회 히스토리" style="position:absolute;bottom:8px;right:10px;cursor:pointer;font-size:1.2rem;line-height:1">📅</span>
   </div>`;
 }
 
