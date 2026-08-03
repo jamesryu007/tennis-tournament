@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1051';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1052';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13072,7 +13072,7 @@ function _buildTennisChampionBanner(tourneyInfo, matches) {
     const genderTag = finals.length > 1 ? `<div style="font-size:0.62rem;color:${style.color};font-weight:700;margin-top:1px">${gLabel}자 단식</div>` : '';
     const panelId = `tpw-${_tSafeId}${finals.length > 1 ? '_' + m.gender : ''}`;
     return `<div style="position:relative;text-align:center;padding:10px 32px 10px;background:${style.bg};border-radius:12px;margin:6px 0 8px;border:2px solid ${style.border}">
-      <button onclick="_toggleTennisPastWinners('${_tNameSafe}','${_tennisTour}','${panelId}')" style="position:absolute;top:7px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.5);border:1.5px solid ${style.border};color:${style.color};font-size:0.68rem;font-weight:900;cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;justify-content:center" title="역대 우승자">i</button>
+      <button onclick="_toggleTennisPastWinners('${_tNameSafe}','${_tennisTour}','${panelId}','${m.gender||''}')" style="position:absolute;top:7px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.5);border:1.5px solid ${style.border};color:${style.color};font-size:0.68rem;font-weight:900;cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;justify-content:center" title="역대 우승자">i</button>
       <div style="font-size:1.5rem">🏆</div>
       <div style="font-size:0.96rem;font-weight:800;color:${nc};margin-top:3px">${winner.name}</div>
       ${winner.country ? `<div style="font-size:0.72rem;color:${style.color};margin-top:1px;opacity:0.8">${winner.country}</div>` : ''}
@@ -24761,7 +24761,7 @@ async function _toggleGolfPastWinners(tournamentName, tour, panelId) {
   }
 }
 
-async function _toggleTennisPastWinners(tournamentName, tour, panelId) {
+async function _toggleTennisPastWinners(tournamentName, tour, panelId, gender) {
   const panel = document.getElementById(panelId);
   if (!panel) return;
   if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
@@ -24810,6 +24810,8 @@ async function _toggleTennisPastWinners(tournamentName, tour, panelId) {
         const isTrusted = entry.startDate || (entry.cfVersion && entry.cfVersion >= 2);
         if (!isTrusted) continue;
         if (!entry.winner || !entry.winner.name) continue;
+        // gender 필터: men/women 동명 대회(Wimbledon 등) 구별
+        if (gender && entry.gender && entry.gender !== gender) continue;
         if (_matchEntry(entry) && !entriesMap[year]) entriesMap[year] = { ...entry, _year: year };
       }
     }
@@ -25027,9 +25029,9 @@ function _renderHistoryList() {
       const _wName  = e.winner?.name  || '';
       const _rName  = e.runnerUp?.name || '';
       const _tHistNameSafe = (e.name || '').replace(/'/g, "\\'");
-      const _tHistPanelId  = 'tpw-hist-' + (e.name || '').replace(/[^a-z0-9]/gi, '_') + '_' + e._year;
+      const _tHistPanelId  = 'tpw-hist-' + (e.name || '').replace(/[^a-z0-9]/gi, '_') + '_' + e._year + (e.gender ? '_' + e.gender : '');
       return `<div style="position:relative;background:${style.bg};border:1.5px solid ${style.border};border-radius:12px;padding:12px 14px;margin-bottom:10px">
-        <button onclick="_toggleTennisPastWinners('${_tHistNameSafe}','${_pTour}','${_tHistPanelId}')" style="position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.5);border:1.5px solid ${style.border};color:${style.color};font-size:0.68rem;font-weight:900;cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;justify-content:center" title="역대 우승자">i</button>
+        <button onclick="_toggleTennisPastWinners('${_tHistNameSafe}','${_pTour}','${_tHistPanelId}','${e.gender||''}')" style="position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.5);border:1.5px solid ${style.border};color:${style.color};font-size:0.68rem;font-weight:900;cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;justify-content:center" title="역대 우승자">i</button>
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap;padding-right:28px">
           <span style="background:${style.badgeBg};color:${style.badgeColor};font-size:0.7rem;font-weight:900;padding:2px 9px;border-radius:8px;font-style:italic">${style.badge}</span>
           ${e.gender === 'women' ? `<span style="background:#fce7f3;color:#be185d;font-size:0.68rem;font-weight:800;padding:2px 7px;border-radius:8px">여자</span>` : e.gender === 'men' ? `<span style="background:#dbeafe;color:#1d4ed8;font-size:0.68rem;font-weight:800;padding:2px 7px;border-radius:8px">남자</span>` : ''}
