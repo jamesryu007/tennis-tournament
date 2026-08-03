@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1057';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1058';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -24690,7 +24690,7 @@ async function _toggleGolfPastWinners(tournamentName, tour, panelId) {
   if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
 
   panel.style.display = 'block';
-  panel.innerHTML = '<div style="padding:6px 0 2px;color:#94a3b8;font-size:0.7rem">불러오는 중...</div>';
+  panel.innerHTML = '<div style="padding:6px 0 2px;color:#94a3b8;font-size:0.7rem">⏳ 불러오는 중...</div>';
 
   const normalize = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
   // >= 2자 포함 — "3M", "US" 등 2자 약어도 구별 (> 2이면 필터되어 "3M Open" = "US Open" 오매칭)
@@ -24738,7 +24738,7 @@ async function _toggleGolfPastWinners(tournamentName, tour, panelId) {
       // 로딩 인디케이터 추가
       const loadingEl = document.createElement('div');
       loadingEl.style.cssText = 'font-size:0.65rem;color:#94a3b8;padding:4px 0';
-      loadingEl.textContent = '추가 기록 검색 중...';
+      loadingEl.textContent = '⏳ 추가 기록 검색 중...';
       panel.querySelector('div') && panel.appendChild(loadingEl);
 
       const fn = firebase.app().functions('asia-southeast1').httpsCallable('fetchGolfPastWinner');
@@ -24771,7 +24771,7 @@ async function _toggleTennisPastWinners(tournamentName, tour, panelId, gender) {
   if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
 
   panel.style.display = 'block';
-  panel.innerHTML = '<div style="padding:6px 0 2px;color:#94a3b8;font-size:0.7rem">불러오는 중...</div>';
+  panel.innerHTML = '<div style="padding:6px 0 2px;color:#94a3b8;font-size:0.7rem">⏳ 불러오는 중...</div>';
 
   const normalize = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
   // >= 2자 포함 — "US", "WB" 등 2자 약어도 구별
@@ -24832,7 +24832,7 @@ async function _toggleTennisPastWinners(tournamentName, tour, panelId, gender) {
 
       const loadingEl = document.createElement('div');
       loadingEl.style.cssText = 'font-size:0.65rem;color:#94a3b8;padding:4px 0';
-      loadingEl.textContent = '추가 기록 검색 중...';
+      loadingEl.textContent = '⏳ 추가 기록 검색 중...';
       panel.appendChild(loadingEl);
 
       const fn = firebase.app().functions('asia-southeast1').httpsCallable('fetchTennisPastWinner');
