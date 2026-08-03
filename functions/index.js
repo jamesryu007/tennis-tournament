@@ -2617,16 +2617,18 @@ exports.fetchTennisPastWinner = onCall(
       const winnerObj = _extractFinalWinner(bestEvent);
       if (!winnerObj) return { found: false };
 
-      // Firebase 저장 — deterministic key로 덮어쓰기, cfVersion으로 구버전 구별
+      // Firebase 저장 — gender 포함 deterministic key (남녀 동명 대회 덮어쓰기 방지)
       const entryName = bestEvent.name || tournamentName;
+      const entryGender = espnTour === 'wta' ? 'women' : 'men';
       const entry = {
         name:      entryName,
         winner:    winnerObj,
         year:      parseInt(year),
+        gender:    entryGender,
         savedAt:   Date.now(),
         cfVersion: 2,
       };
-      const cfKey = 'cf_' + entryName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const cfKey = 'cf_' + entryName.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + espnTour;
       await db.ref(`jmt/tournamentHistory/tennis/${year}/${cfKey}`).set(entry);
 
       return { found: true, winner: winnerObj, name: entry.name, year: parseInt(year) };
