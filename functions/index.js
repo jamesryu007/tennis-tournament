@@ -4621,13 +4621,13 @@ exports.fetchPlayerProfile = onCall({ region: 'asia-southeast1' }, async (req) =
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return { error: 'no_api_key' };
 
-  // ── DB 캐시 확인 (7일 이내면 즉시 반환) ──────────────────────────────
+  // ── DB 캐시 확인 (90일 이내면 즉시 반환) ──────────────────────────────
   const safeKey = `${tour}_${name.replace(/[^a-zA-Z0-9]/g, '_')}`;
   const cacheRef = db.ref(`jmt/playerProfiles/${safeKey}`);
   try {
     const snap = await cacheRef.once('value');
     const dbCached = snap.val();
-    if (dbCached && dbCached.fetchedAt && (Date.now() - dbCached.fetchedAt) < 7 * 24 * 60 * 60 * 1000) {
+    if (dbCached && dbCached.fetchedAt && (Date.now() - dbCached.fetchedAt) < 90 * 24 * 60 * 60 * 1000) {
       console.log(`fetchPlayerProfile: DB cache hit for ${name}`);
       return { profile: dbCached.profile, thumbnailUrl: dbCached.thumbnailUrl || null };
     }
@@ -4687,8 +4687,8 @@ ${isTennis ? '테니스' : '골프'} 선수 ${name} (${tourLabel})의 상세 프
     const raw = (data.choices?.[0]?.message?.content || '').trim()
       .replace(/^```json\n?/, '').replace(/^```\n?/, '').replace(/\n?```$/, '');
     const profile = JSON.parse(raw);
-    // DB에 저장 (7일 캐시)
-    cacheRef.set({ profile, thumbnailUrl, fetchedAt: Date.now() }).catch(e => console.error('playerProfile cache save error:', e));
+    // DB에 저장 (90일 캐시) — viewers 서브노드 보존을 위해 update 사용
+    cacheRef.update({ profile, thumbnailUrl, fetchedAt: Date.now() }).catch(e => console.error('playerProfile cache save error:', e));
     return { profile, thumbnailUrl };
   } catch (e) {
     console.error('fetchPlayerProfile error:', e);
