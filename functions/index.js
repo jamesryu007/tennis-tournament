@@ -2239,6 +2239,10 @@ async function _archiveGolfHistory(t) {
     // purse 없으면 ESPN core API에서 자동 조회
     const purse = t.purse || await _fetchGolfPurse(t.tour, t.id) || '';
 
+    const winner0 = top10[0]
+      ? { name: top10[0].name, country: top10[0].country || '', score: top10[0].total || '' }
+      : null;
+
     await db.ref(`jmt/tournamentHistory/golf/${t.tour}/${year}/${safeKey}`).set({
       id:        t.id,
       name:      t.name,
@@ -2248,6 +2252,7 @@ async function _archiveGolfHistory(t) {
       endDate:   t.endDate   || '',
       purse,
       top10,
+      winner:    winner0,
       savedAt:   new Date().toISOString(),
     });
     console.log(`_archiveGolfHistory: saved ${t.name} (${year})`);
@@ -2426,7 +2431,7 @@ exports.fetchGolfNews = onSchedule(
   }
 );
 
-// ══ 16. 골프 역대 우승자 조회 (ESPN scoreboard?dates={year}) ════════
+// ══ 16. 골프 역대 우승자 조회 (calendar → 특정날짜 scoreboard 2단계) ═══
 exports.fetchGolfPastWinner = onCall(
   { region: 'asia-southeast1' },
   async (req) => {
@@ -2434,64 +2439,92 @@ exports.fetchGolfPastWinner = onCall(
     if (!tournamentName || !tour || !year) throw new Error('tournamentName, tour, year 필수');
 
     const normalize = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
-    const targetWords = normalize(tournamentName).split(' ').filter(w => w.length > 2);
+    const targetWords = normalize(tournamentName).split(' ').filter(w => w.length >= 2);
 
     const tourMap = { lpga: 'lpga', pga: 'pga', euro: 'eur', dp: 'eur', liv: 'liv' };
     const espnTour = tourMap[tour.toLowerCase()] || tour.toLowerCase();
+    // PGA 메이저는 EUR에도 있으므로 fallback 시도
+    const tourCandidates = espnTour === 'pga' ? ['pga', 'eur'] : [espnTour];
+
+    // 이름 양방향 overlap 비율 (>= 2자 포함 — "3M", "US" 등 구별 가능)
+    // 예: "3M Open"(["3m","open"]) vs "US Open"(["us","open"]) = 1/max(2,2) = 0.5 → 임계값 미달
+    const _overlap = (name) => {
+      const words = new Set(normalize(name).split(' ').filter(w => w.length >= 2));
+      const cnt = targetWords.filter(w => words.has(w)).length;
+      return cnt / Math.max(targetWords.length, words.size, 1);
+    };
+
+    // 1단계: calendar에서 대회 찾기 → endDate 획득
+    //   scoreboard?dates=YYYY 로는 past year events 가 json.events에 없음
+    //   대신 leagues[0].calendar 에 전체 시즌 일정 (label, startDate, endDate, id) 존재
+    const _findByCalendar = async (tkey) => {
+      const calRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tkey}/scoreboard?dates=${year}0601`);
+      const calJson = await calRes.json();
+      const calendar = (calJson.leagues && calJson.leagues[0] && calJson.leagues[0].calendar) || [];
+
+      let bestCal = null, bestOvlp = 0;
+      for (const cal of calendar) {
+        const ovlp = _overlap(cal.label || '');
+        if (ovlp > bestOvlp) { bestOvlp = ovlp; bestCal = cal; }
+      }
+      if (!bestCal || bestOvlp < 0.4) return null;
+
+      // 2단계: 해당 대회 주차 endDate로 정확한 scoreboard 요청 → 풀 데이터
+      const end = new Date(bestCal.endDate);
+      const dateStr = `${end.getUTCFullYear()}${String(end.getUTCMonth()+1).padStart(2,'0')}${String(end.getUTCDate()).padStart(2,'0')}`;
+      const evRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tkey}/scoreboard?dates=${dateStr}`);
+      const evJson = await evRes.json();
+
+      let bestEvent = null, bestEvOvlp = 0;
+      for (const ev of (evJson.events || [])) {
+        const ovlp = _overlap(ev.name || ev.shortName || '');
+        if (ovlp > bestEvOvlp) { bestEvOvlp = ovlp; bestEvent = ev; }
+      }
+      if (!bestEvent || bestEvOvlp < 0.4) return null;
+      return { event: bestEvent, tkey };
+    };
 
     try {
-      const url = `https://site.api.espn.com/apis/site/v2/sports/golf/${espnTour}/scoreboard?dates=${year}`;
-      const res  = await fetch(url);
-      const json = await res.json();
-      const events = json.events || [];
-
-      // 이름 매칭으로 대회 찾기
-      let bestEvent = null;
-      let bestOverlap = 0;
-      for (const ev of events) {
-        const evWords = new Set(normalize(ev.name || ev.shortName || '').split(' ').filter(w => w.length > 2));
-        const overlap = targetWords.filter(w => evWords.has(w)).length;
-        if (overlap > bestOverlap) { bestOverlap = overlap; bestEvent = ev; }
+      let found = null;
+      for (const tkey of tourCandidates) {
+        found = await _findByCalendar(tkey);
+        if (found) break;
       }
+      if (!found) return { found: false };
 
-      if (!bestEvent || bestOverlap / Math.max(targetWords.length, 1) < 0.4) {
-        return { found: false };
-      }
+      const { event: bestEvent, tkey: matchedTour } = found;
 
-      // 우승자 추출 — 완료된 대회만
-      const statusType = bestEvent.status && bestEvent.status.type;
-      const isCompleted = statusType && (
-        statusType.name === 'STATUS_FINAL' ||
-        statusType.name === 'STATUS_FINAL_ATS' ||
-        statusType.completed === true
-      );
-      if (!isCompleted) return { found: false, reason: 'not_completed' };
-
+      // 우승자 추출 — competitors를 order 오름차순으로 정렬 → order:1 = 우승자
+      let winnerObj = null;
       const comp = (bestEvent.competitions || [])[0];
-      if (!comp) return { found: false };
+      const competitors = comp ? (comp.competitors || []).slice() : [];
+      competitors.sort((a, b) => (a.order || 9999) - (b.order || 9999));
+      const firstComp = competitors[0];
+      if (firstComp) {
+        const ath = firstComp.athlete || {};
+        const name = ath.displayName || ath.fullName || firstComp.displayName || '';
+        if (name) {
+          winnerObj = {
+            name,
+            country: (ath.flag && ath.flag.alt) || (ath.country && ath.country.abbreviation) || '',
+            score:   firstComp.score || '',
+          };
+        }
+      }
 
-      const competitors = (comp.competitors || []).slice();
-      competitors.sort((a, b) => (a.order || a.position || 9999) - (b.order || b.position || 9999));
-      const winner = competitors[0];
-      if (!winner) return { found: false };
+      if (!winnerObj || !winnerObj.name) return { found: false };
 
-      const ath = winner.athlete || {};
-      const winnerObj = {
-        name:    ath.displayName || ath.fullName || winner.displayName || '',
-        country: (ath.flag && ath.flag.alt) || (ath.country && ath.country.abbreviation) || '',
-        score:   winner.score || '',
-      };
-      if (!winnerObj.name) return { found: false };
-
-      // Firebase 저장
+      // Firebase 저장 — deterministic key로 재조회 시 덮어쓰기, cfVersion으로 구버전 구별
+      const entryName = bestEvent.name || tournamentName;
       const entry = {
-        name:    bestEvent.name || tournamentName,
-        winner:  winnerObj,
-        year:    parseInt(year),
-        savedAt: Date.now(),
+        name:      entryName,
+        winner:    winnerObj,
+        year:      parseInt(year),
+        savedAt:   Date.now(),
+        cfVersion: 2,
       };
-      const pushKey = db.ref(`jmt/tournamentHistory/golf/${tour}/${year}`).push().key;
-      await db.ref(`jmt/tournamentHistory/golf/${tour}/${year}/${pushKey}`).set(entry);
+      const cfKey = 'cf_' + entryName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      await db.ref(`jmt/tournamentHistory/golf/${tour}/${year}/${cfKey}`).set(entry);
 
       return { found: true, winner: winnerObj, name: entry.name, year: parseInt(year) };
     } catch (e) {
@@ -2501,7 +2534,7 @@ exports.fetchGolfPastWinner = onCall(
   }
 );
 
-// ══ 17. 테니스 역대 우승자 조회 (ESPN scoreboard?dates={year}) ═════
+// ══ 17. 테니스 역대 우승자 조회 (주요 날짜 순차 탐색 + groupings 지원) ═
 exports.fetchTennisPastWinner = onCall(
   { region: 'asia-southeast1' },
   async (req) => {
@@ -2509,63 +2542,104 @@ exports.fetchTennisPastWinner = onCall(
     if (!tournamentName || !tour || !year) throw new Error('tournamentName, tour, year 필수');
 
     const normalize = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
-    const targetWords = normalize(tournamentName).split(' ').filter(w => w.length > 2);
+    const targetWords = normalize(tournamentName).split(' ').filter(w => w.length >= 2);
     const espnTour = tour.toLowerCase() === 'wta' ? 'wta' : 'atp';
 
-    try {
-      const url = `https://site.api.espn.com/apis/site/v2/sports/tennis/${espnTour}/scoreboard?dates=${year}`;
-      const res  = await fetch(url);
-      const json = await res.json();
-      const events = json.events || [];
-
-      // 이름 매칭으로 대회 찾기
-      let bestEvent = null;
-      let bestOverlap = 0;
-      for (const ev of events) {
-        const evWords = new Set(normalize(ev.name || ev.shortName || '').split(' ').filter(w => w.length > 2));
-        const overlap = targetWords.filter(w => evWords.has(w)).length;
-        if (overlap > bestOverlap) { bestOverlap = overlap; bestEvent = ev; }
+    // 테니스 이벤트에서 결승 우승자 추출
+    // ESPN tennis 이벤트는 event.groupings[*].competitions 구조 (event.competitions 아님)
+    // 결승 매치는 competition.round.displayName === 'Final' 로 판별
+    const _extractFinalWinner = (event, genderFilter) => {
+      if (!event) return null;
+      // groupings 배열 → 각 grouping의 competitions 합산
+      let allComps = [];
+      if (event.groupings && event.groupings.length) {
+        for (const g of event.groupings) {
+          allComps = allComps.concat(g.competitions || []);
+        }
+      } else {
+        allComps = event.competitions || [];
       }
 
-      if (!bestEvent || bestOverlap / Math.max(targetWords.length, 1) < 0.4) {
-        return { found: false };
-      }
-
-      // Final 경기에서 우승자 추출
-      const comps = bestEvent.competitions || [];
-      const finalComp = comps.find(c => {
-        const rn = (c.type && c.type.text) || (c.roundName) || '';
-        return /final/i.test(rn) && !/semi|quarter/i.test(rn);
-      }) || comps[comps.length - 1];
-
-      if (!finalComp) return { found: false };
+      // round.displayName 으로 결승 찾기, competition.type.text 로 성별 검증
+      // ESPN WTA 엔드포인트가 Grand Slam에서 Men's Singles 데이터를 돌려주는 버그 방어
+      const finalComp = allComps.find(c => {
+        const rn = (c.round && c.round.displayName) || '';
+        if (!/\bfinal\b/i.test(rn) || /semi|quarter|qualifying/i.test(rn)) return false;
+        if (genderFilter) {
+          const typeText = ((c.type && c.type.text) || '').toLowerCase();
+          const typeSlug = ((c.type && c.type.slug) || '').toLowerCase();
+          const isWomenComp = typeText.includes('women') || typeSlug.includes('women');
+          if (genderFilter === 'women' && !isWomenComp) return false;
+          if (genderFilter === 'men' && isWomenComp) return false;
+        }
+        return true;
+      });
+      if (!finalComp) return null;
 
       const statusType = finalComp.status && finalComp.status.type;
       const isCompleted = statusType && (statusType.name === 'STATUS_FINAL' || statusType.completed === true);
-      if (!isCompleted) return { found: false, reason: 'not_completed' };
+      if (!isCompleted) return null;
 
       const competitors = (finalComp.competitors || []).slice();
       const winner = competitors.find(c => c.winner === true) || competitors[0];
-      if (!winner) return { found: false };
-
+      if (!winner) return null;
       const ath = winner.athlete || {};
-      const winnerObj = {
-        name:    ath.displayName || ath.fullName || winner.displayName || '',
+      const name = ath.displayName || ath.fullName || winner.displayName || '';
+      if (!name) return null;
+      return {
+        name,
         country: (ath.flag && ath.flag.alt) || (ath.country && ath.country.abbreviation) || '',
       };
-      if (!winnerObj.name) return { found: false };
+    };
 
-      // Firebase 저장
+    // 이름 양방향 overlap 비율 (>= 2자 포함)
+    const _overlap = (name) => {
+      const words = new Set(normalize(name).split(' ').filter(w => w.length >= 2));
+      const cnt = targetWords.filter(w => words.has(w)).length;
+      return cnt / Math.max(targetWords.length, words.size, 1);
+    };
+
+    try {
+      // scoreboard?dates=YYYY 는 past year의 events 가 비어있음
+      // 주요 슬램 주간 날짜를 순서대로 시도 (AO/RG/Wimbledon/USO)
+      const datesToTry = [
+        `${year}0120`, `${year}0601`, `${year}0714`, `${year}0908`,
+        `${year}0301`, `${year}0410`, `${year}1015`,
+      ];
+
+      let bestEvent = null, bestOvlp = 0;
+      for (const dateStr of datesToTry) {
+        try {
+          const res  = await fetch(`https://site.api.espn.com/apis/site/v2/sports/tennis/${espnTour}/scoreboard?dates=${dateStr}`);
+          const json = await res.json();
+          for (const ev of (json.events || [])) {
+            const ovlp = _overlap(ev.name || ev.shortName || '');
+            if (ovlp > bestOvlp) { bestOvlp = ovlp; bestEvent = ev; }
+          }
+          if (bestOvlp >= 0.8) break; // 충분히 좋은 매칭 → 더 이상 탐색 불필요
+        } catch (_) {}
+      }
+
+      if (!bestEvent || bestOvlp < 0.5) return { found: false };
+
+      const winnerObj = _extractFinalWinner(bestEvent, espnTour === 'wta' ? 'women' : 'men');
+      if (!winnerObj) return { found: false };
+
+      // Firebase 저장 — gender 포함 deterministic key (남녀 동명 대회 덮어쓰기 방지)
+      const entryName = bestEvent.name || tournamentName;
+      const entryGender = espnTour === 'wta' ? 'women' : 'men';
       const entry = {
-        name:    bestEvent.name || tournamentName,
-        winner:  winnerObj,
-        year:    parseInt(year),
-        savedAt: Date.now(),
+        name:      entryName,
+        winner:    winnerObj,
+        year:      parseInt(year),
+        gender:    entryGender,
+        savedAt:   Date.now(),
+        cfVersion: 3,
       };
-      const pushKey = db.ref(`jmt/tournamentHistory/tennis/${year}`).push().key;
-      await db.ref(`jmt/tournamentHistory/tennis/${year}/${pushKey}`).set(entry);
+      const cfKey = 'cf_' + entryName.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + espnTour;
+      await db.ref(`jmt/tournamentHistory/tennis/${year}/${cfKey}`).set(entry);
 
-      return { found: true, winner: winnerObj, name: entry.name, year: parseInt(year) };
+      return { found: true, winner: winnerObj, name: entry.name, year: parseInt(year), gender: entryGender };
     } catch (e) {
       console.error('fetchTennisPastWinner error:', e);
       throw new Error('조회 실패: ' + e.message);
