@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1045';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1046';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -24947,7 +24947,7 @@ async function _loadHistoryData() {
 function _renderHistoryYearTabs() {
   const el = document.getElementById('history-year-tabs');
   if (!el || !_historyState.data) return;
-  const years = [...new Set(_historyState.data.map(e => e._year))].sort((a, b) => b - a);
+  const years = [...new Set(_historyState.data.filter(e => !!e.startDate).map(e => e._year))].sort((a, b) => b - a);
   if (!years.length) { el.innerHTML = ''; return; }
   const tabs = ['all', ...years];
   el.innerHTML = tabs.map(y => {
