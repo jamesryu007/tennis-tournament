@@ -2099,7 +2099,7 @@ exports.fetchAtpNews = onSchedule(
 
 function _getGolfLevel(name, tour) {
   const n = name.toLowerCase();
-  const PGA_MAJORS  = ['masters', 'pga championship', 'u.s. open', 'the open championship'];
+  const PGA_MAJORS  = ['masters', 'pga championship', 'u.s. open', 'the open', 'open championship'];
   const LPGA_MAJORS = ['chevron championship', "u.s. women's open", "women's pga championship", 'evian championship', "women's british open", 'aia vitality', 'annika driven'];
   // DP World Tour는 The Open Championship 공동 주최 → major 처리
   const majors = tour === 'lpga' ? LPGA_MAJORS : PGA_MAJORS;
