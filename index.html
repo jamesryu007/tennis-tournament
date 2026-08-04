@@ -2710,7 +2710,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1066';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1067';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -24691,10 +24691,16 @@ function _renderPastWinnersPanel(panel, entries, tour) {
       const isKor = (e.winner.country || '').toLowerCase().includes('kor') || (e.winner.country || '').toLowerCase().includes('korea');
       const nc = isKor ? '#CD2E3A' : '#92400e';
       const nameSafe = (e.winner.name || '').replace(/'/g, "\\'");
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;border-bottom:1px dashed #fde68a">
-        <span style="font-size:0.7rem;color:#b45309;font-weight:700;min-width:32px;flex-shrink:0">${e._year}</span>
-        <span class="pp-name-link" style="font-size:0.72rem;font-weight:800;color:${nc};flex:1;text-align:left;padding:0 4px" onclick="openPlayerProfile('${nameSafe}','${ppTour}')">${e.winner.name}</span>
-        <span style="font-size:0.65rem;color:#b45309;min-width:28px;text-align:right;flex-shrink:0">${e.winner.country || ''}</span>
+      const playoffHtml = e.playoff
+        ? `<div style="font-size:0.62rem;color:#b45309;padding:1px 0 3px 36px;opacity:0.8">⚡ 연장전 ${e.playoff.holes}홀 · ${(e.playoff.players || []).slice(0, 3).join(' vs ')}</div>`
+        : '';
+      return `<div style="border-bottom:1px dashed #fde68a">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0">
+          <span style="font-size:0.7rem;color:#b45309;font-weight:700;min-width:32px;flex-shrink:0">${e._year}</span>
+          <span class="pp-name-link" style="font-size:0.72rem;font-weight:800;color:${nc};flex:1;text-align:left;padding:0 4px" onclick="openPlayerProfile('${nameSafe}','${ppTour}')">${e.winner.name}</span>
+          <span style="font-size:0.65rem;color:#b45309;min-width:28px;text-align:right;flex-shrink:0">${e.winner.country || ''}</span>
+        </div>
+        ${playoffHtml}
       </div>`;
     }).join('')}
   </div>`;
