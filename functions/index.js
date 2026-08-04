@@ -2224,11 +2224,23 @@ async function _fetchGolfPurse(tour, eventId) {
 async function _archiveGolfHistory(t) {
   try {
     if (!t || !t.id) return;
-    const top10 = (t.leaderboard || [])
-      .filter(p => p.name && !p.isCut)
+    const allLeaders = (t.leaderboard || []).filter(p => p.name && !p.isCut);
+    const top10 = allLeaders
       .slice(0, 10)
       .map(p => ({ rank: p.rank || 0, name: p.name, country: p.country || '', total: p.total || 'E' }));
     if (!top10.length) { console.log(`_archiveGolfHistory: no leaderboard for ${t.name}, skipping`); return; }
+
+    // ── 연장전 감지: 4라운드 초과 scores → playoff ───────────────────
+    const maxScores = Math.max(...allLeaders.map(p => (p.scores || []).length), 0);
+    let playoff = null;
+    if (maxScores > 4) {
+      const playoffHoles = maxScores - 4;
+      const playoffNames = allLeaders
+        .filter(p => (p.scores || []).length >= 5)
+        .map(p => p.name);
+      playoff = { holes: playoffHoles, players: playoffNames };
+      console.log(`_archiveGolfHistory: playoff detected ${playoffHoles}홀 — ${playoffNames.join(', ')}`);
+    }
 
     const year    = t.startDate ? new Date(t.startDate).getFullYear() : new Date().getFullYear();
     const safeKey = `${year}_${t.id}`;
@@ -2253,6 +2265,7 @@ async function _archiveGolfHistory(t) {
       purse,
       top10,
       winner:    winner0,
+      playoff:   playoff,
       savedAt:   new Date().toISOString(),
     });
     console.log(`_archiveGolfHistory: saved ${t.name} (${year})`);
