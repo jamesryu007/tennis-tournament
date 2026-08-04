@@ -1000,6 +1000,16 @@ const firebaseConfig = {
     <div style="padding:12px 18px 20px;flex-shrink:0;border-top:1px solid #f1f5f9">
       <button onclick="saveGolfFavPlayers()" class="btn btn-primary btn-full">저장</button>
     </div>
+    <!-- 저장 완료 확인 팝업 -->
+    <div id="golf-fav-confirm-panel" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,0.35);border-radius:inherit;align-items:center;justify-content:center;z-index:10">
+      <div style="background:#fff;border-radius:18px;padding:22px 24px;width:calc(100% - 48px);box-shadow:0 8px 32px rgba(0,0,0,0.18);display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:0.95rem;font-weight:800;color:#1e293b">⭐ 골프 관심선수 등록 완료</div>
+          <button onclick="hideGolfFavConfirmPanel()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#94a3b8;padding:0">✕</button>
+        </div>
+        <div id="golf-fav-confirm-names" style="display:flex;flex-direction:column;gap:7px"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2710,7 +2720,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1069';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1070';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -25843,6 +25853,7 @@ function openGolfFavModal() {
   _lockModalScroll(modal, listEl);
 }
 function closeGolfFavModal() {
+  hideGolfFavConfirmPanel();
   const modal = document.getElementById('golf-fav-modal');
   modal.classList.remove('open');
   _unlockModalScroll(modal);
@@ -25945,6 +25956,11 @@ function _updateGolfFavSelectedBar() {
   names.innerHTML = parts.join('<span style="color:#94a3b8">  |  </span>');
 }
 
+function hideGolfFavConfirmPanel() {
+  const panel = document.getElementById('golf-fav-confirm-panel');
+  if (panel) panel.style.display = 'none';
+}
+
 function saveGolfFavPlayers() {
   if (!db) return;
   const myName = state.identity && state.identity.name;
@@ -25955,8 +25971,29 @@ function saveGolfFavPlayers() {
   };
   db.ref(`jmt/favGolfPlayers/${myName}`).set(golfState.favPlayers).catch(fbErr);
   try { localStorage.setItem(`${LS_GOLF_FAV}_${myName}`, JSON.stringify(golfState.favPlayers)); } catch(e) {}
-  closeGolfFavModal();
   renderGolfLeaderboard(golfState.tournaments[golfState.selectedId] || null);
+
+  // 저장 완료 확인 화면 표시
+  const panel = document.getElementById('golf-fav-confirm-panel');
+  const namesEl = document.getElementById('golf-fav-confirm-names');
+  if (panel && namesEl) {
+    const pgaPlayers  = golfState.favPlayers.pga.map(p => ({ ...p, isPga: true }));
+    const lpgaPlayers = golfState.favPlayers.lpga.map(p => ({ ...p, isPga: false }));
+    const allPlayers  = [...pgaPlayers, ...lpgaPlayers];
+    namesEl.innerHTML = allPlayers.length
+      ? allPlayers.map(({ name, isPga }) => {
+          const color  = isPga ? '#2563eb' : '#be185d';
+          const bg     = isPga ? '#eff6ff' : '#fdf2f8';
+          const border = isPga ? '#bfdbfe' : '#fbcfe8';
+          const label  = isPga ? 'PGA' : 'LPGA';
+          return `<div style="display:flex;align-items:center;justify-content:space-between;background:${bg};border:1.5px solid ${border};border-radius:12px;padding:10px 14px">
+            <span style="font-size:0.9rem;font-weight:700;color:${color}">${name}</span>
+            <span style="font-size:0.72rem;color:#94a3b8">${label}</span>
+          </div>`;
+        }).join('')
+      : '<div style="color:#94a3b8;font-size:0.85rem">등록된 관심선수가 없습니다.</div>';
+    panel.style.display = 'flex';
+  }
 }
 
 // ── ESPN 골프 클라이언트 파싱 ─────────────────────────────────────
