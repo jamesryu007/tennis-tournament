@@ -443,12 +443,20 @@ async function fetchAndParseAtpData() {
         player1Id:      p1.athlete?.id           || '',
         player1Name:    p1.athlete?.displayName  || '',
         player1Country: p1.athlete?.flag?.alt    || '',
-        player1Score:   (p1.linescores || []).map(s => s.value).join(' '),
+        player1Score:   (p1.linescores || []).map(s => {
+          const v = Math.round(s.value || 0);
+          if (s.tiebreak != null && !s.winner) return `${v}(${s.tiebreak})`;
+          return String(v);
+        }).join(' '),
         player1Winner:  p1.winner || false,
         player2Id:      p2.athlete?.id           || '',
         player2Name:    p2.athlete?.displayName  || '',
         player2Country: p2.athlete?.flag?.alt    || '',
-        player2Score:   (p2.linescores || []).map(s => s.value).join(' '),
+        player2Score:   (p2.linescores || []).map(s => {
+          const v = Math.round(s.value || 0);
+          if (s.tiebreak != null && !s.winner) return `${v}(${s.tiebreak})`;
+          return String(v);
+        }).join(' '),
         player2Winner:  p2.winner || false,
       });
     }
