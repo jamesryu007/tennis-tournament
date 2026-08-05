@@ -2720,7 +2720,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1072';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1075';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13399,6 +13399,54 @@ function isKorean(country) {
   return c === 'south korea' || c === 'kor' || c === 'korea' || c.includes('korea');
 }
 
+// ── 테니스 세트 스코어 파싱 & 렌더 ──────────────────────────────
+// 두 가지 포맷 지원:
+//   구 포맷 — "6-7(4) 6-4 6-3" (p1Score만 사용, A-B(tb) 공백구분)
+//   신 포맷 — "6 7 7" / "6(4) 7 7" (p1/p2 별도, 공백구분)
+function _parseTennisSets(p1Score, p2Score) {
+  const p1 = (p1Score || '').trim();
+  // 구 포맷 감지: 첫 토큰에 하이픈 포함 (예: "6-7(4)")
+  if (/^\d+-\d+/.test(p1)) {
+    return p1.split(/\s+/).filter(Boolean).map(tok => {
+      const m = tok.match(/^(\d+)-(\d+)(?:\((\d+)\))?$/);
+      if (!m) return {p1:{v:0,tb:null}, p2:{v:0,tb:null}, p1Won:false};
+      const a = +m[1], b = +m[2], tbRaw = m[3] != null ? +m[3] : null;
+      // (tb)는 타이브레이크 패자 점수 → 세트 패자(게임 적은 쪽)에 부여
+      return {
+        p1: {v:a, tb: (tbRaw != null && a < b) ? tbRaw : null},
+        p2: {v:b, tb: (tbRaw != null && b < a) ? tbRaw : null},
+        p1Won: a > b,
+      };
+    });
+  }
+  // 신 포맷: "6(4) 7 7" 공백구분, p1/p2 별도
+  const tok = t => { const m = String(t||'').match(/^(\d+)(?:\((\d+)\))?$/); return m ? {v:+m[1], tb:m[2]!=null?+m[2]:null} : {v:0,tb:null}; };
+  const t1 = p1.split(/\s+/).filter(Boolean);
+  const t2 = (p2Score||'').trim().split(/\s+/).filter(Boolean);
+  const sets = [];
+  for (let i = 0; i < Math.max(t1.length, t2.length); i++) {
+    const a = tok(t1[i]), b = tok(t2[i] || '0');
+    sets.push({p1:a, p2:b, p1Won: a.v > b.v});
+  }
+  return sets;
+}
+
+// 세트별 컬럼 HTML — p1 위, p2 아래, 타이브레이크 점수는 주황 superscript
+function _renderTennisSetCols(p1Score, p2Score) {
+  return _parseTennisSets(p1Score, p2Score).map(s => {
+    const c1 = s.p1Won ? '#16a34a' : '#94a3b8';
+    const c2 = s.p1Won ? '#94a3b8' : '#16a34a';
+    const w1 = s.p1Won ? '800' : '500';
+    const w2 = s.p1Won ? '500' : '800';
+    const tb1 = s.p1.tb != null ? `<sup style="font-size:0.55rem;color:#f59e0b;font-weight:700;margin-left:1px">${s.p1.tb}</sup>` : '';
+    const tb2 = s.p2.tb != null ? `<sup style="font-size:0.55rem;color:#f59e0b;font-weight:700;margin-left:1px">${s.p2.tb}</sup>` : '';
+    return `<div style="display:flex;flex-direction:column;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;min-width:22px">
+      <div style="padding:3px 7px;line-height:22px;font-size:0.76rem;font-weight:${w1};color:${c1}">${s.p1.v}${tb1}</div>
+      <div style="padding:3px 7px;line-height:22px;font-size:0.76rem;font-weight:${w2};color:${c2};border-top:1px solid #e2e8f0">${s.p2.v}${tb2}</div>
+    </div>`;
+  }).join('');
+}
+
 function renderMatchRow(m) {
   const fav1   = isFavPlayer(m.player1Name);
   const fav2   = isFavPlayer(m.player2Name);
@@ -13420,26 +13468,10 @@ function renderMatchRow(m) {
   // ── 세트 스코어 파싱 ──────────────────────────────────────────
   let scoreSection = '';
   if (isDone && (m.player1Score || m.player2Score)) {
-    const s1arr = (m.player1Score || '').trim().split(/\s+/).map(Number).filter(v => !isNaN(v) && v !== '');
-    const s2arr = (m.player2Score || '').trim().split(/\s+/).map(Number).filter(v => !isNaN(v) && v !== '');
+    const sets = _parseTennisSets(m.player1Score, m.player2Score);
     let p1Sets = 0, p2Sets = 0;
-    const perSet = [];
-    for (let i = 0; i < Math.max(s1arr.length, s2arr.length); i++) {
-      const a = s1arr[i] ?? 0, b = s2arr[i] ?? 0;
-      if (a > b) p1Sets++; else if (b > a) p2Sets++;
-      perSet.push({ a, b, p1Won: a > b });
-    }
-    // 세트별 컬럼 — P1 점수(위)·P2 점수(아래) 각 선수 행 높이에 맞춰 한 줄 정렬
-    const setCols = perSet.map(s => {
-      const c1 = s.p1Won ? '#16a34a' : '#94a3b8';
-      const c2 = s.p1Won ? '#94a3b8' : '#16a34a';
-      const w1 = s.p1Won ? '800' : '500';
-      const w2 = s.p1Won ? '500' : '800';
-      return `<div style="display:flex;flex-direction:column;align-items:center;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;overflow:hidden;min-width:22px">
-        <div style="padding:3px 7px;line-height:22px;font-size:0.76rem;font-weight:${w1};color:${c1}">${s.a}</div>
-        <div style="padding:3px 7px;line-height:22px;font-size:0.76rem;font-weight:${w2};color:${c2};border-top:1px solid #e2e8f0">${s.b}</div>
-      </div>`;
-    }).join('');
+    sets.forEach(s => { if (s.p1Won) p1Sets++; else p2Sets++; });
+    const setCols = _renderTennisSetCols(m.player1Score, m.player2Score);
     // 최종 세트 스코어 컬럼 — 세트별 칩과 동일한 행 높이로 정렬
     scoreSection = `
       <div style="flex-shrink:0;padding-left:8px;display:flex;align-items:center;gap:3px">
@@ -15019,12 +15051,21 @@ async function triggerAtpRefresh() {
           player1Id:     p1.athlete?.id          || '',
           player1Name:   p1.athlete?.displayName || '',
           player1Country:p1.athlete?.flag?.alt   || '',
-          player1Score:  (p1.linescores||[]).map(s=>s.value).join(' '),
+          player1Score:  (p1.linescores||[]).map(s => {
+            const v = Math.round(s.value || 0);
+            // 타이브레이크: 세트 패자(winner=false)에게만 (tb점수) 표기 — 표준 테니스 표기법
+            if (s.tiebreak != null && !s.winner) return `${v}(${s.tiebreak})`;
+            return String(v);
+          }).join(' '),
           player1Winner: p1.winner || false,
           player2Id:     p2.athlete?.id          || '',
           player2Name:   p2.athlete?.displayName || '',
           player2Country:p2.athlete?.flag?.alt   || '',
-          player2Score:  (p2.linescores||[]).map(s=>s.value).join(' '),
+          player2Score:  (p2.linescores||[]).map(s => {
+            const v = Math.round(s.value || 0);
+            if (s.tiebreak != null && !s.winner) return `${v}(${s.tiebreak})`;
+            return String(v);
+          }).join(' '),
           player2Winner: p2.winner || false,
         });
       }
@@ -25102,23 +25143,24 @@ function _renderHistoryList() {
           <span style="font-size:0.88rem;font-weight:800;color:${style.color}">${e.name}</span>
         </div>
         <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}${e.purse ? ` · 🏆 우승 ${e.purse}${_purseKRW(e.purse) ? ` <span style="color:#2563eb;font-weight:700">(${_purseKRW(e.purse)})</span>` : ''}` : ''}</div>
-        <div style="display:flex;flex-direction:column;gap:4px">
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:1rem;flex-shrink:0">🥇</span>
-            <span style="flex:1;min-width:0">
-              ${_wName ? `<span class="pp-name-link" style="font-size:0.88rem;font-weight:800;color:#1e293b;cursor:pointer" onclick="openPlayerProfile('${winnerSafe}','${_pTour}')">${_wName}</span>` : '<span style="font-size:0.88rem;font-weight:800;color:#94a3b8">-</span>'}
-              ${e.winner?.country ? `<span style="font-size:0.72rem;color:#94a3b8;margin-left:4px">${e.winner.country}</span>` : ''}
-            </span>
-            <span style="font-size:0.8rem;font-weight:700;color:#475569;white-space:nowrap;min-width:40px;text-align:right">${e.winner?.score || ''}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:1rem;flex-shrink:0">🥇</span>
+              <span style="flex:1;min-width:0">
+                ${_wName ? `<span class="pp-name-link" style="font-size:0.88rem;font-weight:800;color:#1e293b;cursor:pointer" onclick="openPlayerProfile('${winnerSafe}','${_pTour}')">${_wName}</span>` : '<span style="font-size:0.88rem;font-weight:800;color:#94a3b8">-</span>'}
+                ${e.winner?.country ? `<span style="font-size:0.72rem;color:#94a3b8;margin-left:4px">${e.winner.country}</span>` : ''}
+              </span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:1rem;flex-shrink:0">🥈</span>
+              <span style="flex:1;min-width:0">
+                ${_rName ? `<span class="pp-name-link" style="font-size:0.86rem;font-weight:700;color:#475569;cursor:pointer" onclick="openPlayerProfile('${runnerSafe}','${_pTour}')">${_rName}</span>` : '<span style="font-size:0.86rem;font-weight:700;color:#94a3b8">-</span>'}
+                ${e.runnerUp?.country ? `<span style="font-size:0.72rem;color:#94a3b8;margin-left:4px">${e.runnerUp.country}</span>` : ''}
+              </span>
+            </div>
           </div>
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:1rem;flex-shrink:0">🥈</span>
-            <span style="flex:1;min-width:0">
-              ${_rName ? `<span class="pp-name-link" style="font-size:0.86rem;font-weight:700;color:#475569;cursor:pointer" onclick="openPlayerProfile('${runnerSafe}','${_pTour}')">${_rName}</span>` : '<span style="font-size:0.86rem;font-weight:700;color:#94a3b8">-</span>'}
-              ${e.runnerUp?.country ? `<span style="font-size:0.72rem;color:#94a3b8;margin-left:4px">${e.runnerUp.country}</span>` : ''}
-            </span>
-            <span style="font-size:0.8rem;font-weight:600;color:#64748b;white-space:nowrap;min-width:40px;text-align:right">${e.runnerUp?.score || ''}</span>
-          </div>
+          ${(e.winner?.score || e.runnerUp?.score) ? `<div style="display:flex;align-items:center;gap:3px;flex-shrink:0">${_renderTennisSetCols(e.winner?.score||'', e.runnerUp?.score||'')}</div>` : ''}
         </div>
         <div id="${_tHistPanelId}" style="display:none"></div>
       </div>`;
