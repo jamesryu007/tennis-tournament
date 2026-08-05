@@ -2720,7 +2720,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1070';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1071';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -24379,7 +24379,7 @@ function _golfLevelOf(t) {
   const n = (t.name || t.shortName || '').toLowerCase();
   const tour = (t.tour || '').toLowerCase();
   const PGA_MAJORS  = ['masters', 'pga championship', 'u.s. open', 'the open', 'open championship'];
-  const LPGA_MAJORS = ['chevron championship', "u.s. women's open", "women's pga championship", 'evian championship', "women's british open", 'aia vitality', 'annika driven'];
+  const LPGA_MAJORS = ['chevron championship', "u.s. women's open", "women's pga championship", 'evian championship', "women's british open", 'aig women', 'aia vitality', 'annika driven'];
   const majors = tour === 'lpga' ? LPGA_MAJORS : PGA_MAJORS;
   if (majors.some(m => n.includes(m))) return 'major';
   return t.level || 'pga_tour';
@@ -25151,6 +25151,7 @@ function _renderHistoryList() {
         </div>
         <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}${e.purse ? ` · 🏆 우승 ${e.purse}${_purseKRW(e.purse) ? ` <span style="color:#16a34a;font-weight:700">(${_purseKRW(e.purse)})</span>` : ''}` : ''}</div>
         ${top10.length ? `<div style="background:#fff;border-radius:8px;padding:4px 10px">${rowsHtml}</div>` : '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:4px 0">결과 없음</div>'}
+        ${e.playoff ? `<div style="font-size:0.72rem;color:#b45309;padding:5px 2px 2px;font-weight:700">⚡ 연장전 ${e.playoff.holes}홀 · ${(e.playoff.players||[]).slice(0,3).join(' vs ')}</div>` : ''}
         <div id="${_histPanelId}" style="display:none"></div>
       </div>`;
     }).join('');
@@ -25999,7 +26000,7 @@ function saveGolfFavPlayers() {
 // ── ESPN 골프 클라이언트 파싱 ─────────────────────────────────────
 function _parseGolfEvents(events, tour) {
   const PGA_MAJORS  = ['masters', 'pga championship', 'u.s. open', 'the open championship', 'open championship'];
-  const LPGA_MAJORS = ['chevron championship', "u.s. women's open", "women's pga championship", 'evian championship', "women's british open", 'aia vitality', 'annika driven'];
+  const LPGA_MAJORS = ['chevron championship', "u.s. women's open", "women's pga championship", 'evian championship', "women's british open", 'aig women', 'aia vitality', 'annika driven'];
   const majors = tour === 'lpga' ? LPGA_MAJORS : PGA_MAJORS;
   return (events || []).map(ev => {
     const comp = (ev.competitions || [])[0];
