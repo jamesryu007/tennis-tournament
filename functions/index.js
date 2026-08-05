@@ -2100,7 +2100,7 @@ exports.fetchAtpNews = onSchedule(
 function _getGolfLevel(name, tour) {
   const n = name.toLowerCase();
   const PGA_MAJORS  = ['masters', 'pga championship', 'u.s. open', 'the open', 'open championship'];
-  const LPGA_MAJORS = ['chevron championship', "u.s. women's open", "women's pga championship", 'evian championship', "women's british open", 'aia vitality', 'annika driven'];
+  const LPGA_MAJORS = ['chevron championship', "u.s. women's open", "women's pga championship", 'evian championship', "women's british open", 'aig women', 'aia vitality', 'annika driven'];
   // DP World Tour는 The Open Championship 공동 주최 → major 처리
   const majors = tour === 'lpga' ? LPGA_MAJORS : PGA_MAJORS;
   if (majors.some(m => n.includes(m))) return 'major';
@@ -2220,10 +2220,60 @@ async function _fetchGolfPurse(tour, eventId) {
   }
 }
 
+// ── ESPN 특정 날짜 대회 최종 결과 재조회 ─────────────────────────
+// state가 'post'가 아닌 채로 DB에서 사라진 대회의 최종 리더보드를 ESPN dates 파라미터로 재조회
+async function _refetchGolfFinalResults(tour, id, endDate) {
+  try {
+    const d = new Date(endDate);
+    const dateStr = `${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,'0')}${String(d.getUTCDate()).padStart(2,'0')}`;
+    const res  = await fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tour}/scoreboard?dates=${dateStr}`);
+    const json = await res.json();
+    const ev   = (json.events || []).find(e => e.id === id);
+    if (!ev) { console.log(`_refetchGolfFinalResults: event ${id} not found for dates=${dateStr}`); return null; }
+    const comp = (ev.competitions || [])[0];
+    if (!comp) return null;
+    const allRounds = Math.max(...(comp.competitors || []).map(c => (c.linescores||[]).length), 0);
+    const leaderboard = (comp.competitors || [])
+      .sort((a, b) => (a.order || 9999) - (b.order || 9999))
+      .map(c => {
+        const rounds = c.linescores || [];
+        return {
+          rank:    c.order || 0,
+          name:    c.athlete?.displayName || '',
+          country: c.athlete?.flag?.alt   || '',
+          total:   c.score || 'E',
+          scores:  rounds.map(s => s.displayValue || String(s.value || '')),
+          thru:    'F',
+          state:   'post',
+          isCut:   allRounds >= 4 && rounds.length < 4,
+        };
+      });
+    console.log(`_refetchGolfFinalResults: ${ev.name} (${tour}) — ${leaderboard.length}명 재조회 완료`);
+    return { leaderboard, state: 'post', round: allRounds || 4, startDate: ev.date || '' };
+  } catch(e) {
+    console.error('_refetchGolfFinalResults error:', e);
+    return null;
+  }
+}
+
 // ── 골프 대회 히스토리 아카이브 ──────────────────────────────────
 async function _archiveGolfHistory(t) {
   try {
     if (!t || !t.id) return;
+
+    // state가 post가 아닌 경우(in/pre 등) — ESPN dates 파라미터로 최종 결과 재조회
+    // 원인: fetchGolfDataFinal이 실행되는 사이 ESPN 기본 스코어보드가 다음 주 대회로 전환되면
+    //       DB의 state가 'in'인 채로 대회가 사라져 아카이브 데이터가 불완전해짐
+    if (t.state !== 'post' && t.endDate) {
+      console.log(`_archiveGolfHistory: state=${t.state} (post 아님) — ${t.name} 최종 결과 재조회 시도`);
+      const fresh = await _refetchGolfFinalResults(t.tour, t.id, t.endDate);
+      if (fresh) {
+        t = { ...t, ...fresh };
+      } else {
+        console.log(`_archiveGolfHistory: 재조회 실패, DB 데이터로 진행 — ${t.name}`);
+      }
+    }
+
     const allLeaders = (t.leaderboard || []).filter(p => p.name && !p.isCut);
     const top10 = allLeaders
       .slice(0, 10)
@@ -2282,8 +2332,14 @@ async function _saveGolfData(tournaments) {
     const existingSnap = await db.ref('jmt/golfData/tournaments').once('value');
     const existing = existingSnap.val() || {};
     const newIds = new Set(tournaments.map(t => t.id));
+    const now = new Date();
     for (const [id, t] of Object.entries(existing)) {
-      if (!newIds.has(id) && t.state === 'post') {
+      if (newIds.has(id)) continue;
+      // post 상태이거나, endDate가 지난 경기 중 pre(예정)가 아닌 경우 아카이브
+      // — fetchGolfDataFinal 실행 중 ESPN 스코어보드가 다음 주로 전환되면 state가
+      //   'in'인 채로 대회가 사라지는 케이스를 처리하기 위해 endDate 기준도 포함
+      const endPast = t.endDate && new Date(t.endDate) < now;
+      if (t.state === 'post' || (endPast && t.state !== 'pre')) {
         await _archiveGolfHistory(t);
       }
     }
