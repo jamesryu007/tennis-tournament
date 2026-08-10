@@ -2720,7 +2720,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1075';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1076';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -25624,8 +25624,9 @@ function renderGolfLeaderboard(t) {
   if (_maxScoreLen > 2) {
     const _cutThreshold = _maxScoreLen - 1;
     players.forEach(p => {
-      const _sLen = (p.scores || []).length;
-      if (_sLen < _cutThreshold) {
+      // '-' 또는 '' 제외한 실제 스코어 수로 판단 (WD/DQ 선수는 '-' 포함)
+      const _effLen = (p.scores || []).filter(s => s !== '' && s !== '-').length;
+      if (_effLen < _cutThreshold) {
         p.isCut = true;
       } else if (t.state === 'post') {
         p.isCut = false; // 대회 종료 후: 충분한 라운드 있으면 잘못된 컷 플래그 해제
@@ -25779,7 +25780,7 @@ function renderGolfLeaderboard(t) {
   // ESPN이 post로 전환 안 해도, Final 라운드 비컷 선수 전원 'F'면 배너 표시
   const _nonCutPlayers = displayPlayers.filter(p => !p.isCut);
   // 비컷 선수 개인별 4라운드 완료 체크 — 빈 스코어('') 제외 (ESPN이 미래 라운드를 빈 항목으로 포함)
-  const _realScoreCount = (p) => (p.scores || []).filter(s => s !== '').length;
+  const _realScoreCount = (p) => (p.scores || []).filter(s => s !== '' && s !== '-').length;
   const _allFinalDone = _nonCutPlayers.length > 0 &&
     _nonCutPlayers.every(p => _realScoreCount(p) >= 4 && p.thru === 'F');
   const _postAllDone = t.state === 'post' &&
