@@ -2541,9 +2541,17 @@ exports.fetchGolfPastWinner = onCall(
     // 1단계: calendar에서 대회 찾기 → endDate 획득
     //   scoreboard?dates=YYYY 로는 past year events 가 json.events에 없음
     //   대신 leagues[0].calendar 에 전체 시즌 일정 (label, startDate, endDate, id) 존재
+    const _espnFetch = async (url) => {
+      const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; JAMITE/1.0)' } });
+      if (!res.ok) return null;
+      const text = await res.text();
+      if (!text || text.trimStart().startsWith('<')) return null; // HTML 에러 페이지 차단
+      return JSON.parse(text);
+    };
+
     const _findByCalendar = async (tkey) => {
-      const calRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tkey}/scoreboard?dates=${year}0601`);
-      const calJson = await calRes.json();
+      const calJson = await _espnFetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tkey}/scoreboard?dates=${year}0601`);
+      if (!calJson) return null;
       const calendar = (calJson.leagues && calJson.leagues[0] && calJson.leagues[0].calendar) || [];
 
       let bestCal = null, bestOvlp = 0;
@@ -2556,8 +2564,8 @@ exports.fetchGolfPastWinner = onCall(
       // 2단계: 해당 대회 주차 endDate로 정확한 scoreboard 요청 → 풀 데이터
       const end = new Date(bestCal.endDate);
       const dateStr = `${end.getUTCFullYear()}${String(end.getUTCMonth()+1).padStart(2,'0')}${String(end.getUTCDate()).padStart(2,'0')}`;
-      const evRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tkey}/scoreboard?dates=${dateStr}`);
-      const evJson = await evRes.json();
+      const evJson = await _espnFetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tkey}/scoreboard?dates=${dateStr}`);
+      if (!evJson) return null;
 
       let bestEvent = null, bestEvOvlp = 0;
       for (const ev of (evJson.events || [])) {
