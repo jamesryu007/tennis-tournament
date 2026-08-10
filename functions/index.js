@@ -2433,10 +2433,13 @@ exports.notifyGolfWinner = onValueWritten(
       // scores >= 4 조건 추가 — R1 완료 시 전원 F로 오판 방지
       const _isTournamentDone = (t) => {
         const lb = t.leaderboard || [];
-        const nonCut = lb.filter(p => p.name && !p.isCut);
+        const _effLen = (p) => (p.scores || []).filter(s => s !== '' && s !== '-').length;
+        // WD/DQ 선수 제외: isCut=false이지만 '-' 포함으로 실제 스코어가 적은 경우
+        const maxEff = Math.max(...lb.map(p => _effLen(p)), 0);
+        const nonCut = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff - 1);
         if (nonCut.length === 0) return false;
         // 비컷 선수 전원 4라운드 완료 여부 개인별 체크 (글로벌 max 오판 방지)
-        const allFour = nonCut.every(p => (p.scores || []).filter(s => s !== '').length >= 4);
+        const allFour = nonCut.every(p => _effLen(p) >= 4);
         if (!allFour) return false;
         if (t.state === 'post') return true;
         return nonCut.every(p => p.thru === 'F');
