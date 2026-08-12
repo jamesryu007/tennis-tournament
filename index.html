@@ -517,6 +517,9 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .live-badge-lg { font-size:1rem; padding:3px 10px 3px 8px; border-radius:7px; gap:5px; letter-spacing:1px; }
 .live-badge-lg::before { width:8px; height:8px; }
 @keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.35;transform:scale(0.65)} }
+@keyframes spotlightFadeIn { from{opacity:0;transform:scale(0.92)} to{opacity:1;transform:scale(1)} }
+@keyframes spotlightHeartPop { 0%{transform:scale(0.3);opacity:1} 60%{transform:scale(1.6);opacity:1} 100%{transform:scale(2.2);opacity:0} }
+#spotlight-card { animation: spotlightFadeIn 0.35s ease forwards; }
 @keyframes pdBtnGlow { 0%,100%{box-shadow:0 0 0 0 rgba(124,58,237,0.5),0 2px 8px rgba(79,70,229,0.4)} 50%{box-shadow:0 0 0 6px rgba(124,58,237,0),0 4px 16px rgba(79,70,229,0.6)} }
 @keyframes winnerPop { 0%{opacity:0;transform:scale(0.6)} 18%{opacity:1;transform:scale(1.08)} 32%{transform:scale(0.97)} 45%{transform:scale(1.03)} 58%{transform:scale(1)} 80%{opacity:1} 100%{opacity:0;transform:scale(1.1)} }
 @keyframes winnerBg { 0%{opacity:0} 15%{opacity:1} 80%{opacity:1} 100%{opacity:0} }
@@ -1195,6 +1198,17 @@ const firebaseConfig = {
     </div>
   </div>
   <button class="btn btn-primary btn-full" id="btn-add-member" onclick="openAddMemberModal()">＋ 신규회원 등록</button>
+
+  <!-- 스포트라이트 테스트 (관리자 전용) -->
+  <div class="card" style="margin-top:14px;border-color:#fde68a;background:#fffbeb">
+    <div class="card-title" style="font-size:0.85rem;color:#92400e;margin-bottom:8px">🎾 스포트라이트 팝업 테스트 <span style="font-size:0.65rem;color:#b45309;font-weight:500">(관리자 전용)</span></div>
+    <div id="spotlight-test-info" style="font-size:0.78rem;color:#64748b;margin-bottom:10px">로딩중...</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="_spotlightTestShow()" style="padding:7px 14px;border-radius:10px;border:1.5px solid #f59e0b;background:#fff;color:#92400e;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit">👁 팝업 미리보기</button>
+      <button onclick="_spotlightTestReset()" style="padding:7px 14px;border-radius:10px;border:1.5px solid #dc2626;background:#fff;color:#dc2626;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit">🔄 오늘 캐시 초기화</button>
+      <button onclick="_spotlightTestRotate()" style="padding:7px 14px;border-radius:10px;border:1.5px solid #7c3aed;background:#fff;color:#7c3aed;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit">⏭ 다음 멤버로</button>
+    </div>
+  </div>
 </div>
 
 <!-- ══ PAGE: 대회만들기 ══ -->
@@ -2720,7 +2734,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1079';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1080';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11141,6 +11155,10 @@ function switchPage(id) {
   window.scrollTo(0,0);
   // 탭 진입 시 배지 클리어
   if(id === 'history' || id === 'checkin' || id === 'setup' || id === 'atp') _clearNavBadge(id);
+  // 회원관리 탭 진입 시 스포트라이트 테스트 정보 로드 (관리자)
+  if (id === 'members' && isAdmin()) {
+    setTimeout(_spotlightLoadTestInfo, 300);
+  }
   // 랭킹 탭 진입 시 랜덤 사진 선택 (직전과 다른 것으로)
   if(id === 'history') {
     changeTeamPhotoRandom();
@@ -12588,6 +12606,10 @@ changeCheckinPhotoRandom();
       db = firebase.database();
       setupFirebaseListeners(); // 리스너가 초기 데이터 로드 + 렌더링 처리
       changeTeamPhotoRandom(); // db 초기화 후 랜드스케이프 사진 재로드
+      // 스포트라이트 팝업 초기화 (오늘 첫 기동 시만 표시)
+      if (localStorage.getItem('jmt_spotlight_seen') !== window._spotlightToday) {
+        setTimeout(_spotlightInit, 1200); // 로고 팝업 1초 후 실행
+      }
       // BZ_REF 등 하위 const가 초기화된 후 실행 (TDZ 방지)
       // _bzInitUnreadListener/HandleShareTarget은 하위 스크립트 블록에 정의 — 파싱 완료 후 실행 보장
       window.addEventListener('load', () => { _bzInitUnreadListener(); _bzHandleShareTarget(); }, { once: true });
@@ -15414,15 +15436,194 @@ async function triggerAtpRefresh() {
     style="max-width:85vw;max-height:85vh;object-fit:contain;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,0.5)">
 </div>
 
+<!-- ── 스포트라이트 팝업 ── -->
+<div id="spotlight-popup" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;padding:20px;box-sizing:border-box" onclick="_spotlightTouch()">
+  <div id="spotlight-card" style="background:#fff;border-radius:24px;max-width:340px;width:100%;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+    <div style="background:linear-gradient(135deg,#1a5c38,#2d9e5f);padding:26px 20px 20px;text-align:center">
+      <div style="font-size:0.6rem;color:rgba(255,255,255,0.65);letter-spacing:2.5px;font-weight:700;text-transform:uppercase;margin-bottom:10px">이번 주 주인공 🎾</div>
+      <div id="spotlight-name" style="font-size:1.65rem;color:#fff;font-weight:900;letter-spacing:-0.5px"></div>
+      <div id="spotlight-theme" style="display:inline-block;margin-top:10px;padding:4px 14px;background:rgba(255,255,255,0.18);border-radius:20px;font-size:0.7rem;color:rgba(255,255,255,0.92);font-weight:600;letter-spacing:0.3px"></div>
+    </div>
+    <div style="padding:20px 22px 14px">
+      <div id="spotlight-text" style="font-size:0.88rem;line-height:1.85;color:#334155;word-break:keep-all;overflow-wrap:anywhere"></div>
+    </div>
+    <div style="padding:10px 22px 20px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #f1f5f9">
+      <div id="spotlight-hearts" style="font-size:0.78rem;color:#f59e0b;font-weight:600"></div>
+      <div style="font-size:0.72rem;color:#94a3b8;font-weight:500">터치하면 ❤️ 저장</div>
+    </div>
+  </div>
+</div>
+<!-- 하트 버스트 오버레이 -->
+<div id="spotlight-heart-burst" style="display:none;position:fixed;inset:0;z-index:10000;pointer-events:none;align-items:center;justify-content:center">
+  <div style="font-size:90px;animation:spotlightHeartPop 0.75s ease forwards">❤️</div>
+</div>
+
 <script>
-  // 앱 로드/리로드 시 로고 스플래시 2초 표시
+  // 앱 로드/리로드 시 로고 스플래시 또는 스포트라이트 팝업 표시
   (function() {
     const el = document.getElementById('logo-popup');
     if (!el) return;
-    el.style.display = 'flex';
-    window._bzSplashEndTime = Date.now() + 2000;
-    setTimeout(() => { el.style.display = 'none'; }, 2000);
+    // 오늘 날짜 (KST)
+    const _now = new Date(new Date().toLocaleString('en-US', {timeZone:'Asia/Seoul'}));
+    const _today = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
+    window._spotlightToday = _today;
+    // 오늘 이미 스포트라이트 봤으면 → 기존 로고 팝업 2초
+    if (localStorage.getItem('jmt_spotlight_seen') === _today) {
+      el.style.display = 'flex';
+      window._bzSplashEndTime = Date.now() + 2000;
+      setTimeout(() => { el.style.display = 'none'; }, 2000);
+    } else {
+      // 스포트라이트 대기 → 로고 1초 후 숨김 (Firebase 초기화 후 _spotlightInit 호출됨)
+      el.style.display = 'flex';
+      window._bzSplashEndTime = Date.now() + 1000;
+      setTimeout(() => { el.style.display = 'none'; }, 1000);
+    }
   })();
+</script>
+
+<script>
+// ══ 스포트라이트 팝업 ════════════════════════════════════════════
+
+async function _spotlightInit() {
+  try {
+    const today = window._spotlightToday;
+    if (!today || !db) return;
+    // 신원 미확인 시 스킵 (identity 모달을 가리지 않도록)
+    if (!state.identity || !state.identity.name) return;
+    // DB에서 오늘 캐시된 텍스트 조회
+    let snap = await db.ref(`jmt/spotlight/daily/${today}`).once('value');
+    let data = snap.val();
+    if (!data || !data.text) {
+      // 첫 기동자 → CF 호출로 생성
+      const fn = firebase.app().functions('asia-southeast1').httpsCallable('generateSpotlight');
+      const result = await fn({ date: today });
+      data = result.data;
+    }
+    if (!data || !data.text || !data.memberName) return;
+    _showSpotlightPopup(data);
+  } catch(e) {
+    console.warn('spotlight init:', e.message);
+  }
+}
+
+function _showSpotlightPopup(data) {
+  const pop = document.getElementById('spotlight-popup');
+  if (!pop) return;
+  // 콘텐츠 채우기
+  const nameEl = document.getElementById('spotlight-name');
+  const themeEl = document.getElementById('spotlight-theme');
+  const textEl  = document.getElementById('spotlight-text');
+  if (nameEl)  nameEl.textContent  = data.memberName || '';
+  if (themeEl) themeEl.textContent = data.theme ? `오늘의 테마 · ${data.theme}` : '';
+  if (textEl)  textEl.innerHTML    = (data.text || '')
+    .split('\n').filter(l => l.trim())
+    .map(l => {
+      const body = l.replace(/^[•\-\*]\s*/, '');
+      return `<div style="display:flex;gap:9px;margin-bottom:11px;align-items:flex-start"><span style="color:#2d9e5f;font-size:1.1rem;line-height:1.7;flex-shrink:0">•</span><span style="word-break:keep-all">${body}</span></div>`;
+    }).join('');
+  // 이번 주 하트 수 표시
+  const weekStart = data.weekStart || window._spotlightToday;
+  db.ref(`jmt/spotlight/hearts/${weekStart}`).once('value').then(snap => {
+    const cnt = Object.keys(snap.val() || {}).length;
+    const el = document.getElementById('spotlight-hearts');
+    if (el) el.textContent = cnt > 0 ? `💛 이번 주 하트 ${cnt}개` : '';
+  }).catch(() => {});
+  // 팝업 표시
+  pop.style.display = 'flex';
+}
+
+// ── 관리자 테스트 함수 ───────────────────────────────────────────
+async function _spotlightLoadTestInfo() {
+  const infoEl = document.getElementById('spotlight-test-info');
+  if (!infoEl || !db) return;
+  try {
+    const snap = await db.ref('jmt/spotlight/current').once('value');
+    const cur = snap.val() || {};
+    const today = window._spotlightToday || '';
+    const seen = localStorage.getItem('jmt_spotlight_seen') === today;
+    const heartsSnap = await db.ref(`jmt/spotlight/hearts/${cur.weekStart || ''}`).once('value');
+    const heartCnt = Object.keys(heartsSnap.val() || {}).length;
+    infoEl.innerHTML = `이번 주 주인공: <b>${cur.memberName || '미설정'}</b> (${cur.weekStart || ''})<br>`
+      + `오늘 날짜: ${today} | 오늘 팝업 본 여부: ${seen ? '✅ 봄' : '❌ 안 봄'}<br>`
+      + `이번 주 하트: 💛 ${heartCnt}개`;
+  } catch(e) {
+    infoEl.textContent = '오류: ' + e.message;
+  }
+}
+
+async function _spotlightTestShow() {
+  if (!db) return;
+  // 주인공 설정 여부 확인
+  const snap = await db.ref('jmt/spotlight/current').once('value');
+  const cur = snap.val() || {};
+  if (!cur.memberName) {
+    alert('이번 주 주인공이 설정되지 않았습니다.\n먼저 \'다음 멤버로\' 버튼을 눌러 주인공을 설정해 주세요.');
+    return;
+  }
+  // localStorage 초기화 후 팝업 강제 표시
+  localStorage.removeItem('jmt_spotlight_seen');
+  await _spotlightInit();
+  _spotlightLoadTestInfo();
+}
+
+async function _spotlightTestReset() {
+  const today = window._spotlightToday;
+  if (!today || !confirm(`오늘(${today}) 스포트라이트 캐시를 초기화하면 다음 기동 시 LLM이 새로 생성합니다.\n계속할까요?`)) return;
+  localStorage.removeItem('jmt_spotlight_seen');
+  await db.ref(`jmt/spotlight/daily/${today}`).remove();
+  alert('초기화 완료! 다음 팝업 시 새 텍스트가 생성됩니다.');
+  _spotlightLoadTestInfo();
+}
+
+async function _spotlightTestRotate() {
+  if (!isAdmin()) return;
+  if (!confirm('다음 멤버로 강제 교체할까요?\n(실제 DB에 반영되어 모든 멤버에게 적용됩니다)')) return;
+  try {
+    const fn = firebase.app().functions('asia-southeast1').httpsCallable('adminRotateSpotlight');
+    // CF 없으면 직접 큐 조작
+    const snap = await db.ref('jmt/spotlight').once('value');
+    const spotlight = snap.val() || {};
+    let queue = spotlight.queue || [];
+    if (queue.length === 0) {
+      const membersSnap = await db.ref('jmt/members').once('value');
+      queue = Object.values(membersSnap.val() || {}).filter(m=>m.name&&!m.isGuest).map(m=>m.name).sort(()=>Math.random()-0.5);
+    }
+    const next = queue.shift();
+    const today = window._spotlightToday || '';
+    await db.ref('jmt/spotlight').update({ current: { memberName: next, weekStart: today }, queue });
+    localStorage.removeItem('jmt_spotlight_seen');
+    await db.ref(`jmt/spotlight/daily/${today}`).remove();
+    alert(`주인공 변경: ${next}\n팝업이 다시 표시됩니다.`);
+    await _spotlightInit();
+    _spotlightLoadTestInfo();
+  } catch(e) {
+    alert('오류: ' + e.message);
+  }
+}
+
+function _spotlightTouch() {
+  const today = window._spotlightToday;
+  if (!today) return;
+  // localStorage 저장 (오늘 본 것으로 표시)
+  localStorage.setItem('jmt_spotlight_seen', today);
+  // 하트 저장 (identity 로드 후)
+  const curName = (state.identity && state.identity.name) || '';
+  if (curName && db) {
+    db.ref(`jmt/spotlight/daily/${today}`).once('value').then(snap => {
+      const d = snap.val() || {};
+      const weekStart = d.weekStart || today;
+      db.ref(`jmt/spotlight/hearts/${weekStart}/${curName}`).set(true).catch(() => {});
+    }).catch(() => {});
+  }
+  // 하트 버스트 애니메이션 → 팝업 닫기
+  const burst = document.getElementById('spotlight-heart-burst');
+  const pop   = document.getElementById('spotlight-popup');
+  if (burst) burst.style.display = 'flex';
+  setTimeout(() => {
+    if (burst) burst.style.display = 'none';
+    if (pop)   pop.style.display   = 'none';
+  }, 750);
+}
 </script>
 
 <script>
