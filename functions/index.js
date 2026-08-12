@@ -2335,20 +2335,27 @@ async function _archiveGolfHistory(t) {
 async function _saveGolfData(tournaments) {
   if (!tournaments.length) { console.log('_saveGolfData: no tournaments, keeping existing'); return; }
 
-  // 사라진 post 대회 → 히스토리 저장
+  // post 대회 → 히스토리 저장 (사라진 대회 + 새 데이터에 남아있는 post 대회 모두 처리)
   try {
     const existingSnap = await db.ref('jmt/golfData/tournaments').once('value');
     const existing = existingSnap.val() || {};
     const newIds = new Set(tournaments.map(t => t.id));
     const now = new Date();
+
+    // 1) 기존 DB에 있다가 새 데이터에서 사라진 대회 아카이브
     for (const [id, t] of Object.entries(existing)) {
       if (newIds.has(id)) continue;
-      // post 상태이거나, endDate가 지난 경기 중 pre(예정)가 아닌 경우 아카이브
-      // — fetchGolfDataFinal 실행 중 ESPN 스코어보드가 다음 주로 전환되면 state가
-      //   'in'인 채로 대회가 사라지는 케이스를 처리하기 위해 endDate 기준도 포함
       const endPast = t.endDate && new Date(t.endDate) < now;
       if (t.state === 'post' || (endPast && t.state !== 'pre')) {
         await _archiveGolfHistory(t);
+      }
+    }
+
+    // 2) 새 데이터에 여전히 있지만 state==='post'인 대회도 아카이브
+    //    (ESPN이 지난주 대회를 post 상태로 계속 반환하는 경우 대응)
+    for (const t of tournaments) {
+      if (t.state === 'post') {
+        await _archiveGolfHistory(t); // 내부에서 중복 체크 후 이미 있으면 skip
       }
     }
   } catch (e) {
