@@ -2734,7 +2734,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1083';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1084';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12334,6 +12334,12 @@ function selectIdentity(name) {
     if (pageId === 'checkin') renderCheckinPage();
     if (pageId === 'atp') { renderAtpPage(); renderAtpBetPanel(); }
   }
+
+  // identity 선택 후 오늘 스포트라이트 아직 안 봤으면 팝업 시도
+  // (앱 첫 기동 시 identity 미설정 → 모달 선택 후 여기서 재트리거)
+  if (localStorage.getItem('jmt_spotlight_seen') !== window._spotlightToday) {
+    setTimeout(_spotlightInit, 400);
+  }
 }
 
 function confirmIdentityInput() {
@@ -15499,16 +15505,32 @@ async function _spotlightInit() {
     let snap = await db.ref(`jmt/spotlight/daily/${today}`).once('value');
     let data = snap.val();
     if (!data || !data.text) {
-      // 첫 기동자 → CF 호출로 생성
+      // 첫 기동자 → CF 호출로 생성 (로딩 팝업 먼저 표시)
+      _showSpotlightLoading();
       const fn = firebase.app().functions('asia-southeast1').httpsCallable('generateSpotlight');
       const result = await fn({ date: today });
       data = result.data;
     }
-    if (!data || !data.text || !data.memberName) return;
+    if (!data || !data.text || !data.memberName) {
+      document.getElementById('spotlight-popup').style.display = 'none';
+      return;
+    }
     _showSpotlightPopup(data);
   } catch(e) {
     console.warn('spotlight init:', e.message);
   }
+}
+
+function _showSpotlightLoading() {
+  const pop = document.getElementById('spotlight-popup');
+  const textEl = document.getElementById('spotlight-text');
+  const nameEl = document.getElementById('spotlight-name');
+  const themeEl = document.getElementById('spotlight-theme');
+  if (!pop) return;
+  if (nameEl) nameEl.textContent = '잠깐만요...';
+  if (themeEl) themeEl.textContent = '';
+  if (textEl) textEl.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:10px 0">✨ 오늘의 이야기를 준비 중이에요</div>';
+  pop.style.display = 'flex';
 }
 
 function _showSpotlightPopup(data) {
