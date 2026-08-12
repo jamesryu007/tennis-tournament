@@ -4832,8 +4832,10 @@ async function _doGenerateSpotlight(kst) {
 
   const allMatches = Object.values(matchSnap.val() || {});
   const cutoff = Date.now() - 60 * 24 * 60 * 60 * 1000; // 60일 이내만 사용
+  const cutoffDate = new Date(cutoff).toISOString().split('T')[0]; // 'YYYY-MM-DD'
   const recentMatches = allMatches
-    .filter(m => m.source === 'daily' && JSON.stringify(m).includes(memberName) && (m.ts || 0) > cutoff)
+    .filter(m => m.source === 'daily' && JSON.stringify(m).includes(memberName)
+      && ((m.ts || 0) > cutoff || (m.date || '') >= cutoffDate))
     .sort((a, b) => (b.ts || 0) - (a.ts || 0))
     .slice(0, 5)
     .map(m => {
