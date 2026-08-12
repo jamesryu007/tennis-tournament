@@ -2750,7 +2750,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1094';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1095';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -3546,7 +3546,8 @@ function addGuest() {
     id: Date.now(),
     name,
     gender: document.getElementById('guest-gender').value,
-    ntrp
+    ntrp,
+    invitedBy: (state.identity && state.identity.name) || ''
   });
   document.getElementById('guest-name').value = '';
   document.getElementById('guest-ntrp').value = '';
@@ -3566,7 +3567,7 @@ function renderGuestList() {
   el.innerHTML = `<div style="margin-top:6px">${state.guests.map(g =>
     `<div class="p-item checked" style="cursor:default">
       <span class="badge badge-guest">게스트</span>
-      <span class="p-name">${g.name}</span>
+      <span class="p-name">${g.name}${g.invitedBy?`<span style="font-size:0.7rem;font-weight:500;color:#64748b;margin-left:5px">· ${g.invitedBy} 초청</span>`:''}</span>
       <span class="badge ${g.gender==='male'?'badge-male':'badge-female'}">${g.gender==='male'?'남':'여'}</span>
       ${g.ntrp?`<span class="badge badge-ntrp">NTRP ${g.ntrp}</span>`:''}
       <button style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:1rem;padding:2px 4px" onclick="removeGuest(${g.id})">✕</button>
@@ -11779,7 +11780,7 @@ function renderCheckinPage() {
         const _color  = _isMale ? '#1d4ed8' : '#be185d';
         return `<div style="display:flex;align-items:center;gap:8px;background:${_bg};border:1px solid ${_border};border-radius:20px;padding:5px 10px;margin-bottom:6px">
           <span style="font-size:0.75rem;font-weight:800;color:${_color}">${_isMale?'남':'여'}</span>
-          <span style="flex:1;font-size:0.85rem;font-weight:600;color:${_color}">${g.name}</span>
+          <span style="flex:1;font-size:0.85rem;font-weight:600;color:${_color}">${g.name}${g.invitedBy?`<span style="font-size:0.7rem;font-weight:500;color:#64748b;margin-left:5px">· ${g.invitedBy} 초청</span>`:''}</span>
           ${g.ntrp?`<span class="badge badge-ntrp" style="margin-right:4px">NTRP ${g.ntrp}</span>`:''}
           <button class="btn btn-danger btn-sm" onclick="removePollGuest('${k}')">삭제</button>
         </div>`;}).join('')}</div>`:''}
@@ -11877,7 +11878,8 @@ function addPollGuest() {
   if(!ntrp) { alert('NTRP를 선택하세요.'); return; }
   if(!state.pollState || !state.pollState.weekId) return;
   const weekId = state.pollState.weekId;
-  if(db) db.ref(`jmt/poll/${weekId}/guests`).push({ name, gender, ntrp, addedAt: new Date().toISOString() }).catch(fbErr);
+  const _invitedBy = (state.identity && state.identity.name) || '';
+  if(db) db.ref(`jmt/poll/${weekId}/guests`).push({ name, gender, ntrp, invitedBy: _invitedBy, addedAt: new Date().toISOString() }).catch(fbErr);
   if(nameEl) nameEl.value = '';
   const ntrpEl = document.getElementById('poll-guest-ntrp');
   if(ntrpEl) ntrpEl.value = '';
