@@ -2734,7 +2734,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1085';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1086';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -15598,12 +15598,11 @@ async function _spotlightTestShow() {
 
 async function _spotlightTestReset() {
   const today = window._spotlightToday;
-  if (!today || !confirm(`오늘(${today}) 캐시를 초기화하고 새 텍스트로 팝업을 바로 열까요?`)) return;
+  if (!today || !confirm(`오늘(${today}) 캐시를 초기화합니다.\nCmd+Shift+R 후 팝업이 뜨는지 확인하세요.`)) return;
   localStorage.removeItem('jmt_spotlight_seen');
   await db.ref(`jmt/spotlight/daily/${today}`).remove();
   _spotlightLoadTestInfo();
-  // 바로 팝업 재생성 (Cmd+Shift+R 불필요)
-  await _spotlightInit();
+
 }
 
 async function _spotlightTestRotate() {
