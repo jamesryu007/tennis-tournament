@@ -1200,7 +1200,7 @@ const firebaseConfig = {
   <button class="btn btn-primary btn-full" id="btn-add-member" onclick="openAddMemberModal()">＋ 신규회원 등록</button>
 
   <!-- 스포트라이트 테스트 (관리자 전용) -->
-  <div class="card" style="margin-top:14px;border-color:#fde68a;background:#fffbeb">
+  <div id="spotlight-test-panel" class="card" style="display:none;margin-top:14px;border-color:#fde68a;background:#fffbeb">
     <div class="card-title" style="font-size:0.85rem;color:#92400e;margin-bottom:8px">🎾 스포트라이트 팝업 테스트 <span style="font-size:0.65rem;color:#b45309;font-weight:500">(관리자 전용)</span></div>
     <div id="spotlight-test-info" style="font-size:0.78rem;color:#64748b;margin-bottom:10px">로딩중...</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -2750,7 +2750,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1092';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1094';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12478,6 +12478,10 @@ function updatePermissionUI() {
     swBadge.textContent = SW_VERSION.replace('jamite-v', '');
     swBadge.style.display = admin ? '' : 'none';
   }
+
+  // 스포트라이트 테스트 패널 (관리자만)
+  const spotlightPanel = document.getElementById('spotlight-test-panel');
+  if (spotlightPanel) spotlightPanel.style.display = admin ? '' : 'none';
 
   // 신규회원 등록 (관리자만)
   const btnMember = document.getElementById('btn-add-member');
