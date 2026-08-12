@@ -2734,7 +2734,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1084';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1085';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -15496,28 +15496,38 @@ async function triggerAtpRefresh() {
 async function _spotlightInit() {
   try {
     const today = window._spotlightToday;
+    console.log('[spotlight] today=', today, 'db=', !!db, 'identity=', state.identity && state.identity.name);
     if (!today || !db) return;
     // 오늘 이미 봤으면 스킵 (리로드 시 반복 표시 방지)
-    if (localStorage.getItem('jmt_spotlight_seen') === today) return;
+    if (localStorage.getItem('jmt_spotlight_seen') === today) { console.log('[spotlight] already seen'); return; }
     // 신원 미확인 시 스킵 (identity 모달을 가리지 않도록)
-    if (!state.identity || !state.identity.name) return;
+    if (!state.identity || !state.identity.name) { console.log('[spotlight] no identity → skip'); return; }
     // DB에서 오늘 캐시된 텍스트 조회
     let snap = await db.ref(`jmt/spotlight/daily/${today}`).once('value');
     let data = snap.val();
+    console.log('[spotlight] cache=', data ? data.memberName : 'empty');
     if (!data || !data.text) {
       // 첫 기동자 → CF 호출로 생성 (로딩 팝업 먼저 표시)
       _showSpotlightLoading();
+      console.log('[spotlight] calling CF...');
       const fn = firebase.app().functions('asia-southeast1').httpsCallable('generateSpotlight');
       const result = await fn({ date: today });
       data = result.data;
+      console.log('[spotlight] CF result=', JSON.stringify(data || {}).slice(0, 120));
     }
     if (!data || !data.text || !data.memberName) {
-      document.getElementById('spotlight-popup').style.display = 'none';
+      // CF 실패 — 팝업에 에러 표시 (숨기지 않음)
+      const textEl = document.getElementById('spotlight-text');
+      const nameEl = document.getElementById('spotlight-name');
+      if (nameEl) nameEl.textContent = '⚠️ 오류';
+      if (textEl) textEl.innerHTML = `<div style="color:#dc2626;font-size:0.82rem;text-align:center">팝업을 불러오지 못했어요<br><span style="color:#94a3b8;font-size:0.75rem">${(data && data.error) || '주인공 미설정 또는 네트워크 오류'}</span></div>`;
       return;
     }
     _showSpotlightPopup(data);
   } catch(e) {
-    console.warn('spotlight init:', e.message);
+    console.error('[spotlight] error:', e);
+    const textEl = document.getElementById('spotlight-text');
+    if (textEl) textEl.innerHTML = `<div style="color:#dc2626;font-size:0.82rem;text-align:center">오류: ${e.message}</div>`;
   }
 }
 
@@ -15588,11 +15598,12 @@ async function _spotlightTestShow() {
 
 async function _spotlightTestReset() {
   const today = window._spotlightToday;
-  if (!today || !confirm(`오늘(${today}) 스포트라이트 캐시를 초기화하면 다음 기동 시 LLM이 새로 생성합니다.\n계속할까요?`)) return;
+  if (!today || !confirm(`오늘(${today}) 캐시를 초기화하고 새 텍스트로 팝업을 바로 열까요?`)) return;
   localStorage.removeItem('jmt_spotlight_seen');
   await db.ref(`jmt/spotlight/daily/${today}`).remove();
-  alert('초기화 완료! 다음 팝업 시 새 텍스트가 생성됩니다.');
   _spotlightLoadTestInfo();
+  // 바로 팝업 재생성 (Cmd+Shift+R 불필요)
+  await _spotlightInit();
 }
 
 async function _spotlightTestRotate() {
