@@ -2734,7 +2734,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1085';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1089';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12614,7 +12614,7 @@ changeCheckinPhotoRandom();
       changeTeamPhotoRandom(); // db 초기화 후 랜드스케이프 사진 재로드
       // 스포트라이트 팝업 초기화 (오늘 첫 기동 시만 표시)
       if (localStorage.getItem('jmt_spotlight_seen') !== window._spotlightToday) {
-        setTimeout(_spotlightInit, 1200); // 로고 팝업 1초 후 실행
+        setTimeout(() => _spotlightInit(), 300); // 로고 팝업 1초 후 실행 (arrow wrapper: 실행 시점에 함수 조회)
       }
       // BZ_REF 등 하위 const가 초기화된 후 실행 (TDZ 방지)
       // _bzInitUnreadListener/HandleShareTarget은 하위 스크립트 블록에 정의 — 파싱 완료 후 실행 보장
@@ -15482,10 +15482,9 @@ async function triggerAtpRefresh() {
       window._bzSplashEndTime = Date.now() + 2000;
       setTimeout(() => { el.style.display = 'none'; }, 2000);
     } else {
-      // 스포트라이트 대기 → 로고 1초 후 숨김 (Firebase 초기화 후 _spotlightInit 호출됨)
-      el.style.display = 'flex';
-      window._bzSplashEndTime = Date.now() + 1000;
-      setTimeout(() => { el.style.display = 'none'; }, 1000);
+      // 스포트라이트 표시 예정 → 로고 팝업 생략
+      el.style.display = 'none';
+      window._bzSplashEndTime = Date.now();
     }
   })();
 </script>
@@ -15500,7 +15499,10 @@ async function _spotlightInit() {
     if (!today || !db) return;
     // 오늘 이미 봤으면 스킵 (리로드 시 반복 표시 방지)
     if (localStorage.getItem('jmt_spotlight_seen') === today) { console.log('[spotlight] already seen'); return; }
-    // 신원 미확인 시 스킵 (identity 모달을 가리지 않도록)
+    // 신원 미확인 시 localStorage에서 직접 시도 (Cmd+Shift+R 후 state 미초기화 대응)
+    if (!state.identity || !state.identity.name) {
+      try { const s = localStorage.getItem('jmt_identity'); if (s) state.identity = JSON.parse(s); } catch(_) {}
+    }
     if (!state.identity || !state.identity.name) { console.log('[spotlight] no identity → skip'); return; }
     // DB에서 오늘 캐시된 텍스트 조회
     let snap = await db.ref(`jmt/spotlight/daily/${today}`).once('value');
@@ -15598,12 +15600,9 @@ async function _spotlightTestShow() {
 
 async function _spotlightTestReset() {
   const today = window._spotlightToday;
-  if (!today || !confirm(`오늘(${today}) 캐시를 초기화하고 새 텍스트로 팝업을 바로 열까요?`)) return;
+  if (!today || !confirm(`오늘(${today}) "오늘 본 팝업" 플래그만 초기화합니다.\nCmd+Shift+R 후 팝업이 즉시 뜨는지 확인하세요.`)) return;
   localStorage.removeItem('jmt_spotlight_seen');
-  await db.ref(`jmt/spotlight/daily/${today}`).remove();
   _spotlightLoadTestInfo();
-  // 바로 팝업 재생성 (Cmd+Shift+R 불필요)
-  await _spotlightInit();
 }
 
 async function _spotlightTestRotate() {
