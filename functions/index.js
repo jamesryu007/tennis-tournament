@@ -4806,10 +4806,13 @@ exports.generateSpotlight = onCall({ region: 'asia-southeast1' }, async (req) =>
     const dow   = kst.getDay(); // 0=일, 6=토
     const theme = _SPOTLIGHT_THEMES[dow];
 
-    // 멤버 프로필·스탯 조회
-    const [bioSnap, statSnap] = await Promise.all([
+    // 멤버 프로필·스탯·페어전적·최근경기 조회
+    const year = kst.getFullYear();
+    const [bioSnap, statSnap, pairSnap, matchSnap] = await Promise.all([
       db.ref(`jmt/memberBios/${memberName}`).once('value'),
-      db.ref(`jmt/playerStats/${kst.getFullYear()}/${memberName}`).once('value'),
+      db.ref(`jmt/playerStats/${year}/${memberName}`).once('value'),
+      db.ref(`jmt/pairStats/${year}`).once('value'),
+      db.ref('jmt/matches').limitToLast(300).once('value'),
     ]);
     const bio   = bioSnap.val() || '';
     const stats = statSnap.val() || {};
@@ -4819,22 +4822,64 @@ exports.generateSpotlight = onCall({ region: 'asia-southeast1' }, async (req) =>
       ? `${stats.wins}승 ${stats.losses}패${stats.draws ? ` ${stats.draws}무` : ''} (유효승률 ${wr}%)`
       : '';
 
+    // 페어 전적 요약 (상위 3쌍)
+    const pairAll = pairSnap.val() || {};
+    const topPairs = Object.entries(pairAll)
+      .filter(([k]) => k.includes(memberName))
+      .map(([k, v]) => {
+        const partner = k.replace(memberName, '').replace('_', '');
+        return { partner, wins: v.wins || 0, losses: v.losses || 0 };
+      })
+      .filter(p => p.partner && (p.wins + p.losses) >= 2)
+      .sort((a, b) => (b.wins - b.losses) - (a.wins - a.losses))
+      .slice(0, 3);
+    const pairStr = topPairs.length
+      ? topPairs.map(p => `${p.partner}(${p.wins}승${p.losses}패)`).join(', ')
+      : '';
+
+    // 최근 경기 기록 (source=daily, 최근 5경기)
+    const allMatches = Object.values(matchSnap.val() || {});
+    const recentMatches = allMatches
+      .filter(m => m.source === 'daily' && JSON.stringify(m).includes(memberName))
+      .sort((a, b) => (b.ts || 0) - (a.ts || 0))
+      .slice(0, 5)
+      .map(m => {
+        const t0 = (m.team0 || []).join('+'), t1 = (m.team1 || []).join('+');
+        const winner = m.winner === 0 ? t0 : t1;
+        const won = winner.includes(memberName);
+        return `${m.date} ${t0} vs ${t1} → ${won ? '승' : '패'}`;
+      });
+    const matchStr = recentMatches.length ? recentMatches.join('\n') : '';
+
+    // 요일별 특화 지시문
+    const dayGuide = [
+      `올 시즌 구체적인 수치(승/패/승률)를 언급하고, 실제 경기 스타일이나 강점을 묘사해줘. 추상적 칭찬 금지.`,
+      `실제 페어 전적 데이터를 활용해 베스트 파트너를 구체적으로 언급해줘. "파트너십이 좋다"식 표현 금지.`,
+      `프로필에 나온 실제 에피소드(성격, 생활, 개인 특성)를 구체적으로 살려서 써줘. 일반적인 칭찬 금지.`,
+      `최근 경기 기록에서 인상적인 승리나 상황을 날짜와 상대팀 이름을 포함해 구체적으로 묘사해줘.`,
+      `프로필에서 이 멤버만의 독특한 특징이나 에피소드를 뽑아 써줘. 다른 멤버에게도 쓸 수 있는 표현 금지.`,
+      `멤버 이름을 직접 불러 진심 어린 응원과 감사 메시지를 써줘. 상투적 클로징 문구 금지.`,
+      `오늘 코트에서 만난다는 설렘을 담고, 이 멤버와의 구체적인 기대(파트너, 경기 스타일)를 써줘. 마지막 불릿에 코트에서 만나는 내용 필수.`,
+    ][dow];
+
     const isSaturday = dow === 6;
-    const prompt = `자미터 테니스 동호회 앱의 "이번 주 주인공" 팝업 텍스트를 작성해줘.
+    const prompt = `자미터 테니스 동호회 앱 "이번 주 주인공" 팝업 텍스트 작성.
 
-멤버: ${memberName}
+[멤버 정보]
+이름: ${memberName}
 프로필: ${bio}
-${statStr ? `2026 시즌 성적: ${statStr}` : ''}
-오늘의 테마: ${theme}
-${isSaturday ? '⚠️ 오늘은 자미터 모임 날! 코트에서 만난다는 내용을 마지막에 꼭 포함.' : ''}
+${statStr ? `2026 시즌: ${statStr}` : ''}
+${pairStr ? `주요 페어 전적: ${pairStr}` : ''}
+${matchStr ? `최근 경기:\n${matchStr}` : ''}
 
-조건:
-- 불릿포인트 2~3개 (• 기호 사용)
-- 따뜻하고 유쾌한 존댓말 톤
-- 이모지로 시작하거나 감성적 표현 사용
-- 각 불릿은 한 문장, 30자 이내로 간결하게
-- 테마 키워드(실력·파트너십·성격 등)를 그대로 반복하지 말 것
-- 불릿만 출력 (제목/설명/인사말 없이)`;
+[오늘의 방향]
+${dayGuide}
+
+[출력 조건]
+- 불릿 2~3개 (• 기호)
+- 따뜻하고 유쾌한 존댓말 톤, 이모지 포함
+- 각 불릿 한 문장, 35자 이내
+- 불릿만 출력 (제목/설명 없이)`;
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return { error: 'no_api_key' };
@@ -4846,7 +4891,7 @@ ${isSaturday ? '⚠️ 오늘은 자미터 모임 날! 코트에서 만난다는
         model: 'gpt-4.1-mini',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.85,
-        max_tokens: 200,
+        max_tokens: 250,
       }),
     });
     const json = await resp.json();
