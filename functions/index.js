@@ -4836,7 +4836,7 @@ async function _doGenerateSpotlight(kst) {
   const recentMatches = allMatches
     .filter(m => m.source === 'daily' && JSON.stringify(m).includes(memberName)
       && ((m.ts || 0) > cutoff || (m.date || '') >= cutoffDate))
-    .sort((a, b) => (b.ts || 0) - (a.ts || 0))
+    .sort((a, b) => (b.ts || 0) !== (a.ts || 0) ? (b.ts || 0) - (a.ts || 0) : (b.date || '').localeCompare(a.date || ''))
     .slice(0, 5)
     .map(m => {
       const t0 = (m.team0 || []).join('+'), t1 = (m.team1 || []).join('+');
