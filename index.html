@@ -1211,6 +1211,22 @@ const firebaseConfig = {
   </div>
 </div>
 
+
+<!-- ══ Bio 등록 모달 ══ -->
+<div class="modal-overlay" id="bio-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-round" id="bio-modal-title">Bio 등록</span>
+      <button class="modal-close" onclick="closeBioModal()">✕</button>
+    </div>
+    <div style="padding:14px 16px 24px">
+      <p style="font-size:0.78rem;color:#64748b;margin:0 0 10px">이 멤버의 개성·특징·에피소드를 자유롭게 입력하세요.<br>스포트라이트 팝업 생성 시 자동 반영됩니다.</p>
+      <textarea id="bio-textarea" rows="5" style="width:100%;box-sizing:border-box;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px;font-size:0.88rem;font-family:inherit;resize:vertical;line-height:1.6;outline:none" placeholder="예) 유머 넘치는 자미터 분위기 메이커. 매주 가장 먼저 도착하는 성실함의 아이콘."></textarea>
+      <button onclick="saveBio()" style="margin-top:12px;width:100%;padding:13px;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit">저장</button>
+    </div>
+  </div>
+</div>
 <!-- ══ PAGE: 대회만들기 ══ -->
 <div class="page" id="page-setup">
   <!-- 행모 헤더 배너 -->
@@ -2734,7 +2750,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1089';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1090';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -2813,6 +2829,43 @@ function trySelectIdentity(name) {
 }
 
 // 관리자: 멤버 PIN 설정 모달 열기
+
+// ══ Bio 등록 모달 ══════════════════════════════════════════════
+let _bioTargetName = '';
+
+async function openBioModal(name) {
+  _bioTargetName = name;
+  const titleEl = document.getElementById('bio-modal-title');
+  const textarea = document.getElementById('bio-textarea');
+  if (titleEl) titleEl.textContent = `${name} · Bio 등록`;
+  if (textarea) textarea.value = '';
+  document.getElementById('bio-modal').classList.add('open');
+  // 기존 bio 로드
+  if (db) {
+    const snap = await db.ref(`jmt/memberBios/${name}`).once('value');
+    if (textarea) textarea.value = snap.val() || '';
+  }
+}
+
+function closeBioModal() {
+  document.getElementById('bio-modal').classList.remove('open');
+  _bioTargetName = '';
+}
+
+async function saveBio() {
+  if (!_bioTargetName || !db) return;
+  const textarea = document.getElementById('bio-textarea');
+  const bio = textarea ? textarea.value.trim() : '';
+  if (!bio) { alert('Bio 내용을 입력해 주세요.'); return; }
+  try {
+    await db.ref(`jmt/memberBios/${_bioTargetName}`).set(bio);
+    closeBioModal();
+    alert(`${_bioTargetName} Bio가 저장됐습니다.`);
+  } catch (e) {
+    alert('저장 실패: ' + (e.message || e));
+  }
+}
+
 function openSetPin(name) {
   _pendingIdentityName = name;
   _pinInput = '';
@@ -3432,6 +3485,7 @@ function renderMemberList() {
           return `
             ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="openEditMember(${m.id})">수정</button>` : ''}
             ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="openSetPin('${m.name}')" title="${hasPin?'PIN 변경':'PIN 설정'}" style="${hasPin?'color:#2563eb;border-color:#93c5fd':'color:#94a3b8'}">🔑</button>` : ''}
+            ${curName === ADMIN_NAME ? `<button class="btn btn-outline btn-sm" onclick="openBioModal('${m.name}')" style="color:#7c3aed;border-color:#c4b5fd">Bio</button>` : ''}
             ${canDel  ? `<button class="btn btn-danger" onclick="deleteMember(${m.id})">삭제</button>` : ''}`;
         })()}
       </div>
