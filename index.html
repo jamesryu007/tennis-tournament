@@ -2734,7 +2734,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1080';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1082';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12660,6 +12660,13 @@ changeCheckinPhotoRandom();
     loadHistoryLocal();
     renderMemberList();
     updateSummary();
+    // identity는 Firebase 오류와 무관하게 항상 로드
+    if (loadIdentity()) {
+      updateIdentityUI();
+      updatePermissionUI();
+    } else {
+      setTimeout(openIdentityModal, 600);
+    }
   }
 })();
 
@@ -15488,6 +15495,8 @@ async function _spotlightInit() {
   try {
     const today = window._spotlightToday;
     if (!today || !db) return;
+    // 오늘 이미 봤으면 스킵 (리로드 시 반복 표시 방지)
+    if (localStorage.getItem('jmt_spotlight_seen') === today) return;
     // 신원 미확인 시 스킵 (identity 모달을 가리지 않도록)
     if (!state.identity || !state.identity.name) return;
     // DB에서 오늘 캐시된 텍스트 조회
