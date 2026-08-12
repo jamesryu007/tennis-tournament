@@ -2750,7 +2750,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1090';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1091';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -3456,14 +3456,7 @@ function renderMemberList() {
   el.innerHTML = state.members.map(m => {
     const isBirthMonth = m.birthday && m.birthday.split('-')[1] === curMonth;
     const bday = m.birthday ? m.birthday.slice(5).replace('-', '/') : '';
-    // 팀페어 랭킹 메달 (텍스트 없이 아이콘만)
-    const pairRankIdx = pairTop3.findIndex(p => p.players && p.players.includes(m.name));
-    const pairMedal = pairRankIdx >= 0 ? `<span style="font-size:2rem;line-height:1" title="팀 ${pairRankIdx+1}위">${rankMedals[pairRankIdx]}</span>` : '';
-    // 개인 랭킹 메달
-    const playerRankIdx = playerTop3.findIndex(p => p.name === m.name);
-    const playerMedal = playerRankIdx >= 0 ? `<span style="font-size:2rem;line-height:1" title="개인 ${playerRankIdx+1}위">${rankMedals[playerRankIdx]}</span>` : '';
-    // 팀 메달 없고 개인 메달 있으면 팀 슬롯 자리 확보
-    const medalTeamSlot = pairMedal || (playerMedal ? '<span style="display:inline-block;width:2rem;height:2rem;flex-shrink:0"></span>' : '');
+
     return `<div class="member-card ${m.gender}">
       <div class="member-info">
         <div class="member-name">
@@ -3473,7 +3466,7 @@ function renderMemberList() {
           <span class="badge ${m.gender==='male'?'badge-male':'badge-female'}">${m.gender==='male'?'남':'여'}</span>
           ${m.ntrp?`<span class="badge badge-ntrp">NTRP ${m.ntrp}</span>`:''}
           ${bday ? `<span class="bday-col">${isBirthMonth ? '<span class="birthday-pill">🎉 생일</span>' : ''}<span>🎂 ${bday}</span></span>` : (isBirthMonth ? '<span class="birthday-pill">🎉 생일</span>' : '')}
-          ${pairMedal||playerMedal ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:2px">${medalTeamSlot}${playerMedal}</span>` : ''}
+
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
