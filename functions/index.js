@@ -2865,7 +2865,7 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
 
   // 컨텍스트 데이터 수집
   const year = new Date().getFullYear();
-  const [playerSnap, pairSnap, memberSnap, pollStateSnap, recentMatchSnap, restoSnap, ratingSnap] = await Promise.all([
+  const [playerSnap, pairSnap, memberSnap, pollStateSnap, recentMatchSnap, restoSnap, ratingSnap, memberBiosSnap] = await Promise.all([
     db.ref(`jmt/playerStats/${year}`).once('value'),
     db.ref(`jmt/pairStats/${year}`).once('value'),
     db.ref('jmt/members').once('value'),
@@ -2873,6 +2873,7 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
     db.ref('jmt/matches').orderByChild('date').limitToLast(200).once('value'),
     db.ref('jmt/restaurants').once('value'),
     db.ref('jmt/restaurantRatings').once('value'),
+    db.ref('jmt/memberBios').once('value'),
   ]);
 
   const playerStats = playerSnap.val() || {};
@@ -2882,6 +2883,7 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
   const recentRaw   = recentMatchSnap.val() || {};
   const restaurants = restoSnap.val() || {};
   const ratings     = ratingSnap.val() || {};
+  const memberBios  = memberBiosSnap.val() || {};
 
   // 개인 랭킹 요약 — 앱과 동일한 유효승률 알고리즘
   const effWr = (w, d, l) => { const t = w+(d||0)+l; return t ? ((w+(d||0)*0.5)/t*100) : 0; };
@@ -3452,21 +3454,7 @@ async function _botAI(question, senderName, history = [], imageUrl = null) {
 - 최고/최적 파트너 질문 시 반드시 [질문자 관련 페어] 섹션의 승률 순서 기준으로 1위부터 답변 — 전체 페어 랭킹 순서와 혼동 금지
 
 [멤버 프로필 — 외모·성격·배경]
-- 정진규: 대머리, 키 190cm. 모임 쉐프 담당. 직업은 철학과 교수. 지적이고 여유로운 분위기.
-- 배성두: 자미터 경기이사. 멤버 중 키 가장 작음. 중국통, 북경대 출신. 멤버 중 최연소 막내. 지원 오빠 아들뻘.
-- 이하영: 건강미 넘치는 미모의 소유자. 곧 결혼 예정. '산호'라는 주점 운영 중.
-- 강형경: CF 감독. 테니스 실력 탁월(성두 다음으로 안정적). 아주 잘생기고 매너남의 대명사.
-- 이정환: 옥스퍼드 출신. AI 유니콘 기업 대표. 상남자. 수염이 어마어마하게 많이 남. 지원 오빠가 제일 좋아하는 멤버.
-- 이지은: 애교 많고 술자리를 좋아하는 귀요미.
-- 천지은: 자미터 여자 총무. 스튜어디스 출신 미모의 여성. 늦게 배운 술 때문에 가끔 블랙아웃 경험.
-- 지정열: 키 190cm, 몸무게 120kg의 거구. 무릎·종아리 두께가 어마어마함. 어마어마한 브레인. 인디애나주립대/하버드 출신.
-- 황인향: 주부. 테니스 열정 대단함. 와인을 늦게 배움.
-- 심수영: 성격 급하지만 열정 가득한 주부. 맘먹고 술 마시면 엄청난 주당, 그래서 곧잘 뻗기도 함.
-- 김승수: 북경대 출신. 키 187cm. 테니스 멋지게 잘 치고 잘생김. 자미터 남자 총무.
-- 이은숙: 자미터에서 유일하게 유지원보다 나이 많음. 용띠. 체육대학 출신이라 테니스 잘 치고 힘도 좋음. 마음씨 최고.
-- 최승욱: 자미터 창립멤버. 현대차 1차 벤더 대표. FM 같은 성실함과 솔직함. 매너남.
-- 성두현: 자미터 창립멤버. 맘씨 착한 불도저. 몸이 탱크처럼 다부지고 순진하고 착함. 아버지 회사 물려받는 중.
-- 유지원: 자미터를 만든 창립자이자 현 회장. IT 사업 평생 하며 창업/IPO/Exit 전문. 심장수술·허리수술 등 큰 수술 이력. 골프·테니스 너무 좋아함.
+${Object.entries(memberBios).map(([name, bio]) => `- ${name}: ${bio}`).join('\n') || '(프로필 데이터 없음)'}
 ※ 사진에서 외모 특징(대머리·키·체형 등)으로 멤버 식별 가능 — 단 확실할 때만 언급, 애매하면 솔직히 모른다고 할 것
 
 [자미터 전용 데이터]
@@ -4783,3 +4771,219 @@ ${isTennis ? '테니스' : '골프'} 선수 ${name} (${tourLabel})의 상세 프
     return { error: 'parse_error' };
   }
 });
+
+// ══ 스포트라이트 팝업 ════════════════════════════════════════════
+
+// 요일별 테마 (0=일~6=토, 일요일 시작 / 토요일=모임날 마지막)
+const _SPOTLIGHT_THEMES = [
+  '테니스 실력과 경기력',     // 일
+  '파트너십과 페어 전적',     // 월
+  '성격과 매력',              // 화
+  '인상적인 경기 하이라이트', // 수
+  '남다른 특별함',            // 목
+  '따뜻한 응원 메시지',       // 금
+  '모임 당일 특별 응원',      // 토 (모임 날)
+];
+
+// ── 스포트라이트 텍스트 생성 공통 로직 ─────────────────────────────
+async function _doGenerateSpotlight(kst) {
+  const today = `${kst.getFullYear()}-${String(kst.getMonth()+1).padStart(2,'0')}-${String(kst.getDate()).padStart(2,'0')}`;
+
+  // 현재 주인공 멤버 조회
+  const currentSnap = await db.ref('jmt/spotlight/current').once('value');
+  const current = currentSnap.val();
+  if (!current?.memberName) return { error: 'no_member' };
+  const memberName = current.memberName;
+  const weekStart  = current.weekStart || today;
+
+  // 요일별 테마
+  const dow   = kst.getDay();
+  const theme = _SPOTLIGHT_THEMES[dow];
+
+  // 멤버 프로필·스탯·페어전적·최근경기 조회
+  const year = kst.getFullYear();
+  const [bioSnap, statSnap, pairSnap, matchSnap] = await Promise.all([
+    db.ref(`jmt/memberBios/${memberName}`).once('value'),
+    db.ref(`jmt/playerStats/${year}/${memberName}`).once('value'),
+    db.ref(`jmt/pairStats/${year}`).once('value'),
+    db.ref('jmt/matches').limitToLast(300).once('value'),
+  ]);
+  const bio   = bioSnap.val() || '';
+  const stats = statSnap.val() || {};
+  const total = (stats.wins || 0) + (stats.draws || 0) + (stats.losses || 0);
+  const wr    = total ? Math.round(((stats.wins || 0) + (stats.draws || 0) * 0.5) / total * 100) : null;
+  const statStr = wr !== null
+    ? `${stats.wins}승 ${stats.losses}패${stats.draws ? ` ${stats.draws}무` : ''} (유효승률 ${wr}%)`
+    : '';
+
+  const pairAll = pairSnap.val() || {};
+  const topPairs = Object.entries(pairAll)
+    .filter(([k]) => k.includes(memberName))
+    .map(([k, v]) => {
+      const partner = k.replace(memberName, '').replace('_', '');
+      return { partner, wins: v.wins || 0, losses: v.losses || 0 };
+    })
+    .filter(p => p.partner && (p.wins + p.losses) >= 2)
+    .sort((a, b) => (b.wins - b.losses) - (a.wins - a.losses))
+    .slice(0, 3);
+  const pairStr = topPairs.length
+    ? topPairs.map(p => `${p.partner}(${p.wins}승${p.losses}패)`).join(', ')
+    : '';
+
+  const allMatches = Object.values(matchSnap.val() || {});
+  const recentMatches = allMatches
+    .filter(m => m.source === 'daily' && JSON.stringify(m).includes(memberName))
+    .sort((a, b) => (b.ts || 0) - (a.ts || 0))
+    .slice(0, 5)
+    .map(m => {
+      const t0 = (m.team0 || []).join('+'), t1 = (m.team1 || []).join('+');
+      const winner = m.winner === 0 ? t0 : t1;
+      const won = winner.includes(memberName);
+      return `${m.date} ${t0} vs ${t1} → ${won ? '승' : '패'}`;
+    });
+  const matchStr = recentMatches.length ? recentMatches.join('\n') : '';
+
+  const dayGuide = [
+    `올 시즌 구체적인 수치(승/패/승률)를 언급하고, 실제 경기 스타일이나 강점을 묘사해줘. 추상적 칭찬 금지.`,
+    `실제 페어 전적 데이터를 활용해 베스트 파트너를 구체적으로 언급해줘. "파트너십이 좋다"식 표현 금지.`,
+    `프로필에 나온 실제 에피소드(성격, 생활, 개인 특성)를 구체적으로 살려서 써줘. 일반적인 칭찬 금지.`,
+    `최근 경기 기록에서 인상적인 승리나 상황을 날짜와 상대팀 이름을 포함해 구체적으로 묘사해줘.`,
+    `프로필에서 이 멤버만의 독특한 특징이나 에피소드를 뽑아 써줘. 다른 멤버에게도 쓸 수 있는 표현 금지.`,
+    `멤버 이름을 직접 불러 진심 어린 응원과 감사 메시지를 써줘. 상투적 클로징 문구 금지.`,
+    `오늘 코트에서 만난다는 설렘을 담고, 이 멤버와의 구체적인 기대(파트너, 경기 스타일)를 써줘. 마지막 불릿에 코트에서 만나는 내용 필수.`,
+  ][dow];
+
+  const prompt = `자미터 테니스 동호회 앱 "이번 주 주인공" 팝업 텍스트 작성.
+
+[멤버 정보]
+이름: ${memberName}
+프로필: ${bio}
+${statStr ? `2026 시즌: ${statStr}` : ''}
+${pairStr ? `주요 페어 전적: ${pairStr}` : ''}
+${matchStr ? `최근 경기:\n${matchStr}` : ''}
+
+[오늘의 방향]
+${dayGuide}
+
+[출력 조건]
+- 불릿 2~3개 (• 기호)
+- 따뜻하고 유쾌한 존댓말 톤, 이모지 포함
+- 각 불릿 한 문장, 35자 이내
+- 불릿만 출력 (제목/설명 없이)`;
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return { error: 'no_api_key' };
+
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: 'gpt-4.1-mini',
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.85,
+      max_tokens: 250,
+    }),
+  });
+  const json = await resp.json();
+  const text = json.choices?.[0]?.message?.content?.trim() || '';
+  if (!text) return { error: 'empty_text' };
+
+  const data = { memberName, weekStart, theme, text, dow, generatedAt: Date.now() };
+  await db.ref(`jmt/spotlight/daily/${today}`).set(data);
+  return data;
+}
+
+// 오늘의 스포트라이트 텍스트 생성 — 클라이언트 fallback용 (DB 캐시 우선)
+exports.generateSpotlight = onCall({ region: 'asia-southeast1' }, async (req) => {
+  try {
+    const kst = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+    const today = `${kst.getFullYear()}-${String(kst.getMonth()+1).padStart(2,'0')}-${String(kst.getDate()).padStart(2,'0')}`;
+    // DB 캐시 있으면 즉시 반환 (스케줄 함수가 이미 생성한 경우)
+    const existSnap = await db.ref(`jmt/spotlight/daily/${today}`).once('value');
+    if (existSnap.val()?.text) return existSnap.val();
+    // 캐시 없으면 생성 (스케줄 함수 미실행 상황 대비 fallback)
+    return await _doGenerateSpotlight(kst);
+  } catch (e) {
+    console.error('generateSpotlight error:', e);
+    return { error: e.message };
+  }
+});
+
+// 매일 자정 00:05 KST — 오늘의 스포트라이트 텍스트 미리 생성 (DB 캐시)
+// 일요일: rotateSpotlightMember(00:00) 완료 후 새 멤버 기준으로 생성
+exports.generateSpotlightDaily = onSchedule(
+  { schedule: '5 0 * * *', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    try {
+      const kst = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+      const result = await _doGenerateSpotlight(kst);
+      if (result.error) {
+        console.error('generateSpotlightDaily error:', result.error);
+      } else {
+        console.log(`spotlight daily generated: ${result.memberName} (${result.theme})`);
+      }
+    } catch (e) {
+      console.error('generateSpotlightDaily error:', e);
+    }
+  }
+);
+
+// 매주 일요일 00:00 KST — 다음 주 주인공으로 교체
+exports.rotateSpotlightMember = onSchedule(
+  { schedule: '0 0 * * 0', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    try {
+      const spotSnap = await db.ref('jmt/spotlight').once('value');
+      const spotlight = spotSnap.val() || {};
+      let queue = spotlight.queue || [];
+
+      // 큐 소진 시 15명 다시 셔플
+      if (queue.length === 0) {
+        const membersSnap = await db.ref('jmt/members').once('value');
+        const members = Object.values(membersSnap.val() || {})
+          .filter(m => m.name && !m.isGuest)
+          .map(m => m.name)
+          .sort(() => Math.random() - 0.5);
+        queue = members;
+      }
+
+      const nextMember = queue.shift();
+      const kst = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+      const weekStart = `${kst.getFullYear()}-${String(kst.getMonth()+1).padStart(2,'0')}-${String(kst.getDate()).padStart(2,'0')}`;
+
+      await db.ref('jmt/spotlight').update({
+        current: { memberName: nextMember, weekStart },
+        queue,
+      });
+      console.log(`spotlight rotated → ${nextMember} (${weekStart})`);
+    } catch (e) {
+      console.error('rotateSpotlightMember error:', e);
+    }
+  }
+);
+
+// 매주 토요일 10:00 KST — 제이봇이 하트 수 집계해서 채팅방 발표
+exports.spotlightWeeklyAnnounce = onSchedule(
+  { schedule: '0 10 * * 6', timeZone: 'Asia/Seoul', region: 'asia-southeast1' },
+  async () => {
+    try {
+      const currentSnap = await db.ref('jmt/spotlight/current').once('value');
+      const current = currentSnap.val();
+      if (!current?.memberName || !current?.weekStart) return;
+
+      const heartsSnap = await db.ref(`jmt/spotlight/hearts/${current.weekStart}`).once('value');
+      const heartCount = Object.keys(heartsSnap.val() || {}).length;
+      const memberName = current.memberName;
+
+      const msg = heartCount > 0
+        ? `🎾 이번 주 주인공 '${memberName}' 님이 이번 주 💛 하트 ${heartCount}개 받으셨어요! 오늘 코트에서 함께 만나요 🎉`
+        : `🎾 이번 주 주인공 '${memberName}' 님, 오늘 코트에서 함께 만나요! 응원해요 🙌`;
+
+      await db.ref('jmt/banzige/current/messages').push({
+        alias: '제이', realName: '제이', ts: Date.now(), text: msg,
+      });
+    } catch (e) {
+      console.error('spotlightWeeklyAnnounce error:', e);
+    }
+  }
+);
