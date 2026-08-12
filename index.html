@@ -2734,7 +2734,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1088';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1089';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12614,7 +12614,7 @@ changeCheckinPhotoRandom();
       changeTeamPhotoRandom(); // db 초기화 후 랜드스케이프 사진 재로드
       // 스포트라이트 팝업 초기화 (오늘 첫 기동 시만 표시)
       if (localStorage.getItem('jmt_spotlight_seen') !== window._spotlightToday) {
-        setTimeout(() => _spotlightInit(), 1200); // 로고 팝업 1초 후 실행 (arrow wrapper: 실행 시점에 함수 조회)
+        setTimeout(() => _spotlightInit(), 300); // 로고 팝업 1초 후 실행 (arrow wrapper: 실행 시점에 함수 조회)
       }
       // BZ_REF 등 하위 const가 초기화된 후 실행 (TDZ 방지)
       // _bzInitUnreadListener/HandleShareTarget은 하위 스크립트 블록에 정의 — 파싱 완료 후 실행 보장
@@ -15482,10 +15482,9 @@ async function triggerAtpRefresh() {
       window._bzSplashEndTime = Date.now() + 2000;
       setTimeout(() => { el.style.display = 'none'; }, 2000);
     } else {
-      // 스포트라이트 대기 → 로고 1초 후 숨김 (Firebase 초기화 후 _spotlightInit 호출됨)
-      el.style.display = 'flex';
-      window._bzSplashEndTime = Date.now() + 1000;
-      setTimeout(() => { el.style.display = 'none'; }, 1000);
+      // 스포트라이트 표시 예정 → 로고 팝업 생략
+      el.style.display = 'none';
+      window._bzSplashEndTime = Date.now();
     }
   })();
 </script>
