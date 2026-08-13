@@ -2750,7 +2750,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1099';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1101';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -15592,7 +15592,7 @@ async function triggerAtpRefresh() {
 <div id="spotlight-popup" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;padding:20px;box-sizing:border-box" onclick="_spotlightTouch()">
   <div id="spotlight-card" style="background:#fff;border-radius:24px;max-width:340px;width:100%;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
     <div id="spotlight-photo-wrap" style="display:none;width:100%;height:200px;overflow:hidden;position:relative">
-      <img id="spotlight-photo-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
+      <img id="spotlight-photo-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;object-position:center 80%;display:block">
     </div>
     <div style="background:linear-gradient(135deg,#1a5c38,#2d9e5f);padding:26px 20px 20px;text-align:center">
       <div style="font-size:0.6rem;color:rgba(255,255,255,0.65);letter-spacing:2.5px;font-weight:700;text-transform:uppercase;margin-bottom:10px">이번 주 주인공 🎾</div>
