@@ -15667,17 +15667,8 @@ async function _spotlightInit() {
       if (textEl) textEl.innerHTML = `<div style="color:#dc2626;font-size:0.82rem;text-align:center">팝업을 불러오지 못했어요<br><span style="color:#94a3b8;font-size:0.75rem">${(data && data.error) || '주인공 미설정 또는 네트워크 오류'}</span></div>`;
       return;
     }
-    // 스포트라이트 사진 조회
-    let _spPhotoUrl = null;
-    try {
-      const spPhotoSnap = await db.ref(`jmt/memberSpotlightPhotos/${data.memberName}`).once('value');
-      const spPhotos = spPhotoSnap.val();
-      if (spPhotos) {
-        const spKeys = Object.keys(spPhotos);
-        const spKey  = spKeys[Math.floor(Math.random() * spKeys.length)];
-        _spPhotoUrl  = spPhotos[spKey].thumbUrl || spPhotos[spKey].url || null;
-      }
-    } catch(_) {}
+    // 스포트라이트 사진 — 캐시된 photoUrl 우선 사용 (하루 동안 전체 동일)
+    const _spPhotoUrl = data.photoUrl || null;
     _showSpotlightPopup(data, _spPhotoUrl);
   } catch(e) {
     console.error('[spotlight] error:', e);
