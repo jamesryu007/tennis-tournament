@@ -2750,7 +2750,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1097';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1098';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -25189,7 +25189,8 @@ async function _toggleTennisPastWinners(tournamentName, tour, panelId, gender) {
     const missingYears = lookupYears.filter(y => !entriesMap[y]);
 
     if (missingYears.length > 0) {
-      const soFar = Object.values(entriesMap).sort((a, b) => b._year - a._year).slice(0, 6);
+      const _tCurYr = new Date().getFullYear();
+      const soFar = Object.values(entriesMap).filter(e => parseInt(e._year) < _tCurYr).sort((a, b) => b._year - a._year).slice(0, 6);
       _renderPanel(soFar);
 
       const loadingEl = document.createElement('div');
@@ -25230,7 +25231,7 @@ async function _toggleTennisPastWinners(tournamentName, tour, panelId, gender) {
       loadingEl.remove();
     }
 
-    const allEntries = Object.values(entriesMap).sort((a, b) => b._year - a._year).slice(0, 6);
+    const allEntries = Object.values(entriesMap).filter(e => parseInt(e._year) < new Date().getFullYear()).sort((a, b) => b._year - a._year).slice(0, 6);
     _renderPanel(allEntries);
   } catch (_) {
     panel.innerHTML = '<div style="padding:4px 0;color:#ef4444;font-size:0.7rem">불러오기 실패</div>';
