@@ -4902,7 +4902,19 @@ ${dayGuide}
   const text = json.choices?.[0]?.message?.content?.trim() || '';
   if (!text) return { error: 'empty_text' };
 
-  const data = { memberName, weekStart, theme, text, dow, generatedAt: Date.now() };
+  // 스포트라이트 사진 — 생성 시점에 랜덤 1장 고정 (하루 동안 모든 멤버 동일 사진)
+  let photoUrl = null;
+  try {
+    const spSnap  = await db.ref(`jmt/memberSpotlightPhotos/${memberName}`).once('value');
+    const spPhotos = spSnap.val();
+    if (spPhotos) {
+      const spKeys = Object.keys(spPhotos);
+      const spKey  = spKeys[Math.floor(Math.random() * spKeys.length)];
+      photoUrl = spPhotos[spKey].thumbUrl || spPhotos[spKey].url || null;
+    }
+  } catch (_) {}
+
+  const data = { memberName, weekStart, theme, text, dow, generatedAt: Date.now(), ...(photoUrl ? { photoUrl } : {}) };
   await db.ref(`jmt/spotlight/daily/${today}`).set(data);
   return data;
 }

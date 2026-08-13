@@ -2750,7 +2750,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1098';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1099';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -3950,8 +3950,9 @@ function openPhotoUpload() {
   _selectPhotoCategory('모임');
   // 멤버 칩 렌더링
   const chips = document.getElementById('photo-member-chips');
+  _photoStarredMembers = new Set();
   chips.innerHTML = state.members.map(m =>
-    `<div class="member-chip" id="pchip-${m.name}" onclick="_togglePhotoMemberChip('${m.name}')">${m.name}</div>`
+    `<div class="member-chip" id="pchip-${m.name}" onclick="_togglePhotoMemberChip('${m.name}')"><span>${m.name}</span><span id="pstar-${m.name}" style="display:none;margin-left:3px;font-size:0.85rem;cursor:pointer;line-height:1" onclick="event.stopPropagation();_togglePhotoUploadStar('${m.name}')">☆</span></div>`
   ).join('');
   const modal = document.getElementById('photo-upload-modal');
   document.body.style.overflow = 'hidden';
@@ -4026,9 +4027,22 @@ function _getSelectedCategory() {
   }) || '기타';
 }
 
+let _photoStarredMembers = new Set(); // 업로드 모달 스포트라이트 별표
+
 function _togglePhotoMemberChip(name) {
-  const el = document.getElementById('pchip-' + name);
-  if (el) el.classList.toggle('selected');
+  const el   = document.getElementById('pchip-' + name);
+  if (!el) return;
+  const sel  = el.classList.toggle('selected');
+  const star = document.getElementById('pstar-' + name);
+  if (star) star.style.display = sel ? 'inline' : 'none';
+  if (!sel) { _photoStarredMembers.delete(name); if (star) star.textContent = '☆'; }
+}
+
+function _togglePhotoUploadStar(name) {
+  const star = document.getElementById('pstar-' + name);
+  if (!star) return;
+  if (_photoStarredMembers.has(name)) { _photoStarredMembers.delete(name); star.textContent = '☆'; }
+  else { _photoStarredMembers.add(name); star.textContent = '⭐'; }
 }
 
 function _selectAllPhotoMembers() {
@@ -4250,6 +4264,7 @@ async function submitPhotoUpload() {
       type: isVideo ? 'video' : 'image',
       category,
       members: selectedMembers.length ? selectedMembers : null,
+      spotlightFor: _photoStarredMembers.size ? Object.fromEntries([..._photoStarredMembers].map(n => [n, true])) : null,
       memo: memo || null,
       uploader: (state.identity && state.identity.name) || '익명',
       createdAt: Date.now(),
@@ -4258,7 +4273,14 @@ async function submitPhotoUpload() {
       imgW: imgW || null,
       imgH: imgH || null
     };
-    await db.ref('jmt/photos').push(record);
+    const _newPhotoRef = db.ref('jmt/photos').push();
+    await _newPhotoRef.set(record);
+    // 스포트라이트 사진 인덱스 업데이트
+    if (_photoStarredMembers.size) {
+      for (const _spName of _photoStarredMembers) {
+        db.ref(`jmt/memberSpotlightPhotos/${_spName}/${_newPhotoRef.key}`).set({ url, thumbUrl: thumbUrl || url }).catch(()=>{});
+      }
+    }
     // 영상이면 일일 카운터 증가
     if (isVideo) {
       const today = new Date().toISOString().slice(0, 10);
@@ -4390,8 +4412,14 @@ function _renderViewerContent(idx) {
     }
   }
   const dateStr = d.createdAt ? new Date(d.createdAt).toLocaleDateString('ko-KR', {year:'numeric',month:'numeric',day:'numeric'}) : '';
-  const metaParts = [dateStr, d.category, (d.members||[]).join(', ')].filter(Boolean);
-  document.getElementById('pv-meta').textContent = metaParts.join('  ·  ');
+  const _pvSpotlightFor = d.spotlightFor || {};
+  const _pvMembersHtml  = (d.members || []).map(name => {
+    const starred   = !!_pvSpotlightFor[name];
+    const nameSafe  = name.replace(/'/g, "\\'");
+    return `${name}&nbsp;<span onclick="event.stopPropagation();_toggleViewerStar('${nameSafe}')" style="cursor:pointer;font-size:0.82rem;vertical-align:middle" title="스포트라이트 대표사진">${starred ? '⭐' : '☆'}</span>`;
+  }).join(',&nbsp;&nbsp;');
+  const _pvMetaBase = [dateStr, d.category].filter(Boolean).join('  ·  ');
+  document.getElementById('pv-meta').innerHTML = _pvMetaBase + (_pvMembersHtml ? '  ·  ' + _pvMembersHtml : '');
   document.getElementById('pv-caption').textContent = d.memo || '';
   const me = (state.identity && state.identity.name) || '';
   document.getElementById('pv-delete-btn').style.display =
@@ -4569,13 +4597,53 @@ function openPhotoEdit() {
 
   // 멤버 칩 렌더링
   const members = d.members || [];
+  const spotlightFor = d.spotlightFor || {};
   const allMembers = [...(state.members || []).map(m => m.name), ...(state.guests || []).map(g => g.name)].filter(Boolean);
-  document.getElementById('pe-member-chips').innerHTML = allMembers.map(name =>
-    `<span class="member-chip${members.includes(name) ? ' selected' : ''}" onclick="this.classList.toggle('selected')">${name}</span>`
-  ).join('');
+  document.getElementById('pe-member-chips').innerHTML = allMembers.map(name => {
+    const sel     = members.includes(name);
+    const starred = !!spotlightFor[name];
+    const nameSafe = name.replace(/'/g, "\\'");
+    return `<span class="member-chip${sel ? ' selected' : ''}" data-name="${name}" data-starred="${starred ? '1' : '0'}" onclick="_peToggleMemberChip(this)">${name}<span class="pe-star" style="display:${sel ? 'inline' : 'none'};margin-left:3px;font-size:0.85rem;cursor:pointer;line-height:1" onclick="event.stopPropagation();_peToggleStar(this.closest('[data-name]'))">${starred ? '⭐' : '☆'}</span></span>`;
+  }).join('');
 
   document.getElementById('pe-memo-input').value = d.memo || '';
   document.getElementById('photo-edit-modal').classList.add('open');
+}
+
+// 사진 뷰어에서 멤버 이름 옆 ⭐ 즉시 토글
+async function _toggleViewerStar(name) {
+  const list = _filteredPhotos();
+  if (_photoViewerIdx < 0 || _photoViewerIdx >= list.length) return;
+  const p   = list[_photoViewerIdx];
+  const d   = p.data;
+  const spf = d.spotlightFor || {};
+  const isStarred = !!spf[name];
+  if (isStarred) {
+    delete spf[name];
+    db.ref(`jmt/photos/${p.key}/spotlightFor/${name}`).remove().catch(fbErr);
+    db.ref(`jmt/memberSpotlightPhotos/${name}/${p.key}`).remove().catch(fbErr);
+  } else {
+    spf[name] = true;
+    db.ref(`jmt/photos/${p.key}/spotlightFor/${name}`).set(true).catch(fbErr);
+    db.ref(`jmt/memberSpotlightPhotos/${name}/${p.key}`).set({ url: d.url, thumbUrl: d.thumbUrl || d.url }).catch(fbErr);
+  }
+  p.data.spotlightFor = spf;
+  _renderViewerContent(_photoViewerIdx); // 별표 즉시 갱신
+}
+
+function _peToggleMemberChip(el) {
+  const sel  = el.classList.toggle('selected');
+  const star = el.querySelector('.pe-star');
+  if (star) star.style.display = sel ? 'inline' : 'none';
+  if (!sel) { el.dataset.starred = '0'; if (star) star.textContent = '☆'; }
+}
+
+function _peToggleStar(chip) {
+  if (!chip) return;
+  const isStarred = chip.dataset.starred === '1';
+  chip.dataset.starred = isStarred ? '0' : '1';
+  const star = chip.querySelector('.pe-star');
+  if (star) star.textContent = isStarred ? '☆' : '⭐';
 }
 
 function _peSelectCategory(cat) {
@@ -4592,14 +4660,32 @@ function closePhotoEdit() {
 async function submitPhotoEdit() {
   if (!_photoEditKey) return;
   if (!_peCategory) { alert('분류를 선택해주세요.'); return; }
-  const selectedMembers = Array.from(document.querySelectorAll('#pe-member-chips .member-chip.selected')).map(el => el.textContent);
+  const selectedChips   = Array.from(document.querySelectorAll('#pe-member-chips .member-chip.selected'));
+  const selectedMembers = selectedChips.map(el => el.dataset.name || el.textContent.replace(/[☆⭐]/g, '').trim());
+  const starredMembers  = selectedChips.filter(el => el.dataset.starred === '1').map(el => el.dataset.name || el.textContent.replace(/[☆⭐]/g, '').trim());
   const memo = document.getElementById('pe-memo-input').value.trim();
+  // 기존 spotlightFor (인덱스 diff용)
+  const list = _filteredPhotos();
+  const _pEdit = list.find(p => p.key === _photoEditKey);
+  const oldSpotlightFor = (_pEdit && _pEdit.data.spotlightFor) || {};
+  const oldUrl  = (_pEdit && _pEdit.data.url)      || '';
+  const oldThumb = (_pEdit && _pEdit.data.thumbUrl) || oldUrl;
+  const newSpotlightFor = starredMembers.length ? Object.fromEntries(starredMembers.map(n => [n, true])) : null;
   try {
     await db.ref('jmt/photos/' + _photoEditKey).update({
       category: _peCategory,
       members: selectedMembers.length ? selectedMembers : null,
+      spotlightFor: newSpotlightFor,
       memo: memo || null
     });
+    // 인덱스: 별표 해제된 멤버 삭제
+    for (const name of Object.keys(oldSpotlightFor)) {
+      if (!starredMembers.includes(name)) db.ref(`jmt/memberSpotlightPhotos/${name}/${_photoEditKey}`).remove().catch(()=>{});
+    }
+    // 인덱스: 새로 별표 추가된 멤버 등록
+    for (const name of starredMembers) {
+      if (!oldSpotlightFor[name]) db.ref(`jmt/memberSpotlightPhotos/${name}/${_photoEditKey}`).set({ url: oldUrl, thumbUrl: oldThumb }).catch(()=>{});
+    }
     closePhotoEdit();
     // 뷰어 메타 즉시 갱신
     document.getElementById('pv-caption').textContent = memo;
@@ -15505,6 +15591,9 @@ async function triggerAtpRefresh() {
 <!-- ── 스포트라이트 팝업 ── -->
 <div id="spotlight-popup" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;padding:20px;box-sizing:border-box" onclick="_spotlightTouch()">
   <div id="spotlight-card" style="background:#fff;border-radius:24px;max-width:340px;width:100%;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+    <div id="spotlight-photo-wrap" style="display:none;width:100%;height:200px;overflow:hidden;position:relative">
+      <img id="spotlight-photo-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
+    </div>
     <div style="background:linear-gradient(135deg,#1a5c38,#2d9e5f);padding:26px 20px 20px;text-align:center">
       <div style="font-size:0.6rem;color:rgba(255,255,255,0.65);letter-spacing:2.5px;font-weight:700;text-transform:uppercase;margin-bottom:10px">이번 주 주인공 🎾</div>
       <div id="spotlight-name" style="font-size:1.65rem;color:#fff;font-weight:900;letter-spacing:-0.5px"></div>
@@ -15578,7 +15667,9 @@ async function _spotlightInit() {
       if (textEl) textEl.innerHTML = `<div style="color:#dc2626;font-size:0.82rem;text-align:center">팝업을 불러오지 못했어요<br><span style="color:#94a3b8;font-size:0.75rem">${(data && data.error) || '주인공 미설정 또는 네트워크 오류'}</span></div>`;
       return;
     }
-    _showSpotlightPopup(data);
+    // 스포트라이트 사진 — 캐시된 photoUrl 우선 사용 (하루 동안 전체 동일)
+    const _spPhotoUrl = data.photoUrl || null;
+    _showSpotlightPopup(data, _spPhotoUrl);
   } catch(e) {
     console.error('[spotlight] error:', e);
     const textEl = document.getElementById('spotlight-text');
@@ -15598,9 +15689,18 @@ function _showSpotlightLoading() {
   pop.style.display = 'flex';
 }
 
-function _showSpotlightPopup(data) {
+function _showSpotlightPopup(data, photoUrl) {
   const pop = document.getElementById('spotlight-popup');
   if (!pop) return;
+  // 사진 영역
+  const photoWrap = document.getElementById('spotlight-photo-wrap');
+  const photoImg  = document.getElementById('spotlight-photo-img');
+  if (photoWrap && photoImg && photoUrl) {
+    photoImg.src = photoUrl;
+    photoWrap.style.display = 'block';
+  } else if (photoWrap) {
+    photoWrap.style.display = 'none';
+  }
   // 콘텐츠 채우기
   const nameEl = document.getElementById('spotlight-name');
   const themeEl = document.getElementById('spotlight-theme');
