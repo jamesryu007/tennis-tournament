@@ -4412,8 +4412,14 @@ function _renderViewerContent(idx) {
     }
   }
   const dateStr = d.createdAt ? new Date(d.createdAt).toLocaleDateString('ko-KR', {year:'numeric',month:'numeric',day:'numeric'}) : '';
-  const metaParts = [dateStr, d.category, (d.members||[]).join(', ')].filter(Boolean);
-  document.getElementById('pv-meta').textContent = metaParts.join('  ·  ');
+  const _pvSpotlightFor = d.spotlightFor || {};
+  const _pvMembersHtml  = (d.members || []).map(name => {
+    const starred   = !!_pvSpotlightFor[name];
+    const nameSafe  = name.replace(/'/g, "\\'");
+    return `${name}&nbsp;<span onclick="event.stopPropagation();_toggleViewerStar('${nameSafe}')" style="cursor:pointer;font-size:0.82rem;vertical-align:middle" title="스포트라이트 대표사진">${starred ? '⭐' : '☆'}</span>`;
+  }).join(',&nbsp;&nbsp;');
+  const _pvMetaBase = [dateStr, d.category].filter(Boolean).join('  ·  ');
+  document.getElementById('pv-meta').innerHTML = _pvMetaBase + (_pvMembersHtml ? '  ·  ' + _pvMembersHtml : '');
   document.getElementById('pv-caption').textContent = d.memo || '';
   const me = (state.identity && state.identity.name) || '';
   document.getElementById('pv-delete-btn').style.display =
@@ -4602,6 +4608,27 @@ function openPhotoEdit() {
 
   document.getElementById('pe-memo-input').value = d.memo || '';
   document.getElementById('photo-edit-modal').classList.add('open');
+}
+
+// 사진 뷰어에서 멤버 이름 옆 ⭐ 즉시 토글
+async function _toggleViewerStar(name) {
+  const list = _filteredPhotos();
+  if (_photoViewerIdx < 0 || _photoViewerIdx >= list.length) return;
+  const p   = list[_photoViewerIdx];
+  const d   = p.data;
+  const spf = d.spotlightFor || {};
+  const isStarred = !!spf[name];
+  if (isStarred) {
+    delete spf[name];
+    db.ref(`jmt/photos/${p.key}/spotlightFor/${name}`).remove().catch(fbErr);
+    db.ref(`jmt/memberSpotlightPhotos/${name}/${p.key}`).remove().catch(fbErr);
+  } else {
+    spf[name] = true;
+    db.ref(`jmt/photos/${p.key}/spotlightFor/${name}`).set(true).catch(fbErr);
+    db.ref(`jmt/memberSpotlightPhotos/${name}/${p.key}`).set({ url: d.url, thumbUrl: d.thumbUrl || d.url }).catch(fbErr);
+  }
+  p.data.spotlightFor = spf;
+  _renderViewerContent(_photoViewerIdx); // 별표 즉시 갱신
 }
 
 function _peToggleMemberChip(el) {
