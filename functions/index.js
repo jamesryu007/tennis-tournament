@@ -572,6 +572,27 @@ async function saveGrandSlamIfNeeded(tournamentInfo, matches, isGrandSlam) {
 async function saveAtpData(tournamentInfo, matches, isGrandSlam) {
   const updatedAt = new Date().toISOString();
 
+  // WTA 랭킹 기반 gender 보정 — ESPN이 'women' 키워드 없이 데이터를 줄 때 오탐 방지
+  try {
+    const wtaSnap = await db.ref('jmt/wtaRankings/players').once('value');
+    const wtaPlayers = wtaSnap.val() || [];
+    const wtaNames = (Array.isArray(wtaPlayers) ? wtaPlayers : Object.values(wtaPlayers))
+      .map(p => (p.name || '').toLowerCase()).filter(Boolean);
+    if (wtaNames.length > 0) {
+      const norm = s => (s || '').toLowerCase();
+      matches.forEach(m => {
+        if (m.gender === 'women') return;
+        const p1 = norm(m.player1Name), p2 = norm(m.player2Name);
+        if (!p1 && !p2) return; // 복식 빈 이름 스킵
+        const isWta = wtaNames.some(n => n.length > 3 && ((p1 && p1.includes(n)) || (p2 && p2.includes(n))));
+        if (isWta) m.gender = 'women';
+      });
+      console.log('saveAtpData: gender correction applied');
+    }
+  } catch (e) {
+    console.error('saveAtpData gender correction error:', e);
+  }
+
   const currentSnap = await db.ref('jmt/atpData/tournamentInfo').once('value');
   const current = currentSnap.val();
   const tournamentChanged = !!(current && current.id && tournamentInfo && tournamentInfo.id
