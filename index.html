@@ -2750,7 +2750,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1105';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1106';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -25324,7 +25324,8 @@ async function _toggleTennisPastWinners(tournamentName, tour, panelId, gender) {
       tPanelForLoad.appendChild(loadingEl);
 
       const fn = firebase.app().functions('asia-southeast1').httpsCallable('fetchTennisPastWinner');
-      await Promise.allSettled(missingYears.map(async (y) => {
+      // ESPN rate limit 방지 — 순차 요청 (병렬 시 HTML 오류 페이지 반환)
+      for (const y of missingYears) {
         try {
           const res = await fn({ tournamentName, tour, year: y });
           const d = res.data;
@@ -25335,7 +25336,7 @@ async function _toggleTennisPastWinners(tournamentName, tour, panelId, gender) {
             }
           }
         } catch (_) {}
-      }));
+      }
 
       // CF가 client-side timeout 되었더라도 서버에서 DB에 저장했을 수 있음 — DB 재조회로 보정
       try {
