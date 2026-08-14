@@ -2750,7 +2750,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1102';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1103';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13325,9 +13325,7 @@ function renderAtpTourneyInfo() {
     _restoreTennisPastWinnerPanels();
     return;
   }
-  // 활성 대회 — Final 완료 시 우승자 배너 표시
-  const champBanner = _buildTennisChampionBanner(t, atpState.matches || []);
-  el.innerHTML = renderTourneyInfoHtml(t, false) + champBanner;
+  el.innerHTML = renderTourneyInfoHtml(t, false);
   _restoreTennisPastWinnerPanels();
 }
 
@@ -13469,16 +13467,23 @@ function renderRoundDrawPanel(el, matches, tier, tourney) {
     const _bothDone = _wtaChamp && _atpChamp;
     if (_bothDone) {
       // 남자 + 여자 챔피언 나란히 표시
+      const _tNameB  = (tourney && (tourney.displayName || tourney.name) || '').replace(/'/g,"\'");
+      const _pidAtp  = `cpw-${(_tNameB).replace(/[^a-z0-9]/gi,'_')}_m`;
+      const _pidWta  = `cpw-${(_tNameB).replace(/[^a-z0-9]/gi,'_')}_w`;
       championBanner = `<div style="display:flex;gap:8px;margin-bottom:12px">
-        <div style="flex:1;text-align:center;padding:10px 8px 8px;background:linear-gradient(135deg,#fef9c3,#fffbeb);border-radius:12px;border:2px solid #fcd34d">
+        <div style="position:relative;flex:1;text-align:center;padding:10px 8px 8px;background:linear-gradient(135deg,#fef9c3,#fffbeb);border-radius:12px;border:2px solid #fcd34d">
+          <button onclick="_toggleTennisPastWinners('${_tNameB}','atp','${_pidAtp}','')" style="position:absolute;top:5px;right:5px;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.5);border:1.5px solid #fcd34d;color:#b45309;font-size:0.65rem;font-weight:900;cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;justify-content:center" title="역대 우승자">i</button>
           <div style="font-size:1.3rem">🏆</div>
           <div style="font-size:0.88rem;font-weight:800;color:#92400e;margin-top:3px">${_atpChamp}</div>
           <div style="font-size:0.65rem;font-weight:600;color:#b45309;margin-top:2px">🎾 남자 챔피언</div>
+          <div id="${_pidAtp}" style="display:none"></div>
         </div>
-        <div style="flex:1;text-align:center;padding:10px 8px 8px;background:linear-gradient(135deg,#fdf2f8,#fce7f3);border-radius:12px;border:2px solid #f9a8d4">
+        <div style="position:relative;flex:1;text-align:center;padding:10px 8px 8px;background:linear-gradient(135deg,#fdf2f8,#fce7f3);border-radius:12px;border:2px solid #f9a8d4">
+          <button onclick="_toggleTennisPastWinners('${_tNameB}','wta','${_pidWta}','women')" style="position:absolute;top:5px;right:5px;width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,0.5);border:1.5px solid #f9a8d4;color:#be185d;font-size:0.65rem;font-weight:900;cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;justify-content:center" title="역대 우승자">i</button>
           <div style="font-size:1.3rem">🏆</div>
           <div style="font-size:0.88rem;font-weight:800;color:#9d174d;margin-top:3px">${_wtaChamp}</div>
           <div style="font-size:0.65rem;font-weight:600;color:#be185d;margin-top:2px">🎾 여자 챔피언</div>
+          <div id="${_pidWta}" style="display:none"></div>
         </div>
       </div>`;
     } else {
@@ -13491,10 +13496,16 @@ function renderRoundDrawPanel(el, matches, tier, tourney) {
       const _labelColor = _isWomen ? '#be185d' : '#b45309';
       const _label = _isWomen ? '🎾 여자 챔피언' : '🎾 남자 챔피언';
       if (_champName) {
-        championBanner = `<div style="text-align:center;padding:10px 16px 8px;background:${_bg};border-radius:12px;margin-bottom:12px;border:2px solid ${_border}">
+        const _tName2   = (tourney && (tourney.displayName || tourney.name) || '').replace(/'/g,"\'");
+        const _mTour2   = _isWomen ? 'wta' : 'atp';
+        const _panelId2 = `cpw-${(_tName2).replace(/[^a-z0-9]/gi,'_')}${_isWomen?'_w':'_m'}`;
+        const _iBtn2    = `<button onclick="_toggleTennisPastWinners('${_tName2}','${_mTour2}','${_panelId2}','${_isWomen?'women':''}')" style="position:absolute;top:7px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.5);border:1.5px solid ${_border};color:${_labelColor};font-size:0.68rem;font-weight:900;cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;justify-content:center" title="역대 우승자">i</button>`;
+        championBanner = `<div style="position:relative;text-align:center;padding:10px 16px 8px;background:${_bg};border-radius:12px;margin-bottom:12px;border:2px solid ${_border}">
+          ${_iBtn2}
           <div style="font-size:1.5rem">🏆</div>
           <div style="font-size:0.96rem;font-weight:800;color:${_nameColor};margin-top:3px">${_champName}</div>
           <div style="font-size:0.68rem;font-weight:600;color:${_labelColor};margin-top:2px">${_label}</div>
+          <div id="${_panelId2}" style="display:none"></div>
         </div>`;
       }
     }
