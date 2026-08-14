@@ -434,12 +434,14 @@ async function fetchAndParseAtpData() {
       const typeSlug = (comp.type?.slug || '').toLowerCase();
       const typeText = (comp.type?.text || '').toLowerCase();
       const isWomens = grpIsWomens || typeSlug.includes('women') || typeText.includes('women');
+      const isDoubles = typeSlug.includes('double') || typeText.includes('double') || grpName.includes('double');
       matches.push({
         id:             comp.id,
         roundName:      comp.round?.displayName || grp.displayName || '',
         date:           comp.date || '',
         status:         st.type?.name || '',
         gender:         isWomens ? 'women' : 'men',
+        singles:        !isDoubles,
         player1Id:      p1.athlete?.id           || '',
         player1Name:    p1.athlete?.displayName  || '',
         player1Country: p1.athlete?.flag?.alt    || '',

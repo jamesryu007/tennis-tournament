@@ -2750,7 +2750,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1101';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1102';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13244,6 +13244,10 @@ function _buildTennisChampionBanner(tourneyInfo, matches) {
   // Final + 완료된 경기 찾기 (남성/여성 모두)
   const finals = matchArr.filter(m => {
     const rn = (m.roundName || '').toLowerCase();
+    // 복식 제외 (singles 필드 우선, 없으면 player 이름으로 추측)
+    if (m.singles === false) return false;
+    const p1 = m.player1Name || ''; const p2 = m.player2Name || '';
+    if (!p1 || p1 === 'TBD' || !p2 || p2 === 'TBD') return false;
     return (rn === 'final' || rn === 'the final') && m.status === 'STATUS_FINAL' &&
       (m.player1Winner === true || m.player2Winner === true);
   });
@@ -13252,6 +13256,8 @@ function _buildTennisChampionBanner(tourneyInfo, matches) {
   const tier  = tourneyInfo.tier || 'atp250';
   const style = getGsStyle(tourneyInfo) || TIER_STYLE[tier] || TIER_STYLE.atp250;
   const _tennisTour = tier.toLowerCase().includes('wta') ? 'wta' : 'atp';
+  // WTA 랭킹 이름 목록 (gender 오탐 보정용)
+  const _wtaNames = (atpState.rankings?.womens || []).map(p => (p.name || '').toLowerCase()).filter(Boolean);
   const _tName = tourneyInfo.displayName || tourneyInfo.name || '';
   const _tNameSafe = _tName.replace(/'/g, "\\'");
   const _tSafeId = (_tName).replace(/[^a-z0-9]/gi, '_');
@@ -13261,7 +13267,10 @@ function _buildTennisChampionBanner(tourneyInfo, matches) {
     const winner = { name: isW1 ? m.player1Name : m.player2Name, country: isW1 ? m.player1Country : m.player2Country, score: isW1 ? m.player1Score : m.player2Score };
     const isKor = (winner.country || '').toLowerCase().includes('kor');
     const nc = isKor ? '#CD2E3A' : style.color;
-    const gLabel = m.gender === 'women' ? '여' : '남';
+    // gender 폴백: WTA 랭킹에 우승자 이름 있으면 여자로 보정
+    const _winnerLower = (winner.name || '').toLowerCase();
+    const _isWomenMatch = m.gender === 'women' || (_wtaNames.length > 0 && _wtaNames.some(n => _winnerLower.includes(n) || n.includes(_winnerLower.split(' ').pop())));
+    const gLabel = _isWomenMatch ? '여' : '남';
     const genderTag = finals.length > 1 ? `<div style="font-size:0.62rem;color:${style.color};font-weight:700;margin-top:1px">${gLabel}자 단식</div>` : '';
     const panelId = `tpw-${_tSafeId}${finals.length > 1 ? '_' + m.gender : ''}`;
     const _mTour = m.gender === 'women' ? 'wta' : 'atp';
