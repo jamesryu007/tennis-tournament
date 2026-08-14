@@ -1377,12 +1377,15 @@ exports.notifyTennisWinner = onValueWritten(
 
       const matchesAfter = Array.isArray(after.matches) ? after.matches : Object.values(after.matches || {});
 
-      // 이번 업데이트에서 처음 STATUS_FINAL이 된 결승 경기
+      // 이번 업데이트에서 처음 STATUS_FINAL이 된 결승 경기 (단식만 — 복식/빈 이름 제외)
       const newFinals = matchesAfter.filter(m => {
         const rn = (m.roundName || '').toLowerCase();
         if (rn !== 'final' && rn !== 'the final') return false;
         if (m.status !== 'STATUS_FINAL') return false;
         if (!m.player1Winner && !m.player2Winner) return false;
+        // 복식 제외: singles 필드 우선, 없으면 선수명 빈값 체크
+        if (m.singles === false) return false;
+        if (!m.player1Name || !m.player2Name) return false;
         const prev = m.id ? matchesBefore[m.id] : null;
         return !prev || prev.status !== 'STATUS_FINAL';
       });
