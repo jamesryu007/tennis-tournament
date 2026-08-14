@@ -4863,6 +4863,22 @@ async function _doGenerateSpotlight(kst) {
     `오늘 모임 설렘을 담되, [최근 경기] 데이터가 있으면 날짜·파트너·결과를 사실 그대로 1개 언급. 없으면 시즌 성적 수치로 대체. 마지막 불릿에 "오늘 코트에서" 내용 필수.`,
   ][dow];
 
+  // 이번 주 이미 생성된 스포트라이트 텍스트 조회 — 소재 중복 방지
+  const weekDates = [];
+  for (let i = 0; i < dow; i++) {
+    const d = new Date(kst); d.setDate(d.getDate() - (dow - i));
+    weekDates.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+  }
+  const prevTexts = [];
+  for (const date of weekDates) {
+    const snap = await db.ref(`jmt/spotlight/daily/${date}`).once('value');
+    const val  = snap.val();
+    if (val && val.text && val.memberName === memberName) prevTexts.push(`[${date}] ${val.text}`);
+  }
+  const prevSection = prevTexts.length
+    ? `\n[이번 주 이미 사용한 내용 — 같은 소재·키워드 절대 반복 금지]\n${prevTexts.join('\n')}\n소재가 고갈됐으면 프로필 언급 없이 진심 어린 응원 문구로 대체.\n`
+    : '';
+
   const prompt = `자미터 테니스 동호회 앱 "이번 주 주인공" 팝업 텍스트 작성.
 
 ⚠️ 창작 절대 금지: 아래 [멤버 정보]에 없는 팀명·리그명·플레이(드롭샷 등)·에피소드를 지어내지 말 것. 데이터에 있는 사실만 사용.
@@ -4873,7 +4889,7 @@ async function _doGenerateSpotlight(kst) {
 ${statStr ? `2026 시즌: ${statStr}` : ''}
 ${pairStr ? `주요 페어 전적: ${pairStr}` : ''}
 ${matchStr ? `최근 경기 (날짜·팀 구성·승패만 사실):\n${matchStr}` : '최근 경기: 없음'}
-
+${prevSection}
 [오늘의 방향]
 ${dayGuide}
 
