@@ -13,6 +13,22 @@ setGlobalOptions({ maxInstances: 5, region: 'asia-southeast1' });
 const db  = getDatabase();
 const fcm = getMessaging();
 
+// ── ESPN API fetch 공용 헬퍼 ────────────────────────────────────────
+// Cloud Functions IP가 ESPN에 차단될 수 있으므로 브라우저 User-Agent 사용
+// HTML 에러 페이지 수신 시 null 반환 (throw 대신)
+const ESPN_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+  'Accept': 'application/json, text/plain, */*',
+  'Referer': 'https://www.espn.com/',
+};
+async function espnFetch(url) {
+  const res = await fetch(url, { headers: ESPN_HEADERS });
+  if (!res.ok) { console.warn(`espnFetch: HTTP ${res.status} — ${url}`); return null; }
+  const text = await res.text();
+  if (!text || text.trimStart().startsWith('<')) { console.warn(`espnFetch: HTML 응답 — ${url}`); return null; }
+  return JSON.parse(text);
+}
+
 // ── 유틸: 전체 FCM 엔트리 {name, token} 목록 ──────────────────────
 async function getAllEntries() {
   const snap = await db.ref('jmt/fcmTokens').once('value');
@@ -377,8 +393,8 @@ function selectTournament(events) {
 
 // ── ESPN 파싱 공통 함수 ────────────────────────────────────────────
 async function fetchAndParseAtpData() {
-  const res = await fetch('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard');
-  const json = await res.json();
+  const json = await espnFetch('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard');
+  if (!json) return null;
   const events = json.events || [];
 
   const ev = selectTournament(events);
@@ -759,7 +775,9 @@ exports.fetchAtpData = onSchedule(
   { schedule: '0 */2 * * *', timeZone: 'Asia/Seoul' },
   async () => {
     try {
-      const { tournamentInfo, matches, isGrandSlam } = await fetchAndParseAtpData();
+      const atpResult = await fetchAndParseAtpData();
+      if (!atpResult) { console.warn('fetchAtpData: ESPN 응답 없음, 스킵'); return; }
+      const { tournamentInfo, matches, isGrandSlam } = atpResult;
       await saveAtpData(tournamentInfo, matches, isGrandSlam);
       await _botReportAtpResults(matches, tournamentInfo).catch(e => console.error('_botReportAtpResults error:', e));
       // 랭킹이 7일 이상 됐으면 자동 갱신 (폴백 데이터 의존 방지)
@@ -1015,8 +1033,8 @@ exports.loadAtpDataByDate = onCall(
     const { date } = request.data || {};  // 'YYYYMMDD' 형식
     if (!date || !/^\d{8}$/.test(date)) return { success: false, error: 'date must be YYYYMMDD' };
     try {
-      const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=${date}`);
-      const json = await res.json();
+      const json = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=${date}`);
+      if (!json) return { success: false, error: 'ESPN 응답 없음' };
       const events = json.events || [];
       const ev = events.reduce((best, e) => {
         if (!best) return e;
@@ -2162,10 +2180,8 @@ async function _fetchGolfCourseInfo(tour, eventId) {
 }
 
 async function _fetchAndParseGolfTour(tour) {
-  const res  = await fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tour}/scoreboard`);
-  // rate limit/서버 오류 시 null 반환 — 빈 배열([])과 구별하여 "fetch 실패"를 명시
-  if (!res.ok) { console.warn(`_fetchAndParseGolfTour(${tour}): HTTP ${res.status} — rate limit 또는 오류`); return null; }
-  const json = await res.json();
+  const json = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tour}/scoreboard`);
+  if (!json) { console.warn(`_fetchAndParseGolfTour(${tour}): ESPN 응답 없음`); return null; }
   const results = [];
 
   for (const ev of (json.events || [])) {
@@ -2265,8 +2281,8 @@ async function _refetchGolfFinalResults(tour, id, endDate) {
   try {
     const d = new Date(endDate);
     const dateStr = `${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,'0')}${String(d.getUTCDate()).padStart(2,'0')}`;
-    const res  = await fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tour}/scoreboard?dates=${dateStr}`);
-    const json = await res.json();
+    const json = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tour}/scoreboard?dates=${dateStr}`);
+    if (!json) return null;
     const ev   = (json.events || []).find(e => e.id === id);
     if (!ev) { console.log(`_refetchGolfFinalResults: event ${id} not found for dates=${dateStr}`); return null; }
     const comp = (ev.competitions || [])[0];
@@ -2596,16 +2612,9 @@ exports.fetchGolfPastWinner = onCall(
     // 1단계: calendar에서 대회 찾기 → endDate 획득
     //   scoreboard?dates=YYYY 로는 past year events 가 json.events에 없음
     //   대신 leagues[0].calendar 에 전체 시즌 일정 (label, startDate, endDate, id) 존재
-    const _espnFetch = async (url) => {
-      const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; JAMITE/1.0)' } });
-      if (!res.ok) return null;
-      const text = await res.text();
-      if (!text || text.trimStart().startsWith('<')) return null; // HTML 에러 페이지 차단
-      return JSON.parse(text);
-    };
-
+    // 전역 espnFetch 사용 (지역 _espnFetch 제거)
     const _findByCalendar = async (tkey) => {
-      const calJson = await _espnFetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tkey}/scoreboard?dates=${year}0601`);
+      const calJson = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tkey}/scoreboard?dates=${year}0601`);
       if (!calJson) return null;
       const calendar = (calJson.leagues && calJson.leagues[0] && calJson.leagues[0].calendar) || [];
 
@@ -2619,7 +2628,7 @@ exports.fetchGolfPastWinner = onCall(
       // 2단계: 해당 대회 주차 endDate로 정확한 scoreboard 요청 → 풀 데이터
       const end = new Date(bestCal.endDate);
       const dateStr = `${end.getUTCFullYear()}${String(end.getUTCMonth()+1).padStart(2,'0')}${String(end.getUTCDate()).padStart(2,'0')}`;
-      const evJson = await _espnFetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tkey}/scoreboard?dates=${dateStr}`);
+      const evJson = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tkey}/scoreboard?dates=${dateStr}`);
       if (!evJson) return null;
 
       let bestEvent = null, bestEvOvlp = 0;
@@ -2758,9 +2767,8 @@ exports.fetchTennisPastWinner = onCall(
       // dates=YYYY 로 해당 연도 전체 이벤트 조회 — 날짜 더듬기 방식 대체
       const genderFilter = espnTour === 'wta' ? 'women' : 'men';
       const _findBestEvent = async (tourEndpoint) => {
-        const res  = await fetch(`https://site.api.espn.com/apis/site/v2/sports/tennis/${tourEndpoint}/scoreboard?dates=${year}`);
-        if (!res.ok) return null; // rate limit 또는 서버 오류 시 HTML 반환 방지
-        const json = await res.json();
+        const json = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/tennis/${tourEndpoint}/scoreboard?dates=${year}`);
+        if (!json) return null;
         let best = null, bestOvlp = 0;
         for (const ev of (json.events || [])) {
           const ovlp = _overlap(ev.name || ev.shortName || '');
