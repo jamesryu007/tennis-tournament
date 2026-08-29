@@ -2750,7 +2750,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1110';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1111';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4980,7 +4980,7 @@ function _setupDailyCardsListener(){
     _restoreLocalDailyCards(); // 로컬 전용 카드 병합
     _reGroupDailyCards(); // 라운드 그룹 프레임으로 DOM 구성
     // 서버 카운터 날짜 기반 리셋 + 초기화
-    const _cntToday=new Date().toISOString().slice(0,10);
+    const _cntToday=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Seoul'});
     Promise.all([
       db.ref('jmt/dailyCardCounter').once('value'),
       db.ref('jmt/dailyCardDate').once('value')
@@ -7662,7 +7662,7 @@ async function generateAutoDrawCards(){
     const bgImages=_DC_BG_IMAGES;
     // 서버 카운터로 N개 num 한번에 원자 예약 (중복 방지)
     const _cntRes=await db.ref('jmt/dailyCardCounter').transaction(n=>(n||0)+scheduled.length);
-    db.ref('jmt/dailyCardDate').set(new Date().toISOString().slice(0,10)).catch(()=>{});
+    db.ref('jmt/dailyCardDate').set(new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Seoul'})).catch(()=>{});
     let numBase=(_cntRes.snapshot.val()||scheduled.length)-scheduled.length;
     // createdAt: 같은 라운드 내에서 코트 순으로 정렬되도록 si 역순 부여
     for(let si=0;si<scheduled.length;si++){
@@ -7884,7 +7884,7 @@ function addDailyMatchCard(){
     });
     // 서버 카운터로 원자적 num 채번 → 중복 방지
     db.ref('jmt/dailyCardCounter').transaction(n=>(n||0)+1).then(res=>{
-      db.ref('jmt/dailyCardDate').set(new Date().toISOString().slice(0,10)).catch(()=>{});
+      db.ref('jmt/dailyCardDate').set(new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Seoul'})).catch(()=>{});
       _doAdd(res.snapshot.val());
     }).catch(()=>_doAdd());
   }).catch(()=>_doAdd());
