@@ -1586,8 +1586,8 @@ async function _runWeeklyMvp(isDryRun = false, skipMinCheck = false) {
     toArr(m.team0).forEach(p => thisWeekPlayers.add(p));
     toArr(m.team1).forEach(p => thisWeekPlayers.add(p));
   });
-  if (!skipMinCheck && (thisWeekMatches.length < 5 || thisWeekPlayers.size < 4)) {
-    return `발송 생략 — 이번 주 경기 ${thisWeekMatches.length}개, 참여 ${thisWeekPlayers.size}명 (최소 5경기/4명 필요)`;
+  if (!skipMinCheck && (thisWeekMatches.length < 3 || thisWeekPlayers.size < 4)) {
+    return `발송 생략 — 이번 주 경기 ${thisWeekMatches.length}개, 참여 ${thisWeekPlayers.size}명 (최소 3경기/4명 필요)`;
   }
 
   // 2주치 경기

@@ -2750,7 +2750,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1109';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1110';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4941,7 +4941,7 @@ async function _recoverMissingMatchKeys(){
   for(const [,d] of doneCards){
     const snap=await db.ref('jmt/matches/'+d.matchKey).once('value');
     if(snap.val()!==null) continue; // 이미 있음
-    const ts=d.createdAt||Date.now();
+    const ts=d.scoredAt||d.createdAt||Date.now();
     const date=new Date(ts).toLocaleDateString('en-CA',{timeZone:'Asia/Seoul'});
     const team0=(Array.isArray(d.team0)?d.team0:Object.values(d.team0||{})).slice().sort();
     const team1=(Array.isArray(d.team1)?d.team1:Object.values(d.team1||{})).slice().sort();
@@ -8713,7 +8713,7 @@ async function saveDailyScore(){
   const _isSingles=d.matchType==='singles';
   const team0=_isSingles?[...d.team0]:[...d.team0].sort();
   const team1=_isSingles?[...d.team1]:[...d.team1].sort();
-  const today=new Date().toISOString().split('T')[0];
+  const today=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Seoul'});
   // 닉네임 읽기 (복식만 사용)
   const nick0=_isSingles?'':document.getElementById('daily-nick-0').value.trim();
   const nick1=_isSingles?'':document.getElementById('daily-nick-1').value.trim();
