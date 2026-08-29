@@ -2750,7 +2750,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1108';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1109';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -25383,19 +25383,84 @@ async function _toggleTennisPastWinners(tournamentName, tour, panelId, gender) {
       const tPanelForLoad = document.getElementById(panelId) || panel;
       tPanelForLoad.appendChild(loadingEl);
 
-      const fn = firebase.app().functions('asia-southeast1').httpsCallable('fetchTennisPastWinner');
-      // ESPN rate limit 방지 — 순차 요청 (병렬 시 HTML 오류 페이지 반환)
+      // CF 대신 브라우저에서 직접 ESPN 호출 (GCP IP 차단 우회)
+      const _espnTourT = tour === 'wta' ? 'wta' : 'atp';
+      const _genderFilter = _espnTourT === 'wta' ? 'women' : 'men';
+      const _normT = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+      const _tWordsT = _normT(tournamentName).split(' ').filter(w => w.length >= 2);
+      const _ovlpT = (name) => {
+        const words = new Set(_normT(name).split(' ').filter(w => w.length >= 2));
+        const cnt = _tWordsT.filter(w => words.has(w)).length;
+        if (cnt === _tWordsT.length) return 1.0;
+        if (cnt === words.size && words.size >= 2) return 0.9;
+        return cnt / Math.max(_tWordsT.length, words.size, 1);
+      };
+      const _espnGetT = async (url) => {
+        try {
+          const r = await fetch(url);
+          if (!r.ok) return null;
+          const txt = await r.text();
+          if (txt.startsWith('<')) return null;
+          return JSON.parse(txt);
+        } catch (_) { return null; }
+      };
+      const _extractWinnerT = (event, gf) => {
+        if (!event) return null;
+        let allComps = [];
+        if (event.groupings && event.groupings.length) {
+          for (const g of event.groupings) allComps = allComps.concat(g.competitions || []);
+        } else { allComps = event.competitions || []; }
+        const finalComp = allComps.find(c => {
+          const rn = (c.round && c.round.displayName) || '';
+          if (!/\bfinal\b/i.test(rn) || /semi|quarter|qualifying/i.test(rn)) return false;
+          if (gf) {
+            const typeText = ((c.type && c.type.text) || '').toLowerCase();
+            const typeSlug = ((c.type && c.type.slug) || '').toLowerCase();
+            const isWomenComp = typeText.includes('women') || typeSlug.includes('women') || typeText.includes('ladies') || typeSlug.includes('ladies');
+            if (gf === 'women' && !isWomenComp) return false;
+            if (gf === 'men' && isWomenComp) return false;
+          }
+          return true;
+        });
+        if (!finalComp) return null;
+        const st = finalComp.status && finalComp.status.type;
+        if (!st || (st.name !== 'STATUS_FINAL' && !st.completed)) return null;
+        const competitors = (finalComp.competitors || []).slice();
+        const winner = competitors.find(c => c.winner === true) || competitors[0];
+        if (!winner) return null;
+        const ath = winner.athlete || {};
+        const wName = ath.displayName || ath.fullName || winner.displayName || '';
+        if (!wName) return null;
+        return { name: wName, country: (ath.flag && ath.flag.alt) || (ath.country && ath.country.abbreviation) || '' };
+      };
+      const _findBestEventT = async (tourEndpoint, y) => {
+        const json = await _espnGetT(`https://site.api.espn.com/apis/site/v2/sports/tennis/${tourEndpoint}/scoreboard?dates=${y}`);
+        if (!json) return null;
+        let best = null, bestOvlp = 0;
+        for (const ev of (json.events || [])) {
+          const ovlp = _ovlpT(ev.name || ev.shortName || '');
+          if (ovlp > bestOvlp) { bestOvlp = ovlp; best = ev; }
+        }
+        return bestOvlp > 0.5 ? best : null;
+      };
+      // 순차 요청 — 병렬 시 ESPN rate limit 유발
       for (const y of missingYears) {
         try {
-          const res = await fn({ tournamentName, tour, year: y });
-          const d = res.data;
-          // gender 검증: CF가 ESPN WTA 엔드포인트에서 남자 데이터 반환 시 차단
-          if (d && d.found && d.winner && d.winner.name && !entriesMap[y]) {
-            if (!gender || !d.gender || d.gender === gender) {
-              entriesMap[y] = { winner: d.winner, name: d.name, _year: String(y) };
-            }
+          let bestEvent = await _findBestEventT(_espnTourT, y);
+          let winnerObj = _extractWinnerT(bestEvent, _genderFilter);
+          // WTA genderFilter 실패 시 ATP endpoint fallback (Grand Slam에서 WTA endpoint type.text 누락 방어)
+          if (!winnerObj && _espnTourT === 'wta') {
+            const atpEvent = await _findBestEventT('atp', y);
+            if (atpEvent) winnerObj = _extractWinnerT(atpEvent, 'women');
           }
-        } catch (_) {}
+          if (winnerObj && winnerObj.name && !entriesMap[y]) {
+            const entryName = (bestEvent && bestEvent.name) || tournamentName;
+            const entry = { name: entryName, winner: winnerObj, year: parseInt(y), gender: _genderFilter, savedAt: Date.now(), cfVersion: 3 };
+            const cfKey = 'cf_' + entryName.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + _espnTourT;
+            db.ref(`jmt/tournamentHistory/tennis/${y}/${cfKey}`).set(entry).catch(fbErr);
+            entriesMap[y] = { winner: winnerObj, name: entryName, _year: String(y) };
+          }
+        } catch (e) { console.warn('fetchTennisPastWinner client:', y, e.message); }
       }
 
       // CF가 client-side timeout 되었더라도 서버에서 DB에 저장했을 수 있음 — DB 재조회로 보정
