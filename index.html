@@ -2750,7 +2750,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1106';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1107';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -25223,17 +25223,68 @@ async function _toggleGolfPastWinners(tournamentName, tour, panelId) {
         if (panelEl) panelEl.innerHTML = '<div style="border-top:1px solid #fcd34d;margin-top:6px;padding-top:6px;font-size:0.7rem;color:#94a3b8">⏳ 역대 기록 검색 중...</div>';
       }
 
-      const fn = firebase.app().functions('asia-southeast1').httpsCallable('fetchGolfPastWinner');
+      // CF 대신 브라우저에서 직접 ESPN 호출 (GCP IP 차단 우회)
+      const _normF = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, ' ').replace(/\s+/g, ' ').trim();
+      const _tWords = _normF(tournamentName).split(' ').filter(w => w.length >= 2);
+      const _espnTourMap = { lpga: 'lpga', pga: 'pga', euro: 'eur', dp: 'eur', liv: 'liv' };
+      const _espnTour = _espnTourMap[(tour || '').toLowerCase()] || (tour || '').toLowerCase();
+      const _tourCandidates = _espnTour === 'pga' ? ['pga', 'eur'] : [_espnTour];
+      const _ovlpG = (name) => {
+        const words = new Set(_normF(name).split(' ').filter(w => w.length >= 2));
+        const cnt = _tWords.filter(w => words.has(w)).length;
+        if (cnt === _tWords.length) return 1.0;
+        return cnt / Math.max(_tWords.length, words.size, 1);
+      };
+      const _espnGet = async (url) => {
+        try {
+          const r = await fetch(url);
+          if (!r.ok) return null;
+          const txt = await r.text();
+          if (txt.startsWith('<')) return null;
+          return JSON.parse(txt);
+        } catch (_) { return null; }
+      };
       // 순차 요청 — 병렬 시 ESPN rate limit 유발
       for (const y of missingYears) {
         try {
-          const res = await fn({ tournamentName, tour, year: y });
-          const d = res.data;
-          // 골프는 tour(pga/lpga)로 이미 구분되므로 gender 체크 불필요
-          if (d && d.found && d.winner && d.winner.name && !entriesMap[y]) {
-            entriesMap[y] = { winner: d.winner, name: d.name, _year: String(y) };
+          let foundEntry = null;
+          for (const tkey of _tourCandidates) {
+            const calJson = await _espnGet(`https://site.api.espn.com/apis/site/v2/sports/golf/${tkey}/scoreboard?dates=${y}0601`);
+            if (!calJson) continue;
+            const calendar = (calJson.leagues && calJson.leagues[0] && calJson.leagues[0].calendar) || [];
+            let bestCal = null, bestOvlp = 0;
+            for (const cal of calendar) {
+              const o = _ovlpG(cal.label || '');
+              if (o > bestOvlp) { bestOvlp = o; bestCal = cal; }
+            }
+            if (!bestCal || bestOvlp < 0.4) continue;
+            const end = new Date(bestCal.endDate);
+            const dateStr = `${end.getUTCFullYear()}${String(end.getUTCMonth()+1).padStart(2,'0')}${String(end.getUTCDate()).padStart(2,'0')}`;
+            const evJson = await _espnGet(`https://site.api.espn.com/apis/site/v2/sports/golf/${tkey}/scoreboard?dates=${dateStr}`);
+            if (!evJson) continue;
+            let bestEvent = null, bestEvOvlp = 0;
+            for (const ev of (evJson.events || [])) {
+              const o = _ovlpG(ev.name || ev.shortName || '');
+              if (o > bestEvOvlp) { bestEvOvlp = o; bestEvent = ev; }
+            }
+            if (!bestEvent || bestEvOvlp < 0.4) continue;
+            const comp = (bestEvent.competitions || [])[0];
+            const competitors = (comp ? comp.competitors || [] : []).slice().sort((a, b) => (a.order || 9999) - (b.order || 9999));
+            const first = competitors[0];
+            if (!first) continue;
+            const ath = first.athlete || {};
+            const wName = ath.displayName || ath.fullName || first.displayName || '';
+            if (!wName) continue;
+            const winnerObj = { name: wName, country: (ath.flag && ath.flag.alt) || (ath.country && ath.country.abbreviation) || '', score: first.score || '' };
+            const entryName = bestEvent.name || tournamentName;
+            const entry = { name: entryName, winner: winnerObj, year: parseInt(y), savedAt: Date.now(), cfVersion: 2 };
+            const cfKey = 'cf_' + entryName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            db.ref(`jmt/tournamentHistory/golf/${tour}/${y}/${cfKey}`).set(entry).catch(fbErr);
+            foundEntry = { winner: winnerObj, name: entryName, _year: String(y) };
+            break;
           }
-        } catch (e) { console.warn('fetchGolfPastWinner:', y, e.message); }
+          if (foundEntry && !entriesMap[y]) entriesMap[y] = foundEntry;
+        } catch (e) { console.warn('fetchGolfPastWinner client:', y, e.message); }
       }
     }
 
