@@ -2524,26 +2524,42 @@ exports.notifyGolfWinner = onValueWritten(
         return !prev || !_isTournamentDone(prev);
       });
 
-      if (!newlyFinished.length) return;
+      // 푸시 알림 — 새로 종료된 대회
+      if (newlyFinished.length) {
+        const tokens = await getAllEntries();
+        for (const t of newlyFinished) {
+          const winner = (t.leaderboard || []).filter(p => p.name && !p.isCut)[0];
+          if (!winner) continue;
+          const tourTag  = t.level === 'major' ? '⛳ Major'
+            : t.tour === 'lpga' ? '🌸 LPGA' : '⛳ PGA Tour';
+          const purseStr = t.purse ? ` | 💰 ${t.purse}` : '';
+          await sendPush(
+            tokens,
+            `${tourTag} — ${t.name} 우승!`,
+            `🥇 ${winner.name}${winner.country ? ' ('+winner.country+')' : ''}${purseStr}`,
+            'atp',
+            '',
+            '',
+            { subScreen: 'golf' }
+          );
+          console.log(`notifyGolfWinner: push sent — ${t.name} winner ${winner.name}`);
+        }
+      }
 
-      const tokens = await getAllEntries();
-
+      // 히스토리 저장 (1) — 이번 업데이트에서 종료 확정된 대회
       for (const t of newlyFinished) {
-        const winner = (t.leaderboard || []).filter(p => p.name && !p.isCut)[0];
-        if (!winner) continue;
-        const tourTag  = t.level === 'major' ? '⛳ Major'
-          : t.tour === 'lpga' ? '🌸 LPGA' : '⛳ PGA Tour';
-        const purseStr = t.purse ? ` | 💰 ${t.purse}` : '';
-        await sendPush(
-          tokens,
-          `${tourTag} — ${t.name} 우승!`,
-          `🥇 ${winner.name}${winner.country ? ' ('+winner.country+')' : ''}${purseStr}`,
-          'atp',
-          '',
-          '',
-          { subScreen: 'golf' }
-        );
-        console.log(`notifyGolfWinner: push sent — ${t.name} winner ${winner.name}`);
+        await _archiveGolfHistory(t);
+      }
+
+      // 히스토리 저장 (2) — before에 있었지만 after에 사라진 대회 (클라이언트 새로고침 시 교체된 경우)
+      const now = new Date();
+      const afterIds = new Set(Object.keys(after));
+      for (const [id, t] of Object.entries(before)) {
+        if (afterIds.has(id)) continue;
+        const endPast = t.endDate && new Date(t.endDate) < now;
+        if (t.state === 'post' || (endPast && t.state !== 'pre')) {
+          await _archiveGolfHistory(t);
+        }
       }
     } catch (e) {
       console.error('notifyGolfWinner error:', e);
