@@ -2750,7 +2750,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1111';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1112';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13446,7 +13446,7 @@ function renderRoundDrawPanel(el, matches, tier, tourney) {
     else               { bg = '#fff';    color = '#475569'; border = '#e2e8f0'; }
 
     parts.push(`<button onclick="switchRoundTab('${r.replace(/'/g,"\\'")}')"${isSelected?' data-active="true"':''}
-      style="flex:0 0 auto;padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;border:1.5px solid ${border};background:${bg};color:${color}">${prefix}${label}</button>`);
+      style="flex:0 0 auto;padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;border:1.5px solid ${border};background:${bg};color:${color};user-select:none;outline:none;-webkit-tap-highlight-color:transparent">${prefix}${label}</button>`);
     if (i < availRounds.length - 1) {
       parts.push(`<span style="flex-shrink:0;color:#cbd5e1;font-size:0.8rem;line-height:1">›</span>`);
     }
@@ -26136,7 +26136,7 @@ function renderGolfLeaderboard(t) {
       const liveDot = isLive ? `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:#22c55e;vertical-align:middle;margin-left:3px;margin-bottom:1px"></span>` : '';
       const arrow  = i < rounds.length - 1 ? `<span style="flex-shrink:0;color:#cbd5e1;font-size:0.8rem;line-height:1">›</span>` : '';
       return `<button onclick="switchGolfRound('${r}')"${isActive ? ' data-golf-round-active="true"' : ''}
-        style="flex:0 0 auto;padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;border:1.5px solid ${border};background:${bg};color:${color}">${lbl[r]}${liveDot}</button>${arrow}`;
+        style="flex:0 0 auto;padding:5px 12px;border-radius:20px;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;border:1.5px solid ${border};background:${bg};color:${color};user-select:none;outline:none;-webkit-tap-highlight-color:transparent">${lbl[r]}${liveDot}</button>${arrow}`;
     }).join('');
     const selLabel = golfState.selectedRound === 'all' ? '전체' : lbl[golfState.selectedRound];
     return `<div style="display:flex;align-items:center;gap:4px;overflow-x:auto;padding:10px 14px 6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;-ms-overflow-style:none">${pills}</div>
