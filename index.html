@@ -1209,6 +1209,12 @@ const firebaseConfig = {
       <button onclick="_spotlightTestRotate()" style="padding:7px 14px;border-radius:10px;border:1.5px solid #7c3aed;background:#fff;color:#7c3aed;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit">⏭ 다음 멤버로</button>
     </div>
   </div>
+
+  <!-- 탭 사용 통계 (관리자 전용) -->
+  <div id="usage-stats-section" class="card" style="margin-top:14px;border-color:#c4b5fd;background:#f5f3ff">
+    <div class="card-title" style="font-size:0.85rem;color:#5b21b6;margin-bottom:8px">📊 오늘의 탭 사용 현황 <span style="font-size:0.65rem;color:#7c3aed;font-weight:500">(관리자 전용)</span></div>
+    <div id="usage-stats-body" style="font-size:0.78rem;color:#64748b">로딩중...</div>
+  </div>
 </div>
 
 
@@ -2750,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1113';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1116';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -2897,6 +2903,18 @@ const LS_FB_ACTIVE      = 'jmt_active_state';
 const LS_LAST_FINISHED  = 'jmt_last_finished';
 
 // ══ 유틸 헬퍼 ══
+
+// ── 탭 사용 통계 추적 (관리자 전용) ──────────────────────────────
+const _TAB_LABEL = { history:'랭킹', checkin:'출첵', matches:'자즉', setup:'행모', atp:'Live', jamitalk:'자미톡' };
+function _trackTabUsage(tabId) {
+  const name = state.identity && state.identity.name;
+  if (!name) return;
+  const label = _TAB_LABEL[tabId];
+  if (!label) return;
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' });
+  db.ref(`jmt/usageStats/${today}/${name}/${label}`).transaction(n => (n || 0) + 1).catch(() => {});
+}
+
 function toArr(v) { if(!v)return[]; if(Array.isArray(v))return v; return Object.values(v); }
 function setConnStatus(on) {
   const el = document.getElementById('conn-status');
@@ -11287,11 +11305,14 @@ function switchPage(id) {
   const _navEl = document.getElementById(`nav-${id}`);
   if (_navEl) _navEl.classList.add('active');
   window.scrollTo(0,0);
+  // 탭 사용 통계 기록
+  _trackTabUsage(id);
   // 탭 진입 시 배지 클리어
   if(id === 'history' || id === 'checkin' || id === 'setup' || id === 'atp') _clearNavBadge(id);
   // 회원관리 탭 진입 시 스포트라이트 테스트 정보 로드 (관리자)
   if (id === 'members' && isAdmin()) {
     setTimeout(_spotlightLoadTestInfo, 300);
+    setTimeout(_renderUsageStats, 300);
   }
   // 랭킹 탭 진입 시 랜덤 사진 선택 (직전과 다른 것으로)
   if(id === 'history') {
@@ -12532,6 +12553,58 @@ function renderIdentityList() {
       ${_memberPins[m.name]?'<span style="font-size:0.75rem;color:#94a3b8">🔐</span>':''}
       ${cur===m.name?`<button onclick="event.stopPropagation();openSetPin('${m.name.replace(/'/g,"\\'")}')" style="background:none;border:1.5px solid #cbd5e1;border-radius:8px;padding:3px 7px;font-size:0.75rem;cursor:pointer;color:#64748b;flex-shrink:0">${_memberPins[m.name]?'🔑변경':'🔑설정'}</button><span style="color:#2563eb;font-size:1rem">✓</span>`:''}
     </div>`).join('');
+}
+
+// ── 관리자 전용 탭 사용 통계 렌더링 ─────────────────────────────
+function _renderUsageStats() {
+  const el = document.getElementById('usage-stats-body');
+  if (!el) return;
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' });
+  // 오늘 날짜가 아닌 데이터 삭제 (오늘 것만 유지)
+  db.ref('jmt/usageStats').once('value').then(snap => {
+    Object.keys(snap.val() || {}).filter(k => k !== today).forEach(k => {
+      db.ref('jmt/usageStats/' + k).remove().catch(() => {});
+    });
+  }).catch(() => {});
+  db.ref('jmt/usageStats/' + today).once('value').then(snap => {
+    const data = snap.val() || {};
+    const tabs = ['랭킹', '출첵', '자즉', '행모', 'Live', '자미톡'];
+    const members = Object.entries(data)
+      .map(([name, tabCounts]) => ({
+        name,
+        total: Object.values(tabCounts).reduce((s, n) => s + n, 0),
+        tabCounts
+      }))
+      .sort((a, b) => b.total - a.total);
+
+    if (!members.length) {
+      el.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:0.8rem;padding:12px 0">오늘 접속 기록 없음</div>';
+      return;
+    }
+
+    const headerCells = tabs.map(t => '<span style="min-width:36px;text-align:center;font-size:0.62rem;color:#94a3b8;font-weight:700">' + t + '</span>').join('');
+    const rows = members.map(function(item) {
+      const name = item.name, total = item.total, tabCounts = item.tabCounts;
+      const cells = tabs.map(function(t) {
+        const n = tabCounts[t] || 0;
+        return '<span style="min-width:36px;text-align:center;font-size:0.72rem;font-weight:' + (n > 0 ? '700' : '400') + ';color:' + (n > 0 ? '#2563eb' : '#cbd5e1') + '">' + (n > 0 ? n : '·') + '</span>';
+      }).join('');
+      return '<div style="display:flex;align-items:center;gap:4px;padding:5px 0;border-bottom:1px solid #f1f5f9">'
+        + '<span style="flex:1;font-size:0.78rem;font-weight:700;color:#1e293b;min-width:52px">' + name + '</span>'
+        + cells
+        + '<span style="min-width:24px;text-align:right;font-size:0.72rem;font-weight:800;color:#7c3aed">' + total + '</span>'
+        + '</div>';
+    }).join('');
+
+    el.innerHTML = '<div style="font-size:0.72rem;font-weight:800;color:#7c3aed;margin-bottom:8px">📊 오늘의 탭 사용 현황 <span style="font-size:0.65rem;font-weight:400;color:#94a3b8">(' + today + ')</span></div>'
+      + '<div style="display:flex;align-items:center;gap:4px;padding-bottom:4px;border-bottom:1.5px solid #e2e8f0;margin-bottom:2px">'
+      + '<span style="flex:1;min-width:52px"></span>'
+      + headerCells
+      + '<span style="min-width:24px;text-align:right;font-size:0.62rem;color:#94a3b8">합계</span>'
+      + '</div>' + rows;
+  }).catch(function() {
+    el.innerHTML = '<div style="text-align:center;color:#ef4444;font-size:0.8rem;padding:8px 0">로딩 실패</div>';
+  });
 }
 
 // ══ PERMISSION UI ══
@@ -19042,6 +19115,7 @@ function _bzInitUnreadListener() {
 
 function bzShowRoomFromFloat() {
   if (window._bzFloatDragged) return; // 드래그 후 클릭 방지
+  _trackTabUsage('jamitalk');
   _bzFromFloat = true;
   const modal = document.getElementById('bet-screen-banzige');
   if (modal && modal.parentElement !== document.body) {
