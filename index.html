@@ -1209,6 +1209,12 @@ const firebaseConfig = {
       <button onclick="_spotlightTestRotate()" style="padding:7px 14px;border-radius:10px;border:1.5px solid #7c3aed;background:#fff;color:#7c3aed;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit">⏭ 다음 멤버로</button>
     </div>
   </div>
+
+  <!-- 탭 사용 통계 (관리자 전용) -->
+  <div id="usage-stats-section" class="card" style="margin-top:14px;border-color:#c4b5fd;background:#f5f3ff">
+    <div class="card-title" style="font-size:0.85rem;color:#5b21b6;margin-bottom:8px">📊 오늘의 탭 사용 현황 <span style="font-size:0.65rem;color:#7c3aed;font-weight:500">(관리자 전용)</span></div>
+    <div id="usage-stats-body" style="font-size:0.78rem;color:#64748b">로딩중...</div>
+  </div>
 </div>
 
 
@@ -2418,8 +2424,6 @@ const firebaseConfig = {
         <div class="empty-state" style="padding:16px 0"><p>회원 목록 로딩 중...</p></div>
       </div>
       <input type="text" id="identity-input" style="display:none">
-      <!-- 관리자 전용 통계 섹션 -->
-      <div id="usage-stats-section" style="display:none;margin-top:16px;border-top:1.5px solid #e2e8f0;padding-top:14px"></div>
     </div>
   </div>
 </div>
@@ -2752,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1114';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1115';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11308,6 +11312,7 @@ function switchPage(id) {
   // 회원관리 탭 진입 시 스포트라이트 테스트 정보 로드 (관리자)
   if (id === 'members' && isAdmin()) {
     setTimeout(_spotlightLoadTestInfo, 300);
+    setTimeout(_renderUsageStats, 300);
   }
   // 랭킹 탭 진입 시 랜덤 사진 선택 (직전과 다른 것으로)
   if(id === 'history') {
@@ -12502,16 +12507,6 @@ function confirmIdentityInput() {
 function openIdentityModal() {
   renderIdentityList();
   document.getElementById('identity-input').value = '';
-  // 관리자 전용 통계 섹션 표시
-  const statsEl = document.getElementById('usage-stats-section');
-  if (statsEl) {
-    if (isAdmin()) {
-      statsEl.style.display = '';
-      _renderUsageStats();
-    } else {
-      statsEl.style.display = 'none';
-    }
-  }
   document.getElementById('identity-modal').classList.add('open');
 }
 
@@ -12562,7 +12557,7 @@ function renderIdentityList() {
 
 // ── 관리자 전용 탭 사용 통계 렌더링 ─────────────────────────────
 function _renderUsageStats() {
-  const el = document.getElementById('usage-stats-section');
+  const el = document.getElementById('usage-stats-body');
   if (!el) return;
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' });
   db.ref('jmt/usageStats/' + today).once('value').then(snap => {
