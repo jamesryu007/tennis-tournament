@@ -2756,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1119';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1120';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -15325,9 +15325,11 @@ async function triggerAtpRefresh() {
         const isWomens  = grpIsWomens || typeSlug.includes('women') || typeText.includes('women');
         const isDoubles = typeSlug.includes('double') || typeText.includes('double') || grpName.includes('double');
         // 복식: competitor.athletes[] 배열, 단식: competitor.athlete 객체
-        const _pName    = p => p.athlete?.displayName || (p.athletes && p.athletes.length ? p.athletes.map(a => a.displayName).join(' / ') : '');
-        const _pCountry = p => p.athlete?.flag?.alt   || (p.athletes && p.athletes.length ? p.athletes[0].flag?.alt || '' : '');
-        const _pId      = p => p.athlete?.id          || (p.athletes && p.athletes.length ? p.athletes[0].id || '' : '');
+        const _pName    = p => p.athlete?.displayName || (p.athletes && p.athletes.length ? p.athletes.map(a => a.displayName).join(' / ') : '') || p.team?.displayName || p.team?.name || '';
+        const _pCountry = p => p.athlete?.flag?.alt   || (p.athletes && p.athletes.length ? p.athletes[0].flag?.alt || '' : '') || p.team?.location || '';
+        const _pId      = p => p.athlete?.id          || (p.athletes && p.athletes.length ? p.athletes[0].id || '' : '') || p.team?.id || '';
+        // 디버그: 이름 없는 경기 구조 확인 (TBD 원인 파악용)
+        if (!_pName(p1) || !_pName(p2)) console.log('[TBD debug]', JSON.stringify({p1keys: Object.keys(p1), p2keys: Object.keys(p2), p1: p1, p2: p2}, null, 0).slice(0, 500));
         matches.push({
           id:            comp.id,
           roundName:     comp.round?.displayName || grp.displayName || '',
