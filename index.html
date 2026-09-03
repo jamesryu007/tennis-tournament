@@ -2756,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1118';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1124';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13495,7 +13495,7 @@ function renderRoundDrawPanel(el, matches, tier, tourney) {
   // 현재 라운드 자동 선택 — 실명 선수 경기에서 winner가 있는 가장 마지막 라운드
   // TBD vs TBD 완료 경기는 제외 (결승 TBD 오선택 방지)
   if (!atpState.gsRoundTab || !availRounds.includes(atpState.gsRoundTab)) {
-    const _hasRealResult = m =>
+    const _hasRealResult = m => m.singles &&
       (m.player1Winner || m.player2Winner) &&
       m.player1Name && m.player1Name !== 'TBD' &&
       m.player2Name && m.player2Name !== 'TBD';
@@ -13538,7 +13538,7 @@ function renderRoundDrawPanel(el, matches, tier, tourney) {
   // 대회 완료 챔피언 배너 — 완료된 Final 경기 기준 (ATP/WTA 각각 확인)
   let championBanner = '';
   const _finalMatches = roundGroups['Final'] || [];
-  const _doneFinals = _finalMatches.filter(m => isEffectivelyDone(m) && (m.player1Winner || m.player2Winner));
+  const _doneFinals = _finalMatches.filter(m => isEffectivelyDone(m) && (m.player1Winner || m.player2Winner) && m.singles !== false);
   if (_doneFinals.length > 0) {
     const _wtaFinal = _doneFinals.find(m => isWtaMatch(m));
     const _atpFinal = _doneFinals.find(m => !isWtaMatch(m));
@@ -13738,6 +13738,20 @@ function renderMatchRow(m) {
   const kor2 = isKorean(m.player2Country);
   const p1Color = kor1 ? '#CD2E3A' : fav1 ? '#f59e0b' : '';
   const p2Color = kor2 ? '#CD2E3A' : fav2 ? '#f59e0b' : '';
+  // 복식 선수 이름 — " / " 로 분리해 각각 클릭 링크로 렌더링
+  const _mkLinks = (name, tKey) => {
+    if (name === 'TBD') return 'TBD';
+    if (name.includes(' / ')) {
+      return name.split(' / ').map(n => {
+        const ns = n.trim().replace(/'/g, "\'");
+        return `<span class="pp-name-link" onclick="openPlayerProfile('${ns}','${tKey}')">${n.trim()}</span>`;
+      }).join('<span style="color:#94a3b8;font-weight:400;margin:0 2px">/</span>');
+    }
+    const ns = name.replace(/'/g, "\'");
+    return `<span class="pp-name-link" onclick="openPlayerProfile('${ns}','${tKey}')">${name}</span>`;
+  };
+  const p1Html = _mkLinks(p1Name, tourKey);
+  const p2Html = _mkLinks(p2Name, tourKey);
 
   // ── 세트 스코어 파싱 ──────────────────────────────────────────
   let scoreSection = '';
@@ -13766,13 +13780,13 @@ function renderMatchRow(m) {
         <div style="display:flex;align-items:center;gap:5px;min-height:22px">
           <div style="width:3px;height:16px;border-radius:2px;flex-shrink:0;background:${p1Win?'#22c55e':'transparent'}"></div>
           <div class="atp-player ${p1Win?'winner':''}" style="${p1Color?'color:'+p1Color:''}">
-            <span class="pp-name-link" onclick="openPlayerProfile('${p1Safe}','${tourKey}')">${p1Name}</span>${m.player1Country?` <span style="font-size:0.70rem;color:#94a3b8;font-weight:400">${m.player1Country}</span>`:''}
+            ${p1Html}${m.player1Country?` <span style="font-size:0.70rem;color:#94a3b8;font-weight:400">${m.player1Country}</span>`:''}
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:5px;margin-top:4px;min-height:22px">
           <div style="width:3px;height:16px;border-radius:2px;flex-shrink:0;background:${p2Win?'#22c55e':'transparent'}"></div>
           <div class="atp-player ${p2Win?'winner':''}" style="${p2Color?'color:'+p2Color:''}">
-            <span class="pp-name-link" onclick="openPlayerProfile('${p2Safe}','${tourKey}')">${p2Name}</span>${m.player2Country?` <span style="font-size:0.70rem;color:#94a3b8;font-weight:400">${m.player2Country}</span>`:''}
+            ${p2Html}${m.player2Country?` <span style="font-size:0.70rem;color:#94a3b8;font-weight:400">${m.player2Country}</span>`:''}
           </div>
         </div>
       </div>
@@ -15324,6 +15338,11 @@ async function triggerAtpRefresh() {
         const typeText = (comp.type?.text || '').toLowerCase();
         const isWomens  = grpIsWomens || typeSlug.includes('women') || typeText.includes('women');
         const isDoubles = typeSlug.includes('double') || typeText.includes('double') || grpName.includes('double');
+        // 복식: competitor.athletes[] 배열, 단식: competitor.athlete 객체
+        // 단식: p.athlete.displayName / 복식: p.roster.displayName (ESPN 복식 구조)
+        const _pName    = p => p.athlete?.displayName || p.roster?.displayName || '';
+        const _pCountry = p => p.athlete?.flag?.alt   || (p.roster?.athletes && p.roster.athletes.length ? p.roster.athletes[0].flag?.alt || '' : '') || '';
+        const _pId      = p => p.athlete?.id          || (p.roster?.athletes && p.roster.athletes.length ? p.roster.athletes[0].id || '' : '') || '';
         matches.push({
           id:            comp.id,
           roundName:     comp.round?.displayName || grp.displayName || '',
@@ -15331,9 +15350,9 @@ async function triggerAtpRefresh() {
           status:        st.type?.name || '',
           gender:        isWomens ? 'women' : 'men',
           singles:       !isDoubles,
-          player1Id:     p1.athlete?.id          || '',
-          player1Name:   p1.athlete?.displayName || '',
-          player1Country:p1.athlete?.flag?.alt   || '',
+          player1Id:     _pId(p1),
+          player1Name:   _pName(p1),
+          player1Country:_pCountry(p1),
           player1Score:  (p1.linescores||[]).map(s => {
             const v = Math.round(s.value || 0);
             // 타이브레이크: 세트 패자(winner=false)에게만 (tb점수) 표기 — 표준 테니스 표기법
@@ -15341,9 +15360,9 @@ async function triggerAtpRefresh() {
             return String(v);
           }).join(' '),
           player1Winner: p1.winner || false,
-          player2Id:     p2.athlete?.id          || '',
-          player2Name:   p2.athlete?.displayName || '',
-          player2Country:p2.athlete?.flag?.alt   || '',
+          player2Id:     _pId(p2),
+          player2Name:   _pName(p2),
+          player2Country:_pCountry(p2),
           player2Score:  (p2.linescores||[]).map(s => {
             const v = Math.round(s.value || 0);
             if (s.tiebreak != null && !s.winner) return `${v}(${s.tiebreak})`;
