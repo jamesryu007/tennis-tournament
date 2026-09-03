@@ -2756,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1122';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1123';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13738,6 +13738,20 @@ function renderMatchRow(m) {
   const kor2 = isKorean(m.player2Country);
   const p1Color = kor1 ? '#CD2E3A' : fav1 ? '#f59e0b' : '';
   const p2Color = kor2 ? '#CD2E3A' : fav2 ? '#f59e0b' : '';
+  // 복식 선수 이름 — " / " 로 분리해 각각 클릭 링크로 렌더링
+  const _mkLinks = (name, tKey) => {
+    if (name === 'TBD') return 'TBD';
+    if (name.includes(' / ')) {
+      return name.split(' / ').map(n => {
+        const ns = n.trim().replace(/'/g, "\'");
+        return `<span class="pp-name-link" onclick="openPlayerProfile('${ns}','${tKey}')">${n.trim()}</span>`;
+      }).join('<span style="color:#94a3b8;font-weight:400;margin:0 2px">/</span>');
+    }
+    const ns = name.replace(/'/g, "\'");
+    return `<span class="pp-name-link" onclick="openPlayerProfile('${ns}','${tKey}')">${name}</span>`;
+  };
+  const p1Html = _mkLinks(p1Name, tourKey);
+  const p2Html = _mkLinks(p2Name, tourKey);
 
   // ── 세트 스코어 파싱 ──────────────────────────────────────────
   let scoreSection = '';
@@ -13766,13 +13780,13 @@ function renderMatchRow(m) {
         <div style="display:flex;align-items:center;gap:5px;min-height:22px">
           <div style="width:3px;height:16px;border-radius:2px;flex-shrink:0;background:${p1Win?'#22c55e':'transparent'}"></div>
           <div class="atp-player ${p1Win?'winner':''}" style="${p1Color?'color:'+p1Color:''}">
-            <span class="pp-name-link" onclick="openPlayerProfile('${p1Safe}','${tourKey}')">${p1Name}</span>${m.player1Country?` <span style="font-size:0.70rem;color:#94a3b8;font-weight:400">${m.player1Country}</span>`:''}
+            ${p1Html}${m.player1Country?` <span style="font-size:0.70rem;color:#94a3b8;font-weight:400">${m.player1Country}</span>`:''}
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:5px;margin-top:4px;min-height:22px">
           <div style="width:3px;height:16px;border-radius:2px;flex-shrink:0;background:${p2Win?'#22c55e':'transparent'}"></div>
           <div class="atp-player ${p2Win?'winner':''}" style="${p2Color?'color:'+p2Color:''}">
-            <span class="pp-name-link" onclick="openPlayerProfile('${p2Safe}','${tourKey}')">${p2Name}</span>${m.player2Country?` <span style="font-size:0.70rem;color:#94a3b8;font-weight:400">${m.player2Country}</span>`:''}
+            ${p2Html}${m.player2Country?` <span style="font-size:0.70rem;color:#94a3b8;font-weight:400">${m.player2Country}</span>`:''}
           </div>
         </div>
       </div>
