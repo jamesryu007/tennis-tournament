@@ -2756,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1117';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1118';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13492,12 +13492,16 @@ function renderRoundDrawPanel(el, matches, tier, tourney) {
     return false;
   }
 
-  // 현재 라운드 자동 선택 — 실제 결과(winner)가 있는 가장 마지막 라운드
-  // R2에 결과가 하나라도 나오면 R2 선택 (TBD 경기 미완료 여부 무관)
+  // 현재 라운드 자동 선택 — 실명 선수 경기에서 winner가 있는 가장 마지막 라운드
+  // TBD vs TBD 완료 경기는 제외 (결승 TBD 오선택 방지)
   if (!atpState.gsRoundTab || !availRounds.includes(atpState.gsRoundTab)) {
+    const _hasRealResult = m =>
+      (m.player1Winner || m.player2Winner) &&
+      m.player1Name && m.player1Name !== 'TBD' &&
+      m.player2Name && m.player2Name !== 'TBD';
     let autoRound = availRounds[0];
     for (const r of availRounds) {
-      if ((roundGroups[r] || []).some(m => m.player1Winner || m.player2Winner)) {
+      if ((roundGroups[r] || []).some(m => _hasRealResult(m))) {
         autoRound = r; // 더 뒤 라운드로 계속 업데이트
       }
     }
