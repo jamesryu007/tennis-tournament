@@ -2756,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1118';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1119';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -15324,6 +15324,10 @@ async function triggerAtpRefresh() {
         const typeText = (comp.type?.text || '').toLowerCase();
         const isWomens  = grpIsWomens || typeSlug.includes('women') || typeText.includes('women');
         const isDoubles = typeSlug.includes('double') || typeText.includes('double') || grpName.includes('double');
+        // 복식: competitor.athletes[] 배열, 단식: competitor.athlete 객체
+        const _pName    = p => p.athlete?.displayName || (p.athletes && p.athletes.length ? p.athletes.map(a => a.displayName).join(' / ') : '');
+        const _pCountry = p => p.athlete?.flag?.alt   || (p.athletes && p.athletes.length ? p.athletes[0].flag?.alt || '' : '');
+        const _pId      = p => p.athlete?.id          || (p.athletes && p.athletes.length ? p.athletes[0].id || '' : '');
         matches.push({
           id:            comp.id,
           roundName:     comp.round?.displayName || grp.displayName || '',
@@ -15331,9 +15335,9 @@ async function triggerAtpRefresh() {
           status:        st.type?.name || '',
           gender:        isWomens ? 'women' : 'men',
           singles:       !isDoubles,
-          player1Id:     p1.athlete?.id          || '',
-          player1Name:   p1.athlete?.displayName || '',
-          player1Country:p1.athlete?.flag?.alt   || '',
+          player1Id:     _pId(p1),
+          player1Name:   _pName(p1),
+          player1Country:_pCountry(p1),
           player1Score:  (p1.linescores||[]).map(s => {
             const v = Math.round(s.value || 0);
             // 타이브레이크: 세트 패자(winner=false)에게만 (tb점수) 표기 — 표준 테니스 표기법
@@ -15341,9 +15345,9 @@ async function triggerAtpRefresh() {
             return String(v);
           }).join(' '),
           player1Winner: p1.winner || false,
-          player2Id:     p2.athlete?.id          || '',
-          player2Name:   p2.athlete?.displayName || '',
-          player2Country:p2.athlete?.flag?.alt   || '',
+          player2Id:     _pId(p2),
+          player2Name:   _pName(p2),
+          player2Country:_pCountry(p2),
           player2Score:  (p2.linescores||[]).map(s => {
             const v = Math.round(s.value || 0);
             if (s.tiebreak != null && !s.winner) return `${v}(${s.tiebreak})`;
