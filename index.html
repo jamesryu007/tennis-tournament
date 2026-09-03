@@ -2756,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1123';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1124';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13538,7 +13538,7 @@ function renderRoundDrawPanel(el, matches, tier, tourney) {
   // 대회 완료 챔피언 배너 — 완료된 Final 경기 기준 (ATP/WTA 각각 확인)
   let championBanner = '';
   const _finalMatches = roundGroups['Final'] || [];
-  const _doneFinals = _finalMatches.filter(m => isEffectivelyDone(m) && (m.player1Winner || m.player2Winner));
+  const _doneFinals = _finalMatches.filter(m => isEffectivelyDone(m) && (m.player1Winner || m.player2Winner) && m.singles !== false);
   if (_doneFinals.length > 0) {
     const _wtaFinal = _doneFinals.find(m => isWtaMatch(m));
     const _atpFinal = _doneFinals.find(m => !isWtaMatch(m));
