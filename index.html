@@ -2756,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1126';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1127';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7884,26 +7884,8 @@ function addDailyMatchCard(){
   // + 버튼 클릭 시 DB 최신 상태 한 번 조회 + 서버 카운터로 num 채번 (중복 방지)
   db.ref('jmt/dailyCards').once('value').then(snap=>{
     const all=snap.val()||{};
-    const container=document.getElementById('daily-match-cards');
-    // 로컬 상태 전체 최신화 (진행중 선수 반영)
+    // 로컬 상태 전체 최신화 (진행중 선수 반영) — DOM 추가는 child_added가 처리
     Object.entries(all).forEach(([id,raw])=>{ _dailyCards[id]=_normCard(raw); });
-    // DOM에 없는 카드만 추려서 createdAt 내림차순으로 올바른 위치에 삽입
-    const newEntries=Object.entries(all)
-      .filter(([id])=>!document.getElementById(`daily-card-${id}`))
-      .sort((a,b)=>((b[1].createdAt||b[1].num||0)-(a[1].createdAt||a[1].num||0)));
-    newEntries.forEach(([id])=>{
-      const data=_dailyCards[id];
-      const el=document.createElement('div');
-      el.id=`daily-card-${id}`;
-      el.dataset.createdAt=data.createdAt||data.num||0;
-      // createdAt 기준으로 올바른 위치에 삽입
-      const ts=data.createdAt||data.num||0;
-      const siblings=[...container.children];
-      const after=siblings.find(s=>Number(s.dataset.createdAt||0)<ts);
-      if(after) container.insertBefore(el,after);
-      else container.appendChild(el);
-      _renderDailyCard(id);
-    });
     // 서버 카운터로 원자적 num 채번 → 중복 방지
     db.ref('jmt/dailyCardCounter').transaction(n=>(n||0)+1).then(res=>{
       db.ref('jmt/dailyCardDate').set(new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Seoul'})).catch(()=>{});
