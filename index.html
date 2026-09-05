@@ -2756,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1124';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1128';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4745,6 +4745,7 @@ let _dailyPickSel=[];
 let _dailyPickSingles=false; // true = 단식 모드
 // ── 경기 만들기 세그먼트 모드 ─────────────────────────────────────
 let _dailyCreateMode='individual'; // 'individual' | 'team' | 'auto'
+let _addingDailyCard=false;  // 경기 만들기 중복 생성 방지 잠금
 
 function setDailyCreateMode(mode){
   _dailyCreateMode=mode;
@@ -7823,6 +7824,8 @@ function _allPlayers(){
 
 const _DC_BG_IMAGES=['ca2.png','ca3.png','ca4.png','ca5.png','ca6.png','ca7.png','ca8.png','ca9.png','ca10.png','ca11.png'];
 function addDailyMatchCard(){
+  if(_addingDailyCard) return;
+  _addingDailyCard=true;
   const _doAdd=(num)=>{
     const id=++_dailyCardCounter;
     const bgImage='images/'+_DC_BG_IMAGES[Math.floor(Math.random()*_DC_BG_IMAGES.length)];
@@ -7852,14 +7855,17 @@ function addDailyMatchCard(){
     // 자동대진 카드가 있으면 맨 아래, 없으면 맨 위
     const autoCards=Object.values(_dailyCards).filter(d=>d._round);
     // setup 단계부터 즉시 Firebase push → 전 기기 동기화 (오프라인 fallback: 로컬 numeric id)
+    // push() key 먼저 확보 후 _dailyCards 설정 → child_added가 동기 발화해도 중복 방지
     let finalId;
     if(db){
-      const _newRef=db.ref('jmt/dailyCards').push(cardData);
+      const _newRef=db.ref('jmt/dailyCards').push();
       finalId=_newRef.key;
+      _dailyCards[finalId]=cardData;       // key 확보 즉시 로컬 등록 (child_added 중복 차단)
+      _newRef.set(cardData).catch(()=>{}); // 실제 데이터 쓰기
     } else {
       finalId=++_dailyCardCounter;
+      _dailyCards[finalId]=cardData;
     }
-    _dailyCards[finalId]=cardData;
     const container=document.getElementById('daily-match-cards');
     const el=document.createElement('div');
     el.id=`daily-card-${finalId}`;
@@ -7870,6 +7876,7 @@ function addDailyMatchCard(){
       container.insertBefore(el,container.firstChild);
     }
     _renderDailyCard(finalId);
+    _addingDailyCard=false;  // 잠금 해제
     // 자동배정/팀대결 카드 있으면 맨 아래, 없으면 맨 위로 스크롤
     setTimeout(()=>{
       if(autoCards.length>0) window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
@@ -7880,32 +7887,14 @@ function addDailyMatchCard(){
   // + 버튼 클릭 시 DB 최신 상태 한 번 조회 + 서버 카운터로 num 채번 (중복 방지)
   db.ref('jmt/dailyCards').once('value').then(snap=>{
     const all=snap.val()||{};
-    const container=document.getElementById('daily-match-cards');
-    // 로컬 상태 전체 최신화 (진행중 선수 반영)
+    // 로컬 상태 전체 최신화 (진행중 선수 반영) — DOM 추가는 child_added가 처리
     Object.entries(all).forEach(([id,raw])=>{ _dailyCards[id]=_normCard(raw); });
-    // DOM에 없는 카드만 추려서 createdAt 내림차순으로 올바른 위치에 삽입
-    const newEntries=Object.entries(all)
-      .filter(([id])=>!document.getElementById(`daily-card-${id}`))
-      .sort((a,b)=>((b[1].createdAt||b[1].num||0)-(a[1].createdAt||a[1].num||0)));
-    newEntries.forEach(([id])=>{
-      const data=_dailyCards[id];
-      const el=document.createElement('div');
-      el.id=`daily-card-${id}`;
-      el.dataset.createdAt=data.createdAt||data.num||0;
-      // createdAt 기준으로 올바른 위치에 삽입
-      const ts=data.createdAt||data.num||0;
-      const siblings=[...container.children];
-      const after=siblings.find(s=>Number(s.dataset.createdAt||0)<ts);
-      if(after) container.insertBefore(el,after);
-      else container.appendChild(el);
-      _renderDailyCard(id);
-    });
     // 서버 카운터로 원자적 num 채번 → 중복 방지
     db.ref('jmt/dailyCardCounter').transaction(n=>(n||0)+1).then(res=>{
       db.ref('jmt/dailyCardDate').set(new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Seoul'})).catch(()=>{});
       _doAdd(res.snapshot.val());
-    }).catch(()=>_doAdd());
-  }).catch(()=>_doAdd());
+    }).catch(()=>{ _addingDailyCard=false; _doAdd(); });
+  }).catch(()=>{ _addingDailyCard=false; _doAdd(); });
 }
 
 // 경기카드 내 본인 이름 주황 pill 하이라이트
@@ -8710,6 +8699,7 @@ async function saveDailyScore(){
     if(!av||!bv){alert(`${i+1}세트 점수를 입력해주세요.`);return;}
     const na=parseInt(av),nb=parseInt(bv);
     if(isNaN(na)||isNaN(nb)){alert('숫자를 입력해주세요.');return;}
+    if(Math.max(na,nb)<4){alert(`${i+1}세트: 최소 한 팀이 4게임 이상이어야 등록할 수 있습니다.\n(예: 4:0, 4:2, 4:3)`);return;}
     const setObj={s0:na,s1:nb};
     // TB 점수 저장 (6:5 또는 7:6인 경우만)
     const tbRow=document.getElementById(`dscore-tb-row-${i}`);
