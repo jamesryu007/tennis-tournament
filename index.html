@@ -2756,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1127';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1128';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7855,14 +7855,17 @@ function addDailyMatchCard(){
     // 자동대진 카드가 있으면 맨 아래, 없으면 맨 위
     const autoCards=Object.values(_dailyCards).filter(d=>d._round);
     // setup 단계부터 즉시 Firebase push → 전 기기 동기화 (오프라인 fallback: 로컬 numeric id)
+    // push() key 먼저 확보 후 _dailyCards 설정 → child_added가 동기 발화해도 중복 방지
     let finalId;
     if(db){
-      const _newRef=db.ref('jmt/dailyCards').push(cardData);
+      const _newRef=db.ref('jmt/dailyCards').push();
       finalId=_newRef.key;
+      _dailyCards[finalId]=cardData;       // key 확보 즉시 로컬 등록 (child_added 중복 차단)
+      _newRef.set(cardData).catch(()=>{}); // 실제 데이터 쓰기
     } else {
       finalId=++_dailyCardCounter;
+      _dailyCards[finalId]=cardData;
     }
-    _dailyCards[finalId]=cardData;
     const container=document.getElementById('daily-match-cards');
     const el=document.createElement('div');
     el.id=`daily-card-${finalId}`;
