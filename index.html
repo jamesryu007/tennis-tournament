@@ -2756,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1124';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1125';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8710,6 +8710,7 @@ async function saveDailyScore(){
     if(!av||!bv){alert(`${i+1}세트 점수를 입력해주세요.`);return;}
     const na=parseInt(av),nb=parseInt(bv);
     if(isNaN(na)||isNaN(nb)){alert('숫자를 입력해주세요.');return;}
+    if(Math.max(na,nb)<4){alert(`${i+1}세트: 최소 한 팀이 4게임 이상이어야 등록할 수 있습니다.\n(예: 4:0, 4:2, 4:3)`);return;}
     const setObj={s0:na,s1:nb};
     // TB 점수 저장 (6:5 또는 7:6인 경우만)
     const tbRow=document.getElementById(`dscore-tb-row-${i}`);
