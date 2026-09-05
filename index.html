@@ -2756,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1125';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1126';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4745,6 +4745,7 @@ let _dailyPickSel=[];
 let _dailyPickSingles=false; // true = 단식 모드
 // ── 경기 만들기 세그먼트 모드 ─────────────────────────────────────
 let _dailyCreateMode='individual'; // 'individual' | 'team' | 'auto'
+let _addingDailyCard=false;  // 경기 만들기 중복 생성 방지 잠금
 
 function setDailyCreateMode(mode){
   _dailyCreateMode=mode;
@@ -7823,6 +7824,8 @@ function _allPlayers(){
 
 const _DC_BG_IMAGES=['ca2.png','ca3.png','ca4.png','ca5.png','ca6.png','ca7.png','ca8.png','ca9.png','ca10.png','ca11.png'];
 function addDailyMatchCard(){
+  if(_addingDailyCard) return;
+  _addingDailyCard=true;
   const _doAdd=(num)=>{
     const id=++_dailyCardCounter;
     const bgImage='images/'+_DC_BG_IMAGES[Math.floor(Math.random()*_DC_BG_IMAGES.length)];
@@ -7870,6 +7873,7 @@ function addDailyMatchCard(){
       container.insertBefore(el,container.firstChild);
     }
     _renderDailyCard(finalId);
+    _addingDailyCard=false;  // 잠금 해제
     // 자동배정/팀대결 카드 있으면 맨 아래, 없으면 맨 위로 스크롤
     setTimeout(()=>{
       if(autoCards.length>0) window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'});
@@ -7904,8 +7908,8 @@ function addDailyMatchCard(){
     db.ref('jmt/dailyCardCounter').transaction(n=>(n||0)+1).then(res=>{
       db.ref('jmt/dailyCardDate').set(new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Seoul'})).catch(()=>{});
       _doAdd(res.snapshot.val());
-    }).catch(()=>_doAdd());
-  }).catch(()=>_doAdd());
+    }).catch(()=>{ _addingDailyCard=false; _doAdd(); });
+  }).catch(()=>{ _addingDailyCard=false; _doAdd(); });
 }
 
 // 경기카드 내 본인 이름 주황 pill 하이라이트
