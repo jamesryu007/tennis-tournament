@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1136';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1137';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9206,9 +9206,9 @@ async function renderRankingTab(){
         :`<p style="font-size:0.77rem;color:#94a3b8;text-align:center;margin:2px 0">기록 없음</p>`;
       const gt=givenE.reduce((s,[,c])=>s+c,0), rt=recvE.reduce((s,[,c])=>s+c,0);
       return `<div class="rank-detail" style="${style}">${tabsHtml}
-        <div style="font-size:0.7rem;font-weight:800;color:#16a34a;margin-bottom:4px">⚡ 베이글 먹임 총 ${gt}개</div>
+        <div style="font-size:0.7rem;font-weight:800;color:#16a34a;margin-bottom:4px">⚡ 베이글승 총 ${gt}개</div>
         ${mkRankBagelRow(givenE,'🥯→','#16a34a')}
-        <div style="font-size:0.7rem;font-weight:800;color:#dc2626;margin:8px 0 4px">😵 베이글 먹음 총 ${rt}개</div>
+        <div style="font-size:0.7rem;font-weight:800;color:#dc2626;margin:8px 0 4px">😵 베이글패 총 ${rt}개</div>
         ${mkRankBagelRow(recvE,'→🥯','#dc2626')}
       </div>`;
     }
@@ -9756,10 +9756,6 @@ function _bdDrawHubDiagram(svgEl, edges, pairInfo, focusPk, myName) {
       lx = (sx+ex)/2; ly = (sy+ey)/2 - 8;
     }
     edgeSvg += `<path d="${pathD}" stroke="${color}" stroke-width="${sw}" fill="none" marker-end="url(#${markerId})" opacity="0.9"/>`;
-    const label = e.count > 1 ? `${e.count}회` : (e.from === focusPk ? '먹임' : '먹힘');
-    const lineAngleDeg2 = Math.atan2(tp.y - fp.y, tp.x - fp.x) * 180 / Math.PI;
-    const rot2 = (lineAngleDeg2 > 90 || lineAngleDeg2 < -90) ? lineAngleDeg2 + 180 : lineAngleDeg2;
-    edgeSvg += `<g transform="rotate(${rot2.toFixed(1)},${lx.toFixed(1)},${ly.toFixed(1)})"><text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="10" font-weight="800" fill="${color}" stroke="white" stroke-width="3" paint-order="stroke fill">${label}</text></g>`;
   });
 
   // 중심 노드
@@ -9789,7 +9785,7 @@ function _bdDrawHubDiagram(svgEl, edges, pairInfo, focusPk, myName) {
     nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+4).toFixed(1)}" text-anchor="middle" font-size="10" font-weight="800" fill="${textC}" stroke="white" stroke-width="2" paint-order="stroke fill">${lbl.nick}</text>`;
     nodeSvg += `<text x="${lblX.toFixed(1)}" y="${(lblY-5).toFixed(1)}" text-anchor="${anchor}" font-size="8.5" fill="#334155" stroke="white" stroke-width="2" paint-order="stroke fill">${lbl.a}/</text>`;
     nodeSvg += `<text x="${lblX.toFixed(1)}" y="${(lblY+6).toFixed(1)}" text-anchor="${anchor}" font-size="8.5" fill="#334155" stroke="white" stroke-width="2" paint-order="stroke fill">${lbl.b}</text>`;
-    const hint = isGiver ? '😵먹힘' : '🥯먹임';
+    const hint = isGiver ? '😵베이글패' : '🥯베이글승';
     nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+spokeR+13).toFixed(1)}" text-anchor="middle" font-size="8.5" fill="${isGiver?'#dc2626':'#16a34a'}" stroke="white" stroke-width="2" paint-order="stroke fill">${hint}</text>`;
   });
 
@@ -9850,11 +9846,6 @@ function _bdDrawDiagram(svgEl, filteredEdges, pairInfo, myPairKeys, myName, node
       lx = (sx+ex)/2; ly = (sy+ey)/2 - 7;
     }
     edgeSvg += `<path d="${pathD}" stroke="${color}" stroke-width="${sw}" fill="none" marker-end="url(#${mid})" opacity="0.85"/>`;
-    if (e.count > 1) {
-      const lineAngleDeg = Math.atan2(tp.y - fp.y, tp.x - fp.x) * 180 / Math.PI;
-      const rot = (lineAngleDeg > 90 || lineAngleDeg < -90) ? lineAngleDeg + 180 : lineAngleDeg;
-      edgeSvg += `<g transform="rotate(${rot.toFixed(1)},${lx.toFixed(1)},${ly.toFixed(1)})"><text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="9" font-weight="800" fill="${color}" stroke="white" stroke-width="2.5" paint-order="stroke fill">${e.count}회</text></g>`;
-    }
   });
 
   let nodeSvg = '';
@@ -9912,8 +9903,8 @@ function _renderBdChips(chipsEl, legendEl, memberNames, myName) {
   if (legendEl) {
     legendEl.innerHTML = `<div style="display:flex;gap:12px;padding:5px 12px;font-size:0.69rem;color:#64748b;flex-wrap:wrap;align-items:center">
       <span>🟡→ 방향</span><span style="color:#dc2626">🔴↔ 상호</span>
-      <span style="color:#16a34a">🟢=먹임</span><span style="color:#dc2626">🔴=먹힘</span>
-      <span>🥯×N 줌 / 😵×N 먹힘</span>
+      <span style="color:#16a34a">🟢=베이글승</span><span style="color:#dc2626">🔴=베이글패</span>
+      <span>🥯×N 베이글승 / 😵×N 베이글패</span>
     </div>`;
   }
 }
