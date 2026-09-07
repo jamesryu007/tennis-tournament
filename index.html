@@ -2756,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1128';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1129';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -3438,10 +3438,34 @@ function addMember() {
 
 function deleteMember(id) {
   if (!isAdmin()) { alert('회원 삭제는 관리자만 가능합니다.'); return; }
-  if (!confirm('정회원을 삭제하시겠습니까?')) return;
+  if (!confirm('정회원을 삭제하시겠습니까?\n삭제 시 FCM 푸시 토큰도 함께 제거됩니다.')) return;
+  const target = state.members.find(m => m.id === id);
   state.members = state.members.filter(m => m.id !== id);
   state.selectedIds.delete(id);
   removeMemberRecord(id);
+  // FCM 토큰 삭제 — 해당 이름으로 등록된 토큰 전체 제거
+  if (db && target) {
+    db.ref('jmt/fcmTokens').once('value').then(snap => {
+      const data = snap.val() || {};
+      const updates = {};
+      Object.entries(data).forEach(([key, val]) => {
+        if (val.name === target.name) updates['jmt/fcmTokens/' + key] = null;
+      });
+      if (Object.keys(updates).length) db.ref().update(updates).catch(fbErr);
+    }).catch(fbErr);
+  }
+  renderMemberList();
+  renderChecks();
+  updateSummary();
+}
+
+// ── 회원 활성/비활성 상태 전환 (관리자 전용) ─────────────────────
+function setMemberStatus(id, status) {
+  if (!isAdmin()) return;
+  const m = state.members.find(m => m.id === id);
+  if (!m) return;
+  m.status = status;
+  saveMemberRecord(m);
   renderMemberList();
   renderChecks();
   updateSummary();
@@ -3462,7 +3486,8 @@ function getMemberStats(name) {
 
 function renderMemberList() {
   const el = document.getElementById('member-list');
-  document.getElementById('member-count').textContent = `${state.members.length}명`;
+  const activeCount = state.members.filter(m => m.status !== 'inactive').length;
+  document.getElementById('member-count').textContent = `${state.members.length}명 (활성 ${activeCount}명)`;
   if (!state.members.length) {
     el.innerHTML = '<div class="empty-state" style="padding:20px 0"><div class="icon" style="font-size:2rem">👤</div><p>등록된 정회원이 없습니다</p></div>';
     return;
@@ -3475,10 +3500,12 @@ function renderMemberList() {
     const isBirthMonth = m.birthday && m.birthday.split('-')[1] === curMonth;
     const bday = m.birthday ? m.birthday.slice(5).replace('-', '/') : '';
 
-    return `<div class="member-card ${m.gender}">
+    const isInactive = m.status === 'inactive';
+    return `<div class="member-card ${m.gender}" style="${isInactive?'opacity:0.55;':''}">
       <div class="member-info">
         <div class="member-name">
           ${m.name}${m.nickname ? ` <span style="font-size:0.76rem;color:#94a3b8;font-weight:400">(${m.nickname})</span>` : ''}
+          ${isInactive ? '<span style="font-size:0.65rem;font-weight:700;background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;margin-left:4px">비활성</span>' : ''}
         </div>
         <div class="member-meta">
           <span class="badge ${m.gender==='male'?'badge-male':'badge-female'}">${m.gender==='male'?'남':'여'}</span>
@@ -3497,6 +3524,7 @@ function renderMemberList() {
             ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="openEditMember(${m.id})">수정</button>` : ''}
             ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="openSetPin('${m.name}')" title="${hasPin?'PIN 변경':'PIN 설정'}" style="${hasPin?'color:#2563eb;border-color:#93c5fd':'color:#94a3b8'}">🔑</button>` : ''}
             ${curName === ADMIN_NAME ? `<button class="btn btn-outline btn-sm" onclick="openBioModal('${m.name}')" style="color:#7c3aed;border-color:#c4b5fd">Bio</button>` : ''}
+            ${curName === ADMIN_NAME ? `<button class="btn btn-outline btn-sm" onclick="setMemberStatus(${m.id},'${isInactive?'active':'inactive'}')" style="${isInactive?'color:#16a34a;border-color:#86efac':'color:#dc2626;border-color:#fca5a5'}">${isInactive?'활성화':'비활성'}</button>` : ''}
             ${canDel  ? `<button class="btn btn-danger" onclick="deleteMember(${m.id})">삭제</button>` : ''}`;
         })()}
       </div>
@@ -3506,8 +3534,9 @@ function renderMemberList() {
 
 // ══ PARTICIPANT CHECKBOXES ══
 function renderChecks() {
-  const males = state.members.filter(m => m.gender==='male');
-  const females = state.members.filter(m => m.gender==='female');
+  const activeMembers = state.members.filter(m => m.status !== 'inactive');
+  const males = activeMembers.filter(m => m.gender==='male');
+  const females = activeMembers.filter(m => m.gender==='female');
   const mEl = document.getElementById('male-checks');
   const fEl = document.getElementById('female-checks');
   mEl.innerHTML = males.length ? males.map(checkItem).join('') : '<p class="text-muted" style="font-size:0.8rem;padding:2px 0">등록된 남자 정회원 없음</p>';
@@ -3534,7 +3563,7 @@ function toggleMember(id) {
 }
 
 function toggleSelectAll() {
-  const allIds = state.members.map(m => m.id);
+  const allIds = state.members.filter(m => m.status !== 'inactive').map(m => m.id);
   const allSelected = allIds.length > 0 && allIds.every(id => state.selectedIds.has(id));
   if (allSelected) allIds.forEach(id => state.selectedIds.delete(id));
   else allIds.forEach(id => state.selectedIds.add(id));
@@ -3546,7 +3575,7 @@ function toggleSelectAll() {
 function updateSelectAllBtn() {
   const btn = document.getElementById('select-all-btn');
   if (!btn) return;
-  const allIds = state.members.map(m => m.id);
+  const allIds = state.members.filter(m => m.status !== 'inactive').map(m => m.id);
   const allSelected = allIds.length > 0 && allIds.every(id => state.selectedIds.has(id));
   btn.textContent = allSelected ? '전체 해제' : '전체 선택';
 }
@@ -7810,15 +7839,16 @@ function _reGroupDailyCards(){
 }
 
 function _allPlayers(){
-  const selected=state.members.filter(m=>state.selectedIds&&state.selectedIds.has(m.id)).map(m=>m.name);
+  const activeMembers=state.members.filter(m=>m.status!=='inactive');
+  const selected=activeMembers.filter(m=>state.selectedIds&&state.selectedIds.has(m.id)).map(m=>m.name);
   // state.guests(모임만들기) + state.pollData.guests(출첵) 합산, 중복 제거
   const guestSet=new Set([
     ...(state.guests||[]).map(g=>g.name),
     ...(state.pollData&&state.pollData.guests?Object.values(state.pollData.guests).map(g=>g.name):[])
   ]);
   const guests=[...guestSet];
-  // 선택된 멤버가 없으면 전체 멤버 사용, 게스트는 항상 추가
-  const base=selected.length>0?selected:state.members.map(m=>m.name);
+  // 선택된 멤버가 없으면 활성 멤버 전체 사용, 게스트는 항상 추가
+  const base=selected.length>0?selected:activeMembers.map(m=>m.name);
   return [...new Set([...base,...guests])];
 }
 
@@ -12535,14 +12565,17 @@ function renderIdentityList() {
     return;
   }
   const cur = state.identity ? state.identity.name : null;
-  el.innerHTML = state.members.map(m => `
+  el.innerHTML = state.members.map(m => {
+    const isInactive = m.status === 'inactive';
+    return `
     <div class="identity-item${cur===m.name?' selected':''}" onclick="trySelectIdentity('${m.name.replace(/'/g,"\\'")}')">
       <span class="badge ${m.gender==='male'?'badge-male':'badge-female'}">${m.gender==='male'?'남':'여'}</span>
-      <span style="flex:1;font-size:0.9rem;font-weight:600;color:#1e293b">${m.name}${m.nickname?` <span style="font-weight:400;font-size:0.78rem;color:#94a3b8">(${m.nickname})</span>`:''}</span>
+      <span style="flex:1;font-size:0.9rem;font-weight:600;color:${isInactive?'#94a3b8':'#1e293b'}">${m.name}${m.nickname?` <span style="font-weight:400;font-size:0.78rem;color:#94a3b8">(${m.nickname})</span>`:''}${isInactive?' <span style="font-size:0.62rem;font-weight:700;background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 4px">비활성</span>':''}</span>
       ${m.ntrp?`<span class="badge badge-ntrp">NTRP ${m.ntrp}</span>`:''}
       ${_memberPins[m.name]?'<span style="font-size:0.75rem;color:#94a3b8">🔐</span>':''}
       ${cur===m.name?`<button onclick="event.stopPropagation();openSetPin('${m.name.replace(/'/g,"\\'")}')" style="background:none;border:1.5px solid #cbd5e1;border-radius:8px;padding:3px 7px;font-size:0.75rem;cursor:pointer;color:#64748b;flex-shrink:0">${_memberPins[m.name]?'🔑변경':'🔑설정'}</button><span style="color:#2563eb;font-size:1rem">✓</span>`:''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ── 관리자 전용 탭 사용 통계 렌더링 ─────────────────────────────
