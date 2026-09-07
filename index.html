@@ -2756,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1129';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1130';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -11693,7 +11693,7 @@ function renderCheckinPage() {
   const absentVoters   = votes.filter(v => v.vote === 'absent');
   const undecidedVoters = votes.filter(v => v.vote === 'undecided');
   const votedNames     = votes.map(v => v.name);
-  const notVoted       = state.members.filter(m => !votedNames.includes(m.name));
+  const notVoted       = state.members.filter(m => m.status !== 'inactive' && !votedNames.includes(m.name));
   const totalAttending = attendVoters.length + lateVoters.length + guestEntries.length;
 
   const [y, mo, d] = (ps.satDate || '----').split('-');
@@ -11738,7 +11738,7 @@ function renderCheckinPage() {
     </div>`;
   };
 
-  const totalMembers = state.members.length;
+  const totalMembers = state.members.filter(m => m.status !== 'inactive').length;
   const votedCount = votes.length;
   const votePct = totalMembers > 0 ? Math.round(votedCount / totalMembers * 100) : 0;
 
@@ -11772,7 +11772,8 @@ function renderCheckinPage() {
     html += `<div class="card">
       <div class="card-title">내 출석 투표</div>
       ${!myName?`<p style="font-size:0.8rem;color:#94a3b8;margin-bottom:8px">접속자를 선택하면 투표할 수 있습니다</p>`:''}
-      <div class="vote-btn-group">
+      ${myName&&state.members.find(m=>m.name===myName)?.status==='inactive'?`<p style="font-size:0.8rem;color:#dc2626;margin-bottom:8px;background:#fee2e2;padding:6px 10px;border-radius:8px">비활성 회원은 출첵에 참여할 수 없습니다.</p>`:''}
+      <div class="vote-btn-group" style="${myName&&state.members.find(m=>m.name===myName)?.status==='inactive'?'opacity:0.35;pointer-events:none':''}">
         <button class="vote-btn attend${myVote==='attend'?' active':''}" onclick="castVote('attend')">
           <span class="vote-check">✓</span>
           <div style="font-size:1.6rem">✅</div>
@@ -11979,6 +11980,9 @@ function renderCheckinPage() {
 async function castVote(vote) {
   const myName = state.identity && state.identity.name;
   if(!myName) { alert('먼저 접속자를 선택하세요.'); return; }
+  // 비활성 회원은 출첵 투표 불가
+  const _mySelf = state.members.find(m => m.name === myName);
+  if(_mySelf && _mySelf.status === 'inactive') { alert('비활성 회원은 출첵 투표에 참여할 수 없습니다.'); return; }
   if(!state.pollState || !state.pollState.weekId) return;
   if(state.pollState.status !== 'open') { alert('투표가 마감되었습니다.'); return; }
   const weekId = state.pollState.weekId;
