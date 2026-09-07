@@ -2756,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1128';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1133';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -3438,10 +3438,34 @@ function addMember() {
 
 function deleteMember(id) {
   if (!isAdmin()) { alert('회원 삭제는 관리자만 가능합니다.'); return; }
-  if (!confirm('정회원을 삭제하시겠습니까?')) return;
+  if (!confirm('정회원을 삭제하시겠습니까?\n삭제 시 FCM 푸시 토큰도 함께 제거됩니다.')) return;
+  const target = state.members.find(m => m.id === id);
   state.members = state.members.filter(m => m.id !== id);
   state.selectedIds.delete(id);
   removeMemberRecord(id);
+  // FCM 토큰 삭제 — 해당 이름으로 등록된 토큰 전체 제거
+  if (db && target) {
+    db.ref('jmt/fcmTokens').once('value').then(snap => {
+      const data = snap.val() || {};
+      const updates = {};
+      Object.entries(data).forEach(([key, val]) => {
+        if (val.name === target.name) updates['jmt/fcmTokens/' + key] = null;
+      });
+      if (Object.keys(updates).length) db.ref().update(updates).catch(fbErr);
+    }).catch(fbErr);
+  }
+  renderMemberList();
+  renderChecks();
+  updateSummary();
+}
+
+// ── 회원 활성/비활성 상태 전환 (관리자 전용) ─────────────────────
+function setMemberStatus(id, status) {
+  if (!isAdmin()) return;
+  const m = state.members.find(m => m.id === id);
+  if (!m) return;
+  m.status = status;
+  saveMemberRecord(m);
   renderMemberList();
   renderChecks();
   updateSummary();
@@ -3462,7 +3486,8 @@ function getMemberStats(name) {
 
 function renderMemberList() {
   const el = document.getElementById('member-list');
-  document.getElementById('member-count').textContent = `${state.members.length}명`;
+  const activeCount = state.members.filter(m => m.status !== 'inactive').length;
+  document.getElementById('member-count').textContent = `${state.members.length}명 (활성 ${activeCount}명)`;
   if (!state.members.length) {
     el.innerHTML = '<div class="empty-state" style="padding:20px 0"><div class="icon" style="font-size:2rem">👤</div><p>등록된 정회원이 없습니다</p></div>';
     return;
@@ -3475,10 +3500,12 @@ function renderMemberList() {
     const isBirthMonth = m.birthday && m.birthday.split('-')[1] === curMonth;
     const bday = m.birthday ? m.birthday.slice(5).replace('-', '/') : '';
 
-    return `<div class="member-card ${m.gender}">
+    const isInactive = m.status === 'inactive';
+    return `<div class="member-card ${m.gender}" style="${isInactive?'opacity:0.55;':''}">
       <div class="member-info">
         <div class="member-name">
           ${m.name}${m.nickname ? ` <span style="font-size:0.76rem;color:#94a3b8;font-weight:400">(${m.nickname})</span>` : ''}
+          ${isInactive ? '<span style="font-size:0.65rem;font-weight:700;background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;margin-left:4px">비활성</span>' : ''}
         </div>
         <div class="member-meta">
           <span class="badge ${m.gender==='male'?'badge-male':'badge-female'}">${m.gender==='male'?'남':'여'}</span>
@@ -3497,6 +3524,7 @@ function renderMemberList() {
             ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="openEditMember(${m.id})">수정</button>` : ''}
             ${canEdit ? `<button class="btn btn-outline btn-sm" onclick="openSetPin('${m.name}')" title="${hasPin?'PIN 변경':'PIN 설정'}" style="${hasPin?'color:#2563eb;border-color:#93c5fd':'color:#94a3b8'}">🔑</button>` : ''}
             ${curName === ADMIN_NAME ? `<button class="btn btn-outline btn-sm" onclick="openBioModal('${m.name}')" style="color:#7c3aed;border-color:#c4b5fd">Bio</button>` : ''}
+            ${curName === ADMIN_NAME ? `<button class="btn btn-outline btn-sm" onclick="setMemberStatus(${m.id},'${isInactive?'active':'inactive'}')" style="${isInactive?'color:#16a34a;border-color:#86efac':'color:#dc2626;border-color:#fca5a5'}">${isInactive?'활성화':'비활성'}</button>` : ''}
             ${canDel  ? `<button class="btn btn-danger" onclick="deleteMember(${m.id})">삭제</button>` : ''}`;
         })()}
       </div>
@@ -3506,8 +3534,9 @@ function renderMemberList() {
 
 // ══ PARTICIPANT CHECKBOXES ══
 function renderChecks() {
-  const males = state.members.filter(m => m.gender==='male');
-  const females = state.members.filter(m => m.gender==='female');
+  const activeMembers = state.members.filter(m => m.status !== 'inactive');
+  const males = activeMembers.filter(m => m.gender==='male');
+  const females = activeMembers.filter(m => m.gender==='female');
   const mEl = document.getElementById('male-checks');
   const fEl = document.getElementById('female-checks');
   mEl.innerHTML = males.length ? males.map(checkItem).join('') : '<p class="text-muted" style="font-size:0.8rem;padding:2px 0">등록된 남자 정회원 없음</p>';
@@ -3534,7 +3563,7 @@ function toggleMember(id) {
 }
 
 function toggleSelectAll() {
-  const allIds = state.members.map(m => m.id);
+  const allIds = state.members.filter(m => m.status !== 'inactive').map(m => m.id);
   const allSelected = allIds.length > 0 && allIds.every(id => state.selectedIds.has(id));
   if (allSelected) allIds.forEach(id => state.selectedIds.delete(id));
   else allIds.forEach(id => state.selectedIds.add(id));
@@ -3546,7 +3575,7 @@ function toggleSelectAll() {
 function updateSelectAllBtn() {
   const btn = document.getElementById('select-all-btn');
   if (!btn) return;
-  const allIds = state.members.map(m => m.id);
+  const allIds = state.members.filter(m => m.status !== 'inactive').map(m => m.id);
   const allSelected = allIds.length > 0 && allIds.every(id => state.selectedIds.has(id));
   btn.textContent = allSelected ? '전체 해제' : '전체 선택';
 }
@@ -4756,6 +4785,9 @@ function setDailyCreateMode(mode){
 }
 
 function executeDailyCreate(){
+  const _execCurName=(state.identity&&state.identity.name)||'';
+  const _execMember=state.members.find(m=>m.name===_execCurName);
+  if(_execMember&&_execMember.status==='inactive'){alert('비활성 회원은 경기 카드를 만들 수 없습니다.');return;}
   if(_dailyCreateMode==='individual'){
     addDailyMatchCard();
   } else {
@@ -7212,7 +7244,7 @@ function _getAllAutoDrawAttendeesRaw(){
     :[];
   const attendNames=new Set(votes.filter(v=>v.vote==='attend'||v.vote==='late').map(v=>v.name));
   const members=state.members
-    .filter(m=>attendNames.has(m.name))
+    .filter(m=>m.status!=='inactive'&&attendNames.has(m.name))
     .map(m=>({name:m.name,gender:m.gender||'male',ntrp:m.ntrp||''}));
   const guests=state.pollData&&state.pollData.guests
     ?Object.values(state.pollData.guests).map(g=>({name:g.name,gender:g.gender||'male',ntrp:g.ntrp||''}))
@@ -7810,15 +7842,16 @@ function _reGroupDailyCards(){
 }
 
 function _allPlayers(){
-  const selected=state.members.filter(m=>state.selectedIds&&state.selectedIds.has(m.id)).map(m=>m.name);
+  const activeMembers=state.members.filter(m=>m.status!=='inactive');
+  const selected=activeMembers.filter(m=>state.selectedIds&&state.selectedIds.has(m.id)).map(m=>m.name);
   // state.guests(모임만들기) + state.pollData.guests(출첵) 합산, 중복 제거
   const guestSet=new Set([
     ...(state.guests||[]).map(g=>g.name),
     ...(state.pollData&&state.pollData.guests?Object.values(state.pollData.guests).map(g=>g.name):[])
   ]);
   const guests=[...guestSet];
-  // 선택된 멤버가 없으면 전체 멤버 사용, 게스트는 항상 추가
-  const base=selected.length>0?selected:state.members.map(m=>m.name);
+  // 선택된 멤버가 없으면 활성 멤버 전체 사용, 게스트는 항상 추가
+  const base=selected.length>0?selected:activeMembers.map(m=>m.name);
   return [...new Set([...base,...guests])];
 }
 
@@ -8018,8 +8051,10 @@ function _renderDailyCard(id){
     // 팀 모드: 자기 팀 멤버는 자기 팀 선수 선택 가능 (팀장 포함)
     const _isTeamA=d._teamMode&&(d._teamANames||[]).includes(_curName);
     const _isTeamB=d._teamMode&&(d._teamBNames||[]).includes(_curName);
-    const canEditTeam0=d._teamMode?(canManage||_isTeamA):!!_curName;
-    const canEditTeam1=d._teamMode?(canManage||_isTeamB):!!_curName;
+    const _curMemberObj=state.members.find(m=>m.name===_curName);
+    const _curIsInactive=!!(_curMemberObj&&_curMemberObj.status==='inactive');
+    const canEditTeam0=!_curIsInactive&&(d._teamMode?(canManage||_isTeamA):!!_curName);
+    const canEditTeam1=!_curIsInactive&&(d._teamMode?(canManage||_isTeamB):!!_curName);
     const canStart=canManage||isParticipant||_isTeamA||_isTeamB;
     const _aLabel=d._teamMode?`🔵 ${(d._teamANames||[])[0]?(d._teamANames[0]+'팀'):'A팀'}`:(_isSingles?'선수 A':'팀 A');
     const _bLabel=d._teamMode?`🔴 ${(d._teamBNames||[])[0]?(d._teamBNames[0]+'팀'):'B팀'}`:(_isSingles?'선수 B':'팀 B');
@@ -8114,10 +8149,14 @@ function _renderDailyCard(id){
 }
 
 function openDailyPick(id,side){
+  const _pickCurName=(state.identity&&state.identity.name)||'';
+  const _pickMember=state.members.find(m=>m.name===_pickCurName);
+  if(_pickMember&&_pickMember.status==='inactive') return;
   _dailyPickCtx={id,side};
   const _c=_dailyCards[id];
   _dailyPickSingles=_c&&_c.matchType==='singles';
-  _dailyPickSel=[..._c[`team${side}`]];
+  const _activeNames=new Set(state.members.filter(m=>m.status!=='inactive').map(m=>m.name));
+  _dailyPickSel=(_c[`team${side}`]||[]).filter(n=>_activeNames.has(n)||!(state.members.some(m=>m.name===n)));
   let titleText;
   if(_c&&_c._teamMode){
     const _names=side===0?(_c._teamANames||[]):(_c._teamBNames||[]);
@@ -8182,7 +8221,8 @@ function _renderDailyPickList(){
 
   // 페어링된 닉네임 섹션 — 단식 모드에서는 숨김
   if(!_dailyPickSingles){
-    const allPairs=Object.entries(state.pairNicknames||{});
+    const _activePlayers=new Set(players);
+    const allPairs=Object.entries(state.pairNicknames||{}).filter(([key])=>{const [a,b]=key.split('_');return _activePlayers.has(a)&&_activePlayers.has(b);});
     const visiblePairs=teamFilter
       ?allPairs.filter(([key])=>{const [a,b]=key.split('_');return teamFilter.has(a)&&teamFilter.has(b);})
       :allPairs;
@@ -11663,7 +11703,7 @@ function renderCheckinPage() {
   const absentVoters   = votes.filter(v => v.vote === 'absent');
   const undecidedVoters = votes.filter(v => v.vote === 'undecided');
   const votedNames     = votes.map(v => v.name);
-  const notVoted       = state.members.filter(m => !votedNames.includes(m.name));
+  const notVoted       = state.members.filter(m => m.status !== 'inactive' && !votedNames.includes(m.name));
   const totalAttending = attendVoters.length + lateVoters.length + guestEntries.length;
 
   const [y, mo, d] = (ps.satDate || '----').split('-');
@@ -11708,7 +11748,7 @@ function renderCheckinPage() {
     </div>`;
   };
 
-  const totalMembers = state.members.length;
+  const totalMembers = state.members.filter(m => m.status !== 'inactive').length;
   const votedCount = votes.length;
   const votePct = totalMembers > 0 ? Math.round(votedCount / totalMembers * 100) : 0;
 
@@ -11742,7 +11782,8 @@ function renderCheckinPage() {
     html += `<div class="card">
       <div class="card-title">내 출석 투표</div>
       ${!myName?`<p style="font-size:0.8rem;color:#94a3b8;margin-bottom:8px">접속자를 선택하면 투표할 수 있습니다</p>`:''}
-      <div class="vote-btn-group">
+      ${myName&&state.members.find(m=>m.name===myName)?.status==='inactive'?`<p style="font-size:0.8rem;color:#dc2626;margin-bottom:8px;background:#fee2e2;padding:6px 10px;border-radius:8px">비활성 회원은 출첵에 참여할 수 없습니다.</p>`:''}
+      <div class="vote-btn-group" style="${myName&&state.members.find(m=>m.name===myName)?.status==='inactive'?'opacity:0.35;pointer-events:none':''}">
         <button class="vote-btn attend${myVote==='attend'?' active':''}" onclick="castVote('attend')">
           <span class="vote-check">✓</span>
           <div style="font-size:1.6rem">✅</div>
@@ -11949,6 +11990,9 @@ function renderCheckinPage() {
 async function castVote(vote) {
   const myName = state.identity && state.identity.name;
   if(!myName) { alert('먼저 접속자를 선택하세요.'); return; }
+  // 비활성 회원은 출첵 투표 불가
+  const _mySelf = state.members.find(m => m.name === myName);
+  if(_mySelf && _mySelf.status === 'inactive') { alert('비활성 회원은 출첵 투표에 참여할 수 없습니다.'); return; }
   if(!state.pollState || !state.pollState.weekId) return;
   if(state.pollState.status !== 'open') { alert('투표가 마감되었습니다.'); return; }
   const weekId = state.pollState.weekId;
@@ -12535,14 +12579,17 @@ function renderIdentityList() {
     return;
   }
   const cur = state.identity ? state.identity.name : null;
-  el.innerHTML = state.members.map(m => `
+  el.innerHTML = state.members.map(m => {
+    const isInactive = m.status === 'inactive';
+    return `
     <div class="identity-item${cur===m.name?' selected':''}" onclick="trySelectIdentity('${m.name.replace(/'/g,"\\'")}')">
       <span class="badge ${m.gender==='male'?'badge-male':'badge-female'}">${m.gender==='male'?'남':'여'}</span>
-      <span style="flex:1;font-size:0.9rem;font-weight:600;color:#1e293b">${m.name}${m.nickname?` <span style="font-weight:400;font-size:0.78rem;color:#94a3b8">(${m.nickname})</span>`:''}</span>
+      <span style="flex:1;font-size:0.9rem;font-weight:600;color:${isInactive?'#94a3b8':'#1e293b'}">${m.name}${m.nickname?` <span style="font-weight:400;font-size:0.78rem;color:#94a3b8">(${m.nickname})</span>`:''}${isInactive?' <span style="font-size:0.62rem;font-weight:700;background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 4px">비활성</span>':''}</span>
       ${m.ntrp?`<span class="badge badge-ntrp">NTRP ${m.ntrp}</span>`:''}
       ${_memberPins[m.name]?'<span style="font-size:0.75rem;color:#94a3b8">🔐</span>':''}
       ${cur===m.name?`<button onclick="event.stopPropagation();openSetPin('${m.name.replace(/'/g,"\\'")}')" style="background:none;border:1.5px solid #cbd5e1;border-radius:8px;padding:3px 7px;font-size:0.75rem;cursor:pointer;color:#64748b;flex-shrink:0">${_memberPins[m.name]?'🔑변경':'🔑설정'}</button><span style="color:#2563eb;font-size:1rem">✓</span>`:''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ── 관리자 전용 탭 사용 통계 렌더링 ─────────────────────────────
