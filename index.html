@@ -2756,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1131';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1132';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -8147,7 +8147,8 @@ function openDailyPick(id,side){
   _dailyPickCtx={id,side};
   const _c=_dailyCards[id];
   _dailyPickSingles=_c&&_c.matchType==='singles';
-  _dailyPickSel=[..._c[`team${side}`]];
+  const _activeNames=new Set(state.members.filter(m=>m.status!=='inactive').map(m=>m.name));
+  _dailyPickSel=(_c[`team${side}`]||[]).filter(n=>_activeNames.has(n)||!(state.members.some(m=>m.name===n)));
   let titleText;
   if(_c&&_c._teamMode){
     const _names=side===0?(_c._teamANames||[]):(_c._teamBNames||[]);
@@ -8212,7 +8213,8 @@ function _renderDailyPickList(){
 
   // 페어링된 닉네임 섹션 — 단식 모드에서는 숨김
   if(!_dailyPickSingles){
-    const allPairs=Object.entries(state.pairNicknames||{});
+    const _activePlayers=new Set(players);
+    const allPairs=Object.entries(state.pairNicknames||{}).filter(([key])=>{const [a,b]=key.split('_');return _activePlayers.has(a)&&_activePlayers.has(b);});
     const visiblePairs=teamFilter
       ?allPairs.filter(([key])=>{const [a,b]=key.split('_');return teamFilter.has(a)&&teamFilter.has(b);})
       :allPairs;
