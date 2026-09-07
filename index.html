@@ -2756,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1132';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1133';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4785,6 +4785,9 @@ function setDailyCreateMode(mode){
 }
 
 function executeDailyCreate(){
+  const _execCurName=(state.identity&&state.identity.name)||'';
+  const _execMember=state.members.find(m=>m.name===_execCurName);
+  if(_execMember&&_execMember.status==='inactive'){alert('비활성 회원은 경기 카드를 만들 수 없습니다.');return;}
   if(_dailyCreateMode==='individual'){
     addDailyMatchCard();
   } else {
@@ -8048,8 +8051,10 @@ function _renderDailyCard(id){
     // 팀 모드: 자기 팀 멤버는 자기 팀 선수 선택 가능 (팀장 포함)
     const _isTeamA=d._teamMode&&(d._teamANames||[]).includes(_curName);
     const _isTeamB=d._teamMode&&(d._teamBNames||[]).includes(_curName);
-    const canEditTeam0=d._teamMode?(canManage||_isTeamA):!!_curName;
-    const canEditTeam1=d._teamMode?(canManage||_isTeamB):!!_curName;
+    const _curMemberObj=state.members.find(m=>m.name===_curName);
+    const _curIsInactive=!!(_curMemberObj&&_curMemberObj.status==='inactive');
+    const canEditTeam0=!_curIsInactive&&(d._teamMode?(canManage||_isTeamA):!!_curName);
+    const canEditTeam1=!_curIsInactive&&(d._teamMode?(canManage||_isTeamB):!!_curName);
     const canStart=canManage||isParticipant||_isTeamA||_isTeamB;
     const _aLabel=d._teamMode?`🔵 ${(d._teamANames||[])[0]?(d._teamANames[0]+'팀'):'A팀'}`:(_isSingles?'선수 A':'팀 A');
     const _bLabel=d._teamMode?`🔴 ${(d._teamBNames||[])[0]?(d._teamBNames[0]+'팀'):'B팀'}`:(_isSingles?'선수 B':'팀 B');
@@ -8144,6 +8149,9 @@ function _renderDailyCard(id){
 }
 
 function openDailyPick(id,side){
+  const _pickCurName=(state.identity&&state.identity.name)||'';
+  const _pickMember=state.members.find(m=>m.name===_pickCurName);
+  if(_pickMember&&_pickMember.status==='inactive') return;
   _dailyPickCtx={id,side};
   const _c=_dailyCards[id];
   _dailyPickSingles=_c&&_c.matchType==='singles';
