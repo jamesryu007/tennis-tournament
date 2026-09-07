@@ -2756,7 +2756,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1130';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1131';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -7241,7 +7241,7 @@ function _getAllAutoDrawAttendeesRaw(){
     :[];
   const attendNames=new Set(votes.filter(v=>v.vote==='attend'||v.vote==='late').map(v=>v.name));
   const members=state.members
-    .filter(m=>attendNames.has(m.name))
+    .filter(m=>m.status!=='inactive'&&attendNames.has(m.name))
     .map(m=>({name:m.name,gender:m.gender||'male',ntrp:m.ntrp||''}));
   const guests=state.pollData&&state.pollData.guests
     ?Object.values(state.pollData.guests).map(g=>({name:g.name,gender:g.gender||'male',ntrp:g.ntrp||''}))
