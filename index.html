@@ -626,6 +626,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 #player-profile-modal { z-index: 400; }
 #partner-diagram-modal { z-index: 295; }  /* match-query-modal(300)이 위에 표시되도록 */
 #singles-diagram-modal { z-index: 295; }
+#bagel-diagram-modal  { z-index: 295; }
 #photo-edit-modal { z-index: 10001; }
 .modal-overlay.open { display: flex; }
 .modal { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px 20px 0 0; width: 100%; max-width: 520px; box-shadow: 0 -8px 30px rgba(0,0,0,0.12); }
@@ -2261,6 +2262,7 @@ const firebaseConfig = {
         <div id="rank-year-row" class="rank-year-row" style="margin:0"></div>
         <button onclick="openPartnerDiagram()" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#f472b6,#fbcfe8);border:2px solid rgba(255,255,255,0.4);color:#fff;font-size:1.4rem;cursor:pointer;padding:0;flex-shrink:0;animation:pdBtnGlow 2.2s ease-in-out 3;box-shadow:0 3px 12px rgba(244,114,182,0.4);display:flex;align-items:center;justify-content:center;line-height:1">🫂</button>
         <button onclick="openSinglesDiagram()" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#15803d,#16a34a);border:2px solid rgba(255,255,255,0.4);color:#fff;font-size:1.4rem;cursor:pointer;padding:0;flex-shrink:0;box-shadow:0 3px 12px rgba(22,163,74,0.5);display:flex;align-items:center;justify-content:center;line-height:1" title="맞짱 다이어그램">⚔️</button>
+        <button onclick="openBagelDiagram()" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#b45309,#d97706);border:2px solid rgba(255,255,255,0.4);color:#fff;font-size:1.4rem;cursor:pointer;padding:0;flex-shrink:0;box-shadow:0 3px 12px rgba(180,83,9,0.4);display:flex;align-items:center;justify-content:center;line-height:1" title="베이글 다이어그램">🥯</button>
       </div>
     </div>
   </div>
@@ -2756,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1133';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1134';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5951,9 +5953,10 @@ function openMatchQueryModal(){
 function closeMatchQueryModal(){
   document.getElementById('match-query-modal').classList.remove('open');
   _mqSinglesOpponents = false;  // 모달 닫을 때 항상 초기화
-  // 파트너/맞짱 다이어그램이 열려 있으면 overflow 유지
+  // 파트너/맞짱/베이글 다이어그램이 열려 있으면 overflow 유지
   if (!document.getElementById('partner-diagram-modal').classList.contains('open') &&
-      !document.getElementById('singles-diagram-modal').classList.contains('open')) {
+      !document.getElementById('singles-diagram-modal').classList.contains('open') &&
+      !document.getElementById('bagel-diagram-modal').classList.contains('open')) {
     document.body.style.overflow='';
   }
 }
@@ -9537,6 +9540,238 @@ function closeSinglesDiagram() {
   document.getElementById('singles-diagram-modal').classList.remove('open');
   document.body.style.overflow = '';
 }
+
+// ── 베이글 다이어그램 (팀페어간 4:0/6:0 방향 그래프) ────────────
+let _bdFilterMember = null; // null = 전체
+let _bdDataCache = null;
+
+function openBagelDiagram() {
+  const myName = (state.identity && state.identity.name) || '';
+  const memberNames = (state.members || []).map(m => m.name);
+  _bdFilterMember = (myName && memberNames.includes(myName)) ? myName : null;
+  document.getElementById('bagel-diagram-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  _renderBagelDiagram();
+}
+function closeBagelDiagram() {
+  document.getElementById('bagel-diagram-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// jmt/matches 전체 스캔 → 4:0/6:0 세트 기준 페어간 베이글 엣지 추출 (캐시)
+async function _getBagelDiagramData() {
+  if (_bdDataCache) return _bdDataCache;
+  if (!db) return { edges: [], pairInfo: {} };
+  const snap = await db.ref('jmt/matches').once('value');
+  const allMatches = snap.val() || {};
+  const toArr = v => Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []);
+  const edgeMap = {};   // 'fromKey→toKey': count
+  const pairInfo = {};  // pairKey: { names: [n1,n2] }
+
+  Object.values(allMatches).forEach(m => {
+    if (!m.team0 || !m.team1 || m.winner === undefined) return;
+    const t0 = toArr(m.team0), t1 = toArr(m.team1);
+    if (t0.length !== 2 || t1.length !== 2) return; // 복식만
+    const sets = m.sets ? toArr(m.sets) : [];
+    if (!sets.length) return;
+    const pk0 = getPairKey(t0[0], t0[1]);
+    const pk1 = getPairKey(t1[0], t1[1]);
+    if (!pairInfo[pk0]) pairInfo[pk0] = { names: pk0.split('_') };
+    if (!pairInfo[pk1]) pairInfo[pk1] = { names: pk1.split('_') };
+    sets.forEach(s => {
+      const a = parseInt(s.s0), b = parseInt(s.s1);
+      if ((a === 4 && b === 0) || (a === 6 && b === 0)) {
+        const k = pk0 + '→' + pk1;
+        edgeMap[k] = (edgeMap[k] || 0) + 1;
+      }
+      if ((a === 0 && b === 4) || (a === 0 && b === 6)) {
+        const k = pk1 + '→' + pk0;
+        edgeMap[k] = (edgeMap[k] || 0) + 1;
+      }
+    });
+  });
+
+  const edges = Object.entries(edgeMap).map(([key, count]) => {
+    const idx = key.indexOf('→');
+    return { from: key.slice(0, idx), to: key.slice(idx + 1), count };
+  });
+  _bdDataCache = { edges, pairInfo };
+  return _bdDataCache;
+}
+
+async function _renderBagelDiagram() {
+  const svgEl = document.getElementById('bd-svg-wrap');
+  const chipsEl = document.getElementById('bd-chips');
+  const legendEl = document.getElementById('bd-legend');
+  if (!svgEl || !chipsEl) return;
+  svgEl.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;font-size:0.85rem">🥯 데이터 불러오는 중...</div>';
+
+  const { edges, pairInfo } = await _getBagelDiagramData();
+  const memberNames = (state.members || []).map(m => m.name);
+  const memberSet = new Set(memberNames);
+  const myName = (state.identity && state.identity.name) || '';
+
+  // state.pairNicknames 로 닉네임 보완
+  Object.keys(pairInfo).forEach(pk => {
+    if (state.pairNicknames && state.pairNicknames[pk]) pairInfo[pk].nickname = state.pairNicknames[pk];
+  });
+
+  // 현역 멤버가 하나 이상 포함된 페어만 대상
+  const isActivePair = pk => { const ns = pairInfo[pk] ? pairInfo[pk].names : pk.split('_'); return ns.some(n => memberSet.has(n)); };
+
+  // 필터 적용
+  let filteredEdges;
+  if (_bdFilterMember) {
+    const myPKs = new Set(Object.keys(pairInfo).filter(pk => { const ns = pairInfo[pk].names || pk.split('_'); return ns.includes(_bdFilterMember); }));
+    filteredEdges = edges.filter(e => myPKs.has(e.from) || myPKs.has(e.to));
+  } else {
+    filteredEdges = edges.filter(e => isActivePair(e.from) || isActivePair(e.to));
+  }
+
+  _renderBdChips(chipsEl, legendEl, memberNames, myName);
+
+  if (!filteredEdges.length) {
+    svgEl.innerHTML = _bdFilterMember
+      ? `<p style="text-align:center;color:#94a3b8;padding:30px 20px;font-size:0.88rem">🥯 <strong>${_bdFilterMember}</strong>의 페어 베이글 기록이 없습니다.<br><span style="font-size:0.78rem">전체 버튼으로 전체 기록을 확인하세요.</span></p>`
+      : '<p style="text-align:center;color:#94a3b8;padding:30px 20px;font-size:0.88rem">🥯 아직 베이글 기록이 없습니다!<br><span style="font-size:0.78rem">4:0 또는 6:0 세트 경기가 등록되면 여기에 나타나요.</span></p>';
+    return;
+  }
+
+  // 노드 목록
+  const nodeKeySet = new Set();
+  filteredEdges.forEach(e => { nodeKeySet.add(e.from); nodeKeySet.add(e.to); });
+  const nodeKeys = [...nodeKeySet];
+  const N = nodeKeys.length;
+
+  // 내 페어 키
+  const myPairKeys = new Set(nodeKeys.filter(pk => { const ns = pairInfo[pk] ? pairInfo[pk].names : pk.split('_'); return ns.includes(myName); }));
+
+  // 뮤추얼 감지 (A→B & B→A 동시 존재)
+  const mutualSet = new Set();
+  filteredEdges.forEach(e => { if (filteredEdges.some(r => r.from === e.to && r.to === e.from)) mutualSet.add(e.from + '→' + e.to); });
+
+  // 원형 레이아웃
+  const SIZE = 500, cx = 250, cy = 250;
+  const R = N <= 3 ? 90 : N <= 6 ? 130 : N <= 10 ? 158 : N <= 14 ? 170 : 178;
+  const nodeR = 22;
+  const pos = {};
+  nodeKeys.forEach((pk, i) => {
+    const angle = (2 * Math.PI * i / N) - Math.PI / 2;
+    pos[pk] = { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle) };
+  });
+
+  // 페어 표시 라벨
+  const getPairLabel = pk => {
+    const info = pairInfo[pk] || {};
+    const names = info.names || pk.split('_');
+    const nick = info.nickname || null;
+    const g0 = getGender(names[0]), g1 = getGender(names[1]);
+    let a = names[0], b = names[1];
+    if (g0 === 'female' && g1 !== 'female') { a = names[1]; b = names[0]; }
+    const autoNick = (a[0] || '?') + (b[0] || '?') + '팀';
+    return { nick: nick || autoNick, a, b };
+  };
+
+  // SVG 화살표 마커
+  const defs = `<defs>
+    <marker id="bd-arr-n" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="bd-arr-m" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 z" fill="#dc2626"/>
+    </marker>
+    <marker id="bd-arr-me" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 z" fill="#2563eb"/>
+    </marker>
+  </defs>`;
+
+  // 엣지 그리기
+  let edgeSvg = '';
+  filteredEdges.forEach(e => {
+    const fp = pos[e.from], tp = pos[e.to];
+    if (!fp || !tp) return;
+    const isMutual = mutualSet.has(e.from + '→' + e.to);
+    const isMyEdge = myPairKeys.has(e.from) || myPairKeys.has(e.to);
+    const color = isMutual ? '#dc2626' : isMyEdge ? '#2563eb' : '#f59e0b';
+    const mid = isMutual ? 'bd-arr-m' : isMyEdge ? 'bd-arr-me' : 'bd-arr-n';
+    const sw = Math.min(1.5 + e.count * 0.5, 5);
+    const dx = tp.x - fp.x, dy = tp.y - fp.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const ux = dx / dist, uy = dy / dist;
+    let pathD, lx, ly;
+    if (isMutual) {
+      const off = 20, nx = -uy * off, ny = ux * off;
+      const mx = (fp.x + tp.x) / 2 + nx, my = (fp.y + tp.y) / 2 + ny;
+      const ex = tp.x - ux * (nodeR + 4), ey = tp.y - uy * (nodeR + 4);
+      pathD = `M${(fp.x + ux*(nodeR+2)).toFixed(1)},${(fp.y + uy*(nodeR+2)).toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${ex.toFixed(1)},${ey.toFixed(1)}`;
+      lx = mx; ly = my - 9;
+    } else {
+      const sx = fp.x + ux*(nodeR+2), sy = fp.y + uy*(nodeR+2);
+      const ex = tp.x - ux*(nodeR+5), ey = tp.y - uy*(nodeR+5);
+      pathD = `M${sx.toFixed(1)},${sy.toFixed(1)} L${ex.toFixed(1)},${ey.toFixed(1)}`;
+      lx = (sx + ex) / 2; ly = (sy + ey) / 2 - 7;
+    }
+    edgeSvg += `<path d="${pathD}" stroke="${color}" stroke-width="${sw}" fill="none" marker-end="url(#${mid})" opacity="0.85"/>`;
+    if (e.count > 1) edgeSvg += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="9" font-weight="800" fill="${color}">${e.count}회</text>`;
+  });
+
+  // 노드 그리기
+  let nodeSvg = '';
+  nodeKeys.forEach((pk, i) => {
+    const p = pos[pk];
+    const lbl = getPairLabel(pk);
+    const isMyPair = myPairKeys.has(pk);
+    const givenCnt = filteredEdges.filter(e => e.from === pk).reduce((s, e) => s + e.count, 0);
+    const recvCnt  = filteredEdges.filter(e => e.to   === pk).reduce((s, e) => s + e.count, 0);
+    const fill   = isMyPair ? '#eff6ff' : '#fffbeb';
+    const stroke = isMyPair ? '#3b82f6' : '#fbbf24';
+    const sw     = isMyPair ? 2.5 : 1.8;
+    const textC  = isMyPair ? '#1d4ed8' : '#92400e';
+    const angle  = (2 * Math.PI * i / N) - Math.PI / 2;
+    const lblDist = nodeR + 14;
+    const lblX = p.x + Math.cos(angle) * lblDist;
+    const lblY = p.y + Math.sin(angle) * lblDist;
+    const anchor = Math.abs(Math.cos(angle)) < 0.25 ? 'middle' : Math.cos(angle) > 0 ? 'start' : 'end';
+    nodeSvg += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${nodeR}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+4).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="800" fill="${textC}">${lbl.nick}</text>`;
+    nodeSvg += `<text x="${lblX.toFixed(1)}" y="${lblY.toFixed(1)}" text-anchor="${anchor}" font-size="7.5" fill="#475569">${lbl.a}/${lbl.b}</text>`;
+    if (givenCnt) nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y-nodeR-4).toFixed(1)}" text-anchor="middle" font-size="9" fill="#16a34a">🥯×${givenCnt}</text>`;
+    if (recvCnt)  nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+nodeR+12).toFixed(1)}" text-anchor="middle" font-size="9" fill="#dc2626">😵×${recvCnt}</text>`;
+  });
+
+  svgEl.innerHTML = `<svg width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}" style="max-width:100%;max-height:100%;overflow:visible">
+    ${defs}<g>${edgeSvg}</g><g>${nodeSvg}</g>
+  </svg>`;
+}
+
+function _renderBdChips(chipsEl, legendEl, memberNames, myName) {
+  const allActive = !_bdFilterMember;
+  const allSt = allActive
+    ? 'display:inline-block;cursor:pointer;padding:4px 11px;margin:2px;border-radius:12px;font-size:0.78rem;font-weight:800;background:linear-gradient(135deg,#b45309,#d97706);color:#fff;border:none;box-shadow:0 2px 6px rgba(180,83,9,0.35)'
+    : 'display:inline-block;cursor:pointer;padding:4px 11px;margin:2px;border-radius:12px;font-size:0.78rem;font-weight:600;background:#fef3c7;color:#b45309;border:1.5px solid #fcd34d';
+  chipsEl.innerHTML = `<span onclick="_bdSetFilter(null)" style="${allSt}">전체</span>` +
+    memberNames.map(name => {
+      const isSel = _bdFilterMember === name, isMe = name === myName;
+      const st = isSel
+        ? 'display:inline-block;cursor:pointer;padding:4px 11px;margin:2px;border-radius:12px;font-size:0.78rem;font-weight:800;background:linear-gradient(135deg,#b45309,#d97706);color:#fff;border:none'
+        : isMe
+          ? 'display:inline-block;cursor:pointer;padding:4px 11px;margin:2px;border-radius:12px;font-size:0.78rem;font-weight:700;background:#fff7ed;color:#b45309;border:1.5px solid #fcd34d'
+          : 'display:inline-block;cursor:pointer;padding:4px 11px;margin:2px;border-radius:12px;font-size:0.78rem;font-weight:600;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0';
+      return `<span onclick="_bdSetFilter('${name}')" style="${st}">${isMe ? '⭐ ' : ''}${name}</span>`;
+    }).join('');
+  if (legendEl) legendEl.innerHTML = `<div style="display:flex;gap:12px;padding:5px 12px;font-size:0.69rem;color:#64748b;flex-wrap:wrap;align-items:center">
+    <span>🟡→ 베이글 방향</span>
+    <span style="color:#dc2626">🔴↔ 상호 베이글</span>
+    <span style="color:#2563eb">🔵 내 페어 연결</span>
+    <span>🥯×N 준 횟수 / 😵×N 먹힌 횟수</span>
+  </div>`;
+}
+
+function _bdSetFilter(name) {
+  _bdFilterMember = name;
+  _renderBagelDiagram();
+}
+
 function _sdToggleMember(name) {
   if (_sdSelectedMembers.has(name)) {
     _sdSelectedMembers.delete(name);
@@ -15632,6 +15867,19 @@ async function triggerAtpRefresh() {
     <div id="sd-chips" style="padding:5px 10px 4px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid #e2e8f0;flex-shrink:0;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:#f0fdf4"></div>
     <div id="sd-legend" style="flex-shrink:0;border-bottom:1px solid #bbf7d0;background:#f0fdf4"></div>
     <div id="sd-svg-wrap" style="flex:1;overflow:hidden;display:flex;justify-content:center;align-items:center;background:linear-gradient(160deg,#f0fdf4 0%,#dcfce7 100%)"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="bagel-diagram-modal" onclick="if(event.target===this)closeBagelDiagram()">
+  <div class="modal" style="height:85vh;max-height:85vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
+    <div class="modal-handle" style="margin:8px auto 0"></div>
+    <div class="modal-header" style="padding:9px 14px 8px;flex-shrink:0;background:linear-gradient(135deg,#b45309 0%,#d97706 100%);border-radius:20px 20px 0 0">
+      <span class="modal-round" style="font-size:1.05rem;font-weight:800;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.2)">🥯 베이글 다이어그램</span>
+      <button class="modal-close" onclick="closeBagelDiagram()" style="background:rgba(255,255,255,0.2);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:0.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    <div id="bd-chips" style="padding:5px 10px 4px;overflow-x:auto;white-space:nowrap;border-bottom:1px solid #fde68a;flex-shrink:0;-webkit-overflow-scrolling:touch;scrollbar-width:none;background:#fffbeb"></div>
+    <div id="bd-legend" style="flex-shrink:0;border-bottom:1px solid #fde68a;background:#fffbeb"></div>
+    <div id="bd-svg-wrap" style="flex:1;overflow:hidden;display:flex;justify-content:center;align-items:center;background:linear-gradient(160deg,#fffbeb 0%,#fef3c7 100%)"></div>
   </div>
 </div>
 
