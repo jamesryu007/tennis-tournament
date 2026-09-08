@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1148';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1149';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9831,7 +9831,8 @@ function _bdDrawHubDiagram(svgEl, edges, pairInfo, focusPk, myName) {
   nodeSvg += `<text x="${cx}" y="${cy+8}" text-anchor="middle" font-size="15" fill="#3b82f6" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${fl.a}/</text>`;
   nodeSvg += `<text x="${cx}" y="${cy+26}" text-anchor="middle" font-size="15" fill="#3b82f6" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${fl.b}</text>`;
   if (_bdNewPairKeys.has(focusPk)) {
-    const _nbx = cx, _nby = cy - hubR - 12;
+    // 중심 노드 왼쪽에 배치 — 화살표(상하 방향)와 겹치지 않도록
+    const _nbx = cx - hubR - 26, _nby = cy;
     nodeSvg += `<rect x="${(_nbx-24).toFixed(1)}" y="${(_nby-10).toFixed(1)}" width="48" height="20" rx="10" fill="#dc2626" stroke="white" stroke-width="2" style="pointer-events:none"/>`;
     nodeSvg += `<text x="${_nbx.toFixed(1)}" y="${(_nby+5).toFixed(1)}" text-anchor="middle" font-size="13" font-weight="900" fill="#fff" style="pointer-events:none">NEW</text>`;
   }
@@ -9856,11 +9857,7 @@ function _bdDrawHubDiagram(svgEl, edges, pairInfo, focusPk, myName) {
     nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y-10).toFixed(1)}" text-anchor="middle" font-size="16" font-weight="800" fill="${textC}" stroke="white" stroke-width="2" paint-order="stroke fill" style="pointer-events:none">${lbl.nick}</text>`;
     nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+7).toFixed(1)}" text-anchor="middle" font-size="13" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${lbl.a}/</text>`;
     nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+23).toFixed(1)}" text-anchor="middle" font-size="13" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${lbl.b}</text>`;
-    if (_bdNewPairKeys.has(pk)) {
-      const _nbx = p.x, _nby = p.y - spokeR - 11;
-      nodeSvg += `<rect x="${(_nbx-20).toFixed(1)}" y="${(_nby-9).toFixed(1)}" width="40" height="18" rx="9" fill="#dc2626" stroke="white" stroke-width="1.5" style="pointer-events:none"/>`;
-      nodeSvg += `<text x="${_nbx.toFixed(1)}" y="${(_nby+5).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="900" fill="#fff" style="pointer-events:none">NEW</text>`;
-    }
+    // hub 외부 노드: NEW 미표시 (중심 노드에만 표기, 화살표 가림 방지)
     // 힌트: 횟수 표기, 상호(mutual)이면 승/패 각각 표시
     if (winCount > 0) {
       const wLabel = `🥯${fl.nick} 베이글승${winCount > 1 ? ' ×'+winCount : ''}`;
@@ -9958,9 +9955,14 @@ function _bdDrawDiagram(svgEl, filteredEdges, pairInfo, myPairKeys, myName) {
     if (givenCnt) nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y-nodeR-7).toFixed(1)}" text-anchor="middle" font-size="${badgeFs}" fill="#16a34a" stroke="white" stroke-width="2" paint-order="stroke fill">🥯×${givenCnt}</text>`;
     if (recvCnt)  nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+nodeR+15).toFixed(1)}" text-anchor="middle" font-size="${badgeFs}" fill="#dc2626" stroke="white" stroke-width="2" paint-order="stroke fill">😵×${recvCnt}</text>`;
     if (_bdNewPairKeys.has(pk)) {
-      const _nbx = p.x, _nby = p.y - nodeR - 10;
-      nodeSvg += `<rect x="${(_nbx-20).toFixed(1)}" y="${(_nby-9).toFixed(1)}" width="40" height="18" rx="9" fill="#dc2626" stroke="white" stroke-width="1.5" style="pointer-events:none"/>`;
-      nodeSvg += `<text x="${_nbx.toFixed(1)}" y="${(_nby+5).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="900" fill="#fff" style="pointer-events:none">NEW</text>`;
+      // 링 바깥 방향에 배치 — 화살표(노드 간 연결)와 겹치지 않도록
+      const _outAngle = (2 * Math.PI * i / N) - Math.PI / 2;
+      const _nbx = p.x + Math.cos(_outAngle) * (nodeR + 20);
+      const _nby = p.y + Math.sin(_outAngle) * (nodeR + 20);
+      const _nAnchor = Math.cos(_outAngle) > 0.3 ? 'start' : Math.cos(_outAngle) < -0.3 ? 'end' : 'middle';
+      const _nRx = _nAnchor === 'start' ? _nbx - 4 : _nAnchor === 'end' ? _nbx - 36 : _nbx - 20;
+      nodeSvg += `<rect x="${_nRx.toFixed(1)}" y="${(_nby-9).toFixed(1)}" width="40" height="18" rx="9" fill="#dc2626" stroke="white" stroke-width="1.5" style="pointer-events:none"/>`;
+      nodeSvg += `<text x="${(_nRx+20).toFixed(1)}" y="${(_nby+5).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="900" fill="#fff" style="pointer-events:none">NEW</text>`;
     }
   });
 
