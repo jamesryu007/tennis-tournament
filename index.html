@@ -2262,7 +2262,7 @@ const firebaseConfig = {
         <div id="rank-year-row" class="rank-year-row" style="margin:0"></div>
         <button onclick="openPartnerDiagram()" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#f472b6,#fbcfe8);border:2px solid rgba(255,255,255,0.4);color:#fff;font-size:1.4rem;cursor:pointer;padding:0;flex-shrink:0;animation:pdBtnGlow 2.2s ease-in-out 3;box-shadow:0 3px 12px rgba(244,114,182,0.4);display:flex;align-items:center;justify-content:center;line-height:1">🫂</button>
         <button onclick="openSinglesDiagram()" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#15803d,#16a34a);border:2px solid rgba(255,255,255,0.4);color:#fff;font-size:1.4rem;cursor:pointer;padding:0;flex-shrink:0;box-shadow:0 3px 12px rgba(22,163,74,0.5);display:flex;align-items:center;justify-content:center;line-height:1" title="맞짱 다이어그램">⚔️</button>
-        <button onclick="openBagelDiagram()" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#b45309,#d97706);border:2px solid rgba(255,255,255,0.4);color:#fff;font-size:1.4rem;cursor:pointer;padding:0;flex-shrink:0;box-shadow:0 3px 12px rgba(180,83,9,0.4);display:flex;align-items:center;justify-content:center;line-height:1" title="베이글 다이어그램">🥯</button>
+        <button id="bagel-diagram-btn" onclick="openBagelDiagram()" style="position:relative;width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#b45309,#d97706);border:2px solid rgba(255,255,255,0.4);color:#fff;font-size:1.4rem;cursor:pointer;padding:0;flex-shrink:0;box-shadow:0 3px 12px rgba(180,83,9,0.4);display:flex;align-items:center;justify-content:center;line-height:1" title="베이글 다이어그램">🥯<span id="bagel-new-badge" style="display:none;position:absolute;top:-5px;right:-6px;background:#dc2626;color:#fff;font-size:0.58rem;font-weight:900;border-radius:10px;padding:1px 4px;min-width:16px;text-align:center;pointer-events:none;line-height:1.5;border:1.5px solid #fff;white-space:nowrap"></span></button>
       </div>
     </div>
   </div>
@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1145';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1146';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5078,6 +5078,7 @@ function _setupDailyCardsListener(){
       }).catch(fbErr);
     }
     _renderDailyCard(id);
+    _updateBagelBadge();
   });
   db.ref('jmt/dailyCards').on('child_removed', snap=>{
     const id=snap.key;
@@ -5095,6 +5096,7 @@ function _setupDailyCardsListener(){
     if(_dailyCards[id]) return; // 이미 로컬에 있는 카드 (내가 생성했거나 once('value')로 로드됨)
     _dailyCards[id]=_normCard(raw);
     _reGroupDailyCards();
+    _updateBagelBadge();
   });
 }
 
@@ -9568,7 +9570,32 @@ function openBagelDiagram() {
   _bdFilterPartner = null;
   document.getElementById('bagel-diagram-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
+  // 뱃지 클리어 — 현재 시각을 "마지막 확인 시각"으로 저장
+  localStorage.setItem('jmt_bagel_viewed_ts', Date.now().toString());
+  _updateBagelBadge();
   _renderBagelDiagram();
+}
+
+// 🥯 버튼 뱃지: 마지막 확인 이후 새로 완료된 베이글 경기 수 표시
+function _updateBagelBadge() {
+  const badge = document.getElementById('bagel-new-badge');
+  if (!badge) return;
+  const lastTs = parseInt(localStorage.getItem('jmt_bagel_viewed_ts') || '0');
+  let count = 0;
+  Object.values(_dailyCards).forEach(card => {
+    if (card.phase !== 'done' || card.winner === undefined) return;
+    const hasBagel = (card.sets || []).some(s => {
+      const a = parseInt(s.s0), b = parseInt(s.s1);
+      return (a===4&&b===0)||(a===6&&b===0)||(a===0&&b===4)||(a===0&&b===6);
+    });
+    if (hasBagel && (card.createdAt || 0) > lastTs) count++;
+  });
+  if (count > 0) {
+    badge.textContent = '+' + count;
+    badge.style.display = '';
+  } else {
+    badge.style.display = 'none';
+  }
 }
 function closeBagelDiagram() {
   document.getElementById('bagel-diagram-modal').classList.remove('open');
