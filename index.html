@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1149';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1150';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9830,42 +9830,38 @@ function _bdDrawHubDiagram(svgEl, edges, pairInfo, focusPk, myName) {
   nodeSvg += `<text x="${cx}" y="${cy-12}" text-anchor="middle" font-size="20" font-weight="900" fill="#1d4ed8" stroke="white" stroke-width="2" paint-order="stroke fill" style="pointer-events:none">${fl.nick}</text>`;
   nodeSvg += `<text x="${cx}" y="${cy+8}" text-anchor="middle" font-size="15" fill="#3b82f6" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${fl.a}/</text>`;
   nodeSvg += `<text x="${cx}" y="${cy+26}" text-anchor="middle" font-size="15" fill="#3b82f6" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${fl.b}</text>`;
-  if (_bdNewPairKeys.has(focusPk)) {
-    // 중심 노드 왼쪽에 배치 — 화살표(상하 방향)와 겹치지 않도록
-    const _nbx = cx - hubR - 26, _nby = cy;
-    nodeSvg += `<rect x="${(_nbx-24).toFixed(1)}" y="${(_nby-10).toFixed(1)}" width="48" height="20" rx="10" fill="#dc2626" stroke="white" stroke-width="2" style="pointer-events:none"/>`;
-    nodeSvg += `<text x="${_nbx.toFixed(1)}" y="${(_nby+5).toFixed(1)}" text-anchor="middle" font-size="13" font-weight="900" fill="#fff" style="pointer-events:none">NEW</text>`;
-  }
-
-  // 주변 노드: 팀명+선수명 원 안에, 결과 힌트는 원 바깥(중심 반대편) — 화살표와 겹침 방지
+  // 주변 노드: 팀명+선수명 원 안에, 결과 힌트+NEW는 원 바깥(중심 반대편) — 화살표와 겹침 방지
   others.forEach((pk, i) => {
     const p = pos[pk];
     const lbl = getPairLabel(pk);
-    // 중심 기준: 이 노드가 베이글을 준 횟수(= 우리 패) / 우리가 베이글 준 횟수(= 우리 승)
     const lossCount = edges.filter(e => e.from === pk && e.to === focusPk).reduce((s,e) => s+e.count, 0);
     const winCount  = edges.filter(e => e.from === focusPk && e.to === pk).reduce((s,e) => s+e.count, 0);
-    const isMutual = lossCount > 0 && winCount > 0;
     const fill = lossCount > 0 ? (winCount > 0 ? '#fefce8' : '#fff1f2') : '#f0fdf4';
     const stroke = lossCount > 0 ? (winCount > 0 ? '#fbbf24' : '#f87171') : '#4ade80';
     const textC = lossCount > 0 ? (winCount > 0 ? '#92400e' : '#b91c1c') : '#15803d';
-    // 힌트 위치: 중심에서 멀어지는 방향 — 화살표와 겹침 방지
     const outAngle = Math.atan2(p.y - cy, p.x - cx);
     const hx = p.x + Math.cos(outAngle) * (spokeR + 18);
-    const hy = p.y + Math.sin(outAngle) * (spokeR + 14);
+    let hy = p.y + Math.sin(outAngle) * (spokeR + 14);
     const hAnchor = Math.cos(outAngle) > 0.3 ? 'start' : Math.cos(outAngle) < -0.3 ? 'end' : 'middle';
     nodeSvg += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${spokeR}" fill="${fill}" stroke="${stroke}" stroke-width="2.5" style="cursor:pointer" onclick="_bdNodeClick('${lbl.a}','${lbl.b}')"/>`;
     nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y-10).toFixed(1)}" text-anchor="middle" font-size="16" font-weight="800" fill="${textC}" stroke="white" stroke-width="2" paint-order="stroke fill" style="pointer-events:none">${lbl.nick}</text>`;
     nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+7).toFixed(1)}" text-anchor="middle" font-size="13" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${lbl.a}/</text>`;
     nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+23).toFixed(1)}" text-anchor="middle" font-size="13" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${lbl.b}</text>`;
-    // hub 외부 노드: NEW 미표시 (중심 노드에만 표기, 화살표 가림 방지)
-    // 힌트: 횟수 표기, 상호(mutual)이면 승/패 각각 표시
+    // NEW 뱃지: 힌트 텍스트 바로 위, 바깥 방향 — 어느 페어와의 새 베이글인지 명확
+    if (_bdNewPairKeys.has(pk)) {
+      const _nx = hAnchor === 'start' ? hx + 20 : hAnchor === 'end' ? hx - 20 : hx;
+      nodeSvg += `<rect x="${(_nx-20).toFixed(1)}" y="${(hy-22).toFixed(1)}" width="40" height="17" rx="8" fill="#dc2626" stroke="white" stroke-width="1.5" style="pointer-events:none"/>`;
+      nodeSvg += `<text x="${_nx.toFixed(1)}" y="${(hy-9).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="900" fill="#fff" style="pointer-events:none">NEW</text>`;
+      hy += 2; // 힌트 텍스트 살짝 아래로
+    }
+    // 힌트: 횟수 표기, 상호이면 승/패 각각 표시
     if (winCount > 0) {
       const wLabel = `🥯${fl.nick} 베이글승${winCount > 1 ? ' ×'+winCount : ''}`;
       nodeSvg += `<text x="${hx.toFixed(1)}" y="${hy.toFixed(1)}" text-anchor="${hAnchor}" font-size="12" font-weight="800" fill="#16a34a" stroke="white" stroke-width="2.5" paint-order="stroke fill">${wLabel}</text>`;
     }
     if (lossCount > 0) {
       const lLabel = `😵${fl.nick} 베이글패${lossCount > 1 ? ' ×'+lossCount : ''}`;
-      const lyOffset = winCount > 0 ? 17 : 0; // 상호인 경우 승 아래에 표시
+      const lyOffset = winCount > 0 ? 17 : 0;
       nodeSvg += `<text x="${hx.toFixed(1)}" y="${(hy + lyOffset).toFixed(1)}" text-anchor="${hAnchor}" font-size="12" font-weight="800" fill="#dc2626" stroke="white" stroke-width="2.5" paint-order="stroke fill">${lLabel}</text>`;
     }
   });
