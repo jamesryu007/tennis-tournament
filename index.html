@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1150';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1151';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9852,7 +9852,7 @@ function _bdDrawHubDiagram(svgEl, edges, pairInfo, focusPk, myName) {
       const _nx = hAnchor === 'start' ? hx + 20 : hAnchor === 'end' ? hx - 20 : hx;
       nodeSvg += `<rect x="${(_nx-20).toFixed(1)}" y="${(hy-22).toFixed(1)}" width="40" height="17" rx="8" fill="#dc2626" stroke="white" stroke-width="1.5" style="pointer-events:none"/>`;
       nodeSvg += `<text x="${_nx.toFixed(1)}" y="${(hy-9).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="900" fill="#fff" style="pointer-events:none">NEW</text>`;
-      hy += 2; // 힌트 텍스트 살짝 아래로
+      hy += 22; // NEW 뱃지(17px) 아래로 힌트 텍스트 충분히 이격
     }
     // 힌트: 횟수 표기, 상호이면 승/패 각각 표시
     if (winCount > 0) {
