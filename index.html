@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1141';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1142';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9729,7 +9729,7 @@ function _bdDrawHubDiagram(svgEl, edges, pairInfo, focusPk, myName) {
   };
 
   const defs = _bdArrowDefs();
-  let edgeSvg = '', nodeSvg = '';
+  let edgeSvg = '', hitSvg = '', nodeSvg = '';
 
   edges.forEach(e => {
     const fp = pos[e.from], tp = pos[e.to];
@@ -9754,14 +9754,16 @@ function _bdDrawHubDiagram(svgEl, edges, pairInfo, focusPk, myName) {
       pathD = `M${sx.toFixed(1)},${sy.toFixed(1)} L${ex.toFixed(1)},${ey.toFixed(1)}`;
     }
     edgeSvg += `<path d="${pathD}" stroke="${color}" stroke-width="${sw}" fill="none" marker-end="url(#${markerId})" opacity="0.9"/>`;
+    // 화살표 투명 히트영역 — 클릭 시 경기 기록 조회
+    hitSvg += `<path d="${pathD}" stroke="transparent" stroke-width="22" fill="none" style="cursor:pointer" onclick="_bdArrowClick('${e.from}','${e.to}')"/>`;
   });
 
-  // 중심 노드 (팀명 + 선수명 원 안에) — 집계 텍스트 없음, 화살표로 방향 충분
+  // 중심 노드 (팀명 + 선수명 원 안에) — 클릭 시 페어 랭킹 베이글탭으로 이동
   const fl = getPairLabel(focusPk);
-  nodeSvg += `<circle cx="${cx}" cy="${cy}" r="${hubR}" fill="#eff6ff" stroke="#2563eb" stroke-width="3.5"/>`;
-  nodeSvg += `<text x="${cx}" y="${cy-12}" text-anchor="middle" font-size="20" font-weight="900" fill="#1d4ed8" stroke="white" stroke-width="2" paint-order="stroke fill">${fl.nick}</text>`;
-  nodeSvg += `<text x="${cx}" y="${cy+8}" text-anchor="middle" font-size="13" fill="#3b82f6" stroke="white" stroke-width="1.5" paint-order="stroke fill">${fl.a}/</text>`;
-  nodeSvg += `<text x="${cx}" y="${cy+24}" text-anchor="middle" font-size="13" fill="#3b82f6" stroke="white" stroke-width="1.5" paint-order="stroke fill">${fl.b}</text>`;
+  nodeSvg += `<circle cx="${cx}" cy="${cy}" r="${hubR}" fill="#eff6ff" stroke="#2563eb" stroke-width="3.5" style="cursor:pointer" onclick="_bdNodeClick('${fl.a}','${fl.b}')"/>`;
+  nodeSvg += `<text x="${cx}" y="${cy-12}" text-anchor="middle" font-size="20" font-weight="900" fill="#1d4ed8" stroke="white" stroke-width="2" paint-order="stroke fill" style="pointer-events:none">${fl.nick}</text>`;
+  nodeSvg += `<text x="${cx}" y="${cy+8}" text-anchor="middle" font-size="15" fill="#3b82f6" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${fl.a}/</text>`;
+  nodeSvg += `<text x="${cx}" y="${cy+26}" text-anchor="middle" font-size="15" fill="#3b82f6" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${fl.b}</text>`;
 
   // 주변 노드: 팀명+선수명 원 안에, 결과 힌트는 원 바깥(중심 반대편) — 화살표와 겹침 방지
   others.forEach((pk, i) => {
@@ -9779,10 +9781,10 @@ function _bdDrawHubDiagram(svgEl, edges, pairInfo, focusPk, myName) {
     const hx = p.x + Math.cos(outAngle) * (spokeR + 18);
     const hy = p.y + Math.sin(outAngle) * (spokeR + 14);
     const hAnchor = Math.cos(outAngle) > 0.3 ? 'start' : Math.cos(outAngle) < -0.3 ? 'end' : 'middle';
-    nodeSvg += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${spokeR}" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>`;
-    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y-10).toFixed(1)}" text-anchor="middle" font-size="16" font-weight="800" fill="${textC}" stroke="white" stroke-width="2" paint-order="stroke fill">${lbl.nick}</text>`;
-    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+7).toFixed(1)}" text-anchor="middle" font-size="11" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill">${lbl.a}/</text>`;
-    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+21).toFixed(1)}" text-anchor="middle" font-size="11" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill">${lbl.b}</text>`;
+    nodeSvg += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${spokeR}" fill="${fill}" stroke="${stroke}" stroke-width="2.5" style="cursor:pointer" onclick="_bdNodeClick('${lbl.a}','${lbl.b}')"/>`;
+    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y-10).toFixed(1)}" text-anchor="middle" font-size="16" font-weight="800" fill="${textC}" stroke="white" stroke-width="2" paint-order="stroke fill" style="pointer-events:none">${lbl.nick}</text>`;
+    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+7).toFixed(1)}" text-anchor="middle" font-size="13" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${lbl.a}/</text>`;
+    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+23).toFixed(1)}" text-anchor="middle" font-size="13" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${lbl.b}</text>`;
     // 힌트: 횟수 표기, 상호(mutual)이면 승/패 각각 표시
     if (winCount > 0) {
       const wLabel = `🥯${fl.nick} 베이글승${winCount > 1 ? ' ×'+winCount : ''}`;
@@ -9796,7 +9798,7 @@ function _bdDrawHubDiagram(svgEl, edges, pairInfo, focusPk, myName) {
   });
 
   svgEl.innerHTML = `<svg width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}" style="max-width:100%;max-height:100%;overflow:visible;touch-action:none">
-    ${defs}<g>${edgeSvg}</g><g>${nodeSvg}</g>
+    ${defs}<g>${edgeSvg}</g><g>${hitSvg}</g><g>${nodeSvg}</g>
   </svg>`;
   _bdSetupInteraction('bd-svg-wrap');
 }
@@ -9831,7 +9833,7 @@ function _bdDrawDiagram(svgEl, filteredEdges, pairInfo, myPairKeys, myName) {
   };
 
   const defs = _bdArrowDefs();
-  let edgeSvg = '';
+  let edgeSvg = '', hitSvg = '';
   filteredEdges.forEach(e => {
     const fp = pos[e.from], tp = pos[e.to];
     if (!fp || !tp) return;
@@ -9852,6 +9854,7 @@ function _bdDrawDiagram(svgEl, filteredEdges, pairInfo, myPairKeys, myName) {
       pathD = `M${sx.toFixed(1)},${sy.toFixed(1)} L${ex.toFixed(1)},${ey.toFixed(1)}`;
     }
     edgeSvg += `<path d="${pathD}" stroke="${color}" stroke-width="${sw}" fill="none" marker-end="url(#${mid})" opacity="0.85"/>`;
+    hitSvg += `<path d="${pathD}" stroke="transparent" stroke-width="22" fill="none" style="cursor:pointer" onclick="_bdArrowClick('${e.from}','${e.to}')"/>`;
   });
 
   // 폰트 크기 노드 크기에 비례
@@ -9870,17 +9873,18 @@ function _bdDrawDiagram(svgEl, filteredEdges, pairInfo, myPairKeys, myName) {
     const stroke = isMyPair ? '#3b82f6' : '#fbbf24';
     const sw = isMyPair ? 3 : 2;
     const textC = isMyPair ? '#1d4ed8' : '#92400e';
-    // 이름을 원 안에 표기 (닉네임 + 선수명 2줄)
-    nodeSvg += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${nodeR}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
-    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y-nodeR*0.2).toFixed(1)}" text-anchor="middle" font-size="${nickFs}" font-weight="800" fill="${textC}" stroke="white" stroke-width="2" paint-order="stroke fill">${lbl.nick}</text>`;
-    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+nodeR*0.35).toFixed(1)}" text-anchor="middle" font-size="${nameFs}" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill">${lbl.a}/</text>`;
-    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+nodeR*0.7).toFixed(1)}" text-anchor="middle" font-size="${nameFs}" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill">${lbl.b}</text>`;
+    // 이름을 원 안에 표기 (닉네임 + 선수명 2줄), 클릭 시 페어 랭킹으로 이동
+    const [pkA, pkB] = pk.split('_');
+    nodeSvg += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${nodeR}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" style="cursor:pointer" onclick="_bdNodeClick('${pkA}','${pkB}')"/>`;
+    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y-nodeR*0.2).toFixed(1)}" text-anchor="middle" font-size="${nickFs}" font-weight="800" fill="${textC}" stroke="white" stroke-width="2" paint-order="stroke fill" style="pointer-events:none">${lbl.nick}</text>`;
+    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+nodeR*0.35).toFixed(1)}" text-anchor="middle" font-size="${nameFs}" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${lbl.a}/</text>`;
+    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+nodeR*0.7).toFixed(1)}" text-anchor="middle" font-size="${nameFs}" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${lbl.b}</text>`;
     if (givenCnt) nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y-nodeR-7).toFixed(1)}" text-anchor="middle" font-size="${badgeFs}" fill="#16a34a" stroke="white" stroke-width="2" paint-order="stroke fill">🥯×${givenCnt}</text>`;
     if (recvCnt)  nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+nodeR+15).toFixed(1)}" text-anchor="middle" font-size="${badgeFs}" fill="#dc2626" stroke="white" stroke-width="2" paint-order="stroke fill">😵×${recvCnt}</text>`;
   });
 
   svgEl.innerHTML = `<svg width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}" style="max-width:100%;max-height:100%;overflow:visible;touch-action:none">
-    ${defs}<g>${edgeSvg}</g><g>${nodeSvg}</g>
+    ${defs}<g>${edgeSvg}</g><g>${hitSvg}</g><g>${nodeSvg}</g>
   </svg>`;
   _bdSetupInteraction('bd-svg-wrap');
 }
@@ -9926,6 +9930,34 @@ function _bdSetFilter(name) {
 function _bdSelectPartner(partnerName) {
   _bdFilterPartner = partnerName;
   _renderBagelDiagram();
+}
+
+// 베이글 다이어그램 — 노드 클릭: 해당 페어 랭킹 베이글탭으로 이동
+function _bdNodeClick(nameA, nameB) {
+  closeBagelDiagram();
+  setTimeout(() => jumpToPairBagel(nameA, nameB), 200);
+}
+
+// 베이글 다이어그램 — 화살표 클릭: 두 페어간 경기 기록 조회 팝업
+function _bdArrowClick(pk1, pk2) {
+  const [a1] = pk1.split('_');
+  const [a2] = pk2.split('_');
+  const today = new Date();
+  const toLocalDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const fromEl = document.getElementById('mq-date-from');
+  const toEl = document.getElementById('mq-date-to');
+  if (fromEl) fromEl.value = '2020-01-01'; // 전체 기간
+  if (toEl) toEl.value = toLocalDate(today);
+  const names = (state.members || []).map(m => m.name).filter(Boolean).sort();
+  const sel1 = document.getElementById('mq-player1');
+  const sel2 = document.getElementById('mq-player2');
+  if (sel1) { sel1.innerHTML = '<option value="">전체</option>' + names.map(n => `<option value="${n}">${n}</option>`).join(''); sel1.value = a1; }
+  if (sel2) { sel2.innerHTML = '<option value="">-</option>' + names.map(n => `<option value="${n}">${n}</option>`).join(''); sel2.value = a2; }
+  document.getElementById('match-query-inner').innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">조회 중…</p>';
+  document.body.style.overflow = 'hidden';
+  _mqSinglesOpponents = false;
+  document.getElementById('match-query-modal').classList.add('open');
+  setTimeout(() => queryMatchHistory(), 150);
 }
 
 function _bdSetupInteraction(wrapId) {
