@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1139';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1140';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9756,18 +9756,14 @@ function _bdDrawHubDiagram(svgEl, edges, pairInfo, focusPk, myName) {
     edgeSvg += `<path d="${pathD}" stroke="${color}" stroke-width="${sw}" fill="none" marker-end="url(#${markerId})" opacity="0.9"/>`;
   });
 
-  // 중심 노드 (팀명 + 선수명 원 안에)
+  // 중심 노드 (팀명 + 선수명 원 안에) — 집계 텍스트 없음, 화살표로 방향 충분
   const fl = getPairLabel(focusPk);
-  const fGiven = edges.filter(e => e.from === focusPk).reduce((s,e) => s+e.count, 0);
-  const fRecv  = edges.filter(e => e.to   === focusPk).reduce((s,e) => s+e.count, 0);
   nodeSvg += `<circle cx="${cx}" cy="${cy}" r="${hubR}" fill="#eff6ff" stroke="#2563eb" stroke-width="3.5"/>`;
-  nodeSvg += `<text x="${cx}" y="${cy-10}" text-anchor="middle" font-size="17" font-weight="900" fill="#1d4ed8" stroke="white" stroke-width="2" paint-order="stroke fill">${fl.nick}</text>`;
-  nodeSvg += `<text x="${cx}" y="${cy+8}" text-anchor="middle" font-size="11" fill="#3b82f6" stroke="white" stroke-width="1.5" paint-order="stroke fill">${fl.a}/</text>`;
-  nodeSvg += `<text x="${cx}" y="${cy+21}" text-anchor="middle" font-size="11" fill="#3b82f6" stroke="white" stroke-width="1.5" paint-order="stroke fill">${fl.b}</text>`;
-  if (fGiven) nodeSvg += `<text x="${cx}" y="${cy-hubR-10}" text-anchor="middle" font-size="13" fill="#16a34a" stroke="white" stroke-width="2.5" paint-order="stroke fill">🥯 ${fGiven}회 베이글승</text>`;
-  if (fRecv)  nodeSvg += `<text x="${cx}" y="${cy+hubR+20}" text-anchor="middle" font-size="13" fill="#dc2626" stroke="white" stroke-width="2.5" paint-order="stroke fill">😵 ${fRecv}회 베이글패</text>`;
+  nodeSvg += `<text x="${cx}" y="${cy-12}" text-anchor="middle" font-size="20" font-weight="900" fill="#1d4ed8" stroke="white" stroke-width="2" paint-order="stroke fill">${fl.nick}</text>`;
+  nodeSvg += `<text x="${cx}" y="${cy+8}" text-anchor="middle" font-size="13" fill="#3b82f6" stroke="white" stroke-width="1.5" paint-order="stroke fill">${fl.a}/</text>`;
+  nodeSvg += `<text x="${cx}" y="${cy+24}" text-anchor="middle" font-size="13" fill="#3b82f6" stroke="white" stroke-width="1.5" paint-order="stroke fill">${fl.b}</text>`;
 
-  // 주변 노드 (팀명 + 선수명 원 안에, 결과는 노드 아래 2줄)
+  // 주변 노드: 팀명+선수명 원 안에, 결과 힌트는 원 바깥(중심 반대편)에 1줄 — 화살표와 겹치지 않도록
   others.forEach((pk, i) => {
     const p = pos[pk];
     const lbl = getPairLabel(pk);
@@ -9775,15 +9771,18 @@ function _bdDrawHubDiagram(svgEl, edges, pairInfo, focusPk, myName) {
     const fill = isGiver ? '#fff1f2' : '#f0fdf4';
     const stroke = isGiver ? '#f87171' : '#4ade80';
     const textC = isGiver ? '#b91c1c' : '#15803d';
-    const hintIcon = isGiver ? '😵' : '🥯';
-    const hintResult = isGiver ? '베이글패' : '베이글승';
+    const hintText = isGiver ? `😵${fl.nick} 베이글패` : `🥯${fl.nick} 베이글승`;
     const hintColor = isGiver ? '#dc2626' : '#16a34a';
+    // 힌트 위치: 중심에서 멀어지는 방향(화살표 반대편) — 화살표와 겹침 방지
+    const outAngle = Math.atan2(p.y - cy, p.x - cx);
+    const hx = p.x + Math.cos(outAngle) * (spokeR + 18);
+    const hy = p.y + Math.sin(outAngle) * (spokeR + 14);
+    const hAnchor = Math.cos(outAngle) > 0.3 ? 'start' : Math.cos(outAngle) < -0.3 ? 'end' : 'middle';
     nodeSvg += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${spokeR}" fill="${fill}" stroke="${stroke}" stroke-width="2.5"/>`;
-    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y-8).toFixed(1)}" text-anchor="middle" font-size="14" font-weight="800" fill="${textC}" stroke="white" stroke-width="2" paint-order="stroke fill">${lbl.nick}</text>`;
-    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+8).toFixed(1)}" text-anchor="middle" font-size="10" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill">${lbl.a}/</text>`;
-    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+20).toFixed(1)}" text-anchor="middle" font-size="10" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill">${lbl.b}</text>`;
-    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+spokeR+17).toFixed(1)}" text-anchor="middle" font-size="11" fill="${hintColor}" stroke="white" stroke-width="2" paint-order="stroke fill">${hintIcon}${fl.nick}</text>`;
-    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+spokeR+31).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="800" fill="${hintColor}" stroke="white" stroke-width="2" paint-order="stroke fill">${hintResult}</text>`;
+    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y-10).toFixed(1)}" text-anchor="middle" font-size="16" font-weight="800" fill="${textC}" stroke="white" stroke-width="2" paint-order="stroke fill">${lbl.nick}</text>`;
+    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+7).toFixed(1)}" text-anchor="middle" font-size="11" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill">${lbl.a}/</text>`;
+    nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+21).toFixed(1)}" text-anchor="middle" font-size="11" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill">${lbl.b}</text>`;
+    nodeSvg += `<text x="${hx.toFixed(1)}" y="${hy.toFixed(1)}" text-anchor="${hAnchor}" font-size="12" font-weight="800" fill="${hintColor}" stroke="white" stroke-width="2.5" paint-order="stroke fill">${hintText}</text>`;
   });
 
   svgEl.innerHTML = `<svg width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}" style="max-width:100%;max-height:100%;overflow:visible;touch-action:none">
