@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1146';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1147';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9562,15 +9562,39 @@ function closeSinglesDiagram() {
 let _bdFilterMember = null;  // null = 전체
 let _bdFilterPartner = null; // 멤버 선택 후 파트너 선택 (2단계)
 let _bdDataCache = null;
+let _bdNewPairKeys = new Set(); // 마지막 확인 이후 새로 생성된 베이글 페어키
+
+// 마지막 확인 이후 새 베이글이 생긴 페어키 계산
+function _computeNewBagelPairKeys() {
+  const lastTs = parseInt(localStorage.getItem('jmt_bagel_viewed_ts') || '0');
+  const newKeys = new Set();
+  const toArr = v => Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []);
+  Object.values(_dailyCards).forEach(card => {
+    if (card.phase !== 'done' || card.winner === undefined) return;
+    if ((card.createdAt || 0) <= lastTs) return;
+    const t0 = toArr(card.team0), t1 = toArr(card.team1);
+    if (t0.length < 2 || t1.length < 2) return;
+    const hasBagel = toArr(card.sets).some(s => {
+      const a = parseInt(s.s0), b = parseInt(s.s1);
+      return (a===4&&b===0)||(a===6&&b===0)||(a===0&&b===4)||(a===0&&b===6);
+    });
+    if (hasBagel) {
+      newKeys.add(getPairKey(t0[0], t0[1]));
+      newKeys.add(getPairKey(t1[0], t1[1]));
+    }
+  });
+  return newKeys;
+}
 
 function openBagelDiagram() {
   const myName = (state.identity && state.identity.name) || '';
   const memberNames = (state.members || []).map(m => m.name);
   _bdFilterMember = (myName && memberNames.includes(myName)) ? myName : null;
   _bdFilterPartner = null;
+  // 뱃지 클리어 전에 새 페어키 계산 (ts 업데이트 후엔 비어버림)
+  _bdNewPairKeys = _computeNewBagelPairKeys();
   document.getElementById('bagel-diagram-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
-  // 뱃지 클리어 — 현재 시각을 "마지막 확인 시각"으로 저장
   localStorage.setItem('jmt_bagel_viewed_ts', Date.now().toString());
   _updateBagelBadge();
   _renderBagelDiagram();
@@ -9806,6 +9830,7 @@ function _bdDrawHubDiagram(svgEl, edges, pairInfo, focusPk, myName) {
   nodeSvg += `<text x="${cx}" y="${cy-12}" text-anchor="middle" font-size="20" font-weight="900" fill="#1d4ed8" stroke="white" stroke-width="2" paint-order="stroke fill" style="pointer-events:none">${fl.nick}</text>`;
   nodeSvg += `<text x="${cx}" y="${cy+8}" text-anchor="middle" font-size="15" fill="#3b82f6" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${fl.a}/</text>`;
   nodeSvg += `<text x="${cx}" y="${cy+26}" text-anchor="middle" font-size="15" fill="#3b82f6" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${fl.b}</text>`;
+  if (_bdNewPairKeys.has(focusPk)) nodeSvg += `<text x="${(cx+hubR).toFixed(1)}" y="${(cy-hubR+4).toFixed(1)}" text-anchor="start" font-size="14" paint-order="stroke fill" stroke="white" stroke-width="2" style="pointer-events:none">🆕</text>`;
 
   // 주변 노드: 팀명+선수명 원 안에, 결과 힌트는 원 바깥(중심 반대편) — 화살표와 겹침 방지
   others.forEach((pk, i) => {
@@ -9827,6 +9852,7 @@ function _bdDrawHubDiagram(svgEl, edges, pairInfo, focusPk, myName) {
     nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y-10).toFixed(1)}" text-anchor="middle" font-size="16" font-weight="800" fill="${textC}" stroke="white" stroke-width="2" paint-order="stroke fill" style="pointer-events:none">${lbl.nick}</text>`;
     nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+7).toFixed(1)}" text-anchor="middle" font-size="13" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${lbl.a}/</text>`;
     nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+23).toFixed(1)}" text-anchor="middle" font-size="13" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${lbl.b}</text>`;
+    if (_bdNewPairKeys.has(pk)) nodeSvg += `<text x="${(p.x+spokeR).toFixed(1)}" y="${(p.y-spokeR+4).toFixed(1)}" text-anchor="start" font-size="14" paint-order="stroke fill" stroke="white" stroke-width="2" style="pointer-events:none">🆕</text>`;
     // 힌트: 횟수 표기, 상호(mutual)이면 승/패 각각 표시
     if (winCount > 0) {
       const wLabel = `🥯${fl.nick} 베이글승${winCount > 1 ? ' ×'+winCount : ''}`;
@@ -9923,6 +9949,7 @@ function _bdDrawDiagram(svgEl, filteredEdges, pairInfo, myPairKeys, myName) {
     nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+nodeR*0.7).toFixed(1)}" text-anchor="middle" font-size="${nameFs}" fill="${textC}" stroke="white" stroke-width="1.5" paint-order="stroke fill" style="pointer-events:none">${lbl.b}</text>`;
     if (givenCnt) nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y-nodeR-7).toFixed(1)}" text-anchor="middle" font-size="${badgeFs}" fill="#16a34a" stroke="white" stroke-width="2" paint-order="stroke fill">🥯×${givenCnt}</text>`;
     if (recvCnt)  nodeSvg += `<text x="${p.x.toFixed(1)}" y="${(p.y+nodeR+15).toFixed(1)}" text-anchor="middle" font-size="${badgeFs}" fill="#dc2626" stroke="white" stroke-width="2" paint-order="stroke fill">😵×${recvCnt}</text>`;
+    if (_bdNewPairKeys.has(pk)) nodeSvg += `<text x="${(p.x+nodeR+2).toFixed(1)}" y="${(p.y-nodeR+2).toFixed(1)}" text-anchor="start" font-size="11" font-weight="900" fill="#dc2626" stroke="white" stroke-width="2" paint-order="stroke fill" style="pointer-events:none">🆕</text>`;
   });
 
   svgEl.innerHTML = `<svg width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}" style="max-width:100%;max-height:100%;overflow:visible;touch-action:none">
