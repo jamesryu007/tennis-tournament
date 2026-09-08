@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1142';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1143';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -5953,6 +5953,7 @@ function openMatchQueryModal(){
 function closeMatchQueryModal(){
   document.getElementById('match-query-modal').classList.remove('open');
   _mqSinglesOpponents = false;  // 모달 닫을 때 항상 초기화
+  _mqBagelPairs = null;
   // 파트너/맞짱/베이글 다이어그램이 열려 있으면 overflow 유지
   if (!document.getElementById('partner-diagram-modal').classList.contains('open') &&
       !document.getElementById('singles-diagram-modal').classList.contains('open') &&
@@ -5962,6 +5963,7 @@ function closeMatchQueryModal(){
 }
 
 let _mqSinglesOpponents = false; // true = 맞짱 다이어그램에서 호출 (단식 상대 경기 필터)
+let _mqBagelPairs = null; // {pk1, pk2} = 베이글 다이어그램에서 호출 (두 페어 간 베이글 경기 필터)
 
 async function queryMatchHistory(){
   const from=(document.getElementById('mq-date-from').value||'').trim();
@@ -5975,7 +5977,19 @@ async function queryMatchHistory(){
     const snap=await db.ref('jmt/matches').orderByChild('date').startAt(from).endAt(to).once('value');
     const toArr=v=>Array.isArray(v)?v:(v?Object.values(v):[]);
     let matches=Object.values(snap.val()||{}).filter(m=>m.source==='daily'&&m.sets&&m.winner!==undefined);
-    if(_mqSinglesOpponents){
+    if(_mqBagelPairs){
+      // 베이글 다이어그램 — 두 페어 간 베이글 경기만 (4:0 또는 6:0 세트 포함)
+      const bpk1=_mqBagelPairs.pk1, bpk2=_mqBagelPairs.pk2;
+      const isBagelSet=s=>{const a=parseInt(s.s0),b=parseInt(s.s1);return(a===4&&b===0)||(a===6&&b===0)||(a===0&&b===4)||(a===0&&b===6);};
+      matches=matches.filter(m=>{
+        const t0=toArr(m.team0),t1=toArr(m.team1);
+        if(t0.length<2||t1.length<2) return false;
+        const k0=getPairKey(t0[0],t0[1]),k1=getPairKey(t1[0],t1[1]);
+        const pairMatch=(k0===bpk1&&k1===bpk2)||(k0===bpk2&&k1===bpk1);
+        if(!pairMatch) return false;
+        return toArr(m.sets).some(isBagelSet);
+      });
+    } else if(_mqSinglesOpponents){
       // 맞짱 다이어그램 — 단식 경기만, p1·p2가 각각 상대 팀
       matches=matches.filter(m=>{
         if(m.matchType!=='singles') return false;
@@ -9932,30 +9946,25 @@ function _bdSelectPartner(partnerName) {
   _renderBagelDiagram();
 }
 
-// 베이글 다이어그램 — 노드 클릭: 해당 페어 랭킹 베이글탭으로 이동
+// 베이글 다이어그램 — 노드 클릭: 해당 페어를 포커스로 hub 다이어그램 표시
 function _bdNodeClick(nameA, nameB) {
-  closeBagelDiagram();
-  setTimeout(() => jumpToPairBagel(nameA, nameB), 200);
+  _bdFilterMember = nameA;
+  _bdFilterPartner = nameB;
+  _renderBagelDiagram();
 }
 
-// 베이글 다이어그램 — 화살표 클릭: 두 페어간 경기 기록 조회 팝업
+// 베이글 다이어그램 — 화살표 클릭: 두 페어 간 베이글 경기만 조회 팝업
 function _bdArrowClick(pk1, pk2) {
-  const [a1] = pk1.split('_');
-  const [a2] = pk2.split('_');
   const today = new Date();
   const toLocalDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const fromEl = document.getElementById('mq-date-from');
   const toEl = document.getElementById('mq-date-to');
-  if (fromEl) fromEl.value = '2020-01-01'; // 전체 기간
+  if (fromEl) fromEl.value = '2020-01-01';
   if (toEl) toEl.value = toLocalDate(today);
-  const names = (state.members || []).map(m => m.name).filter(Boolean).sort();
-  const sel1 = document.getElementById('mq-player1');
-  const sel2 = document.getElementById('mq-player2');
-  if (sel1) { sel1.innerHTML = '<option value="">전체</option>' + names.map(n => `<option value="${n}">${n}</option>`).join(''); sel1.value = a1; }
-  if (sel2) { sel2.innerHTML = '<option value="">-</option>' + names.map(n => `<option value="${n}">${n}</option>`).join(''); sel2.value = a2; }
   document.getElementById('match-query-inner').innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:0.88rem;padding:40px 0">조회 중…</p>';
   document.body.style.overflow = 'hidden';
   _mqSinglesOpponents = false;
+  _mqBagelPairs = { pk1, pk2 };
   document.getElementById('match-query-modal').classList.add('open');
   setTimeout(() => queryMatchHistory(), 150);
 }
