@@ -2179,6 +2179,142 @@ async function _fetchGolfCourseInfo(tour, eventId) {
   } catch(e) { return null; }
 }
 
+// ── 팀전 매치 상세 fetch (솔하임컵/라이더컵/프레지던츠컵) ──────────
+// ESPN core API: competitions[] → roster → athlete 이름 캐시 방식
+async function _fetchTeamEventMatches(tour, eventId) {
+  try {
+    const evData = await espnFetch(
+      `https://sports.core.api.espn.com/v2/sports/golf/leagues/${tour}/events/${eventId}`
+    );
+    if (!evData?.competitions) return null;
+
+    // tournament 타입(전체 이벤트 wrapper) 제외
+    const matchComps = evData.competitions.filter(c => c.type?.text !== 'tournament');
+    if (!matchComps.length) return null;
+
+    // ── 1단계: 모든 roster·team $ref 수집 ──
+    const allRosterRefs = new Set();
+    const allTeamRefs   = new Set();
+    for (const comp of matchComps) {
+      for (const c of (comp.competitors || [])) {
+        if (c.roster?.['$ref']) allRosterRefs.add(c.roster['$ref']);
+        if (c.team?.['$ref'])   allTeamRefs.add(c.team['$ref']);
+      }
+    }
+
+    // ── 2단계: 팀 이름 캐시 로드 (USA/EUR) ──
+    const teamCache = (await db.ref('jmt/golfTeams').once('value')).val() || {};
+    const teamNames = {}; // ref → displayName
+    for (const ref of allTeamRefs) {
+      const id = ref.match(/\/(\d+)(?:\?|$)/)?.[1];
+      if (id && teamCache[id]) {
+        teamNames[ref] = teamCache[id];
+      } else {
+        const data = await espnFetch(ref);
+        if (data?.displayName) {
+          teamNames[ref] = data.displayName;
+          if (id) await db.ref(`jmt/golfTeams/${id}`).set(data.displayName).catch(() => {});
+        }
+      }
+    }
+
+    // ── 3단계: roster fetch → athlete refs 수집 ──
+    const rosterPlayers = {}; // rosterRef → [athleteRef, ...]
+    const allAthleteRefs = new Set();
+    for (const rosterRef of allRosterRefs) {
+      try {
+        const rData = await espnFetch(rosterRef);
+        if (rData?.entries) {
+          const refs = rData.entries.map(e => e.athlete?.['$ref']).filter(Boolean);
+          rosterPlayers[rosterRef] = refs;
+          refs.forEach(r => allAthleteRefs.add(r));
+        }
+      } catch (e) {
+        console.warn('_fetchTeamEventMatches: roster fetch 실패', rosterRef.slice(-40));
+      }
+    }
+
+    // ── 4단계: 선수 이름 DB 캐시 일괄 처리 ──
+    const athleteCache = (await db.ref('jmt/golfAthletes').once('value')).val() || {};
+    const athleteNames = {}; // athleteRef → displayName
+    const newAthletes  = {};
+    for (const ref of allAthleteRefs) {
+      const id = ref.match(/\/(\d+)(?:\?|$)/)?.[1];
+      if (id && athleteCache[id]) {
+        athleteNames[ref] = athleteCache[id];
+      } else {
+        try {
+          const data = await espnFetch(ref);
+          if (data?.displayName) {
+            athleteNames[ref] = data.displayName;
+            if (id) newAthletes[id] = data.displayName;
+          }
+        } catch (e) {
+          console.warn('_fetchTeamEventMatches: athlete fetch 실패');
+        }
+      }
+    }
+    if (Object.keys(newAthletes).length > 0) {
+      await db.ref('jmt/golfAthletes').update(newAthletes).catch(() => {});
+      console.log(`_fetchTeamEventMatches: 선수 ${Object.keys(newAthletes).length}명 캐시 저장`);
+    }
+
+    // ── 5단계: 날짜별·세션별 매치 구조화 ──
+    const dayMap = {};
+    for (const comp of matchComps) {
+      const date = (comp.date || '').slice(0, 10);
+      if (!dayMap[date]) dayMap[date] = [];
+      dayMap[date].push(comp);
+    }
+    const sortedDates = Object.keys(dayMap).sort();
+    const sessionOrder = { foursome: 0, fourball: 1, singles: 2 };
+
+    const sessions = [];
+    for (const date of sortedDates) {
+      const dayNum = sortedDates.indexOf(date) + 1;
+      const comps  = [...dayMap[date]].sort(
+        (a, b) => (sessionOrder[a.type?.text] ?? 9) - (sessionOrder[b.type?.text] ?? 9)
+      );
+      // 세션 타입별 그룹화
+      const sessionGroups = {};
+      for (const comp of comps) {
+        const sType = comp.type?.text || 'unknown';
+        if (!sessionGroups[sType]) sessionGroups[sType] = [];
+        sessionGroups[sType].push(comp);
+      }
+      for (const sType of ['foursome', 'fourball', 'singles']) {
+        if (!sessionGroups[sType]) continue;
+        const sLabel = sType === 'foursome' ? 'Foursomes' : sType === 'fourball' ? 'Fourballs' : 'Singles';
+        const matches = [];
+        for (const comp of sessionGroups[sType]) {
+          const match = { eur: [], usa: [], result: null, status: comp.status?.type?.state || 'pre' };
+          for (const c of (comp.competitors || [])) {
+            const teamRef  = c.team?.['$ref'];
+            const teamName = teamRef ? (teamNames[teamRef] || '') : '';
+            const isUSA    = /united.states/i.test(teamName) || teamName === 'USA';
+            const teamKey  = isUSA ? 'usa' : 'eur';
+            const rosterRef = c.roster?.['$ref'];
+            match[teamKey]  = rosterRef
+              ? (rosterPlayers[rosterRef] || []).map(r => athleteNames[r]).filter(Boolean)
+              : [];
+            if (c.winner === true) match.result = isUSA ? 'USA' : 'EUR';
+          }
+          // post 상태인데 winner 없으면 HALVED
+          if (!match.result && match.status === 'post') match.result = 'HALVED';
+          matches.push(match);
+        }
+        sessions.push({ day: dayNum, date, session: sLabel, sessionType: sType, matches });
+      }
+    }
+
+    console.log(`_fetchTeamEventMatches: ${eventId} — ${sessions.length}개 세션 완료`);
+    return { totalDays: sortedDates.length, sessions };
+  } catch (e) {
+    console.error('_fetchTeamEventMatches error:', e);
+    return null;
+  }
+}
+
 async function _fetchAndParseGolfTour(tour) {
   const json = await espnFetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tour}/scoreboard`);
   if (!json) { console.warn(`_fetchAndParseGolfTour(${tour}): ESPN 응답 없음`); return null; }
@@ -2199,7 +2335,19 @@ async function _fetchAndParseGolfTour(tour) {
       if (maxRds > 0) round = maxRds;
     }
 
-    const leaderboard = (comp.competitors || [])
+    // 팀전 감지 (솔하임컵/라이더컵 등): team.displayName 있고 athlete.displayName 없음
+    const isTeamEvent = (comp.competitors || []).some(c => c.team?.displayName && !c.athlete?.displayName);
+    let leaderboard = [];
+    let teamScores  = null;
+    if (isTeamEvent) {
+      teamScores = (comp.competitors || []).map(c => ({
+        team:        c.team?.abbreviation || c.team?.displayName || '',
+        displayName: c.team?.displayName  || '',
+        score:       parseFloat(c.score)  || 0,
+        winner:      c.winner             || false,
+      }));
+    } else {
+      leaderboard = (comp.competitors || [])
       .sort((a, b) => (a.order || a.sortOrder || 9999) - (b.order || b.sortOrder || 9999))
       .map(c => {
         // thru = 현재 라운드 중첩 linescores 개수 (sortOrder/status 모두 None)
@@ -2222,11 +2370,12 @@ async function _fetchAndParseGolfTour(tour) {
           isCut:   round > 2 && rounds.length < round,
         };
       });
+    }
 
     // 상금 정보 (ESPN 제공 시)
     const evPurse = comp.displayPurse || comp.purse || ev.displayPurse || ev.purse || '';
 
-    results.push({
+    const entry = {
       id:          ev.id          || '',
       name:        ev.name        || '',
       shortName:   ev.shortName   || ev.name || '',
@@ -2242,7 +2391,9 @@ async function _fetchAndParseGolfTour(tour) {
       endDate:     ev.endDate     || '',
       leaderboard,
       updatedAt:   new Date().toISOString(),
-    });
+    };
+    if (isTeamEvent) { entry.isTeamEvent = true; entry.teamScores = teamScores; }
+    results.push(entry);
   }
 
   // ESPN core API에서 골프장 정보 병렬 fetch
@@ -2250,6 +2401,14 @@ async function _fetchAndParseGolfTour(tour) {
     const venue = await _fetchGolfCourseInfo(tour, t.id);
     if (venue) { t.venueName = venue.venueName; t.venueCity = venue.venueCity; t.venueCountry = venue.venueCountry; }
   }));
+
+  // 팀전: 매치 상세 순차 fetch (rate limit 방지)
+  for (const t of results) {
+    if (t.isTeamEvent) {
+      const matchData = await _fetchTeamEventMatches(tour, t.id);
+      if (matchData) t.teamMatches = matchData;
+    }
+  }
 
   return results;
 }
@@ -2319,6 +2478,27 @@ async function _archiveGolfHistory(t) {
     // fetchGolfData/fetchGolfDataFinal이 실시간으로 DB를 업데이트하므로
     // _saveGolfData 호출 시점의 DB 데이터가 가장 최신 정보임
     // ESPN 재조회는 rate limit 유발 원인이 될 수 있어 제거
+
+    // ── 팀전 (솔하임컵/라이더컵/프레지던츠컵) 분기 ─────────────────
+    if (t.isTeamEvent) {
+      const winnerTeam = (t.teamScores || []).find(s => s.winner);
+      if (!winnerTeam) { console.log(`_archiveGolfHistory: team event winner 미결정 (${t.name}), skip`); return; }
+      const year    = t.startDate ? new Date(t.startDate).getFullYear() : new Date().getFullYear();
+      const safeKey = `${year}_${t.id}`;
+      const existing = await db.ref(`jmt/tournamentHistory/golf/${t.tour}/${year}/${safeKey}`).once('value');
+      if (existing.val()) { console.log(`_archiveGolfHistory: already exists ${safeKey}`); return; }
+      await db.ref(`jmt/tournamentHistory/golf/${t.tour}/${year}/${safeKey}`).set({
+        id: t.id, name: t.name, tour: t.tour, level: t.level || 'lpga_tour',
+        isTeamEvent: true,
+        teamScores:  t.teamScores || [],
+        startDate:   t.startDate  || '',
+        endDate:     t.endDate    || '',
+        winner: { name: winnerTeam.displayName || winnerTeam.team, score: String(winnerTeam.score), isTeam: true },
+        savedAt: new Date().toISOString(),
+      });
+      console.log(`_archiveGolfHistory: team event saved — ${t.name} winner: ${winnerTeam.displayName}`);
+      return;
+    }
 
     const allLeaders = (t.leaderboard || []).filter(p => p.name && !p.isCut);
     const top10 = allLeaders
@@ -2464,9 +2644,10 @@ exports.fetchGolfDataFinal = onSchedule(
       // Final 라운드(round 4) 진행 중인 대회가 있는지 먼저 확인
       const snap = await db.ref('jmt/golfData/tournaments').once('value');
       const dbTournaments = Object.values(snap.val() || {});
-      const hasFinalInProgress = dbTournaments.some(t => t.state === 'in' && t.round === 4);
-      if (!hasFinalInProgress) return; // Final 아니면 skip
-      console.log('fetchGolfDataFinal: Final round in progress — fetching fresh data');
+      const hasFinalInProgress    = dbTournaments.some(t => t.state === 'in' && t.round === 4);
+      const hasTeamEventInProgress = dbTournaments.some(t => t.state === 'in' && t.isTeamEvent);
+      if (!hasFinalInProgress && !hasTeamEventInProgress) return; // 해당 없으면 skip
+      console.log(`fetchGolfDataFinal: ${hasFinalInProgress ? 'Final round' : ''}${hasTeamEventInProgress ? ' team event' : ''} in progress — fetching fresh data`);
       // 순차 fetch — 병렬 시 ESPN rate limit 유발
       const { allTournaments, fetchedTours } = await _fetchAllGolfTours();
       if (fetchedTours.size === 0) { console.warn('fetchGolfDataFinal: 모든 투어 fetch 실패'); return; }
