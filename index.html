@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1153';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1154';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -25860,6 +25860,16 @@ function _renderPastWinnersPanel(panel, entries, tour) {
   panel.innerHTML = `<div style="border-top:1px solid #fcd34d;margin-top:7px;padding-top:6px">
     <div style="font-size:0.65rem;color:#b45309;font-weight:800;margin-bottom:5px;letter-spacing:0.3px">역대 우승자</div>
     ${entries.map(e => {
+      // 팀전 우승팀 표기
+      if (e.winner && e.winner.isTeam) {
+        return `<div style="border-bottom:1px dashed #fde68a">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0">
+            <span style="font-size:0.7rem;color:#b45309;font-weight:700;min-width:32px;flex-shrink:0">${e._year}</span>
+            <span style="font-size:0.72rem;font-weight:800;color:#0369a1;flex:1;text-align:left;padding:0 4px">🏆 ${e.winner.name}</span>
+            <span style="font-size:0.65rem;color:#b45309;min-width:28px;text-align:right;flex-shrink:0">${e.winner.score ? e.winner.score + 'pt' : ''}</span>
+          </div>
+        </div>`;
+      }
       const isKor = (e.winner.country || '').toLowerCase().includes('kor') || (e.winner.country || '').toLowerCase().includes('korea');
       const nc = isKor ? '#CD2E3A' : '#92400e';
       const nameSafe = (e.winner.name || '').replace(/'/g, "\\'");
@@ -26418,6 +26428,44 @@ function _renderHistoryList() {
     el.innerHTML = filtered.map(e => {
       const s     = GOLF_STYLE[_golfLevelOf(e)] || GOLF_STYLE.pga_tour || { badge:'PGA', badgeBg:'#16a34a', color:'#166534', bg:'#f0fdf4', border:'#bbf7d0' };
       const dates = [e.startDate, e.endDate].filter(Boolean).map(fmtDate).join(' ~ ');
+      const _histNameSafe = (e.name || '').replace(/'/g, "\\'");
+      const _histTour     = e.tour || 'pga';
+      const _histPanelId  = 'gpw-hist-' + (e.name || '').replace(/[^a-z0-9]/gi, '_') + '_' + e._year;
+      const _iBtn = `<button onclick="_toggleGolfPastWinners('${_histNameSafe}','${_histTour}','${_histPanelId}')" style="position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.5);border:1.5px solid ${s.border};color:${s.color};font-size:0.68rem;font-weight:900;cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;justify-content:center" title="역대 우승자">i</button>`;
+
+      // ── 팀전 (솔하임컵/라이더컵/프레지던츠컵) ─────────────────────────
+      if (e.isTeamEvent) {
+        const _tScores = e.teamScores || [];
+        const _eur = _tScores.find(ts => /europe/i.test(ts.displayName || ts.team || '')) || { displayName: 'Europe', score: 0, winner: false };
+        const _usa = _tScores.find(ts => /united.states/i.test(ts.displayName || ts.team || '') || (ts.team||'').toUpperCase()==='USA') || { displayName: 'United States', score: 0, winner: false };
+        const _eurColor = _eur.winner ? '#16a34a' : '#475569';
+        const _usaColor = _usa.winner ? '#16a34a' : '#475569';
+        return `<div style="position:relative;background:${s.bg};border:1.5px solid ${s.border};border-radius:12px;padding:12px 14px;margin-bottom:10px">
+          ${_iBtn}
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap;padding-right:28px">
+            <span style="background:${s.badgeBg};color:#fff;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:8px">${s.badge}</span>
+            <span style="background:#e0f2fe;color:#0369a1;font-size:0.68rem;font-weight:800;padding:2px 7px;border-radius:8px">팀전</span>
+            <span style="font-size:0.88rem;font-weight:800;color:${s.color}">${e.name}</span>
+          </div>
+          <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}</div>
+          <div style="background:#fff;border-radius:8px;padding:10px 14px;display:flex;align-items:center;justify-content:space-around;gap:8px">
+            <div style="text-align:center">
+              <div style="font-size:0.72rem;color:#475569;font-weight:700;margin-bottom:3px">🌍 Europe</div>
+              <div style="font-size:1.9rem;font-weight:900;color:${_eurColor};line-height:1">${_eur.score}</div>
+              ${_eur.winner ? '<div style="font-size:0.7rem;font-weight:800;color:#16a34a;margin-top:2px">🏆 우승</div>' : ''}
+            </div>
+            <div style="font-size:0.82rem;font-weight:700;color:#94a3b8">VS</div>
+            <div style="text-align:center">
+              <div style="font-size:0.72rem;color:#475569;font-weight:700;margin-bottom:3px">🇺🇸 USA</div>
+              <div style="font-size:1.9rem;font-weight:900;color:${_usaColor};line-height:1">${_usa.score}</div>
+              ${_usa.winner ? '<div style="font-size:0.7rem;font-weight:800;color:#16a34a;margin-top:2px">🏆 우승</div>' : ''}
+            </div>
+          </div>
+          <div id="${_histPanelId}" style="display:none"></div>
+        </div>`;
+      }
+
+      // ── 개인전 ─────────────────────────────────────────────────────
       const top10 = e.top10 || [];
       const rowsHtml = top10.map((p, i) => {
         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
@@ -26430,11 +26478,8 @@ function _renderHistoryList() {
           <span style="font-size:0.82rem;font-weight:800;color:${scoreColor};min-width:30px;text-align:right">${p.total || 'E'}</span>
         </div>`;
       }).join('');
-      const _histNameSafe = (e.name || '').replace(/'/g, "\\'");
-      const _histTour     = e.tour || 'pga';
-      const _histPanelId  = 'gpw-hist-' + (e.name || '').replace(/[^a-z0-9]/gi, '_') + '_' + e._year;
       return `<div style="position:relative;background:${s.bg};border:1.5px solid ${s.border};border-radius:12px;padding:12px 14px;margin-bottom:10px">
-        <button onclick="_toggleGolfPastWinners('${_histNameSafe}','${_histTour}','${_histPanelId}')" style="position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,0.5);border:1.5px solid ${s.border};color:${s.color};font-size:0.68rem;font-weight:900;cursor:pointer;padding:0;line-height:1;display:flex;align-items:center;justify-content:center" title="역대 우승자">i</button>
+        ${_iBtn}
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap;padding-right:28px">
           <span style="background:${s.badgeBg};color:#fff;font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:8px">${s.badge}</span>
           <span style="font-size:0.88rem;font-weight:800;color:${s.color}">${e.name}</span>
