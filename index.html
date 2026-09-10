@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1152';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1153';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -26938,8 +26938,10 @@ function renderGolfLeaderboard(t) {
   const wrap = document.getElementById('golf-leaderboard-wrap');
   if (!wrap) return;
 
-  // 팀전 (솔하임컵/라이더컵/프레지던츠컵) — 별도 렌더
-  if (t && t.isTeamEvent) { _renderTeamEventLeaderboard(t, wrap); return; }
+  // 팀전 감지 — DB 플래그 OR 대회명 기반 (Functions 미갱신 대비 이중 방어)
+  const _TEAM_EVENT_NAMES = ['solheim cup', 'ryder cup', 'presidents cup'];
+  const _isTeamEvent = t && (t.isTeamEvent || _TEAM_EVENT_NAMES.some(n => (t.name || '').toLowerCase().includes(n)));
+  if (_isTeamEvent) { _renderTeamEventLeaderboard(t, wrap); return; }
 
   // 라운드 탭 HTML 헬퍼 — 테니스와 동일한 pill + › 체인 스타일
   const _roundTabsHtml = () => {
