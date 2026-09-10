@@ -2335,8 +2335,8 @@ async function _fetchAndParseGolfTour(tour) {
       if (maxRds > 0) round = maxRds;
     }
 
-    // 팀전 감지 (솔하임컵/라이더컵 등): competitor에 athlete 없고 team 있음
-    const isTeamEvent = (comp.competitors || []).some(c => c.team && !c.athlete);
+    // 팀전 감지 (솔하임컵/라이더컵 등): team.displayName 있고 athlete.displayName 없음
+    const isTeamEvent = (comp.competitors || []).some(c => c.team?.displayName && !c.athlete?.displayName);
     let leaderboard = [];
     let teamScores  = null;
     if (isTeamEvent) {
