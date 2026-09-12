@@ -2344,17 +2344,28 @@ async function _fetchAndParseGolfTour(tour) {
       if (maxRds > 0) round = maxRds;
     }
 
-    // 팀전 감지 (솔하임컵/라이더컵 등): team.displayName 있고 athlete.displayName 없음
-    const isTeamEvent = (comp.competitors || []).some(c => c.team?.displayName && !c.athlete?.displayName);
+    // 팀전 감지: team.displayName 기반 OR 대회명 기반 이중방어
+    const _TEAM_EVENT_NAMES_FN = ['solheim cup', 'ryder cup', 'presidents cup'];
+    const isTeamEventByName = _TEAM_EVENT_NAMES_FN.some(n => (ev.name || '').toLowerCase().includes(n));
+    const isTeamEventByComp = (comp.competitors || []).some(c => c.team?.displayName && !c.athlete?.displayName);
+    const isTeamEvent = isTeamEventByName || isTeamEventByComp;
     let leaderboard = [];
     let teamScores  = null;
     if (isTeamEvent) {
-      teamScores = (comp.competitors || []).map(c => ({
-        team:        c.team?.abbreviation || c.team?.displayName || '',
-        displayName: c.team?.displayName  || '',
-        score:       parseFloat(c.score)  || 0,
-        winner:      c.winner             || false,
-      }));
+      // team.displayName 없는 경우(Solheim Cup 스코어보드 구조): 순서 기반으로 EUR/USA 추정
+      const sorted = (comp.competitors || []).sort((a, b) => (a.order || 9999) - (b.order || 9999));
+      teamScores = sorted.map((c, i) => {
+        const teamName = c.team?.displayName || c.athlete?.displayName || '';
+        const isUSA    = /united.states/i.test(teamName) || /\bUSA\b/.test(teamName);
+        // team 정보가 없으면 스코어보드 순서로 추정 (Solheim: 0=Europe, 1=USA 관례)
+        const displayName = teamName || (i === 0 ? 'Europe' : 'United States');
+        const team        = c.team?.abbreviation || (i === 0 ? 'EUR' : 'USA');
+        return {
+          team, displayName,
+          score:  parseFloat(c.score) || 0,
+          winner: c.winner || false,
+        };
+      });
     } else {
       leaderboard = (comp.competitors || [])
       .sort((a, b) => (a.order || a.sortOrder || 9999) - (b.order || b.sortOrder || 9999))
