@@ -219,7 +219,7 @@ exports.notifyCheckinReminderThu = onSchedule(
   }
 );
 
-// ══ 3. 금요일 정오 — 출첵 자동 마감 + 전체 알림 ════════════════
+// ══ 3. 금요일 정오 — 출첵 자동 마감 + 전체 알림 + 경기카드 초기화 ═
 exports.notifyCheckinClose = onSchedule(
   { schedule: '0 12 * * 5', timeZone: 'Asia/Seoul' },
   async () => {
@@ -228,6 +228,15 @@ exports.notifyCheckinClose = onSchedule(
     if (ps && ps.status === 'open') {
       await db.ref('jmt/pollState').update({ status: 'closed', closedAt: new Date().toISOString() });
     }
+    // 오늘의 경기 카드 초기화 — 프론트 리스너 의존 제거 (앱 미접속 시에도 확실히 삭제)
+    await Promise.all([
+      db.ref('jmt/dailyCards').remove(),
+      db.ref('jmt/dailyCardCounter').remove(),
+      db.ref('jmt/dailyCardDate').remove(),
+      db.ref('jmt/autoDrawLock').remove(),
+      db.ref('jmt/autoDrawSession').remove(),
+    ]).catch(e => console.error('dailyCards 초기화 오류:', e));
+    console.log('notifyCheckinClose: dailyCards 초기화 완료');
     const tokens = await getAllEntries();
     await sendPush(tokens, '🔴 출첵이 마감되었습니다', '이번 주 출첵이 마감되었습니다. 참석 인원을 확인해 주세요.', 'checkin');
   }
