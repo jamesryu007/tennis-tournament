@@ -804,16 +804,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1158';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1159';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -27530,6 +27530,109 @@ function _parseGolfEvents(events, tour) {
   }).filter(Boolean);
 }
 
+// ── 팀전 매치 상세 (브라우저 직접 ESPN Core API 호출) ──────────────
+async function _fetchTeamEventMatchesFE(tour, eventId) {
+  try {
+    const res = await fetch(`https://sports.core.api.espn.com/v2/sports/golf/leagues/${tour}/events/${eventId}`, { mode: 'cors' });
+    const evData = await res.json();
+    if (!evData?.competitions) return null;
+
+    // tournament 타입(이벤트 wrapper) 제외
+    const matchComps = evData.competitions.filter(c => c.type?.text !== 'tournament');
+    if (!matchComps.length) return null;
+
+    // $ref 수집
+    const teamRefs = new Set(), rosterRefs = new Set();
+    for (const comp of matchComps) {
+      for (const c of (comp.competitors || [])) {
+        if (c.team?.['$ref'])   teamRefs.add(c.team['$ref']);
+        if (c.roster?.['$ref']) rosterRefs.add(c.roster['$ref']);
+      }
+    }
+
+    // 팀 이름 병렬 fetch
+    const teamNames = {};
+    await Promise.allSettled([...teamRefs].map(async ref => {
+      try {
+        const d = await fetch(ref, { mode: 'cors' }).then(r => r.json());
+        if (d?.displayName) teamNames[ref] = d.displayName;
+      } catch(e) {}
+    }));
+
+    // roster → athlete $ref 수집 (병렬)
+    const rosterPlayers = {};
+    const allAthleteRefs = new Set();
+    await Promise.allSettled([...rosterRefs].map(async ref => {
+      try {
+        const d = await fetch(ref, { mode: 'cors' }).then(r => r.json());
+        if (d?.entries) {
+          const refs = d.entries.map(e => e.athlete?.['$ref']).filter(Boolean);
+          rosterPlayers[ref] = refs;
+          refs.forEach(r => allAthleteRefs.add(r));
+        }
+      } catch(e) {}
+    }));
+
+    // 선수 이름 병렬 fetch
+    const athleteNames = {};
+    await Promise.allSettled([...allAthleteRefs].map(async ref => {
+      try {
+        const d = await fetch(ref, { mode: 'cors' }).then(r => r.json());
+        if (d?.displayName) athleteNames[ref] = d.displayName;
+      } catch(e) {}
+    }));
+
+    // 날짜별·세션별 매치 구조화
+    const dayMap = {};
+    for (const comp of matchComps) {
+      const date = (comp.date || '').slice(0, 10);
+      if (!dayMap[date]) dayMap[date] = [];
+      dayMap[date].push(comp);
+    }
+    const sortedDates = Object.keys(dayMap).sort();
+    const sessionOrder = { foursome: 0, fourball: 1, singles: 2 };
+    const sessions = [];
+
+    for (const date of sortedDates) {
+      const dayNum = sortedDates.indexOf(date) + 1;
+      const comps = [...dayMap[date]].sort((a, b) => (sessionOrder[a.type?.text] ?? 9) - (sessionOrder[b.type?.text] ?? 9));
+      const sessionGroups = {};
+      for (const comp of comps) {
+        const sType = comp.type?.text || 'unknown';
+        if (!sessionGroups[sType]) sessionGroups[sType] = [];
+        sessionGroups[sType].push(comp);
+      }
+      for (const sType of ['foursome', 'fourball', 'singles']) {
+        if (!sessionGroups[sType]) continue;
+        const sLabel = sType === 'foursome' ? 'Foursomes' : sType === 'fourball' ? 'Fourballs' : 'Singles';
+        const matches = [];
+        for (const comp of sessionGroups[sType]) {
+          const match = { eur: [], usa: [], result: null, status: comp.status?.type?.state || 'pre' };
+          for (const c of (comp.competitors || [])) {
+            const teamRef  = c.team?.['$ref'];
+            const teamName = teamRef ? (teamNames[teamRef] || '') : '';
+            const isUSA    = /united.states/i.test(teamName) || teamName === 'USA';
+            const teamKey  = isUSA ? 'usa' : 'eur';
+            const rosterRef = c.roster?.['$ref'];
+            match[teamKey] = rosterRef
+              ? (rosterPlayers[rosterRef] || []).map(r => athleteNames[r]).filter(Boolean)
+              : [];
+            if (c.winner === true) match.result = isUSA ? 'USA' : 'EUR';
+          }
+          if (!match.result && match.status === 'post') match.result = 'HALVED';
+          matches.push(match);
+        }
+        sessions.push({ day: dayNum, date, session: sLabel, sessionType: sType, matches });
+      }
+    }
+
+    return { totalDays: sortedDates.length, sessions };
+  } catch(e) {
+    console.error('_fetchTeamEventMatchesFE error:', e);
+    return null;
+  }
+}
+
 // ── ESPN core API에서 골프장 정보 fetch ───────────────────────────
 async function _fetchGolfVenue(tour, eventId) {
   try {
@@ -27570,6 +27673,14 @@ async function triggerGolfRefresh() {
       const venue = await _fetchGolfVenue(t.tour, t.id);
       if (venue) { t.venueName = venue.venueName; t.venueCity = venue.venueCity; t.venueCountry = venue.venueCountry; }
     }));
+
+    // 팀전 매치 상세 fetch (브라우저는 ESPN Core API 직접 접근 가능)
+    for (const t of tournaments) {
+      if (t.isTeamEvent && t.id) {
+        const matchData = await _fetchTeamEventMatchesFE(t.tour, t.id);
+        if (matchData) t.teamMatches = matchData;
+      }
+    }
 
     const tournamentsObj = {};
     for (const t of tournaments) tournamentsObj[t.id] = t;
