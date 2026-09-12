@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1155';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1156';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -14080,7 +14080,13 @@ function renderRoundDrawPanel(el, matches, tier, tourney) {
 
   // 현재 라운드 자동 선택 — 실명 선수 경기에서 winner가 있는 가장 마지막 라운드
   // TBD vs TBD 완료 경기는 제외 (결승 TBD 오선택 방지)
-  if (!atpState.gsRoundTab || !availRounds.includes(atpState.gsRoundTab)) {
+  // 현재 탭 경기가 모두 완료되었으면 다음 라운드로 자동 이동
+  const _curTabIdx = availRounds.indexOf(atpState.gsRoundTab);
+  const _allCurRoundDone = atpState.gsRoundTab &&
+    (roundGroups[atpState.gsRoundTab] || []).length > 0 &&
+    (roundGroups[atpState.gsRoundTab] || []).every(isEffectivelyDone) &&
+    _curTabIdx >= 0 && _curTabIdx < availRounds.length - 1;
+  if (!atpState.gsRoundTab || !availRounds.includes(atpState.gsRoundTab) || _allCurRoundDone) {
     const _hasRealResult = m => m.singles &&
       (m.player1Winner || m.player2Winner) &&
       m.player1Name && m.player1Name !== 'TBD' &&
@@ -14090,6 +14096,10 @@ function renderRoundDrawPanel(el, matches, tier, tourney) {
       if ((roundGroups[r] || []).some(m => _hasRealResult(m))) {
         autoRound = r; // 더 뒤 라운드로 계속 업데이트
       }
+    }
+    // 현재 라운드 완료 후 다음 라운드에 아직 실명 결과 없으면(예: Final TBD) 다음 라운드로 강제 이동
+    if (_allCurRoundDone && autoRound === atpState.gsRoundTab) {
+      autoRound = availRounds[_curTabIdx + 1];
     }
     atpState.gsRoundTab = autoRound;
   }
