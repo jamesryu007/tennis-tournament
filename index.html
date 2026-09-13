@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1160';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1161';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -26956,26 +26956,26 @@ function _renderTeamEventLeaderboard(t, wrap) {
     const matchRows = ms.map(m => {
       const eurWin = m.result === 'EUR', usaWin = m.result === 'USA', halved = m.result === 'HALVED';
       const isLive = m.status === 'in';
-      const detailTxt = (m.resultDetail && m.resultDetail !== 'Halved') ? `<br><span style="font-size:0.58rem;font-weight:600;color:#64748b">${m.resultDetail}</span>` : '';
+      const detailTxt = (m.resultDetail && m.resultDetail !== 'Halved') ? `<br><span style="font-size:0.62rem;font-weight:700;color:#64748b">${m.resultDetail}</span>` : '';
       const resultBadge = m.result
-        ? (eurWin ? `<span style="font-size:0.65rem;font-weight:800;color:#16a34a;white-space:nowrap;line-height:1.2">◀ EUR${detailTxt}</span>`
-          : usaWin ? `<span style="font-size:0.65rem;font-weight:800;color:#16a34a;white-space:nowrap;line-height:1.2">USA ▶${detailTxt}</span>`
-          : `<span style="font-size:0.65rem;font-weight:600;color:#64748b">½ ½</span>`)
-        : isLive ? `<span style="font-size:0.62rem;font-weight:700;color:#f59e0b">진행</span>` : '';
+        ? (eurWin ? `<span style="font-size:0.72rem;font-weight:800;color:#16a34a;white-space:nowrap;line-height:1.3">◀ EUR${detailTxt}</span>`
+          : usaWin ? `<span style="font-size:0.72rem;font-weight:800;color:#16a34a;white-space:nowrap;line-height:1.3">USA ▶${detailTxt}</span>`
+          : `<span style="font-size:0.72rem;font-weight:700;color:#64748b">½ ½</span>`)
+        : isLive ? `<span style="font-size:0.68rem;font-weight:700;color:#f59e0b">진행</span>` : '';
       const eurNames = (m.eur || []).join(' / ') || (m.status === 'pre' ? '미정' : '-');
       const usaNames = (m.usa || []).join(' / ') || (m.status === 'pre' ? '미정' : '-');
-      const eurSt = `font-size:0.73rem;font-weight:${eurWin?'800':'500'};color:${eurWin?'#16a34a':'#334155'};flex:1;text-align:left;min-width:0;word-break:keep-all`;
-      const usaSt = `font-size:0.73rem;font-weight:${usaWin?'800':'500'};color:${usaWin?'#16a34a':'#334155'};flex:1;text-align:right;min-width:0;word-break:keep-all`;
-      return `<div style="display:flex;align-items:center;gap:6px;padding:6px 14px;border-bottom:1px solid #f1f5f9">
+      const eurSt = `font-size:0.82rem;font-weight:${eurWin?'800':'500'};color:${eurWin?'#16a34a':'#334155'};flex:1;text-align:left;min-width:0;word-break:break-word;line-height:1.35`;
+      const usaSt = `font-size:0.82rem;font-weight:${usaWin?'800':'500'};color:${usaWin?'#16a34a':'#334155'};flex:1;text-align:right;min-width:0;word-break:break-word;line-height:1.35`;
+      return `<div style="display:flex;align-items:center;gap:6px;padding:8px 14px;border-bottom:1px solid #f1f5f9">
         <span style="${eurSt}">${eurNames}</span>
-        <span style="flex-shrink:0;width:52px;text-align:center">${resultBadge}</span>
+        <span style="flex-shrink:0;width:58px;text-align:center">${resultBadge}</span>
         <span style="${usaSt}">${usaNames}</span>
       </div>`;
     }).join('');
 
     return `<div style="margin-bottom:2px">
-      <div style="display:flex;align-items:center;padding:7px 14px 5px;background:#f8fafc;border-bottom:1.5px solid #e2e8f0;border-top:1px solid #e2e8f0">
-        <span style="font-size:0.8rem;font-weight:800;color:#3730a3">${session.session}${dayLabel}</span>${subScore}
+      <div style="display:flex;align-items:center;padding:8px 14px 6px;background:#eef2ff;border-bottom:2px solid #c7d2fe;border-top:1px solid #e0e7ff">
+        <span style="font-size:0.95rem;font-weight:900;color:#3730a3;letter-spacing:-0.3px">${session.session}</span><span style="font-size:0.78rem;font-weight:600;color:#6366f1;margin-left:5px">${dayLabel.trim()}</span>${subScore}
       </div>
       ${matchRows || '<div style="text-align:center;padding:10px;color:#94a3b8;font-size:0.75rem">매치 데이터 준비 중</div>'}
     </div>`;
@@ -27548,13 +27548,15 @@ async function _fetchTeamEventMatchesFE(tour, eventId) {
     const matchComps = evData.competitions.filter(c => c.type?.text !== 'tournament');
     if (!matchComps.length) return null;
 
-    // status $ref, score $ref, roster $ref 수집
-    const statusRefs = new Set(), scoreRefs = new Set(), rosterRefs = new Set();
+    // status $ref, score $ref, roster $ref, singles athlete $ref 수집
+    const statusRefs = new Set(), scoreRefs = new Set(), rosterRefs = new Set(), directAthleteRefs = new Set();
     for (const comp of matchComps) {
       if (comp.status?.['$ref']) statusRefs.add(comp.status['$ref']);
       for (const c of (comp.competitors || [])) {
-        if (c.score?.['$ref'])  scoreRefs.add(c.score['$ref']);
-        if (c.roster?.['$ref']) rosterRefs.add(c.roster['$ref']);
+        if (c.score?.['$ref'])   scoreRefs.add(c.score['$ref']);
+        if (c.roster?.['$ref'])  rosterRefs.add(c.roster['$ref']);
+        // Singles: roster 없이 athlete.$ref 직접 사용
+        if (!c.roster?.['$ref'] && c.athlete?.['$ref']) directAthleteRefs.add(c.athlete['$ref']);
       }
     }
 
@@ -27572,9 +27574,9 @@ async function _fetchTeamEventMatchesFE(tour, eventId) {
       if (d) scoreData[ref] = d;
     }));
 
-    // roster → athlete $ref 수집 (병렬)
+    // roster → athlete $ref 수집 (Foursomes/Fourballs 페어용)
     const rosterPlayers = {};
-    const allAthleteRefs = new Set();
+    const allAthleteRefs = new Set([...directAthleteRefs]);
     await Promise.allSettled([...rosterRefs].map(async ref => {
       const d = await jFetch(ref);
       if (d?.entries) {
@@ -27584,7 +27586,7 @@ async function _fetchTeamEventMatchesFE(tour, eventId) {
       }
     }));
 
-    // 선수 이름 병렬 fetch
+    // 선수 이름 병렬 fetch (roster 선수 + Singles 직접 athlete 통합)
     const athleteNames = {};
     await Promise.allSettled([...allAthleteRefs].map(async ref => {
       const d = await jFetch(ref);
@@ -27625,9 +27627,12 @@ async function _fetchTeamEventMatchesFE(tour, eventId) {
             const isUSA = c.homeAway === 'away';
             const teamKey = isUSA ? 'usa' : 'eur';
             const rosterRef = c.roster?.['$ref'];
+            const athleteRef = c.athlete?.['$ref'];
+            // Foursomes/Fourballs: roster $ref → 선수 목록
+            // Singles: roster 없이 athlete $ref 직접 사용
             match[teamKey] = rosterRef
               ? (rosterPlayers[rosterRef] || []).map(r => athleteNames[r]).filter(Boolean)
-              : [];
+              : (athleteRef && athleteNames[athleteRef] ? [athleteNames[athleteRef]] : []);
             // 승자 판정: score $ref → {winner, draw, displayValue}
             const scoreRef = c.score?.['$ref'];
             if (scoreRef && scoreData[scoreRef]) {
