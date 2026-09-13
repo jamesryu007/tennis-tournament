@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1162';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1163';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -26940,6 +26940,21 @@ function _renderTeamEventLeaderboard(t, wrap) {
   const displaySessions = selDay === 'all' ? allSessions
     : allSessions.filter(s => String(s.day) === selDay);
 
+  // 관심선수 체크 + 선수 이름 클릭 링크 헬퍼
+  const _teMatchTour = t.tour || 'lpga';
+  const _teAllFavs = [...(atpState.favPlayers?.mens || []), ...(atpState.favPlayers?.womens || [])];
+  const _teNameHtml = (names, isWin) => {
+    if (!names || !names.length) return '';
+    return names.map(name => {
+      const isFav = _teAllFavs.some(p => p.name.toLowerCase() === name.toLowerCase());
+      const ns = name.replace(/'/g, "\'");
+      const favMark = isFav ? '<span style="color:#f59e0b;margin-right:1px">⭐</span>' : '';
+      const fw = isWin ? '800' : '500';
+      const fc = isWin ? '#15803d' : '#1e293b';
+      return `${favMark}<span class="pp-name-link" style="font-weight:${fw};color:${fc}" onclick="openPlayerProfile('${ns}','${_teMatchTour}')">${name}</span>`;
+    }).join('<span style="color:#94a3b8"> / </span>');
+  };
+
   const sessionHtml = displaySessions.map(session => {
     const ms = session.matches || [];
     let eurPts = 0, usaPts = 0;
@@ -26962,14 +26977,14 @@ function _renderTeamEventLeaderboard(t, wrap) {
           : usaWin ? `<span style="font-size:0.8rem;font-weight:900;color:#15803d;white-space:nowrap;line-height:1.3">USA ▶${detailTxt}</span>`
           : `<span style="font-size:0.78rem;font-weight:800;color:#64748b">½ ½</span>`)
         : isLive ? `<span style="font-size:0.72rem;font-weight:800;color:#f59e0b">진행</span>` : '';
-      const eurNames = (m.eur || []).join(' / ') || (m.status === 'pre' ? '미정' : '-');
-      const usaNames = (m.usa || []).join(' / ') || (m.status === 'pre' ? '미정' : '-');
-      const eurSt = `font-size:0.9rem;font-weight:${eurWin?'800':'500'};color:${eurWin?'#15803d':'#1e293b'};flex:1;text-align:left;min-width:0;word-break:break-word;line-height:1.4`;
-      const usaSt = `font-size:0.9rem;font-weight:${usaWin?'800':'500'};color:${usaWin?'#15803d':'#1e293b'};flex:1;text-align:right;min-width:0;word-break:break-word;line-height:1.4`;
+      const eurNamesHtml = (m.eur || []).length ? _teNameHtml(m.eur, eurWin) : `<span style="color:#94a3b8">${m.status === 'pre' ? '미정' : '-'}</span>`;
+      const usaNamesHtml = (m.usa || []).length ? _teNameHtml(m.usa, usaWin) : `<span style="color:#94a3b8">${m.status === 'pre' ? '미정' : '-'}</span>`;
+      const eurSt = `font-size:0.9rem;flex:1;text-align:left;min-width:0;word-break:break-word;line-height:1.4`;
+      const usaSt = `font-size:0.9rem;flex:1;text-align:right;min-width:0;word-break:break-word;line-height:1.4`;
       return `<div style="display:flex;align-items:center;gap:6px;padding:9px 14px;border-bottom:1px solid #f1f5f9">
-        <span style="${eurSt}">${eurNames}</span>
+        <span style="${eurSt}">${eurNamesHtml}</span>
         <span style="flex-shrink:0;width:64px;text-align:center">${resultBadge}</span>
-        <span style="${usaSt}">${usaNames}</span>
+        <span style="${usaSt}">${usaNamesHtml}</span>
       </div>`;
     }).join('');
 
