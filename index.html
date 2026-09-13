@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1163';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1164';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -26948,9 +26948,10 @@ function _renderTeamEventLeaderboard(t, wrap) {
     return names.map(name => {
       const isFav = _teAllFavs.some(p => p.name.toLowerCase() === name.toLowerCase());
       const ns = name.replace(/'/g, "\'");
-      const favMark = isFav ? '<span style="color:#f59e0b;margin-right:1px">⭐</span>' : '';
-      const fw = isWin ? '800' : '500';
-      const fc = isWin ? '#15803d' : '#1e293b';
+      const favMark = isFav ? '<span style="font-size:0.75rem;margin-right:2px">⭐</span>' : '';
+      // 승리 > 관심선수 > 일반 순 컬러 우선순위
+      const fc = isWin ? '#15803d' : isFav ? '#2563eb' : '#1e293b';
+      const fw = (isWin || isFav) ? '800' : '500';
       return `${favMark}<span class="pp-name-link" style="font-weight:${fw};color:${fc}" onclick="openPlayerProfile('${ns}','${_teMatchTour}')">${name}</span>`;
     }).join('<span style="color:#94a3b8"> / </span>');
   };
