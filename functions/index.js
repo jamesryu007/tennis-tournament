@@ -2507,13 +2507,19 @@ async function _archiveGolfHistory(t) {
       const safeKey = `${year}_${t.id}`;
       const existing = await db.ref(`jmt/tournamentHistory/golf/${t.tour}/${year}/${safeKey}`).once('value');
       if (existing.val()) { console.log(`_archiveGolfHistory: already exists ${safeKey}`); return; }
+      // teamScores displayName 정규화 (ESPN이 약어로 반환할 때 대비)
+      const _normTeamScores = (t.teamScores || []).map(s => ({
+        ...s,
+        displayName: s.team === 'EUR' ? 'Europe' : s.team === 'USA' ? 'United States' : (s.displayName || s.team),
+      }));
+      const _normWinner = _normTeamScores.find(s => s.winner) || winnerTeam;
       await db.ref(`jmt/tournamentHistory/golf/${t.tour}/${year}/${safeKey}`).set({
         id: t.id, name: t.name, tour: t.tour, level: t.level || 'lpga_tour',
         isTeamEvent: true,
-        teamScores:  t.teamScores || [],
+        teamScores:  _normTeamScores,
         startDate:   t.startDate  || '',
         endDate:     t.endDate    || '',
-        winner: { name: winnerTeam.displayName || winnerTeam.team, score: String(winnerTeam.score), isTeam: true },
+        winner: { name: _normWinner.displayName || _normWinner.team, score: String(_normWinner.score), isTeam: true },
         savedAt: new Date().toISOString(),
       });
       console.log(`_archiveGolfHistory: team event saved — ${t.name} winner: ${winnerTeam.displayName}`);
@@ -2704,6 +2710,8 @@ exports.notifyGolfWinner = onValueWritten(
       // 대회 종료 판정: post 상태 OR 4라운드 완료 후 비컷 선수 전원 thru==='F'
       // scores >= 4 조건 추가 — R1 완료 시 전원 F로 오판 방지
       const _isTournamentDone = (t) => {
+        // 팀전(솔하임컵/라이더컵/프레지던츠컵): teamScores에 winner:true인 팀이 있으면 종료
+        if (t.isTeamEvent) return (t.teamScores || []).some(s => s.winner === true);
         const lb = t.leaderboard || [];
         const _effLen = (p) => (p.scores || []).filter(s => s !== '' && s !== '-').length;
         // WD/DQ 선수 제외: isCut=false이지만 '-' 포함으로 실제 스코어가 적은 경우
