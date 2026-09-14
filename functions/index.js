@@ -2520,6 +2520,7 @@ async function _archiveGolfHistory(t) {
         startDate:   t.startDate  || '',
         endDate:     t.endDate    || '',
         winner: { name: _normWinner.displayName || _normWinner.team, score: String(_normWinner.score), isTeam: true },
+        cfVersion:   2,
         savedAt: new Date().toISOString(),
       });
       console.log(`_archiveGolfHistory: team event saved — ${t.name} winner: ${winnerTeam.displayName}`);
