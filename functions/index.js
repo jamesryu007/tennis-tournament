@@ -2507,13 +2507,19 @@ async function _archiveGolfHistory(t) {
       const safeKey = `${year}_${t.id}`;
       const existing = await db.ref(`jmt/tournamentHistory/golf/${t.tour}/${year}/${safeKey}`).once('value');
       if (existing.val()) { console.log(`_archiveGolfHistory: already exists ${safeKey}`); return; }
+      // teamScores displayName 정규화 (ESPN이 약어로 반환할 때 대비)
+      const _normTeamScores = (t.teamScores || []).map(s => ({
+        ...s,
+        displayName: s.team === 'EUR' ? 'Europe' : s.team === 'USA' ? 'United States' : (s.displayName || s.team),
+      }));
+      const _normWinner = _normTeamScores.find(s => s.winner) || winnerTeam;
       await db.ref(`jmt/tournamentHistory/golf/${t.tour}/${year}/${safeKey}`).set({
         id: t.id, name: t.name, tour: t.tour, level: t.level || 'lpga_tour',
         isTeamEvent: true,
-        teamScores:  t.teamScores || [],
+        teamScores:  _normTeamScores,
         startDate:   t.startDate  || '',
         endDate:     t.endDate    || '',
-        winner: { name: winnerTeam.displayName || winnerTeam.team, score: String(winnerTeam.score), isTeam: true },
+        winner: { name: _normWinner.displayName || _normWinner.team, score: String(_normWinner.score), isTeam: true },
         savedAt: new Date().toISOString(),
       });
       console.log(`_archiveGolfHistory: team event saved — ${t.name} winner: ${winnerTeam.displayName}`);

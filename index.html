@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1165';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1166';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -26444,7 +26444,7 @@ function _renderHistoryList() {
       const _HIST_TEAM_NAMES = ['solheim cup', 'ryder cup', 'presidents cup'];
       if (e.isTeamEvent || _HIST_TEAM_NAMES.some(n => (e.name || '').toLowerCase().includes(n))) {
         const _tScores = e.teamScores || [];
-        const _eur = _tScores.find(ts => /europe/i.test(ts.displayName || ts.team || '')) || { displayName: 'Europe', score: 0, winner: false };
+        const _eur = _tScores.find(ts => /europe/i.test(ts.displayName || '') || (ts.team||'').toUpperCase()==='EUR') || { displayName: 'Europe', score: 0, winner: false };
         const _usa = _tScores.find(ts => /united.states/i.test(ts.displayName || ts.team || '') || (ts.team||'').toUpperCase()==='USA') || { displayName: 'United States', score: 0, winner: false };
         const _eurColor = _eur.winner ? '#16a34a' : '#475569';
         const _usaColor = _usa.winner ? '#16a34a' : '#475569';
