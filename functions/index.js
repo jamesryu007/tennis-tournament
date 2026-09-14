@@ -2704,6 +2704,8 @@ exports.notifyGolfWinner = onValueWritten(
       // 대회 종료 판정: post 상태 OR 4라운드 완료 후 비컷 선수 전원 thru==='F'
       // scores >= 4 조건 추가 — R1 완료 시 전원 F로 오판 방지
       const _isTournamentDone = (t) => {
+        // 팀전(솔하임컵/라이더컵/프레지던츠컵): teamScores에 winner:true인 팀이 있으면 종료
+        if (t.isTeamEvent) return (t.teamScores || []).some(s => s.winner === true);
         const lb = t.leaderboard || [];
         const _effLen = (p) => (p.scores || []).filter(s => s !== '' && s !== '-').length;
         // WD/DQ 선수 제외: isCut=false이지만 '-' 포함으로 실제 스코어가 적은 경우
