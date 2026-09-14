@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1167';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1168';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -26008,14 +26008,25 @@ async function _toggleGolfPastWinners(tournamentName, tour, panelId) {
             if (!bestEvent || bestEvOvlp < 0.4) continue;
             const comp = (bestEvent.competitions || [])[0];
             const competitors = (comp ? comp.competitors || [] : []).slice().sort((a, b) => (a.order || 9999) - (b.order || 9999));
-            const first = competitors[0];
-            if (!first) continue;
-            const ath = first.athlete || {};
-            const wName = ath.displayName || ath.fullName || first.displayName || '';
-            if (!wName) continue;
-            const winnerObj = { name: wName, country: (ath.flag && ath.flag.alt) || (ath.country && ath.country.abbreviation) || '', score: first.score || '' };
+            if (!competitors.length) continue;
+            // 팀전 감지: athlete 없고 team 있는 경우 → winner:true 팀 또는 order 1 팀 선택
+            const isTeamEv = competitors.some(c => !c.athlete && c.team);
+            let winnerComp, wName, winnerObj;
+            if (isTeamEv) {
+              winnerComp = competitors.find(c => c.winner === true) || competitors[0];
+              const tName = (winnerComp.team && (winnerComp.team.displayName || winnerComp.team.abbreviation)) || winnerComp.displayName || '';
+              if (!tName) continue;
+              winnerObj = { name: tName, score: winnerComp.score || '', isTeam: true };
+            } else {
+              const first = competitors[0];
+              const ath = first.athlete || {};
+              wName = ath.displayName || ath.fullName || first.displayName || '';
+              if (!wName) continue;
+              winnerObj = { name: wName, country: (ath.flag && ath.flag.alt) || (ath.country && ath.country.abbreviation) || '', score: first.score || '' };
+            }
             const entryName = bestEvent.name || tournamentName;
-            const entry = { name: entryName, winner: winnerObj, year: parseInt(y), savedAt: Date.now(), cfVersion: 2 };
+            const _sd = (bestEvent.competitions && bestEvent.competitions[0] && bestEvent.competitions[0].startDate) || '';
+            const entry = { name: entryName, winner: winnerObj, year: parseInt(y), startDate: _sd, savedAt: Date.now(), cfVersion: 2 };
             const cfKey = 'cf_' + entryName.toLowerCase().replace(/[^a-z0-9]/g, '_');
             db.ref(`jmt/tournamentHistory/golf/${tour}/${y}/${cfKey}`).set(entry).catch(fbErr);
             foundEntry = { winner: winnerObj, name: entryName, _year: String(y) };
