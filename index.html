@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1168';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1170';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13526,6 +13526,7 @@ function initAtpListeners() {
     atpState.tournamentInfo = d ? (d.tournamentInfo || null) : null;
     atpState.matches = d ? (d.matches || []) : [];
     atpState.gsRoundTab = null;
+    atpState.gsRoundTabManual = false;
     atpState.loaded = true;
     if (document.getElementById('page-atp').classList.contains('active')) renderAtpPage();
     _updateLiveBadge();
@@ -14079,7 +14080,8 @@ function renderRoundDrawPanel(el, matches, tier, tourney) {
   // TBD vs TBD 완료 경기는 제외 (결승 TBD 오선택 방지)
   // 현재 탭 경기가 모두 완료되었으면 다음 라운드로 자동 이동
   const _curTabIdx = availRounds.indexOf(atpState.gsRoundTab);
-  const _allCurRoundDone = atpState.gsRoundTab &&
+  // 수동 선택된 탭은 완료 여부와 무관하게 유지 — 자동 이동은 비수동(초기/대회 변경) 시만
+  const _allCurRoundDone = !atpState.gsRoundTabManual && atpState.gsRoundTab &&
     (roundGroups[atpState.gsRoundTab] || []).length > 0 &&
     (roundGroups[atpState.gsRoundTab] || []).every(isEffectivelyDone) &&
     _curTabIdx >= 0 && _curTabIdx < availRounds.length - 1;
@@ -14225,6 +14227,7 @@ function renderRoundDrawPanel(el, matches, tier, tourney) {
 
 function switchRoundTab(roundKey) {
   atpState.gsRoundTab = roundKey;
+  atpState.gsRoundTabManual = true; // 수동 선택 — 완료 라운드 자동이동 억제
   const el = document.getElementById('atp-draw-content');
   if (!el) return;
   const useGS = atpState.lastGrandSlam && (!atpState.tournamentInfo || !atpState.tournamentInfo.name);
@@ -14369,7 +14372,13 @@ function renderMatchRow(m) {
   return `
     <div class="atp-match-row" style="align-items:center">
       <div style="flex:1;min-width:0">
-        ${wta ? '<div style="margin-bottom:3px"><span style="font-size:0.58rem;font-weight:800;background:#fce7f3;color:#be185d;border-radius:4px;padding:1px 5px">WTA</span></div>' : ''}
+        <div style="margin-bottom:3px">${
+          m.isMixed           ? '<span style="font-size:0.58rem;font-weight:800;background:#f3e8ff;color:#7c3aed;border-radius:4px;padding:1px 5px">혼합복식</span>'
+          : wta && m.singles===false ? '<span style="font-size:0.58rem;font-weight:800;background:#fce7f3;color:#be185d;border-radius:4px;padding:1px 5px">WTA 복식</span>'
+          : wta               ? '<span style="font-size:0.58rem;font-weight:800;background:#fce7f3;color:#be185d;border-radius:4px;padding:1px 5px">WTA</span>'
+          : m.singles===false ? '<span style="font-size:0.58rem;font-weight:800;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 5px">남자복식</span>'
+          :                     '<span style="font-size:0.58rem;font-weight:800;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 5px">ATP</span>'
+        }</div>
         <div style="display:flex;align-items:center;gap:5px;min-height:22px">
           <div style="width:3px;height:16px;border-radius:2px;flex-shrink:0;background:${p1Win?'#22c55e':'transparent'}"></div>
           <div class="atp-player ${p1Win?'winner':''}" style="${p1Color?'color:'+p1Color:''}">
@@ -15931,6 +15940,7 @@ async function triggerAtpRefresh() {
         const typeText = (comp.type?.text || '').toLowerCase();
         const isWomens  = grpIsWomens || typeSlug.includes('women') || typeText.includes('women');
         const isDoubles = typeSlug.includes('double') || typeText.includes('double') || grpName.includes('double');
+        const isMixed   = typeSlug.includes('mixed')  || typeText.includes('mixed')  || grpName.includes('mixed');
         // 복식: competitor.athletes[] 배열, 단식: competitor.athlete 객체
         // 단식: p.athlete.displayName / 복식: p.roster.displayName (ESPN 복식 구조)
         const _pName    = p => p.athlete?.displayName || p.roster?.displayName || '';
@@ -15943,6 +15953,7 @@ async function triggerAtpRefresh() {
           status:        st.type?.name || '',
           gender:        isWomens ? 'women' : 'men',
           singles:       !isDoubles,
+          isMixed:       isMixed,
           player1Id:     _pId(p1),
           player1Name:   _pName(p1),
           player1Country:_pCountry(p1),
@@ -16009,6 +16020,7 @@ async function triggerAtpRefresh() {
     atpState.loaded = true;
     atpState.preferBetTab = false;
     atpState.gsRoundTab = null;
+    atpState.gsRoundTabManual = false;
     renderAtpPage();
 
     // Firebase 저장은 백그라운드
