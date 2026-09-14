@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1170';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1171';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -14373,10 +14373,10 @@ function renderMatchRow(m) {
     <div class="atp-match-row" style="align-items:center">
       <div style="flex:1;min-width:0">
         <div style="margin-bottom:3px">${
-          m.isMixed           ? '<span style="font-size:0.58rem;font-weight:800;background:#f3e8ff;color:#7c3aed;border-radius:4px;padding:1px 5px">혼합복식</span>'
-          : wta && m.singles===false ? '<span style="font-size:0.58rem;font-weight:800;background:#fce7f3;color:#be185d;border-radius:4px;padding:1px 5px">WTA 복식</span>'
+          m.isMixed           ? '<span style="font-size:0.58rem;font-weight:800;background:#f3e8ff;color:#7c3aed;border-radius:4px;padding:1px 5px">Mixed</span>'
+          : wta && m.singles===false ? '<span style="font-size:0.58rem;font-weight:800;background:#fce7f3;color:#be185d;border-radius:4px;padding:1px 5px">WTA DBL</span>'
           : wta               ? '<span style="font-size:0.58rem;font-weight:800;background:#fce7f3;color:#be185d;border-radius:4px;padding:1px 5px">WTA</span>'
-          : m.singles===false ? '<span style="font-size:0.58rem;font-weight:800;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 5px">남자복식</span>'
+          : m.singles===false ? '<span style="font-size:0.58rem;font-weight:800;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 5px">ATP DBL</span>'
           :                     '<span style="font-size:0.58rem;font-weight:800;background:#dbeafe;color:#1d4ed8;border-radius:4px;padding:1px 5px">ATP</span>'
         }</div>
         <div style="display:flex;align-items:center;gap:5px;min-height:22px">
