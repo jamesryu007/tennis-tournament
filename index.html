@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1171';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1172';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -26910,6 +26910,17 @@ function _renderTeamEventLeaderboard(t, wrap) {
   const eur     = scores.find(s => /europe/i.test(s.displayName) || s.team === 'EUR') || { displayName: 'Europe', score: 0, winner: false };
   const usa     = scores.find(s => /united.states/i.test(s.displayName) || s.team === 'USA') || { displayName: 'United States', score: 0, winner: false };
   const eurW    = eur.winner, usaW = usa.winner;
+
+  // 누적 점수: teamScores는 ESPN current session 점수이므로 sessions에서 직접 계산
+  const _allSess = (t.teamMatches && t.teamMatches.sessions) || [];
+  let _eurCalc = 0, _usaCalc = 0;
+  _allSess.forEach(s => (s.matches || []).forEach(m => {
+    if (m.result === 'eur') _eurCalc += 1;
+    else if (m.result === 'usa') _usaCalc += 1;
+    else if (m.result === 'half') { _eurCalc += 0.5; _usaCalc += 0.5; }
+  }));
+  const _eurScore = _allSess.length > 0 ? (_eurCalc % 1 === 0 ? _eurCalc : _eurCalc.toFixed(1)) : eur.score;
+  const _usaScore = _allSess.length > 0 ? (_usaCalc % 1 === 0 ? _usaCalc : _usaCalc.toFixed(1)) : usa.score;
   const eurC    = eurW ? '#16a34a' : usaW ? '#94a3b8' : '#1e293b';
   const usaC    = usaW ? '#16a34a' : eurW ? '#94a3b8' : '#1e293b';
 
@@ -26926,12 +26937,12 @@ function _renderTeamEventLeaderboard(t, wrap) {
     <div style="display:flex;justify-content:center;align-items:center;gap:20px">
       <div style="text-align:center">
         <div style="font-size:0.78rem;font-weight:700;color:${eurC}">🌍 Europe${eurW ? ' 🏆' : ''}</div>
-        <div style="font-size:2.4rem;font-weight:900;color:${eurC};line-height:1.1;margin-top:2px">${eur.score}</div>
+        <div style="font-size:2.4rem;font-weight:900;color:${eurC};line-height:1.1;margin-top:2px">${_eurScore}</div>
       </div>
       <div style="font-size:1rem;font-weight:400;color:#94a3b8;margin-top:8px">vs</div>
       <div style="text-align:center">
         <div style="font-size:0.78rem;font-weight:700;color:${usaC}">🇺🇸 USA${usaW ? ' 🏆' : ''}</div>
-        <div style="font-size:2.4rem;font-weight:900;color:${usaC};line-height:1.1;margin-top:2px">${usa.score}</div>
+        <div style="font-size:2.4rem;font-weight:900;color:${usaC};line-height:1.1;margin-top:2px">${_usaScore}</div>
       </div>
     </div>
   </div>`;
