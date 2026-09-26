@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1172';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1173';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -26915,9 +26915,10 @@ function _renderTeamEventLeaderboard(t, wrap) {
   const _allSess = (t.teamMatches && t.teamMatches.sessions) || [];
   let _eurCalc = 0, _usaCalc = 0;
   _allSess.forEach(s => (s.matches || []).forEach(m => {
-    if (m.result === 'eur') _eurCalc += 1;
-    else if (m.result === 'usa') _usaCalc += 1;
-    else if (m.result === 'half') { _eurCalc += 0.5; _usaCalc += 0.5; }
+    const r = (m.result || '').toUpperCase();
+    if (r === 'EUR') _eurCalc += 1;
+    else if (r === 'USA') _usaCalc += 1;
+    else if (r === 'HALVED' || r === 'HALF') { _eurCalc += 0.5; _usaCalc += 0.5; }
   }));
   const _eurScore = _allSess.length > 0 ? (_eurCalc % 1 === 0 ? _eurCalc : _eurCalc.toFixed(1)) : eur.score;
   const _usaScore = _allSess.length > 0 ? (_usaCalc % 1 === 0 ? _usaCalc : _usaCalc.toFixed(1)) : usa.score;
