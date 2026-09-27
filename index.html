@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1174';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1175';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -26471,8 +26471,10 @@ function _renderHistoryList() {
       const _HIST_TEAM_NAMES = ['solheim cup', 'ryder cup', 'presidents cup'];
       if (e.isTeamEvent || _HIST_TEAM_NAMES.some(n => (e.name || '').toLowerCase().includes(n))) {
         const _tScores = e.teamScores || [];
-        const _eur = _tScores.find(ts => /europe/i.test(ts.displayName || '') || (ts.team||'').toUpperCase()==='EUR') || { displayName: 'Europe', score: 0, winner: false };
-        const _usa = _tScores.find(ts => /united.states/i.test(ts.displayName || ts.team || '') || (ts.team||'').toUpperCase()==='USA') || { displayName: 'United States', score: 0, winner: false };
+        const _usa = _tScores.find(ts => /united.states/i.test(ts.displayName||'') || (ts.team||'').toUpperCase()==='USA') || { displayName: 'United States', score: 0, winner: false };
+        const _eur = _tScores.find(ts => !(/united.states/i.test(ts.displayName||'')) && (ts.team||'').toUpperCase()!=='USA') || { displayName: 'Europe', score: 0, winner: false };
+        const _isPC = (e.name || '').toLowerCase().includes('presidents cup');
+        const _eurLabel = _isPC ? '🌎 International' : (/international/i.test(_eur.displayName||'') ? '🌎 International' : '🌍 Europe');
         const _eurColor = _eur.winner ? '#16a34a' : '#475569';
         const _usaColor = _usa.winner ? '#16a34a' : '#475569';
         return `<div style="position:relative;background:${s.bg};border:1.5px solid ${s.border};border-radius:12px;padding:12px 14px;margin-bottom:10px">
@@ -26485,7 +26487,7 @@ function _renderHistoryList() {
           <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}</div>
           <div style="background:#fff;border-radius:8px;padding:10px 14px;display:flex;align-items:center;justify-content:space-around;gap:8px">
             <div style="text-align:center">
-              <div style="font-size:0.72rem;color:#475569;font-weight:700;margin-bottom:3px">🌍 Europe</div>
+              <div style="font-size:0.72rem;color:#475569;font-weight:700;margin-bottom:3px">${_eurLabel}</div>
               <div style="font-size:1.9rem;font-weight:900;color:${_eurColor};line-height:1">${_eur.score}</div>
               ${_eur.winner ? '<div style="font-size:0.7rem;font-weight:800;color:#16a34a;margin-top:2px">🏆 우승</div>' : ''}
             </div>
@@ -26911,8 +26913,13 @@ async function openPlayerProfile(name, tour) {
 // ── 팀전 리더보드 렌더 (솔하임컵/라이더컵/프레지던츠컵) ────────────
 function _renderTeamEventLeaderboard(t, wrap) {
   const scores  = t.teamScores || [];
-  const eur     = scores.find(s => /europe/i.test(s.displayName) || s.team === 'EUR') || { displayName: 'Europe', score: 0, winner: false };
-  const usa     = scores.find(s => /united.states/i.test(s.displayName) || s.team === 'USA') || { displayName: 'United States', score: 0, winner: false };
+  // USA 팀 먼저 찾고, 나머지(Europe/International)는 USA가 아닌 팀으로 탐색
+  const usa     = scores.find(s => /united.states/i.test(s.displayName||'') || (s.team||'').toUpperCase()==='USA') || { displayName: 'United States', score: 0, winner: false };
+  const eur     = scores.find(s => !(/united.states/i.test(s.displayName||'')) && (s.team||'').toUpperCase()!=='USA') || { displayName: 'Europe', score: 0, winner: false };
+  // 프레지던츠컵은 "International" 팀 표기
+  const _isPresidentsCup = (t.name || '').toLowerCase().includes('presidents cup');
+  const _eurEmoji = _isPresidentsCup ? '🌎' : '🌍';
+  const _eurName  = _isPresidentsCup ? 'International' : (/international/i.test(eur.displayName||'') ? 'International' : 'Europe');
   const eurW    = eur.winner, usaW = usa.winner;
 
   // 누적 점수: teamScores는 ESPN current session 점수이므로 sessions에서 직접 계산
@@ -26931,7 +26938,7 @@ function _renderTeamEventLeaderboard(t, wrap) {
 
   // 상태 배지
   const statusLabel = t.state === 'post'
-    ? (eurW ? '🏆 Europe 우승' : usaW ? '🏆 USA 우승' : '종료')
+    ? (eurW ? `🏆 ${_eurName} 우승` : usaW ? '🏆 USA 우승' : '종료')
     : t.state === 'in' ? '' : '대회 예정';
   const liveBadge = t.state === 'in'
     ? `<span class="live-badge" style="font-size:0.62rem;padding:2px 6px;margin-right:5px">LIVE</span>` : '';
@@ -26941,7 +26948,7 @@ function _renderTeamEventLeaderboard(t, wrap) {
     <div style="font-size:0.7rem;font-weight:700;color:#64748b;margin-bottom:8px">${liveBadge}${statusLabel}</div>
     <div style="display:flex;justify-content:center;align-items:center;gap:20px">
       <div style="text-align:center">
-        <div style="font-size:0.78rem;font-weight:700;color:${eurC}">🌍 Europe${eurW ? ' 🏆' : ''}</div>
+        <div style="font-size:0.78rem;font-weight:700;color:${eurC}">${_eurEmoji} ${_eurName}${eurW ? ' 🏆' : ''}</div>
         <div style="font-size:2.4rem;font-weight:900;color:${eurC};line-height:1.1;margin-top:2px">${_eurScore}</div>
       </div>
       <div style="font-size:1rem;font-weight:400;color:#94a3b8;margin-top:8px">vs</div>
@@ -27679,8 +27686,11 @@ async function _fetchTeamEventMatchesFE(tour, eventId) {
 
           const match = { eur: [], usa: [], result: null, resultDetail: '', status: state };
           for (const c of (comp.competitors || [])) {
-            // homeAway: 'home' = Europe, 'away' = United States (솔하임컵/라이더컵 공통)
-            const isUSA = c.homeAway === 'away';
+            // 팀 이름으로 USA 판별 (프레지던츠컵은 USA가 home이라 homeAway 기준 불가)
+            const _tAbbr = (c.team?.abbreviation || c.team?.shortDisplayName || '').toUpperCase();
+            const _tName = (c.team?.displayName || '').toLowerCase();
+            const isUSA = _tAbbr === 'USA' || _tName.includes('united states')
+              || (!_tAbbr && !_tName && c.homeAway === 'away');
             const teamKey = isUSA ? 'usa' : 'eur';
             const rosterRef = c.roster?.['$ref'];
             const athleteRef = c.athlete?.['$ref'];

@@ -2849,7 +2849,7 @@ exports.fetchGolfPastWinner = onCall(
         const ovlp = _overlap(cal.label || '');
         if (ovlp > bestOvlp) { bestOvlp = ovlp; bestCal = cal; }
       }
-      if (!bestCal || bestOvlp < 0.4) return null;
+      if (!bestCal || bestOvlp < 0.6) return null;
 
       // 2단계: 해당 대회 주차 endDate로 정확한 scoreboard 요청 → 풀 데이터
       const end = new Date(bestCal.endDate);
@@ -2862,7 +2862,7 @@ exports.fetchGolfPastWinner = onCall(
         const ovlp = _overlap(ev.name || ev.shortName || '');
         if (ovlp > bestEvOvlp) { bestEvOvlp = ovlp; bestEvent = ev; }
       }
-      if (!bestEvent || bestEvOvlp < 0.4) return null;
+      if (!bestEvent || bestEvOvlp < 0.6) return null;
       return { event: bestEvent, tkey };
     };
 
