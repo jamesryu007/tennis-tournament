@@ -401,15 +401,9 @@ function selectTournament(events) {
 }
 
 // ── ESPN 파싱 공통 함수 ────────────────────────────────────────────
-async function fetchAndParseAtpData() {
-  const json = await espnFetch('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard');
-  if (!json) return null;
-  const events = json.events || [];
-
-  const ev = selectTournament(events);
-  if (!ev) return { tournamentInfo: null, matches: [] };
-
-  // venue 정보
+// ev 1개를 파싱해서 { tournamentInfo, matches, isGrandSlam } 반환
+function _parseAtpEvent(ev) {
+  if (!ev) return null;
   const firstGrouping = (ev.groupings || [])[0];
   const firstComp = (firstGrouping?.competitions || [])[0];
   let venueFullName = '', venueCity = '', venueCountry = '';
@@ -419,37 +413,18 @@ async function fetchAndParseAtpData() {
     venueCity    = parts[0] || '';
     venueCountry = parts[1] || '';
   }
-
   const tier = getTournamentTier(ev);
-  // displayName: "ESPN명 · 도시명" (도시가 이름에 이미 포함된 경우 도시만)
-  const displayName = venueCity
-    ? `${ev.name || ''} · ${venueCity}`
-    : (ev.name || '');
-
-  // 상금 정보 (ESPN 제공 시)
-  const purse = ev.displayPurse || ev.purse
-    || firstComp?.displayPurse || firstComp?.purse || '';
-
+  const displayName = venueCity ? `${ev.name || ''} · ${venueCity}` : (ev.name || '');
+  const purse = ev.displayPurse || ev.purse || firstComp?.displayPurse || firstComp?.purse || '';
   const tournamentInfo = {
-    id:           ev.id        || '',
-    name:         ev.name      || '',
-    shortName:    ev.shortName || '',
-    displayName,
-    tier,
-    purse:        purse ? String(purse) : '',
-    venueName:    venueFullName,
-    venueCity,
-    venueCountry,
-    startDate:    ev.date      || '',
-    endDate:      ev.endDate   || '',
-    updatedAt:    new Date().toISOString(),
+    id: ev.id || '', name: ev.name || '', shortName: ev.shortName || '',
+    displayName, tier, purse: purse ? String(purse) : '',
+    venueName: venueFullName, venueCity, venueCountry,
+    startDate: ev.date || '', endDate: ev.endDate || '',
+    updatedAt: new Date().toISOString(),
   };
-
-  // 선택된 토너먼트의 경기만 추출
   const matches = [];
   for (const grp of (ev.groupings || [])) {
-    // 복합(ATP+WTA) 대회 대응: grouping 이름 우선, 없으면 competition type으로 성별 판별
-    // 그랜드슬램처럼 grouping.displayName이 undefined인 경우 comp.type.slug 사용
     const grpName = (grp.displayName || '').toLowerCase();
     const grpIsWomens = grpName.includes('women') || grpName.includes('female');
     for (const comp of (grp.competitions || [])) {
@@ -460,36 +435,45 @@ async function fetchAndParseAtpData() {
       const typeText = (comp.type?.text || '').toLowerCase();
       const isWomens = grpIsWomens || typeSlug.includes('women') || typeText.includes('women');
       const isDoubles = typeSlug.includes('double') || typeText.includes('double') || grpName.includes('double');
+      const isMixed = typeSlug.includes('mixed') || typeText.includes('mixed') || grpName.includes('mixed');
       matches.push({
-        id:             comp.id,
-        roundName:      comp.round?.displayName || grp.displayName || '',
-        date:           comp.date || '',
-        status:         st.type?.name || '',
-        gender:         isWomens ? 'women' : 'men',
-        singles:        !isDoubles,
-        player1Id:      p1.athlete?.id           || '',
-        player1Name:    p1.athlete?.displayName  || '',
-        player1Country: p1.athlete?.flag?.alt    || '',
-        player1Score:   (p1.linescores || []).map(s => {
+        id: comp.id, roundName: comp.round?.displayName || grp.displayName || '',
+        date: comp.date || '', status: st.type?.name || '',
+        gender: isWomens ? 'women' : 'men', singles: !isDoubles, isMixed,
+        player1Id: p1.athlete?.id || '', player1Name: p1.athlete?.displayName || '',
+        player1Country: p1.athlete?.flag?.alt || '',
+        player1Score: (p1.linescores || []).map(s => {
           const v = Math.round(s.value || 0);
           if (s.tiebreak != null && !s.winner) return `${v}(${s.tiebreak})`;
           return String(v);
         }).join(' '),
-        player1Winner:  p1.winner || false,
-        player2Id:      p2.athlete?.id           || '',
-        player2Name:    p2.athlete?.displayName  || '',
-        player2Country: p2.athlete?.flag?.alt    || '',
-        player2Score:   (p2.linescores || []).map(s => {
+        player1Winner: p1.winner || false,
+        player2Id: p2.athlete?.id || '', player2Name: p2.athlete?.displayName || '',
+        player2Country: p2.athlete?.flag?.alt || '',
+        player2Score: (p2.linescores || []).map(s => {
           const v = Math.round(s.value || 0);
           if (s.tiebreak != null && !s.winner) return `${v}(${s.tiebreak})`;
           return String(v);
         }).join(' '),
-        player2Winner:  p2.winner || false,
+        player2Winner: p2.winner || false,
       });
     }
   }
+  return { tournamentInfo, matches, isGrandSlam: tier === 'grandslam' };
+}
 
-  return { tournamentInfo, matches, isGrandSlam: tier === 'grandslam', ev };
+async function fetchAndParseAtpData() {
+  const json = await espnFetch('https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard');
+  if (!json) return null;
+  const events = json.events || [];
+
+  const ev = selectTournament(events);
+  if (!ev) return { tournamentInfo: null, matches: [], allParsed: [] };
+  // 모든 이벤트 파싱 (멀티대회 지원)
+  const allParsed = events.map(_parseAtpEvent).filter(Boolean);
+  // primary = 가장 높은 티어
+  const primary = _parseAtpEvent(ev);
+  return { ...primary, allParsed };
 }
 
 // ── 테니스 우승상금 자동 조회 ────────────────────────────────────
@@ -597,7 +581,7 @@ async function saveGrandSlamIfNeeded(tournamentInfo, matches, isGrandSlam) {
 }
 
 // ── ATP 데이터 저장 공통 (토너먼트 변경 시 베팅 보호 후 초기화) ──
-async function saveAtpData(tournamentInfo, matches, isGrandSlam) {
+async function saveAtpData(tournamentInfo, matches, isGrandSlam, allParsed = []) {
   const updatedAt = new Date().toISOString();
 
   // WTA 랭킹 기반 gender 보정 — ESPN이 'women' 키워드 없이 데이터를 줄 때 오탐 방지
@@ -656,7 +640,17 @@ async function saveAtpData(tournamentInfo, matches, isGrandSlam) {
     await db.ref('jmt/atpBets').remove();
   }
 
-  await db.ref('jmt/atpData').set({ tournamentInfo, matches, updatedAt });
+  // 골프와 동일하게 update() + 개별 경로 write — set()으로 tournaments/ 덮어쓰기 방지
+  await db.ref('jmt/atpData').update({ tournamentInfo, matches, updatedAt });
+  // 각 대회를 개별 경로에 저장 (additive — 기존 항목 삭제 없음)
+  const _allForSave = allParsed.length > 0 ? allParsed
+    : [{ tournamentInfo, matches }];
+  for (const p of _allForSave) {
+    if (!p.tournamentInfo?.id) continue;
+    await db.ref(`jmt/atpData/tournaments/${p.tournamentInfo.id}`)
+      .set({ tournamentInfo: p.tournamentInfo, matches: p.matches, updatedAt })
+      .catch(e => console.error('atpData/tournaments write:', e));
+  }
   await saveGrandSlamIfNeeded(tournamentInfo, matches, isGrandSlam);
   await autoProcessWinnerBet(matches);
   // 뉴스는 fetchAtpNews(asia-southeast1)에서만 처리 — fetchAtpData(us-central1)에서 호출 시 ESPN 미국 캐시 기사로 덮어쓰는 문제 방지
@@ -786,8 +780,14 @@ exports.fetchAtpData = onSchedule(
     try {
       const atpResult = await fetchAndParseAtpData();
       if (!atpResult) { console.warn('fetchAtpData: ESPN 응답 없음, 스킵'); return; }
-      const { tournamentInfo, matches, isGrandSlam } = atpResult;
-      await saveAtpData(tournamentInfo, matches, isGrandSlam);
+      const { tournamentInfo, matches, isGrandSlam, allParsed } = atpResult;
+      // 비프라이머리 대회 아카이브 (히스토리 누락 방지)
+      for (const p of (allParsed || [])) {
+        if (!p.tournamentInfo?.id || p.tournamentInfo.id === tournamentInfo?.id) continue;
+        await _archiveTennisHistory(p.tournamentInfo, p.matches, 'men').catch(e => console.error(e));
+        await _archiveTennisHistory(p.tournamentInfo, p.matches, 'women').catch(e => console.error(e));
+      }
+      await saveAtpData(tournamentInfo, matches, isGrandSlam, allParsed || []);
       await _botReportAtpResults(matches, tournamentInfo).catch(e => console.error('_botReportAtpResults error:', e));
       // 랭킹이 7일 이상 됐으면 자동 갱신 (폴백 데이터 의존 방지)
       const rankMeta = await db.ref('jmt/atpRankings/updatedAt').once('value');
@@ -1025,8 +1025,15 @@ exports.refreshAtpData = onCall(
   { region: 'asia-southeast1' },
   async (request) => {
     try {
-      const { tournamentInfo, matches, isGrandSlam } = await fetchAndParseAtpData();
-      await saveAtpData(tournamentInfo, matches, isGrandSlam);
+      const atpResult = await fetchAndParseAtpData();
+      const { tournamentInfo, matches, isGrandSlam, allParsed } = atpResult;
+      // 비프라이머리 대회 아카이브
+      for (const p of (allParsed || [])) {
+        if (!p.tournamentInfo?.id || p.tournamentInfo.id === tournamentInfo?.id) continue;
+        await _archiveTennisHistory(p.tournamentInfo, p.matches, 'men').catch(e => console.error(e));
+        await _archiveTennisHistory(p.tournamentInfo, p.matches, 'women').catch(e => console.error(e));
+      }
+      await saveAtpData(tournamentInfo, matches, isGrandSlam, allParsed || []);
       return { success: true };
     } catch (e) {
       console.error('refreshAtpData error:', e);
@@ -2849,7 +2856,7 @@ exports.fetchGolfPastWinner = onCall(
         const ovlp = _overlap(cal.label || '');
         if (ovlp > bestOvlp) { bestOvlp = ovlp; bestCal = cal; }
       }
-      if (!bestCal || bestOvlp < 0.4) return null;
+      if (!bestCal || bestOvlp < 0.6) return null;
 
       // 2단계: 해당 대회 주차 endDate로 정확한 scoreboard 요청 → 풀 데이터
       const end = new Date(bestCal.endDate);
@@ -2862,7 +2869,7 @@ exports.fetchGolfPastWinner = onCall(
         const ovlp = _overlap(ev.name || ev.shortName || '');
         if (ovlp > bestEvOvlp) { bestEvOvlp = ovlp; bestEvent = ev; }
       }
-      if (!bestEvent || bestEvOvlp < 0.4) return null;
+      if (!bestEvent || bestEvOvlp < 0.6) return null;
       return { event: bestEvent, tkey };
     };
 
