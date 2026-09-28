@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1177';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1178';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13753,21 +13753,20 @@ function renderAtpTournamentSelector() {
   const el = document.getElementById('atp-tournament-selector');
   if (!el) return;
   const ts = Object.values(atpState.tournaments || {}).filter(t => t.tournamentInfo && t.tournamentInfo.id);
-  if (ts.length <= 1) { el.style.display = 'none'; return; }
+  const selId = atpState.selectedTournamentId || (atpState.tournamentInfo && atpState.tournamentInfo.id);
+  // 현재 보여지는 대회 제외 — 골프 "다른 대회" 스타일
+  const others = ts.filter(t => t.tournamentInfo.id !== selId);
+  if (others.length === 0) { el.style.display = 'none'; return; }
   el.style.display = '';
   const TIER_O = { grandslam: 0, atp1000: 1, atp500: 2, atp250: 3 };
   const TIER_LBL = { grandslam: 'GS', atp1000: '1000', atp500: '500', atp250: '250' };
-  const selId = atpState.selectedTournamentId || (atpState.tournamentInfo && atpState.tournamentInfo.id);
-  el.innerHTML = ts
+  el.innerHTML = '<span style="font-size:0.7rem;font-weight:700;color:#94a3b8;margin-right:6px">다른 대회</span>'
+    + others
     .sort((a, b) => (TIER_O[a.tournamentInfo.tier] ?? 9) - (TIER_O[b.tournamentInfo.tier] ?? 9))
     .map(t => {
       const ti = t.tournamentInfo;
-      const isSel = ti.id === selId;
-      const bg = isSel ? '#3730a3' : '#fff';
-      const cl = isSel ? '#fff' : '#475569';
-      const bd = isSel ? '#3730a3' : '#e2e8f0';
       const tierBadge = TIER_LBL[ti.tier] ? `<span style="font-size:0.6rem;opacity:0.85;margin-left:4px">${TIER_LBL[ti.tier]}</span>` : '';
-      return `<button onclick="selectAtpTournament('${ti.id}')" style="display:inline-block;margin:0 4px 0 0;padding:5px 12px;border-radius:20px;font-size:0.75rem;font-weight:700;cursor:pointer;white-space:nowrap;border:1.5px solid ${bd};background:${bg};color:${cl};outline:none;-webkit-tap-highlight-color:transparent">${ti.shortName || ti.name}${tierBadge}</button>`;
+      return `<button onclick="selectAtpTournament('${ti.id}')" style="display:inline-block;margin:0 4px 0 0;padding:4px 10px;border-radius:16px;font-size:0.72rem;font-weight:700;cursor:pointer;white-space:nowrap;border:1.5px solid #c7d2fe;background:#eef2ff;color:#3730a3;outline:none;-webkit-tap-highlight-color:transparent">${ti.shortName || ti.name}${tierBadge} ▶</button>`;
     })
     .join('');
 }
@@ -27615,6 +27614,7 @@ function _parseGolfEvents(events, tour) {
       || (comp.competitors || []).some(c => c.team?.displayName && !c.athlete?.displayName);
     let leaderboard = [];
     let teamScores = null;
+    let _teamUsaHAw = 'away'; // 스코어보드 레벨에서 USA homeAway 파악 (Core API보다 신뢰도 높음)
     if (_isTeamEv) {
       // 팀명 없는 경우(솔하임컵) 순서 기반 EUR/USA 추정
       const sorted = (comp.competitors || []).slice().sort((a, b) => (a.order || 9999) - (b.order || 9999));
@@ -27622,6 +27622,8 @@ function _parseGolfEvents(events, tour) {
         const teamName = c.team?.displayName || c.athlete?.displayName || '';
         const displayName = teamName || (i === 0 ? 'Europe' : 'United States');
         const team = c.team?.abbreviation || (i === 0 ? 'EUR' : 'USA');
+        // USA의 homeAway 기록 (프레지던츠컵: USA=home, 라이더컵: USA=away)
+        if (team === 'USA' || /united.states/i.test(displayName)) _teamUsaHAw = c.homeAway || 'away';
         return { team, displayName, score: parseFloat(c.score) || 0, winner: c.winner || false };
       });
     } else {
@@ -27655,7 +27657,7 @@ function _parseGolfEvents(events, tour) {
       startDate: ev.date || '', endDate: ev.endDate || '',
       leaderboard, updatedAt: new Date().toISOString(),
     };
-    if (_isTeamEv) { entry.isTeamEvent = true; entry.teamScores = teamScores; }
+    if (_isTeamEv) { entry.isTeamEvent = true; entry.teamScores = teamScores; entry.usaHomeAway = _teamUsaHAw; }
     return entry;
   }).filter(Boolean);
 }
@@ -27663,7 +27665,7 @@ function _parseGolfEvents(events, tour) {
 // ── 팀전 매치 상세 (브라우저 직접 ESPN Core API 호출) ──────────────
 // ESPN Core API는 status/team/roster/score 등을 $ref 링크로 반환 → 직접 fetch 필요
 // http:// URL을 https://로 변환해야 브라우저 mixed-content 차단 우회 가능
-async function _fetchTeamEventMatchesFE(tour, eventId) {
+async function _fetchTeamEventMatchesFE(tour, eventId, usaHomeAwayHint) {
   try {
     const toHttps = url => (url || '').replace(/^http:\/\//, 'https://');
     const jFetch = async url => {
@@ -27673,17 +27675,18 @@ async function _fetchTeamEventMatchesFE(tour, eventId) {
     const evData = await jFetch(`https://sports.core.api.espn.com/v2/sports/golf/leagues/${tour}/events/${eventId}`);
     if (!evData?.competitions) return null;
 
-    // 이벤트 레벨 tournament competition에서 USA homeAway 파악
-    // (프레지던츠컵처럼 USA가 홈인 경우 homeAway==='home'이 USA임)
-    const _tourneyComp = (evData.competitions || []).find(c => c.type?.text === 'tournament');
-    let _usaHomeAway = 'away'; // 기본값: 라이더컵/솔하임컵은 USA가 원정
-    if (_tourneyComp) {
-      for (const tc of (_tourneyComp.competitors || [])) {
-        const _abbr = (tc.team?.abbreviation || '').toUpperCase();
-        const _dname = (tc.team?.displayName || '').toLowerCase();
-        if (_abbr === 'USA' || _dname.includes('united states')) {
-          _usaHomeAway = tc.homeAway || 'away';
-          break;
+    // USA homeAway 파악: 스코어보드 hint 우선, 없으면 Core API tournament 레벨에서 감지
+    let _usaHomeAway = usaHomeAwayHint || 'away';
+    if (!usaHomeAwayHint) {
+      const _tourneyComp = (evData.competitions || []).find(c => (c.type?.text || '').toLowerCase() === 'tournament');
+      if (_tourneyComp) {
+        for (const tc of (_tourneyComp.competitors || [])) {
+          const _abbr = (tc.team?.abbreviation || '').toUpperCase();
+          const _dname = (tc.team?.displayName || '').toLowerCase();
+          if (_abbr === 'USA' || _dname.includes('united states')) {
+            _usaHomeAway = tc.homeAway || 'away';
+            break;
+          }
         }
       }
     }
@@ -27850,7 +27853,7 @@ async function triggerGolfRefresh() {
     // 팀전 매치 상세 fetch (브라우저는 ESPN Core API 직접 접근 가능)
     for (const t of tournaments) {
       if (t.isTeamEvent && t.id) {
-        const matchData = await _fetchTeamEventMatchesFE(t.tour, t.id);
+        const matchData = await _fetchTeamEventMatchesFE(t.tour, t.id, t.usaHomeAway);
         if (matchData) t.teamMatches = matchData;
       }
     }
