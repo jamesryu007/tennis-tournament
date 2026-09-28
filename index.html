@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1179';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1180';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13535,7 +13535,8 @@ function initAtpListeners() {
     // 멀티대회 맵 (tournaments 서브키 제외 후 primary도 포함)
     const tourMap = Object.assign({}, d ? (d.tournaments || {}) : {});
     if (primaryInfo && primaryInfo.id) tourMap[primaryInfo.id] = { tournamentInfo: primaryInfo, matches: primaryMatches };
-    atpState.tournaments = tourMap;
+    // DB 데이터가 로컬 ESPN 데이터보다 적을 때 로컬 데이터 보존 (CF 구버전이 partial 덮어쓰기 시 pill 소멸 방지)
+    atpState.tournaments = Object.assign({}, atpState.tournaments || {}, tourMap);
     // 선택된 대회 반영
     if (atpState.selectedTournamentId && tourMap[atpState.selectedTournamentId]) {
       const sel = tourMap[atpState.selectedTournamentId];
