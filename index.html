@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1184';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1185';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13512,9 +13512,6 @@ const atpState = {
   newsLoaded: false,    // Firebase 뉴스 첫 수신 여부
 };
 
-// ── 멀티대회 선택기 전용 — 세션 내 누적만 (절대 줄어들지 않음) ──────
-// DB/CF가 partial 덮어써도 이미 알려진 대회는 보존 → pill 소멸 방지
-let _knownAtpTournaments = {};
 
 // ── Firebase 구독 초기화 ──────────────────────────────────────────
 let _atpListenersActive = false;
@@ -13537,16 +13534,12 @@ function initAtpListeners() {
     const primaryInfo = d ? (d.tournamentInfo || null) : null;
     const primaryMatches = d ? (d.matches || []) : [];
     // snap.val()은 jmt/atpData 전체 서브트리 포함 — d.tournaments 즉시 반영
-    // (별도 tournaments 리스너보다 먼저 실행돼도 레이스컨디션 없음)
     if (d && d.tournaments) {
       Object.assign(atpState.tournaments, d.tournaments);
-      Object.assign(_knownAtpTournaments, d.tournaments);
     }
     // primary도 포함
     if (primaryInfo && primaryInfo.id) {
-      const _pe = { tournamentInfo: primaryInfo, matches: primaryMatches };
-      atpState.tournaments[primaryInfo.id] = _pe;
-      _knownAtpTournaments[primaryInfo.id] = _pe;
+      atpState.tournaments[primaryInfo.id] = { tournamentInfo: primaryInfo, matches: primaryMatches };
     }
     // 선택된 대회 반영
     if (atpState.selectedTournamentId && atpState.tournaments[atpState.selectedTournamentId]) {
@@ -13568,10 +13561,8 @@ function initAtpListeners() {
   // 골프와 동일하게 tournaments 서브키를 별도 리스너로 감시 — set() 덮어쓰기 영향 차단
   db.ref('jmt/atpData/tournaments').on('value', snap => {
     const tourData = snap.val() || {};
-    // atpState.tournaments에 병합 (골프처럼 개별 경로로 쓰므로 항상 완전 데이터)
+    // atpState.tournaments에 병합 (additive — 기존 항목 삭제 없음)
     Object.assign(atpState.tournaments, tourData);
-    // 세션 누적 (절대 줄지 않음)
-    Object.assign(_knownAtpTournaments, tourData);
     // 선택된 대회 데이터가 이제 로드됐으면 반영
     if (atpState.selectedTournamentId && atpState.tournaments[atpState.selectedTournamentId]) {
       const sel = atpState.tournaments[atpState.selectedTournamentId];
@@ -13767,7 +13758,7 @@ function switchAtpTab(tab) {
 
 // ── ATP 대회 선택 (멀티 대회 동시 개최 시) ────────────────────────
 function selectAtpTournament(id) {
-  const sel = atpState.tournaments[id] || _knownAtpTournaments[id];
+  const sel = atpState.tournaments[id];
   if (!sel) return;
   atpState.selectedTournamentId = id;
   atpState.tournamentInfo = sel.tournamentInfo;
@@ -13780,8 +13771,9 @@ function selectAtpTournament(id) {
 function renderAtpTournamentSelector() {
   const el = document.getElementById('atp-tournament-selector');
   if (!el) return;
-  const ts = Object.values(_knownAtpTournaments || {}).filter(t => t.tournamentInfo && t.tournamentInfo.id);
+  const ts = Object.values(atpState.tournaments || {}).filter(t => t && t.tournamentInfo && t.tournamentInfo.id);
   const selId = atpState.selectedTournamentId || (atpState.tournamentInfo && atpState.tournamentInfo.id);
+  console.log('[ATP selector] tours:', Object.keys(atpState.tournaments), 'selId:', selId, 'others:', ts.filter(t=>t.tournamentInfo.id!==selId).map(t=>t.tournamentInfo.id));
   // 현재 보여지는 대회 제외 — 골프 "다른 대회" 스타일
   const others = ts.filter(t => t.tournamentInfo.id !== selId);
   if (others.length === 0) { el.style.display = 'none'; return; }
@@ -16095,8 +16087,7 @@ async function triggerAtpRefresh() {
     for (const p of _allParsedClient) {
       if (p.tournamentInfo.id) _newTourMap[p.tournamentInfo.id] = p;
     }
-    atpState.tournaments = _newTourMap;
-    Object.assign(_knownAtpTournaments, _newTourMap); // 세션 누적 갱신
+    Object.assign(atpState.tournaments, _newTourMap); // 새 데이터 병합 (기존 대회 유지)
     atpState.selectedTournamentId = null;
     atpState.tournamentInfo = tournamentInfo;
     atpState.matches = matches;
