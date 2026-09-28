@@ -2724,13 +2724,13 @@ exports.notifyGolfWinner = onValueWritten(
         const _effLen = (p) => (p.scores || []).filter(s => s !== '' && s !== '-').length;
         // WD/DQ 선수 제외: isCut=false이지만 '-' 포함으로 실제 스코어가 적은 경우
         const maxEff = Math.max(...lb.map(p => _effLen(p)), 0);
-        const nonCut = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff - 1);
-        if (nonCut.length === 0) return false;
-        // 비컷 선수 전원 4라운드 완료 여부 개인별 체크 (글로벌 max 오판 방지)
-        const allFour = nonCut.every(p => _effLen(p) >= 4);
-        if (!allFour) return false;
+        // 최대 라운드 완료 선수 (WD 자동 제외) — 3라운드 대회(LPGA 54홀) 대응
+        const fullRoundPlayers = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff);
+        if (fullRoundPlayers.length === 0) return false;
         if (t.state === 'post') return true;
-        return nonCut.every(p => p.thru === 'F');
+        // state !== post: 비컷 선수 전원 완주 또는 WD(thru=F이고 라운드 부족) 상태여야 함
+        const nonCut = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff - 1);
+        return nonCut.every(p => _effLen(p) >= maxEff || p.thru === 'F');
       };
 
       // 이번 업데이트에서 처음 종료 상태가 된 대회
