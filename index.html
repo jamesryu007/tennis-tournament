@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1178';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1179';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -16077,21 +16077,15 @@ async function triggerAtpRefresh() {
     atpState.gsRoundTabManual = false;
     renderAtpPage();
 
-    // Firebase 저장은 백그라운드
+    // Firebase 저장은 백그라운드 — 모든 대회를 단일 set()으로 원자적 저장 (race condition 방지)
     if (db) {
       const _updAt = new Date().toISOString();
-      db.ref('jmt/atpData').set({ tournamentInfo, matches, updatedAt: _updAt }).catch(() => {});
-      // 주 대회 tournaments/{id} 저장
-      if (tournamentInfo.id) {
-        db.ref(`jmt/atpData/tournaments/${tournamentInfo.id}`)
-          .set({ tournamentInfo, matches, updatedAt: _updAt }).catch(() => {});
-      }
-      // 보조 대회들 tournaments/{id} 저장 (멀티 대회 pill 표시용)
+      const _dbObj = { tournamentInfo, matches, updatedAt: _updAt, tournaments: {} };
       for (const p of _allParsedClient) {
-        if (!p.tournamentInfo.id || p.tournamentInfo.id === tournamentInfo.id) continue;
-        db.ref(`jmt/atpData/tournaments/${p.tournamentInfo.id}`)
-          .set({ tournamentInfo: p.tournamentInfo, matches: p.matches, updatedAt: _updAt }).catch(() => {});
+        if (!p.tournamentInfo.id) continue;
+        _dbObj.tournaments[p.tournamentInfo.id] = { tournamentInfo: p.tournamentInfo, matches: p.matches, updatedAt: _updAt };
       }
+      db.ref('jmt/atpData').set(_dbObj).catch(() => {});
       const tier = tournamentInfo.tier;
       if (tier === 'grandslam' && tournamentInfo.id) {
         db.ref(`jmt/lastGrandSlam/${tournamentInfo.id}`).set({
