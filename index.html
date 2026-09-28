@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1187';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1188';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -16088,9 +16088,16 @@ async function triggerAtpRefresh() {
       if (p.tournamentInfo.id) _newTourMap[p.tournamentInfo.id] = p;
     }
     Object.assign(atpState.tournaments, _newTourMap); // 새 데이터 병합 (기존 대회 유지)
-    atpState.selectedTournamentId = null;
-    atpState.tournamentInfo = tournamentInfo;
-    atpState.matches = matches;
+    // 기존 선택 유지 — 새 데이터에도 선택 대회가 있으면 선택 보존, 없으면 primary로 초기화
+    if (atpState.selectedTournamentId && _newTourMap[atpState.selectedTournamentId]) {
+      const _sel = _newTourMap[atpState.selectedTournamentId];
+      atpState.tournamentInfo = _sel.tournamentInfo;
+      atpState.matches = _sel.matches || [];
+    } else {
+      atpState.selectedTournamentId = null;
+      atpState.tournamentInfo = tournamentInfo;
+      atpState.matches = matches;
+    }
     atpState.loaded = true;
     atpState.preferBetTab = false;
     atpState.gsRoundTab = null;
