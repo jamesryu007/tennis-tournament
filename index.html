@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1180';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1181';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13512,6 +13512,10 @@ const atpState = {
   newsLoaded: false,    // Firebase 뉴스 첫 수신 여부
 };
 
+// ── 멀티대회 선택기 전용 — 세션 내 누적만 (절대 줄어들지 않음) ──────
+// DB/CF가 partial 덮어써도 이미 알려진 대회는 보존 → pill 소멸 방지
+let _knownAtpTournaments = {};
+
 // ── Firebase 구독 초기화 ──────────────────────────────────────────
 let _atpListenersActive = false;
 let _atpGsQueryRef = null;
@@ -13535,8 +13539,9 @@ function initAtpListeners() {
     // 멀티대회 맵 (tournaments 서브키 제외 후 primary도 포함)
     const tourMap = Object.assign({}, d ? (d.tournaments || {}) : {});
     if (primaryInfo && primaryInfo.id) tourMap[primaryInfo.id] = { tournamentInfo: primaryInfo, matches: primaryMatches };
-    // DB 데이터가 로컬 ESPN 데이터보다 적을 때 로컬 데이터 보존 (CF 구버전이 partial 덮어쓰기 시 pill 소멸 방지)
-    atpState.tournaments = Object.assign({}, atpState.tournaments || {}, tourMap);
+    atpState.tournaments = tourMap;
+    // 세션 내 누적 대회 목록 갱신 (절대 줄지 않음 — CF partial 덮어쓰기 방어)
+    Object.assign(_knownAtpTournaments, tourMap);
     // 선택된 대회 반영
     if (atpState.selectedTournamentId && tourMap[atpState.selectedTournamentId]) {
       const sel = tourMap[atpState.selectedTournamentId];
@@ -13740,7 +13745,7 @@ function switchAtpTab(tab) {
 
 // ── ATP 대회 선택 (멀티 대회 동시 개최 시) ────────────────────────
 function selectAtpTournament(id) {
-  const sel = atpState.tournaments[id];
+  const sel = atpState.tournaments[id] || _knownAtpTournaments[id];
   if (!sel) return;
   atpState.selectedTournamentId = id;
   atpState.tournamentInfo = sel.tournamentInfo;
@@ -13753,7 +13758,7 @@ function selectAtpTournament(id) {
 function renderAtpTournamentSelector() {
   const el = document.getElementById('atp-tournament-selector');
   if (!el) return;
-  const ts = Object.values(atpState.tournaments || {}).filter(t => t.tournamentInfo && t.tournamentInfo.id);
+  const ts = Object.values(_knownAtpTournaments || {}).filter(t => t.tournamentInfo && t.tournamentInfo.id);
   const selId = atpState.selectedTournamentId || (atpState.tournamentInfo && atpState.tournamentInfo.id);
   // 현재 보여지는 대회 제외 — 골프 "다른 대회" 스타일
   const others = ts.filter(t => t.tournamentInfo.id !== selId);
@@ -16069,6 +16074,7 @@ async function triggerAtpRefresh() {
       if (p.tournamentInfo.id) _newTourMap[p.tournamentInfo.id] = p;
     }
     atpState.tournaments = _newTourMap;
+    Object.assign(_knownAtpTournaments, _newTourMap); // 세션 누적 갱신
     atpState.selectedTournamentId = null;
     atpState.tournamentInfo = tournamentInfo;
     atpState.matches = matches;
