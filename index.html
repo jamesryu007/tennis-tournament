@@ -845,9 +845,6 @@ const firebaseConfig = {
   <!-- 테니스 패널 -->
   <div id="sport-panel-tennis">
 
-  <!-- 복수 대회 선택 (동시 개최 시) -->
-  <div id="atp-tournament-selector" style="display:none;overflow-x:auto;white-space:nowrap;padding:0 0 8px;-webkit-overflow-scrolling:touch;scrollbar-width:none"></div>
-
   <!-- 대회 카드 (골프와 동일한 구조) -->
   <div id="atp-tourney-info" style="margin-bottom:12px">
     <div id="atp-loading-msg" style="background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px 14px;text-align:center;color:#94a3b8;font-size:0.85rem">
@@ -2761,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1176';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1177';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13777,8 +13774,8 @@ function renderAtpTournamentSelector() {
 
 // ── ATP 페이지 전체 렌더 ──────────────────────────────────────────
 function renderAtpPage() {
-  renderAtpTournamentSelector();
-  renderAtpTourneyInfo();
+  renderAtpTourneyInfo();          // 카드 내부에 #atp-tournament-selector div 생성
+  renderAtpTournamentSelector();   // 생성된 div에 pill 채우기
   renderAtpFavMatches();
   renderAtpDrawPanel();
   renderAtpBetPanel();
@@ -13943,6 +13940,8 @@ function renderTourneyInfoHtml(t, ended) {
             ${isAdmin() && !ended ? `<button onclick="openBetOpenModal()" style="background:#fef3c7;border:1.5px solid #fcd34d;border-radius:10px;padding:4px 10px;font-size:0.78rem;font-weight:700;color:#92400e;cursor:pointer">🎯 베팅 오픈</button>` : ''}
             ${isAdmin() && !ended ? `<button onclick="openLoadHistoricalModal()" style="background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:10px;padding:4px 10px;font-size:0.78rem;font-weight:600;color:${style.color};cursor:pointer">📅 날짜 로드</button>` : ''}
           </div>
+          <!-- 복수 대회 선택 pill (카드 하단) -->
+          <div id="atp-tournament-selector" style="display:none;overflow-x:auto;white-space:nowrap;padding-top:8px;margin-top:6px;border-top:1px solid rgba(0,0,0,0.07);-webkit-overflow-scrolling:touch;scrollbar-width:none"></div>
         </div>
         <!-- 관심선수 + 📅 우측 컬럼 -->
         <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;gap:6px;flex-shrink:0;align-self:stretch">
@@ -27013,13 +27012,13 @@ function _renderTeamEventLeaderboard(t, wrap) {
     <div style="font-size:0.7rem;font-weight:700;color:#64748b;margin-bottom:8px">${liveBadge}${statusLabel}</div>
     <div style="display:flex;justify-content:center;align-items:center;gap:20px">
       <div style="text-align:center">
-        <div style="font-size:0.78rem;font-weight:700;color:${eurC}">${_eurEmoji} ${_eurName}${eurW ? ' 🏆' : ''}</div>
-        <div style="font-size:2.4rem;font-weight:900;color:${eurC};line-height:1.1;margin-top:2px">${_eurScore}</div>
+        <div style="font-size:0.78rem;font-weight:700;color:${usaC}">🇺🇸 USA${usaW ? ' 🏆' : ''}</div>
+        <div style="font-size:2.4rem;font-weight:900;color:${usaC};line-height:1.1;margin-top:2px">${_usaScore}</div>
       </div>
       <div style="font-size:1rem;font-weight:400;color:#94a3b8;margin-top:8px">vs</div>
       <div style="text-align:center">
-        <div style="font-size:0.78rem;font-weight:700;color:${usaC}">🇺🇸 USA${usaW ? ' 🏆' : ''}</div>
-        <div style="font-size:2.4rem;font-weight:900;color:${usaC};line-height:1.1;margin-top:2px">${_usaScore}</div>
+        <div style="font-size:0.78rem;font-weight:700;color:${eurC}">${_eurEmoji} ${_eurName}${eurW ? ' 🏆' : ''}</div>
+        <div style="font-size:2.4rem;font-weight:900;color:${eurC};line-height:1.1;margin-top:2px">${_eurScore}</div>
       </div>
     </div>
   </div>`;
@@ -27079,26 +27078,27 @@ function _renderTeamEventLeaderboard(t, wrap) {
     const anyResult = ms.some(m => m.result || m.status === 'in');
     const _nonUsaTag = _isPresidentsCup ? 'INT' : 'EUR';
     const subScore  = anyResult
-      ? `<span style="font-size:0.78rem;font-weight:900;color:#1e3a8a;margin-left:8px;letter-spacing:0.2px">${_nonUsaTag} ${eurPts} – ${usaPts} USA</span>` : '';
+      ? `<span style="font-size:0.78rem;font-weight:900;color:#1e3a8a;margin-left:8px;letter-spacing:0.2px">USA ${usaPts} – ${eurPts} ${_nonUsaTag}</span>` : '';
     const dayLabel  = selDay === 'all' ? ` · Day ${session.day}` : '';
 
     const matchRows = ms.map(m => {
       const eurWin = m.result === 'EUR', usaWin = m.result === 'USA', halved = m.result === 'HALVED';
       const isLive = m.status === 'in';
       const detailTxt = (m.resultDetail && m.resultDetail !== 'Halved') ? `<br><span style="font-size:0.72rem;font-weight:800;color:#475569">${m.resultDetail}</span>` : '';
+      // USA 왼쪽, INT/EUR 오른쪽 고정 레이아웃
       const resultBadge = m.result
-        ? (eurWin ? `<span style="font-size:0.8rem;font-weight:900;color:#15803d;white-space:nowrap;line-height:1.3">◀ ${_nonUsaTag}${detailTxt}</span>`
-          : usaWin ? `<span style="font-size:0.8rem;font-weight:900;color:#15803d;white-space:nowrap;line-height:1.3">USA ▶${detailTxt}</span>`
+        ? (usaWin ? `<span style="font-size:0.8rem;font-weight:900;color:#15803d;white-space:nowrap;line-height:1.3">◀ USA${detailTxt}</span>`
+          : eurWin ? `<span style="font-size:0.8rem;font-weight:900;color:#15803d;white-space:nowrap;line-height:1.3">${_nonUsaTag} ▶${detailTxt}</span>`
           : `<span style="font-size:0.78rem;font-weight:800;color:#64748b">½ ½</span>`)
         : isLive ? `<span style="font-size:0.72rem;font-weight:800;color:#f59e0b">진행</span>` : '';
       const eurNamesHtml = (m.eur || []).length ? _teNameHtml(m.eur, eurWin) : `<span style="color:#94a3b8">${m.status === 'pre' ? '미정' : '-'}</span>`;
       const usaNamesHtml = (m.usa || []).length ? _teNameHtml(m.usa, usaWin) : `<span style="color:#94a3b8">${m.status === 'pre' ? '미정' : '-'}</span>`;
-      const eurSt = `font-size:0.9rem;flex:1;text-align:left;min-width:0;word-break:break-word;line-height:1.4`;
-      const usaSt = `font-size:0.9rem;flex:1;text-align:right;min-width:0;word-break:break-word;line-height:1.4`;
+      const usaSt = `font-size:0.9rem;flex:1;text-align:left;min-width:0;word-break:break-word;line-height:1.4`;
+      const eurSt = `font-size:0.9rem;flex:1;text-align:right;min-width:0;word-break:break-word;line-height:1.4`;
       return `<div style="display:flex;align-items:center;gap:6px;padding:9px 14px;border-bottom:1px solid #f1f5f9">
-        <span style="${eurSt}">${eurNamesHtml}</span>
-        <span style="flex-shrink:0;width:64px;text-align:center">${resultBadge}</span>
         <span style="${usaSt}">${usaNamesHtml}</span>
+        <span style="flex-shrink:0;width:64px;text-align:center">${resultBadge}</span>
+        <span style="${eurSt}">${eurNamesHtml}</span>
       </div>`;
     }).join('');
 
