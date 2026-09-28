@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1189';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1190';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13534,7 +13534,6 @@ function initAtpListeners() {
     const primaryInfo = d ? (d.tournamentInfo || null) : null;
     const primaryMatches = d ? (d.matches || []) : [];
     // snap.val()은 jmt/atpData 전체 서브트리 포함 — d.tournaments 즉시 반영
-    console.log('[mainListener] fired. d.tournaments keys:', d && d.tournaments ? Object.keys(d.tournaments) : 'none', 'selId:', atpState.selectedTournamentId);
     if (d && d.tournaments) {
       Object.assign(atpState.tournaments, d.tournaments);
     }
@@ -13760,7 +13759,6 @@ function switchAtpTab(tab) {
 // ── ATP 대회 선택 (멀티 대회 동시 개최 시) ────────────────────────
 function selectAtpTournament(id) {
   const sel = atpState.tournaments[id];
-  console.log('[select] id:', id, 'found:', !!sel, 'keys:', Object.keys(atpState.tournaments));
   if (!sel) return;
   atpState.selectedTournamentId = id;
   atpState.tournamentInfo = sel.tournamentInfo;
@@ -13773,19 +13771,13 @@ function selectAtpTournament(id) {
 function renderAtpTournamentSelector() {
   const el = document.getElementById('atp-tournament-selector');
   if (!el) return;
-  const _allEntries = Object.entries(atpState.tournaments || {});
-  const _filtered = _allEntries.filter(([k,t]) => t && t.tournamentInfo && t.tournamentInfo.id);
-  const _rejected = _allEntries.filter(([k,t]) => !(t && t.tournamentInfo && t.tournamentInfo.id));
-  if (_rejected.length) console.log('[pill] FILTERED OUT:', _rejected.map(([k,t]) => `key=${k} val=${JSON.stringify(t)?.slice(0,80)}`));
-  console.log('[pill] entries:', _filtered.map(([k,t]) => `key=${k} tid=${t.tournamentInfo?.id}(${typeof t.tournamentInfo?.id})`), 'selId:', atpState.selectedTournamentId, `(${typeof atpState.selectedTournamentId})`, 'tourInfoId:', atpState.tournamentInfo?.id);
-  const ts = _filtered.map(([k,t]) => t);
+  const ts = Object.values(atpState.tournaments || {}).filter(t => t && t.tournamentInfo && t.tournamentInfo.id);
   const selId = atpState.selectedTournamentId || (atpState.tournamentInfo && atpState.tournamentInfo.id);
 
   // 현재 보여지는 대회 제외 — String() 변환으로 타입 불일치 방지
   const others = ts.filter(t => String(t.tournamentInfo.id) !== String(selId));
-  console.log('[pill] selId(str):', String(selId), 'others:', others.map(t => String(t.tournamentInfo.id)));
   if (others.length === 0) { el.style.display = 'none'; return; }
-  el.style.display = '';
+  el.style.display = 'flex';
   const TIER_O = { grandslam: 0, atp1000: 1, atp500: 2, atp250: 3 };
   const TIER_LBL = { grandslam: 'GS', atp1000: '1000', atp500: '500', atp250: '250' };
   el.innerHTML = '<span style="font-size:0.7rem;font-weight:700;color:#94a3b8;margin-right:6px">다른 대회</span>'
@@ -13968,7 +13960,7 @@ function renderTourneyInfoHtml(t, ended) {
             ${isAdmin() && !ended ? `<button onclick="openLoadHistoricalModal()" style="background:rgba(255,255,255,0.7);border:1.5px solid ${style.border};border-radius:10px;padding:4px 10px;font-size:0.78rem;font-weight:600;color:${style.color};cursor:pointer">📅 날짜 로드</button>` : ''}
           </div>
           <!-- 복수 대회 선택 pill (카드 하단) -->
-          <div id="atp-tournament-selector" style="display:none;overflow-x:auto;white-space:nowrap;padding-top:8px;margin-top:6px;border-top:1px solid rgba(0,0,0,0.07);-webkit-overflow-scrolling:touch;scrollbar-width:none"></div>
+          <div id="atp-tournament-selector" style="display:none;flex-wrap:wrap;gap:4px;padding-top:8px;margin-top:6px;border-top:1px solid rgba(0,0,0,0.07)"></div>
         </div>
         <!-- 관심선수 + 📅 우측 컬럼 -->
         <div style="display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;gap:6px;flex-shrink:0;align-self:stretch">
