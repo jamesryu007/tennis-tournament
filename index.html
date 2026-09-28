@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1181';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1182';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13536,17 +13536,16 @@ function initAtpListeners() {
     // primary 대회 (베팅/단일 표시 fallback)
     const primaryInfo = d ? (d.tournamentInfo || null) : null;
     const primaryMatches = d ? (d.matches || []) : [];
-    // 멀티대회 맵 (tournaments 서브키 제외 후 primary도 포함)
-    const tourMap = Object.assign({}, d ? (d.tournaments || {}) : {});
-    if (primaryInfo && primaryInfo.id) tourMap[primaryInfo.id] = { tournamentInfo: primaryInfo, matches: primaryMatches };
-    atpState.tournaments = tourMap;
-    // 세션 내 누적 대회 목록 갱신 (절대 줄지 않음 — CF partial 덮어쓰기 방어)
-    Object.assign(_knownAtpTournaments, tourMap);
+    // primary도 tournaments 맵에 포함
+    if (primaryInfo && primaryInfo.id) {
+      atpState.tournaments[primaryInfo.id] = { tournamentInfo: primaryInfo, matches: primaryMatches };
+      _knownAtpTournaments[primaryInfo.id] = atpState.tournaments[primaryInfo.id];
+    }
     // 선택된 대회 반영
-    if (atpState.selectedTournamentId && tourMap[atpState.selectedTournamentId]) {
-      const sel = tourMap[atpState.selectedTournamentId];
-      atpState.tournamentInfo = sel.tournamentInfo;
-      atpState.matches = sel.matches || [];
+    const _sel = atpState.selectedTournamentId && atpState.tournaments[atpState.selectedTournamentId];
+    if (_sel) {
+      atpState.tournamentInfo = _sel.tournamentInfo;
+      atpState.matches = _sel.matches || [];
     } else {
       atpState.selectedTournamentId = null;
       atpState.tournamentInfo = primaryInfo;
@@ -13557,6 +13556,22 @@ function initAtpListeners() {
     atpState.loaded = true;
     if (document.getElementById('page-atp').classList.contains('active')) renderAtpPage();
     _updateLiveBadge();
+  });
+
+  // 골프와 동일하게 tournaments 서브키를 별도 리스너로 감시 — set() 덮어쓰기 영향 차단
+  db.ref('jmt/atpData/tournaments').on('value', snap => {
+    const tourData = snap.val() || {};
+    // atpState.tournaments에 병합 (골프처럼 개별 경로로 쓰므로 항상 완전 데이터)
+    Object.assign(atpState.tournaments, tourData);
+    // 세션 누적 (절대 줄지 않음)
+    Object.assign(_knownAtpTournaments, tourData);
+    // 선택된 대회 데이터가 이제 로드됐으면 반영
+    if (atpState.selectedTournamentId && atpState.tournaments[atpState.selectedTournamentId]) {
+      const sel = atpState.tournaments[atpState.selectedTournamentId];
+      atpState.tournamentInfo = sel.tournamentInfo;
+      atpState.matches = sel.matches || [];
+    }
+    if (document.getElementById('page-atp').classList.contains('active')) renderAtpTournamentSelector();
   });
 
   // 직전 Grand Slam 구독
@@ -16084,15 +16099,18 @@ async function triggerAtpRefresh() {
     atpState.gsRoundTabManual = false;
     renderAtpPage();
 
-    // Firebase 저장은 백그라운드 — 모든 대회를 단일 set()으로 원자적 저장 (race condition 방지)
+    // Firebase 저장 — 골프와 동일하게 tournaments/{id} 개별 경로에 각각 씀 (set() 덮어쓰기 방지)
     if (db) {
       const _updAt = new Date().toISOString();
-      const _dbObj = { tournamentInfo, matches, updatedAt: _updAt, tournaments: {} };
+      // 주 대회 정보만 update (tournaments/ 서브키 건드리지 않음)
+      db.ref('jmt/atpData').update({ tournamentInfo, matches, updatedAt: _updAt }).catch(() => {});
+      // 각 대회를 개별 경로에 저장 (additive — 기존 항목 삭제 없음)
       for (const p of _allParsedClient) {
         if (!p.tournamentInfo.id) continue;
-        _dbObj.tournaments[p.tournamentInfo.id] = { tournamentInfo: p.tournamentInfo, matches: p.matches, updatedAt: _updAt };
+        db.ref(`jmt/atpData/tournaments/${p.tournamentInfo.id}`)
+          .set({ tournamentInfo: p.tournamentInfo, matches: p.matches, updatedAt: _updAt })
+          .catch(() => {});
       }
-      db.ref('jmt/atpData').set(_dbObj).catch(() => {});
       const tier = tournamentInfo.tier;
       if (tier === 'grandslam' && tournamentInfo.id) {
         db.ref(`jmt/lastGrandSlam/${tournamentInfo.id}`).set({

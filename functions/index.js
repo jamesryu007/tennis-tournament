@@ -581,7 +581,7 @@ async function saveGrandSlamIfNeeded(tournamentInfo, matches, isGrandSlam) {
 }
 
 // ── ATP 데이터 저장 공통 (토너먼트 변경 시 베팅 보호 후 초기화) ──
-async function saveAtpData(tournamentInfo, matches, isGrandSlam) {
+async function saveAtpData(tournamentInfo, matches, isGrandSlam, allParsed = []) {
   const updatedAt = new Date().toISOString();
 
   // WTA 랭킹 기반 gender 보정 — ESPN이 'women' 키워드 없이 데이터를 줄 때 오탐 방지
@@ -640,11 +640,16 @@ async function saveAtpData(tournamentInfo, matches, isGrandSlam) {
     await db.ref('jmt/atpBets').remove();
   }
 
-  await db.ref('jmt/atpData').set({ tournamentInfo, matches, updatedAt });
-  // 멀티대회: 개별 경로에도 저장
-  if (tournamentInfo && tournamentInfo.id) {
-    await db.ref(`jmt/atpData/tournaments/${tournamentInfo.id}`)
-      .set({ tournamentInfo, matches, updatedAt }).catch(e => console.error('atpData/tournaments write:', e));
+  // 골프와 동일하게 update() + 개별 경로 write — set()으로 tournaments/ 덮어쓰기 방지
+  await db.ref('jmt/atpData').update({ tournamentInfo, matches, updatedAt });
+  // 각 대회를 개별 경로에 저장 (additive — 기존 항목 삭제 없음)
+  const _allForSave = allParsed.length > 0 ? allParsed
+    : [{ tournamentInfo, matches }];
+  for (const p of _allForSave) {
+    if (!p.tournamentInfo?.id) continue;
+    await db.ref(`jmt/atpData/tournaments/${p.tournamentInfo.id}`)
+      .set({ tournamentInfo: p.tournamentInfo, matches: p.matches, updatedAt })
+      .catch(e => console.error('atpData/tournaments write:', e));
   }
   await saveGrandSlamIfNeeded(tournamentInfo, matches, isGrandSlam);
   await autoProcessWinnerBet(matches);
@@ -776,17 +781,13 @@ exports.fetchAtpData = onSchedule(
       const atpResult = await fetchAndParseAtpData();
       if (!atpResult) { console.warn('fetchAtpData: ESPN 응답 없음, 스킵'); return; }
       const { tournamentInfo, matches, isGrandSlam, allParsed } = atpResult;
-      // 비프라이머리 대회 저장 + 아카이브 시도 (히스토리 누락 방지)
-      const updatedAt = new Date().toISOString();
+      // 비프라이머리 대회 아카이브 (히스토리 누락 방지)
       for (const p of (allParsed || [])) {
         if (!p.tournamentInfo?.id || p.tournamentInfo.id === tournamentInfo?.id) continue;
-        await db.ref(`jmt/atpData/tournaments/${p.tournamentInfo.id}`)
-          .set({ tournamentInfo: p.tournamentInfo, matches: p.matches, updatedAt })
-          .catch(e => console.error('atpData/tournaments secondary write:', e));
         await _archiveTennisHistory(p.tournamentInfo, p.matches, 'men').catch(e => console.error(e));
         await _archiveTennisHistory(p.tournamentInfo, p.matches, 'women').catch(e => console.error(e));
       }
-      await saveAtpData(tournamentInfo, matches, isGrandSlam);
+      await saveAtpData(tournamentInfo, matches, isGrandSlam, allParsed || []);
       await _botReportAtpResults(matches, tournamentInfo).catch(e => console.error('_botReportAtpResults error:', e));
       // 랭킹이 7일 이상 됐으면 자동 갱신 (폴백 데이터 의존 방지)
       const rankMeta = await db.ref('jmt/atpRankings/updatedAt').once('value');
@@ -1026,16 +1027,13 @@ exports.refreshAtpData = onCall(
     try {
       const atpResult = await fetchAndParseAtpData();
       const { tournamentInfo, matches, isGrandSlam, allParsed } = atpResult;
-      const updatedAt = new Date().toISOString();
+      // 비프라이머리 대회 아카이브
       for (const p of (allParsed || [])) {
         if (!p.tournamentInfo?.id || p.tournamentInfo.id === tournamentInfo?.id) continue;
-        await db.ref(`jmt/atpData/tournaments/${p.tournamentInfo.id}`)
-          .set({ tournamentInfo: p.tournamentInfo, matches: p.matches, updatedAt })
-          .catch(e => console.error('refreshAtpData/tournaments write:', e));
         await _archiveTennisHistory(p.tournamentInfo, p.matches, 'men').catch(e => console.error(e));
         await _archiveTennisHistory(p.tournamentInfo, p.matches, 'women').catch(e => console.error(e));
       }
-      await saveAtpData(tournamentInfo, matches, isGrandSlam);
+      await saveAtpData(tournamentInfo, matches, isGrandSlam, allParsed || []);
       return { success: true };
     } catch (e) {
       console.error('refreshAtpData error:', e);
