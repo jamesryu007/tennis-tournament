@@ -2761,7 +2761,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1175';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1176';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -15954,88 +15954,78 @@ async function triggerAtpRefresh() {
       for (const c of ATP500_C)  { if (alnumCombined.includes(toAlnum(c))) return 'atp500';  }
       return 'atp250';
     }
+    // 단일 이벤트 파싱 헬퍼
+    function _parseAtpEvClient(e) {
+      if (!e || !e.id) return null;
+      let venueFull = '', venueC = '', venueCtry = '';
+      const fc = ((e.groupings||[])[0]?.competitions||[])[0];
+      if (fc?.venue) {
+        venueFull = fc.venue.fullName || '';
+        const pts = venueFull.split(',').map(s => s.trim());
+        venueC = pts[0] || ''; venueCtry = pts[1] || '';
+      }
+      const t = clientGetTier(e);
+      const dn = venueC ? `${e.name||''} · ${venueC}` : (e.name||'');
+      const ti = {
+        id: e.id||'', name: e.name||'', shortName: e.shortName||'',
+        displayName: dn, tier: t, venueName: venueFull, venueCity: venueC,
+        venueCountry: venueCtry, startDate: e.date||'', endDate: e.endDate||'',
+        updatedAt: new Date().toISOString(),
+      };
+      const ms = [];
+      for (const grp of (e.groupings||[])) {
+        const grpName = (grp.displayName || '').toLowerCase();
+        const grpIsWomens = grpName.includes('women') || grpName.includes('female');
+        for (const comp of (grp.competitions||[])) {
+          const cc = comp.competitors || [];
+          const p1 = cc[0]||{}, p2 = cc[1]||{};
+          const st = comp.status || {};
+          const typeSlug = (comp.type?.slug || '').toLowerCase();
+          const typeText = (comp.type?.text || '').toLowerCase();
+          const isWomens  = grpIsWomens || typeSlug.includes('women') || typeText.includes('women');
+          const isDoubles = typeSlug.includes('double') || typeText.includes('double') || grpName.includes('double');
+          const isMixed   = typeSlug.includes('mixed')  || typeText.includes('mixed')  || grpName.includes('mixed');
+          const _pName    = p => p.athlete?.displayName || p.roster?.displayName || '';
+          const _pCountry = p => p.athlete?.flag?.alt   || (p.roster?.athletes && p.roster.athletes.length ? p.roster.athletes[0].flag?.alt || '' : '') || '';
+          const _pId      = p => p.athlete?.id          || (p.roster?.athletes && p.roster.athletes.length ? p.roster.athletes[0].id || '' : '') || '';
+          ms.push({
+            id: comp.id,
+            roundName: comp.round?.displayName || grp.displayName || '',
+            date: comp.date || '',
+            status: st.type?.name || '',
+            gender: isWomens ? 'women' : 'men',
+            singles: !isDoubles,
+            isMixed,
+            player1Id: _pId(p1), player1Name: _pName(p1), player1Country: _pCountry(p1),
+            player1Score: (p1.linescores||[]).map(s => {
+              const v = Math.round(s.value || 0);
+              if (s.tiebreak != null && !s.winner) return `${v}(${s.tiebreak})`;
+              return String(v);
+            }).join(' '),
+            player1Winner: p1.winner || false,
+            player2Id: _pId(p2), player2Name: _pName(p2), player2Country: _pCountry(p2),
+            player2Score: (p2.linescores||[]).map(s => {
+              const v = Math.round(s.value || 0);
+              if (s.tiebreak != null && !s.winner) return `${v}(${s.tiebreak})`;
+              return String(v);
+            }).join(' '),
+            player2Winner: p2.winner || false,
+          });
+        }
+      }
+      return { tournamentInfo: ti, matches: ms };
+    }
+
+    // 주 대회 선택 (최고 티어)
     const ev = events.reduce((best, e) => {
       if (!best) return e;
       return (TIER_O[clientGetTier(e)] ?? 99) < (TIER_O[clientGetTier(best)] ?? 99) ? e : best;
     }, null) || {};
 
-    // venue
-    let venueFullName = '', venueCity = '', venueCountry = '';
-    const firstComp = ((ev.groupings||[])[0]?.competitions||[])[0];
-    if (firstComp?.venue) {
-      venueFullName = firstComp.venue.fullName || '';
-      const parts = venueFullName.split(',').map(s => s.trim());
-      venueCity    = parts[0] || '';
-      venueCountry = parts[1] || '';
-    }
-
-    const tier = clientGetTier(ev);
-    const displayName = venueCity ? `${ev.name||''} · ${venueCity}` : (ev.name||'');
-
-    const tournamentInfo = {
-      id:          ev.id || '',
-      name:        ev.name || '',
-      shortName:   ev.shortName || '',
-      displayName,
-      tier,
-      venueName:   venueFullName,
-      venueCity,
-      venueCountry,
-      startDate:   ev.date    || '',
-      endDate:     ev.endDate || '',
-      updatedAt:   new Date().toISOString(),
-    };
-
-    // 선택된 토너먼트 경기만
-    const matches = [];
-    for (const grp of (ev.groupings||[])) {
-      // 그룹 이름으로 성별/복식 판별 — 그랜드슬램처럼 ATP+WTA 혼합 대회 대응
-      const grpName = (grp.displayName || '').toLowerCase();
-      const grpIsWomens = grpName.includes('women') || grpName.includes('female');
-      for (const comp of (grp.competitions||[])) {
-        const c = comp.competitors || [];
-        const p1 = c[0]||{}, p2 = c[1]||{};
-        const st = comp.status || {};
-        const typeSlug = (comp.type?.slug || '').toLowerCase();
-        const typeText = (comp.type?.text || '').toLowerCase();
-        const isWomens  = grpIsWomens || typeSlug.includes('women') || typeText.includes('women');
-        const isDoubles = typeSlug.includes('double') || typeText.includes('double') || grpName.includes('double');
-        const isMixed   = typeSlug.includes('mixed')  || typeText.includes('mixed')  || grpName.includes('mixed');
-        // 복식: competitor.athletes[] 배열, 단식: competitor.athlete 객체
-        // 단식: p.athlete.displayName / 복식: p.roster.displayName (ESPN 복식 구조)
-        const _pName    = p => p.athlete?.displayName || p.roster?.displayName || '';
-        const _pCountry = p => p.athlete?.flag?.alt   || (p.roster?.athletes && p.roster.athletes.length ? p.roster.athletes[0].flag?.alt || '' : '') || '';
-        const _pId      = p => p.athlete?.id          || (p.roster?.athletes && p.roster.athletes.length ? p.roster.athletes[0].id || '' : '') || '';
-        matches.push({
-          id:            comp.id,
-          roundName:     comp.round?.displayName || grp.displayName || '',
-          date:          comp.date || '',
-          status:        st.type?.name || '',
-          gender:        isWomens ? 'women' : 'men',
-          singles:       !isDoubles,
-          isMixed:       isMixed,
-          player1Id:     _pId(p1),
-          player1Name:   _pName(p1),
-          player1Country:_pCountry(p1),
-          player1Score:  (p1.linescores||[]).map(s => {
-            const v = Math.round(s.value || 0);
-            // 타이브레이크: 세트 패자(winner=false)에게만 (tb점수) 표기 — 표준 테니스 표기법
-            if (s.tiebreak != null && !s.winner) return `${v}(${s.tiebreak})`;
-            return String(v);
-          }).join(' '),
-          player1Winner: p1.winner || false,
-          player2Id:     _pId(p2),
-          player2Name:   _pName(p2),
-          player2Country:_pCountry(p2),
-          player2Score:  (p2.linescores||[]).map(s => {
-            const v = Math.round(s.value || 0);
-            if (s.tiebreak != null && !s.winner) return `${v}(${s.tiebreak})`;
-            return String(v);
-          }).join(' '),
-          player2Winner: p2.winner || false,
-        });
-      }
-    }
+    // 모든 이벤트 파싱
+    const _allParsedClient = events.map(_parseAtpEvClient).filter(Boolean);
+    const primary = _parseAtpEvClient(ev) || { tournamentInfo: { id: '', name: '', tier: 'atp250', updatedAt: new Date().toISOString() }, matches: [] };
+    const { tournamentInfo, matches } = primary;
 
     // 대회 변경 여부 확인 → 오픈/최근 close 베팅 있으면 기존 데이터 유지
     const prevId = atpState.tournamentInfo && atpState.tournamentInfo.id;
@@ -16074,7 +16064,13 @@ async function triggerAtpRefresh() {
       db.ref('jmt/atpBets').remove().catch(() => {});
     }
 
-    // ESPN 데이터 로컬 반영
+    // ESPN 데이터 로컬 반영 (멀티대회 포함)
+    const _newTourMap = {};
+    for (const p of _allParsedClient) {
+      if (p.tournamentInfo.id) _newTourMap[p.tournamentInfo.id] = p;
+    }
+    atpState.tournaments = _newTourMap;
+    atpState.selectedTournamentId = null;
     atpState.tournamentInfo = tournamentInfo;
     atpState.matches = matches;
     atpState.loaded = true;
@@ -16085,7 +16081,20 @@ async function triggerAtpRefresh() {
 
     // Firebase 저장은 백그라운드
     if (db) {
-      db.ref('jmt/atpData').set({ tournamentInfo, matches, updatedAt: new Date().toISOString() }).catch(() => {});
+      const _updAt = new Date().toISOString();
+      db.ref('jmt/atpData').set({ tournamentInfo, matches, updatedAt: _updAt }).catch(() => {});
+      // 주 대회 tournaments/{id} 저장
+      if (tournamentInfo.id) {
+        db.ref(`jmt/atpData/tournaments/${tournamentInfo.id}`)
+          .set({ tournamentInfo, matches, updatedAt: _updAt }).catch(() => {});
+      }
+      // 보조 대회들 tournaments/{id} 저장 (멀티 대회 pill 표시용)
+      for (const p of _allParsedClient) {
+        if (!p.tournamentInfo.id || p.tournamentInfo.id === tournamentInfo.id) continue;
+        db.ref(`jmt/atpData/tournaments/${p.tournamentInfo.id}`)
+          .set({ tournamentInfo: p.tournamentInfo, matches: p.matches, updatedAt: _updAt }).catch(() => {});
+      }
+      const tier = tournamentInfo.tier;
       if (tier === 'grandslam' && tournamentInfo.id) {
         db.ref(`jmt/lastGrandSlam/${tournamentInfo.id}`).set({
           tournamentInfo, matches, savedAt: new Date().toISOString()
@@ -27664,6 +27673,21 @@ async function _fetchTeamEventMatchesFE(tour, eventId) {
     const evData = await jFetch(`https://sports.core.api.espn.com/v2/sports/golf/leagues/${tour}/events/${eventId}`);
     if (!evData?.competitions) return null;
 
+    // 이벤트 레벨 tournament competition에서 USA homeAway 파악
+    // (프레지던츠컵처럼 USA가 홈인 경우 homeAway==='home'이 USA임)
+    const _tourneyComp = (evData.competitions || []).find(c => c.type?.text === 'tournament');
+    let _usaHomeAway = 'away'; // 기본값: 라이더컵/솔하임컵은 USA가 원정
+    if (_tourneyComp) {
+      for (const tc of (_tourneyComp.competitors || [])) {
+        const _abbr = (tc.team?.abbreviation || '').toUpperCase();
+        const _dname = (tc.team?.displayName || '').toLowerCase();
+        if (_abbr === 'USA' || _dname.includes('united states')) {
+          _usaHomeAway = tc.homeAway || 'away';
+          break;
+        }
+      }
+    }
+
     // tournament 타입(이벤트 wrapper) 제외
     const matchComps = evData.competitions.filter(c => c.type?.text !== 'tournament');
     if (!matchComps.length) return null;
@@ -27747,7 +27771,7 @@ async function _fetchTeamEventMatchesFE(tour, eventId) {
             const _tAbbr = (c.team?.abbreviation || c.team?.shortDisplayName || '').toUpperCase();
             const _tName = (c.team?.displayName || '').toLowerCase();
             const isUSA = _tAbbr === 'USA' || _tName.includes('united states')
-              || (!_tAbbr && !_tName && c.homeAway === 'away');
+              || (!_tAbbr && !_tName && c.homeAway === _usaHomeAway);
             const teamKey = isUSA ? 'usa' : 'eur';
             const rosterRef = c.roster?.['$ref'];
             const athleteRef = c.athlete?.['$ref'];
