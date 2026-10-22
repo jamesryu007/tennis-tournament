@@ -2240,10 +2240,16 @@ async function _fetchGolfCourseInfo(tour, eventId) {
     const course = (d.courses || [])[0];
     if (!course) return null;
     const addr = course.address || {};
+    // 홀별 파 정보 추출 (18홀 → [4,3,5,...])
+    const holePars = (course.holes || [])
+      .sort((a, b) => (a.number || 0) - (b.number || 0))
+      .map(h => h.par || 0)
+      .filter(p => p > 0);
     return {
       venueName:    course.name || '',
       venueCity:    [addr.city, addr.state].filter(Boolean).join(', '),
       venueCountry: addr.country || '',
+      holePars:     holePars.length === 18 ? holePars : [],
     };
   } catch(e) { return null; }
 }
@@ -2481,7 +2487,7 @@ async function _fetchAndParseGolfTour(tour) {
   // ESPN core API에서 골프장 정보 병렬 fetch
   await Promise.all(results.map(async t => {
     const venue = await _fetchGolfCourseInfo(tour, t.id);
-    if (venue) { t.venueName = venue.venueName; t.venueCity = venue.venueCity; t.venueCountry = venue.venueCountry; }
+    if (venue) { t.venueName = venue.venueName; t.venueCity = venue.venueCity; t.venueCountry = venue.venueCountry; if (venue.holePars?.length) t.holePars = venue.holePars; }
   }));
 
   // 팀전: 매치 상세 순차 fetch (rate limit 방지)
