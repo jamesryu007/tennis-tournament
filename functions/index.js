@@ -2439,11 +2439,13 @@ async function _fetchAndParseGolfTour(tour) {
         const thru  = curHoles === 18 ? 'F' : curHoles > 0 ? String(curHoles) : hasRoundScore ? 'F' : '';
         const pState = curHoles === 18 ? 'post' : curHoles > 0 ? 'in' : hasRoundScore ? 'post' : 'pre';
         return {
-          rank:    c.order || c.sortOrder || 0,
-          name:    c.athlete?.displayName || '',
-          country: c.athlete?.flag?.alt   || '',
-          total:   c.score        || 'E',
-          scores:  rounds.map(s => s.displayValue || String(s.value || '')),
+          rank:      c.order || c.sortOrder || 0,
+          name:      c.athlete?.displayName || '',
+          country:   c.athlete?.flag?.alt   || '',
+          total:     c.score        || 'E',
+          scores:    rounds.map(s => s.displayValue || String(s.value || '')),
+          holeScores: rounds.map(r => (r.linescores || []).map(h => h.par ? { v: h.value, p: h.par } : { v: h.value })),
+          athleteId: c.athlete?.id || '',
           thru,
           state:   pState,
           isCut:   round > 2 && rounds.length < round,
