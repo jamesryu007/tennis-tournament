@@ -1,3 +1,4 @@
+// v1198: holeScores + athleteId 추가
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onValueWritten, onValueCreated } = require('firebase-functions/v2/database');
 const { onCall } = require('firebase-functions/v2/https');
