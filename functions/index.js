@@ -671,6 +671,13 @@ async function saveAtpData(tournamentInfo, matches, isGrandSlam, allParsed = [])
   for (const p of _allForSave) {
     if (!p.tournamentInfo?.id) continue;
     const _isNonPrimary = p.tournamentInfo.id !== tournamentInfo?.id;
+    const _matchCount = Array.isArray(p.matches) ? p.matches.length : Object.keys(p.matches || {}).length;
+    // 비프라이머리 + 매치 없음 → 저장 건너뜀 (ESPN 빈 항목 중복 방지)
+    if (_isNonPrimary && _matchCount === 0) {
+      await db.ref(`jmt/atpData/tournaments/${p.tournamentInfo.id}`).remove().catch(() => {});
+      console.log(`saveAtpData: empty non-primary skipped & removed — ${p.tournamentInfo.name} (${p.tournamentInfo.id})`);
+      continue;
+    }
     // 비프라이머리 + (결승 완료 OR 종료 7일 초과) → 히스토리 저장 후 DB에서 제거
     if (_isNonPrimary && (_isFinalDone(p.matches) || _isExpired(p.tournamentInfo))) {
       const reason = _isFinalDone(p.matches) ? 'final done' : 'expired 7d';
