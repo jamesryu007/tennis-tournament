@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1194';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1195';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -27369,10 +27369,12 @@ function renderGolfLeaderboard(t) {
   const _maxRounds = Math.min(Math.max(..._nonCutPlayers.map(p => _realScoreCount(p)), 0), 4);
   // 최대 라운드 완료 선수 (WD 선수는 maxRounds 미만 → 자동 제외)
   const _fullRoundPlayers = _nonCutPlayers.filter(p => _realScoreCount(p) >= _maxRounds);
+  // 최소 2라운드 이상 완료해야 챔피언 배너 표시 — R1 완료 시 오판 방지
+  const _validRounds = _maxRounds >= 2;
   // state=post: 완주 선수가 있으면 배너 표시 (WD 선수 무관)
-  const _postAllDone = t.state === 'post' && _fullRoundPlayers.length > 0;
+  const _postAllDone = t.state === 'post' && _fullRoundPlayers.length > 0 && _validRounds;
   // state=in: 완주 선수 전원 F이고, 비컷 선수 전원 완주 또는 WD(thru=F)여야 함
-  const _allFinalDone = _fullRoundPlayers.length > 0 &&
+  const _allFinalDone = _fullRoundPlayers.length > 0 && _validRounds &&
     _fullRoundPlayers.every(p => p.thru === 'F') &&
     _nonCutPlayers.every(p => _realScoreCount(p) >= _maxRounds || p.thru === 'F');
   // 라운드 합산으로 실제 토탈 계산 (ESPN total 필드 오류 대비)
