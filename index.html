@@ -804,16 +804,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2770,7 +2770,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1200';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1205';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -25820,11 +25820,9 @@ function renderGolfTournamentSection() {
 
   // venue 정보 — 하드코딩 맵 우선, 없으면 ESPN 데이터, 없으면 대회명 fallback
   const _venueInfo = _getGolfVenueInfo(t.name);
-  const _fullVenue = t.venueName || '';
-  const _parts     = _fullVenue.split(',').map(p => p.trim()).filter(Boolean);
-  // ESPN 동적 데이터 우선 → 하드코딩 맵 fallback
-  const courseName = t.venueCity    || (_venueInfo && _venueInfo.course)  || _parts[0] || '';
-  const location   = t.venueCountry || (_venueInfo && _venueInfo.address) || _parts.slice(1).join(', ') || '';
+  // courseName: ESPN Core API 코스명(venueName) 우선 → 도시명(venueCity) fallback
+  const courseName = t.venueName    || (_venueInfo && _venueInfo.course)  || t.venueCity || '';
+  const location   = t.venueCountry || (_venueInfo && _venueInfo.address) || '';
   const mapQuery   = encodeURIComponent(courseName ? `${courseName}${location ? ', ' + location : ''}` : t.name);
   const mapUrl     = `https://maps.google.com/?q=${mapQuery}`;
 
@@ -27298,13 +27296,41 @@ function renderGolfLeaderboard(t) {
   const CHIP_W = 32; // 라운드 칩 고정 너비(px)
   const TOT_W  = 36; // 합계 칩 너비
   const THR_W  = 28; // 진행 너비
+
+  // ── 홀별 파 추정 (최빈값) ────────────────────────────────────────────
+  // ESPN API가 파 데이터를 제공하지 않을 때 fallback:
+  // 선수 전체의 홀별 타수 최빈값 = 그 홀의 파 (PGA Tour에서 매우 정확)
+  const _estimatedParsByRound = (() => {
+    if (t.holePars && t.holePars.length === 18) return null; // DB에 정확한 데이터 있으면 불필요
+    const result = [];
+    for (let ri = 0; ri < maxScoreRounds; ri++) {
+      const buckets = Array.from({length: 18}, () => []);
+      for (const p of displayPlayers) {
+        const holes = (p.holeScores || [])[ri] || [];
+        holes.forEach((h, i) => { if (h && h.v && i < 18) buckets[i].push(h.v); });
+      }
+      const pars = buckets.map(scores => {
+        if (!scores.length) return 0;
+        const freq = {};
+        let maxF = 0, mode = 0;
+        for (const s of scores) { freq[s] = (freq[s] || 0) + 1; if (freq[s] > maxF) { maxF = freq[s]; mode = s; } }
+        return mode;
+      });
+      result[ri] = pars.every(p => p > 0) ? pars : [];
+    }
+    return result;
+  })();
+
   const _renderRow = (p, isFav = false) => {
     // 홀별 스코어카드 캐시 등록 (홀 데이터 있는 라운드만)
     (p.holeScores || []).forEach((holes, ri) => {
       if (holes && holes.length > 0) {
         const _rLabel = ri === maxScoreRounds - 1 ? 'Final' : `R${ri + 1}`;
         const _scKey  = `${t.id}_${ri}_${p.athleteId || p.name.replace(/[^a-zA-Z0-9가-힣]/g, '_')}`;
-        _golfScorecardCache[_scKey] = { playerName: p.name, roundLabel: _rLabel, roundScore: (p.scores || [])[ri] || '', holes, holePars: t.holePars || [] };
+        // holePars 우선순위: DB 데이터 > 선수 타수 최빈값 추정 > []
+        const _holePars = (t.holePars && t.holePars.length === 18) ? t.holePars
+          : (_estimatedParsByRound && _estimatedParsByRound[ri]?.length === 18 ? _estimatedParsByRound[ri] : []);
+        _golfScorecardCache[_scKey] = { playerName: p.name, roundLabel: _rLabel, roundScore: (p.scores || [])[ri] || '', holes, holePars: _holePars, tour: t.tour || '', tournamentId: String(t.id || '') };
       }
     });
     const pNameSafe  = p.name.replace(/'/g, "\\'");
@@ -27405,8 +27431,8 @@ function renderGolfLeaderboard(t) {
   const _maxRounds = Math.min(Math.max(..._nonCutPlayers.map(p => _realScoreCount(p)), 0), 4);
   // 최대 라운드 완료 선수 (WD 선수는 maxRounds 미만 → 자동 제외)
   const _fullRoundPlayers = _nonCutPlayers.filter(p => _realScoreCount(p) >= _maxRounds);
-  // 최소 2라운드 이상 완료해야 챔피언 배너 표시 — R1 완료 시 오판 방지
-  const _validRounds = _maxRounds >= 2;
+  // 최소 3라운드 이상 완료해야 챔피언 배너 표시 — R1/R2 완료 시 오판 방지 (LPGA 54홀=3라운드 기준)
+  const _validRounds = _maxRounds >= 3;
   // state=post: 완주 선수가 있으면 배너 표시 (WD 선수 무관)
   const _postAllDone = t.state === 'post' && _fullRoundPlayers.length > 0 && _validRounds;
   // state=in: 완주 선수 전원 F이고, 비컷 선수 전원 완주 또는 WD(thru=F)여야 함
@@ -27538,92 +27564,138 @@ function closeGolfFavModal() {
 function openGolfHoleScorecard(key) {
   const data = _golfScorecardCache[key];
   if (!data) return;
-  const { playerName, roundLabel, roundScore, holes, holePars } = data;
+  const { playerName, roundLabel, roundScore, holes, tour, tournamentId } = data;
 
-  // holePars: Functions에서 ESPN Core API로 추출한 18홀 파 배열 [4,3,5,...]
-  const hasPar = holePars && holePars.length === 18;
-  const out = holes.slice(0, 9);
-  const inn = holes.slice(9, 18);
-
-  // 홀별 셀 렌더링 (한국 스코어카드: 버디=빨간원, 보기=파란네모, 이글=이중빨간원, 더블+=이중파란네모, 파=회색네모)
-  // par: holePars[holeIndex] (0-based)
-  const _hCell = (h, par) => {
-    if (!h || h.v === undefined) return '<td style="text-align:center;padding:1px 2px"><div style="width:22px;height:22px;margin:auto;font-size:0.72rem;display:flex;align-items:center;justify-content:center;color:#94a3b8">-</div></td>';
-    let bg = '#f1f5f9', color = '#475569', border = '#cbd5e1', radius = '4px', shadow = '';
-    if (par) {
-      const d = h.v - par;
-      if (d <= -2) {
-        // 이글(-2↓): 이중 빨간 원
-        bg = '#ef4444'; color = '#fff'; border = '#ef4444'; radius = '50%';
-        shadow = '0 0 0 2.5px #fff,0 0 0 4.5px #ef4444';
-      } else if (d === -1) {
-        // 버디(-1): 빨간 원
-        bg = '#ef4444'; color = '#fff'; border = '#ef4444'; radius = '50%';
-      } else if (d === 1) {
-        // 보기(+1): 파란 네모
-        bg = '#3b82f6'; color = '#fff'; border = '#3b82f6'; radius = '4px';
-      } else if (d >= 2) {
-        // 더블보기 이상(+2↑): 이중 파란 네모
-        bg = '#1d4ed8'; color = '#fff'; border = '#1d4ed8'; radius = '4px';
-        shadow = '0 0 0 2.5px #fff,0 0 0 4.5px #1d4ed8';
-      }
-    }
-    return `<td style="text-align:center;padding:1px 2px"><div style="width:22px;height:22px;margin:auto;font-size:0.72rem;font-weight:700;display:flex;align-items:center;justify-content:center;color:${color};background:${bg};border:1.5px solid ${border};border-radius:${radius}${shadow?';box-shadow:'+shadow:''}">${h.v}</div></td>`;
-  };
-  const _pCell = (par) => `<td style="text-align:center;padding:1px 2px;font-size:0.65rem;color:#94a3b8">${par || '-'}</td>`;
-  const _totCell = (n, bold=false) => `<td style="text-align:center;padding:1px 2px"><div style="width:26px;height:22px;margin:auto;font-size:0.72rem;font-weight:${bold?'900':'700'};display:flex;align-items:center;justify-content:center;color:#1e293b;background:#e2e8f0;border-radius:4px">${n}</div></td>`;
-
-  const _half = (hs, start) => {
-    const offset = start - 1;  // holePars 0-based 인덱스 오프셋
-    const tot = hs.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
-    const totPar = hasPar ? hs.reduce((s, _, i) => s + ((holePars[offset + i]) || 0), 0) : null;
-    const label = start === 1 ? 'OUT' : 'IN';
-    const holeRow = `<tr>${hs.map((_, i) => `<td style="text-align:center;padding:1px 2px;font-size:0.62rem;color:#94a3b8">${start+i}</td>`).join('')}${_totCell(label)}</tr>`;
-    const parRow  = hasPar ? `<tr>${hs.map((_, i) => _pCell(holePars[offset + i])).join('')}${_totCell(totPar)}</tr>` : '';
-    const scoreRow = `<tr>${hs.map((h, i) => _hCell(h, hasPar ? holePars[offset + i] : undefined)).join('')}${_totCell(tot, true)}</tr>`;
-    return `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-      <table style="border-collapse:collapse;min-width:100%">
-        <thead>${holeRow}${parRow}</thead>
-        <tbody>${scoreRow}</tbody>
-      </table>
-    </div>`;
-  };
-
-  const outTotal = out.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
-  const inTotal  = inn.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
-  const outPar   = hasPar ? holePars.slice(0, 9).reduce((s, p) => s + p, 0) : null;
-  const inPar    = hasPar ? holePars.slice(9, 18).reduce((s, p) => s + p, 0) : null;
-  const totalStr = outTotal + inTotal;
-  const totalPar = (outPar !== null && inPar !== null) ? outPar + inPar : null;
-  const relDiff  = totalPar !== null ? totalStr - totalPar : null;
-  const relDisp  = relDiff === null ? '' : relDiff === 0 ? 'E' : (relDiff > 0 ? '+' : '') + relDiff;
-  const relColor = relDiff === null ? '#334155' : relDiff < 0 ? '#2563eb' : relDiff === 0 ? '#334155' : '#dc2626';
-
-  const summaryHtml = `<div style="margin-top:10px;padding:7px 12px;background:#f1f5f9;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:8px">
-    <span style="font-size:0.78rem;color:#64748b">합계</span>
-    <span style="font-size:0.88rem;font-weight:800;color:#1e293b">${outTotal} + ${inTotal} = ${totalStr}타</span>
-    ${relDisp ? `<span style="font-size:0.88rem;font-weight:900;color:${relColor}">(${relDisp})</span>` : ''}
-  </div>`;
-
+  // 팝업 바로 열기 (제목 설정)
   const titleEl = document.getElementById('golf-scorecard-title');
   const scoreDisp = roundScore ? ` · ${roundScore}` : '';
   titleEl.innerHTML = `<span style="font-weight:800">${playerName}</span> <span style="color:#64748b;font-weight:600">${roundLabel}${scoreDisp}</span>`;
-
-  const legendHtml = hasPar ? `<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-    <span style="display:flex;align-items:center;gap:3px;font-size:0.65rem;color:#475569"><span style="width:14px;height:14px;border-radius:50%;background:#ef4444;display:inline-block;box-shadow:0 0 0 2px #fff,0 0 0 3.5px #ef4444"></span>이글↓</span>
-    <span style="display:flex;align-items:center;gap:3px;font-size:0.65rem;color:#475569"><span style="width:14px;height:14px;border-radius:50%;background:#ef4444;display:inline-block"></span>버디</span>
-    <span style="display:flex;align-items:center;gap:3px;font-size:0.65rem;color:#475569"><span style="width:14px;height:14px;border-radius:4px;background:#f1f5f9;border:1.5px solid #cbd5e1;display:inline-block"></span>파</span>
-    <span style="display:flex;align-items:center;gap:3px;font-size:0.65rem;color:#475569"><span style="width:14px;height:14px;border-radius:4px;background:#3b82f6;display:inline-block"></span>보기</span>
-    <span style="display:flex;align-items:center;gap:3px;font-size:0.65rem;color:#475569"><span style="width:14px;height:14px;border-radius:4px;background:#1d4ed8;display:inline-block;box-shadow:0 0 0 2px #fff,0 0 0 3.5px #1d4ed8"></span>더블↑</span>
-  </div>` : '';
-
-  document.getElementById('golf-scorecard-body').innerHTML =
-    legendHtml +
-    _half(out, 1) +
-    (inn.length > 0 ? '<div style="height:8px"></div>' + _half(inn, 10) : '') +
-    summaryHtml;
-
   document.getElementById('golf-scorecard-modal').classList.add('open');
+
+  // holePars 렌더링 함수 — holePars 배열을 받아 스코어카드 body 채움
+  const _renderScorecard = (holePars) => {
+    const hasPar = Array.isArray(holePars) && holePars.length === 18;
+    const out = holes.slice(0, 9);
+    const inn = holes.slice(9, 18);
+
+    // 홀별 셀 렌더링 (한국 스코어카드: 버디=빨간원, 보기=파란네모, 이글=이중빨간원, 더블+=이중파란네모, 파=회색네모)
+    const _hCell = (h, par) => {
+      if (!h || h.v === undefined) return '<td style="text-align:center;padding:1px 2px"><div style="width:22px;height:22px;margin:auto;font-size:0.72rem;display:flex;align-items:center;justify-content:center;color:#94a3b8">-</div></td>';
+      let bg = '#f1f5f9', color = '#475569', border = '#cbd5e1', radius = '4px', shadow = '';
+      if (par) {
+        const d = h.v - par;
+        if (d <= -2) {
+          // 이글(-2↓): 이중 빨간 원
+          bg = '#ef4444'; color = '#fff'; border = '#ef4444'; radius = '50%';
+          shadow = '0 0 0 2.5px #fff,0 0 0 4.5px #ef4444';
+        } else if (d === -1) {
+          // 버디(-1): 빨간 원
+          bg = '#ef4444'; color = '#fff'; border = '#ef4444'; radius = '50%';
+        } else if (d === 1) {
+          // 보기(+1): 파란 네모
+          bg = '#3b82f6'; color = '#fff'; border = '#3b82f6'; radius = '4px';
+        } else if (d >= 2) {
+          // 더블보기 이상(+2↑): 이중 파란 네모
+          bg = '#1d4ed8'; color = '#fff'; border = '#1d4ed8'; radius = '4px';
+          shadow = '0 0 0 2.5px #fff,0 0 0 4.5px #1d4ed8';
+        }
+      }
+      return `<td style="text-align:center;padding:1px 2px"><div style="width:22px;height:22px;margin:auto;font-size:0.72rem;font-weight:700;display:flex;align-items:center;justify-content:center;color:${color};background:${bg};border:1.5px solid ${border};border-radius:${radius}${shadow?';box-shadow:'+shadow:''}">${h.v}</div></td>`;
+    };
+    const _pCell = (par) => `<td style="text-align:center;padding:1px 2px;font-size:0.65rem;color:#94a3b8">${par || '-'}</td>`;
+    const _totCell = (n, bold=false) => `<td style="text-align:center;padding:1px 2px"><div style="width:26px;height:22px;margin:auto;font-size:0.72rem;font-weight:${bold?'900':'700'};display:flex;align-items:center;justify-content:center;color:#1e293b;background:#e2e8f0;border-radius:4px">${n}</div></td>`;
+
+    const _half = (hs, start) => {
+      const offset = start - 1;  // holePars 0-based 인덱스 오프셋
+      const tot = hs.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
+      const totPar = hasPar ? hs.reduce((s, _, i) => s + ((holePars[offset + i]) || 0), 0) : null;
+      const label = start === 1 ? 'OUT' : 'IN';
+      const holeRow = `<tr>${hs.map((_, i) => `<td style="text-align:center;padding:1px 2px;font-size:0.62rem;color:#94a3b8">${start+i}</td>`).join('')}${_totCell(label)}</tr>`;
+      const parRow  = hasPar ? `<tr>${hs.map((_, i) => _pCell(holePars[offset + i])).join('')}${_totCell(totPar)}</tr>` : '';
+      const scoreRow = `<tr>${hs.map((h, i) => _hCell(h, hasPar ? holePars[offset + i] : undefined)).join('')}${_totCell(tot, true)}</tr>`;
+      return `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <table style="border-collapse:collapse;min-width:100%">
+          <thead>${holeRow}${parRow}</thead>
+          <tbody>${scoreRow}</tbody>
+        </table>
+      </div>`;
+    };
+
+    const outTotal = out.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
+    const inTotal  = inn.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
+    const outPar   = hasPar ? holePars.slice(0, 9).reduce((s, p) => s + p, 0) : null;
+    const inPar    = hasPar ? holePars.slice(9, 18).reduce((s, p) => s + p, 0) : null;
+    const totalStr = outTotal + inTotal;
+    const totalPar = (outPar !== null && inPar !== null) ? outPar + inPar : null;
+    const relDiff  = totalPar !== null ? totalStr - totalPar : null;
+    const relDisp  = relDiff === null ? '' : relDiff === 0 ? 'E' : (relDiff > 0 ? '+' : '') + relDiff;
+    const relColor = relDiff === null ? '#334155' : relDiff < 0 ? '#2563eb' : relDiff === 0 ? '#334155' : '#dc2626';
+
+    const summaryHtml = `<div style="margin-top:10px;padding:7px 12px;background:#f1f5f9;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:8px">
+      <span style="font-size:0.78rem;color:#64748b">합계</span>
+      <span style="font-size:0.88rem;font-weight:800;color:#1e293b">${outTotal} + ${inTotal} = ${totalStr}타</span>
+      ${relDisp ? `<span style="font-size:0.88rem;font-weight:900;color:${relColor}">(${relDisp})</span>` : ''}
+    </div>`;
+
+    document.getElementById('golf-scorecard-body').innerHTML =
+      _half(out, 1) +
+      (inn.length > 0 ? '<div style="height:8px"></div>' + _half(inn, 10) : '') +
+      summaryHtml;
+  };
+
+  // holePars가 캐시에 있으면 바로 렌더링, 없으면 ESPN API에서 직접 fetch
+  const cachedPars = data.holePars || [];
+  if (cachedPars.length === 18) {
+    _renderScorecard(cachedPars);
+    return;
+  }
+  if (!tour || !tournamentId) { _renderScorecard([]); return; }
+
+  document.getElementById('golf-scorecard-body').innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:0.85rem">코스 정보 로딩 중...</div>';
+
+  // holePars 추출 헬퍼 — courses[0].holes 또는 competitions[0].venue.holes 모두 시도
+  const _extractPars = (d) => {
+    // 방법 1: courses[0].holes (Core API)
+    const courseHoles = ((d.courses || [])[0]?.holes) || [];
+    // 방법 2: competitions[0].venue.holes (site API / scoreboard)
+    const venueHoles  = ((d.competitions || [])[0]?.venue?.holes) || (d.venue?.holes) || [];
+    const src = courseHoles.length ? courseHoles : venueHoles;
+    const raw = src
+      .sort((a, b) => (a.number || 0) - (b.number || 0))
+      .map(h => h.par || 0)
+      .filter(p => p > 0);
+    return raw.length === 18 ? raw : [];
+  };
+
+  const _cachePars = (pars) => {
+    if (pars.length === 18) {
+      for (const k of Object.keys(_golfScorecardCache)) {
+        if (_golfScorecardCache[k].tournamentId === tournamentId) {
+          _golfScorecardCache[k].holePars = pars;
+        }
+      }
+    }
+  };
+
+  // 1차: ESPN Core API (서버측 동일 엔드포인트)
+  fetch(`https://sports.core.api.espn.com/v2/sports/golf/leagues/${tour}/events/${tournamentId}`)
+    .then(r => r.ok ? r.json() : Promise.reject(r.status))
+    .then(d => {
+      const pars = _extractPars(d);
+      if (pars.length === 18) { _cachePars(pars); _renderScorecard(pars); return; }
+      // 2차 fallback: site API summary (확실한 CORS 허용)
+      return fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tour}/summary?event=${tournamentId}`)
+        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then(d2 => { const pars2 = _extractPars(d2); _cachePars(pars2); _renderScorecard(pars2); })
+        .catch(() => _renderScorecard([]));
+    })
+    .catch(() => {
+      // Core API 실패 → site API만 시도
+      fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/${tour}/summary?event=${tournamentId}`)
+        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then(d2 => { const pars2 = _extractPars(d2); _cachePars(pars2); _renderScorecard(pars2); })
+        .catch(() => _renderScorecard([]));
+    });
 }
 
 function closeGolfHoleScorecard() {
