@@ -524,8 +524,9 @@ async function _archiveTennisHistory(tournamentInfo, matches, gender = 'men') {
       const p1 = m.player1Name || '', p2 = m.player2Name || '';
       if (!p1 || !p2 || p1 === 'TBD' || p2 === 'TBD') return false; // 미확정 제외
       const rn = (m.roundName || '').toLowerCase();
+      const isDone = m.status === 'STATUS_FINAL' || m.status === 'STATUS_RETIRED';
       return (rn === 'final' || rn === 'the final')
-        && m.status === 'STATUS_FINAL'
+        && isDone
         && (isWomen ? m.gender === 'women' : m.gender !== 'women')
         && (m.player1Winner === true || m.player2Winner === true);
     });
@@ -645,12 +646,13 @@ async function saveAtpData(tournamentInfo, matches, isGrandSlam, allParsed = [])
   // 각 대회를 개별 경로에 저장 — 결승 완료 또는 종료 7일 초과 비프라이머리 대회는 히스토리 저장 후 제거
   const _allForSave = allParsed.length > 0 ? allParsed
     : [{ tournamentInfo, matches }];
-  // 결승 완료 여부 판정 헬퍼
+  // 결승 완료 여부 판정 헬퍼 (STATUS_RETIRED = 부상기권 포함)
   const _isFinalDone = (ms) => {
     const arr = Array.isArray(ms) ? ms : Object.values(ms || {});
     return arr.some(m => {
       const rn = (m.roundName || '').toLowerCase();
-      return (rn === 'final' || rn === 'the final') && m.status === 'STATUS_FINAL'
+      const isDone = m.status === 'STATUS_FINAL' || m.status === 'STATUS_RETIRED';
+      return (rn === 'final' || rn === 'the final') && isDone
         && (m.player1Winner === true || m.player2Winner === true);
     });
   };
@@ -1456,17 +1458,18 @@ exports.notifyTennisWinner = onValueWritten(
 
       const matchesAfter = Array.isArray(after.matches) ? after.matches : Object.values(after.matches || {});
 
-      // 이번 업데이트에서 처음 STATUS_FINAL이 된 결승 경기 (단식만 — 복식/빈 이름 제외)
+      // 이번 업데이트에서 처음 STATUS_FINAL/STATUS_RETIRED가 된 결승 경기 (단식만 — 복식/빈 이름 제외)
       const newFinals = matchesAfter.filter(m => {
         const rn = (m.roundName || '').toLowerCase();
         if (rn !== 'final' && rn !== 'the final') return false;
-        if (m.status !== 'STATUS_FINAL') return false;
+        if (m.status !== 'STATUS_FINAL' && m.status !== 'STATUS_RETIRED') return false;
         if (!m.player1Winner && !m.player2Winner) return false;
         // 복식 제외: singles 필드 우선, 없으면 선수명 빈값 체크
         if (m.singles === false) return false;
         if (!m.player1Name || !m.player2Name) return false;
         const prev = m.id ? matchesBefore[m.id] : null;
-        return !prev || prev.status !== 'STATUS_FINAL';
+        const prevDone = prev?.status === 'STATUS_FINAL' || prev?.status === 'STATUS_RETIRED';
+        return !prev || !prevDone;
       });
 
       if (!newFinals.length) return;
