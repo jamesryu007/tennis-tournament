@@ -642,32 +642,33 @@ async function saveAtpData(tournamentInfo, matches, isGrandSlam, allParsed = [])
 
   // 골프와 동일하게 update() + 개별 경로 write — set()으로 tournaments/ 덮어쓰기 방지
   await db.ref('jmt/atpData').update({ tournamentInfo, matches, updatedAt });
-  // 각 대회를 개별 경로에 저장
+  // 각 대회를 개별 경로에 저장 — 결승 완료된 비프라이머리 대회는 히스토리 저장 후 제거
   const _allForSave = allParsed.length > 0 ? allParsed
     : [{ tournamentInfo, matches }];
+  // 결승 완료 여부 판정 헬퍼
+  const _isFinalDone = (ms) => {
+    const arr = Array.isArray(ms) ? ms : Object.values(ms || {});
+    return arr.some(m => {
+      const rn = (m.roundName || '').toLowerCase();
+      return (rn === 'final' || rn === 'the final') && m.status === 'STATUS_FINAL'
+        && (m.player1Winner === true || m.player2Winner === true);
+    });
+  };
   for (const p of _allForSave) {
     if (!p.tournamentInfo?.id) continue;
+    const _isNonPrimary = p.tournamentInfo.id !== tournamentInfo?.id;
+    // 비프라이머리 + 결승 완료 → 히스토리 저장 후 DB에서 제거 (pill에서도 사라짐)
+    if (_isNonPrimary && _isFinalDone(p.matches)) {
+      await _archiveTennisHistory(p.tournamentInfo, p.matches, 'men').catch(() => {});
+      await _archiveTennisHistory(p.tournamentInfo, p.matches, 'women').catch(() => {});
+      await db.ref(`jmt/atpData/tournaments/${p.tournamentInfo.id}`).remove()
+        .catch(e => console.error(`completed tournament remove(${p.tournamentInfo.id}):`, e));
+      console.log(`saveAtpData: completed tournament archived & removed — ${p.tournamentInfo.name}`);
+      continue;
+    }
     await db.ref(`jmt/atpData/tournaments/${p.tournamentInfo.id}`)
       .set({ tournamentInfo: p.tournamentInfo, matches: p.matches, updatedAt })
       .catch(e => console.error('atpData/tournaments write:', e));
-  }
-  // ESPN 스코어보드에서 사라진 오래된 대회 정리 — 히스토리 저장 후 삭제
-  try {
-    const currentIds = new Set(_allForSave.map(p => p.tournamentInfo?.id).filter(Boolean));
-    const staleSnap = await db.ref('jmt/atpData/tournaments').once('value');
-    const staleAll  = staleSnap.val() || {};
-    for (const [id, t] of Object.entries(staleAll)) {
-      if (currentIds.has(id) || !t.tournamentInfo) continue;
-      // 히스토리 저장 시도 (결승 완료된 경우만 저장, 아니면 skip)
-      await _archiveTennisHistory(t.tournamentInfo, t.matches || {}, 'men').catch(() => {});
-      await _archiveTennisHistory(t.tournamentInfo, t.matches || {}, 'women').catch(() => {});
-      // DB에서 삭제
-      await db.ref(`jmt/atpData/tournaments/${id}`).remove()
-        .catch(e => console.error(`stale tournament remove(${id}):`, e));
-      console.log(`saveAtpData: stale tournament removed — ${t.tournamentInfo.name} (${id})`);
-    }
-  } catch (e) {
-    console.error('saveAtpData stale cleanup error:', e);
   }
   await saveGrandSlamIfNeeded(tournamentInfo, matches, isGrandSlam);
   await autoProcessWinnerBet(matches);
