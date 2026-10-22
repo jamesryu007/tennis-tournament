@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1195';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1196';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -16102,10 +16102,14 @@ async function triggerAtpRefresh() {
       db.ref('jmt/atpBets').remove().catch(() => {});
     }
 
-    // ESPN 데이터 로컬 반영 (멀티대회 포함)
+    // ESPN 데이터 로컬 반영 (멀티대회 포함) — 매치 없는 비프라이머리 제외
+    const _primaryId = tournamentInfo?.id;
     const _newTourMap = {};
     for (const p of _allParsedClient) {
-      if (p.tournamentInfo.id) _newTourMap[p.tournamentInfo.id] = p;
+      if (!p.tournamentInfo.id) continue;
+      const _mCnt = Array.isArray(p.matches) ? p.matches.length : Object.keys(p.matches || {}).length;
+      if (String(p.tournamentInfo.id) !== String(_primaryId) && _mCnt === 0) continue;
+      _newTourMap[p.tournamentInfo.id] = p;
     }
     Object.assign(atpState.tournaments, _newTourMap); // 새 데이터 병합 (기존 대회 유지)
     // 기존 선택 유지 — 새 데이터에도 선택 대회가 있으면 선택 보존, 없으면 primary로 초기화
@@ -16129,9 +16133,11 @@ async function triggerAtpRefresh() {
       const _updAt = new Date().toISOString();
       // 주 대회 정보만 update (tournaments/ 서브키 건드리지 않음)
       db.ref('jmt/atpData').update({ tournamentInfo, matches, updatedAt: _updAt }).catch(() => {});
-      // 각 대회를 개별 경로에 저장 (additive — 기존 항목 삭제 없음)
+      // 각 대회를 개별 경로에 저장 (additive — 매치 없는 비프라이머리 제외)
       for (const p of _allParsedClient) {
         if (!p.tournamentInfo.id) continue;
+        const _mCnt2 = Array.isArray(p.matches) ? p.matches.length : Object.keys(p.matches || {}).length;
+        if (String(p.tournamentInfo.id) !== String(_primaryId) && _mCnt2 === 0) continue;
         db.ref(`jmt/atpData/tournaments/${p.tournamentInfo.id}`)
           .set({ tournamentInfo: p.tournamentInfo, matches: p.matches, updatedAt: _updAt })
           .catch(() => {});
