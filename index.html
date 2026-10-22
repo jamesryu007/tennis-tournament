@@ -2770,7 +2770,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1203';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1204';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -25820,11 +25820,9 @@ function renderGolfTournamentSection() {
 
   // venue 정보 — 하드코딩 맵 우선, 없으면 ESPN 데이터, 없으면 대회명 fallback
   const _venueInfo = _getGolfVenueInfo(t.name);
-  const _fullVenue = t.venueName || '';
-  const _parts     = _fullVenue.split(',').map(p => p.trim()).filter(Boolean);
-  // ESPN 동적 데이터 우선 → 하드코딩 맵 fallback
-  const courseName = t.venueCity    || (_venueInfo && _venueInfo.course)  || _parts[0] || '';
-  const location   = t.venueCountry || (_venueInfo && _venueInfo.address) || _parts.slice(1).join(', ') || '';
+  // courseName: ESPN Core API 코스명(venueName) 우선 → 도시명(venueCity) fallback
+  const courseName = t.venueName    || (_venueInfo && _venueInfo.course)  || t.venueCity || '';
+  const location   = t.venueCountry || (_venueInfo && _venueInfo.address) || '';
   const mapQuery   = encodeURIComponent(courseName ? `${courseName}${location ? ', ' + location : ''}` : t.name);
   const mapUrl     = `https://maps.google.com/?q=${mapQuery}`;
 
@@ -27639,16 +27637,7 @@ function openGolfHoleScorecard(key) {
       ${relDisp ? `<span style="font-size:0.88rem;font-weight:900;color:${relColor}">(${relDisp})</span>` : ''}
     </div>`;
 
-    const legendHtml = hasPar ? `<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-      <span style="display:flex;align-items:center;gap:3px;font-size:0.65rem;color:#475569"><span style="width:14px;height:14px;border-radius:50%;background:#ef4444;display:inline-block;box-shadow:0 0 0 2px #fff,0 0 0 3.5px #ef4444"></span>이글↓</span>
-      <span style="display:flex;align-items:center;gap:3px;font-size:0.65rem;color:#475569"><span style="width:14px;height:14px;border-radius:50%;background:#ef4444;display:inline-block"></span>버디</span>
-      <span style="display:flex;align-items:center;gap:3px;font-size:0.65rem;color:#475569"><span style="width:14px;height:14px;border-radius:4px;background:#f1f5f9;border:1.5px solid #cbd5e1;display:inline-block"></span>파</span>
-      <span style="display:flex;align-items:center;gap:3px;font-size:0.65rem;color:#475569"><span style="width:14px;height:14px;border-radius:4px;background:#3b82f6;display:inline-block"></span>보기</span>
-      <span style="display:flex;align-items:center;gap:3px;font-size:0.65rem;color:#475569"><span style="width:14px;height:14px;border-radius:4px;background:#1d4ed8;display:inline-block;box-shadow:0 0 0 2px #fff,0 0 0 3.5px #1d4ed8"></span>더블↑</span>
-    </div>` : '';
-
     document.getElementById('golf-scorecard-body').innerHTML =
-      legendHtml +
       _half(out, 1) +
       (inn.length > 0 ? '<div style="height:8px"></div>' + _half(inn, 10) : '') +
       summaryHtml;
