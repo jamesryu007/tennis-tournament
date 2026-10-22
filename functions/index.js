@@ -2585,6 +2585,14 @@ async function _archiveGolfHistory(t) {
       .map(p => ({ rank: p.rank || 0, name: p.name, country: p.country || '', total: p.total || 'E' }));
     if (!top10.length) { console.log(`_archiveGolfHistory: no leaderboard for ${t.name}, skipping`); return; }
 
+    // 실제 라운드 스코어 완료 여부 확인 — R1 미완료(모두 E) 상태에서 저장 방지
+    const _effLen2 = (p) => (p.scores || []).filter(s => s !== '' && s !== '-').length;
+    const maxCompletedRounds = Math.max(...allLeaders.map(p => _effLen2(p)), 0);
+    if (maxCompletedRounds < 2) {
+      console.log(`_archiveGolfHistory: only ${maxCompletedRounds} round(s) completed for ${t.name}, skipping (need ≥2)`);
+      return;
+    }
+
     // ── 연장전 감지: 4라운드 초과 scores → playoff ───────────────────
     const maxScores = Math.max(...allLeaders.map(p => (p.scores || []).length), 0);
     let playoff = null;
@@ -2772,6 +2780,7 @@ exports.notifyGolfWinner = onValueWritten(
         // 최대 라운드 완료 선수 (WD 자동 제외) — 3라운드 대회(LPGA 54홀) 대응
         const fullRoundPlayers = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff);
         if (fullRoundPlayers.length === 0) return false;
+        if (maxEff < 2) return false; // 최소 2라운드 완료 전에는 종료 불가 (R1 완료 오판 방지)
         if (t.state === 'post') return true;
         // state !== post: 비컷 선수 전원 완주 또는 WD(thru=F이고 라운드 부족) 상태여야 함
         const nonCut = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff - 1);
