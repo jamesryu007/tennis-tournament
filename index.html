@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1190';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1194';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13561,7 +13561,10 @@ function initAtpListeners() {
   // 골프와 동일하게 tournaments 서브키를 별도 리스너로 감시 — set() 덮어쓰기 영향 차단
   db.ref('jmt/atpData/tournaments').on('value', snap => {
     const tourData = snap.val() || {};
-    // atpState.tournaments에 병합 (additive — 기존 항목 삭제 없음)
+    // 전체 교체 — DB에서 삭제된 오래된 대회 클라이언트에서도 제거
+    Object.keys(atpState.tournaments).forEach(id => {
+      if (!tourData[id]) delete atpState.tournaments[id];
+    });
     Object.assign(atpState.tournaments, tourData);
     // 선택된 대회 데이터가 이제 로드됐으면 반영
     if (atpState.selectedTournamentId && atpState.tournaments[atpState.selectedTournamentId]) {
@@ -13775,7 +13778,24 @@ function renderAtpTournamentSelector() {
   const selId = atpState.selectedTournamentId || (atpState.tournamentInfo && atpState.tournamentInfo.id);
 
   // 현재 보여지는 대회 제외 — String() 변환으로 타입 불일치 방지
-  const others = ts.filter(t => String(t.tournamentInfo.id) !== String(selId));
+  // 결승 완료 또는 종료 7일 초과 대회 제외 (DB 정리 전 클라이언트 안전망)
+  const _isFinalDone = (ms) => {
+    const arr = Array.isArray(ms) ? ms : Object.values(ms || {});
+    return arr.some(m => {
+      const rn = (m.roundName || '').toLowerCase();
+      return (rn === 'final' || rn === 'the final') && m.status === 'STATUS_FINAL'
+        && (m.player1Winner === true || m.player2Winner === true);
+    });
+  };
+  const _isExpired = (ti) => {
+    if (!ti?.endDate) return false;
+    return Date.now() - new Date(ti.endDate).getTime() > 7 * 24 * 60 * 60 * 1000;
+  };
+  const others = ts.filter(t =>
+    String(t.tournamentInfo.id) !== String(selId)
+    && !_isFinalDone(t.matches || [])
+    && !_isExpired(t.tournamentInfo)
+  );
   if (others.length === 0) { el.style.display = 'none'; return; }
   el.style.display = 'flex';
   const TIER_O = { grandslam: 0, atp1000: 1, atp500: 2, atp250: 3 };
@@ -27343,12 +27363,18 @@ function renderGolfLeaderboard(t) {
   // 대회 완료 우승자 프레임 (테니스 챔피언 배너와 동일 스타일)
   // ESPN이 post로 전환 안 해도, Final 라운드 비컷 선수 전원 'F'면 배너 표시
   const _nonCutPlayers = displayPlayers.filter(p => !p.isCut);
-  // 비컷 선수 개인별 4라운드 완료 체크 — 빈 스코어('') 제외 (ESPN이 미래 라운드를 빈 항목으로 포함)
+  // 빈 스코어('') 제외 실제 라운드 수 (ESPN이 미래 라운드를 빈 항목으로 포함)
   const _realScoreCount = (p) => (p.scores || []).filter(s => s !== '' && s !== '-').length;
-  const _allFinalDone = _nonCutPlayers.length > 0 &&
-    _nonCutPlayers.every(p => _realScoreCount(p) >= 4 && p.thru === 'F');
-  const _postAllDone = t.state === 'post' &&
-    _nonCutPlayers.length > 0 && _nonCutPlayers.every(p => _realScoreCount(p) >= 4);
+  // 실제 최대 라운드 수 — 3라운드 대회(LPGA 54홀 등) 대응, 최대 4
+  const _maxRounds = Math.min(Math.max(..._nonCutPlayers.map(p => _realScoreCount(p)), 0), 4);
+  // 최대 라운드 완료 선수 (WD 선수는 maxRounds 미만 → 자동 제외)
+  const _fullRoundPlayers = _nonCutPlayers.filter(p => _realScoreCount(p) >= _maxRounds);
+  // state=post: 완주 선수가 있으면 배너 표시 (WD 선수 무관)
+  const _postAllDone = t.state === 'post' && _fullRoundPlayers.length > 0;
+  // state=in: 완주 선수 전원 F이고, 비컷 선수 전원 완주 또는 WD(thru=F)여야 함
+  const _allFinalDone = _fullRoundPlayers.length > 0 &&
+    _fullRoundPlayers.every(p => p.thru === 'F') &&
+    _nonCutPlayers.every(p => _realScoreCount(p) >= _maxRounds || p.thru === 'F');
   // 라운드 합산으로 실제 토탈 계산 (ESPN total 필드 오류 대비)
   // .slice(0,4): ESPN이 플레이오프 홀 스코어를 5번째 이후에 추가하므로 4라운드만 사용
   const _calcTotal = (p) => {
@@ -27359,15 +27385,17 @@ function renderGolfLeaderboard(t) {
 
   let golfChampionBanner = '';
   if ((_postAllDone || _allFinalDone) && roundIdx === null) {
-    const _champ = displayPlayers.find(p => !p.isCut && p._calcRank === 1);
+    // 완주 선수 중 1위 (WD 선수 제외)
+    const _champ = _fullRoundPlayers.find(p => p._calcRank === 1) ||
+      _fullRoundPlayers.slice().sort((a, b) => (a._calcRank || 9999) - (b._calcRank || 9999))[0];
     if (_champ) {
       const _isKor = isKorean(_champ.country);
       const _nc = _isKor ? '#CD2E3A' : '#92400e';
       // 플레이오프 감지 — 라운드 합산 기준으로 동점자 찾기 (ESPN total 오류 대비)
       const _champCalcTotal = _calcTotal(_champ);
-      // isCut 여부 무관하게 4라운드 완료 선수 중 동점자 탐색 (ESPN isCut 오판 대비)
+      // 최대 라운드 완료 선수 중 동점자 탐색 (WD/isCut 오판 대비, 3라운드 대회 대응)
       const _playoffWith = displayPlayers.filter(p =>
-        p !== _champ && _realScoreCount(p) >= 4 && _calcTotal(p) === _champCalcTotal && _champCalcTotal !== 9999
+        p !== _champ && _realScoreCount(p) >= _maxRounds && _calcTotal(p) === _champCalcTotal && _champCalcTotal !== 9999
       );
       const _playoffLine = _playoffWith.length > 0
         ? `<div style="font-size:0.72rem;color:#7c3aed;margin-top:5px;font-weight:700">🔄 ${_playoffWith.map(p => p.name).join(', ')}와 연장 승부 끝 우승</div>`

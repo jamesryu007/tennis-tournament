@@ -642,14 +642,56 @@ async function saveAtpData(tournamentInfo, matches, isGrandSlam, allParsed = [])
 
   // 골프와 동일하게 update() + 개별 경로 write — set()으로 tournaments/ 덮어쓰기 방지
   await db.ref('jmt/atpData').update({ tournamentInfo, matches, updatedAt });
-  // 각 대회를 개별 경로에 저장 (additive — 기존 항목 삭제 없음)
+  // 각 대회를 개별 경로에 저장 — 결승 완료 또는 종료 7일 초과 비프라이머리 대회는 히스토리 저장 후 제거
   const _allForSave = allParsed.length > 0 ? allParsed
     : [{ tournamentInfo, matches }];
+  // 결승 완료 여부 판정 헬퍼
+  const _isFinalDone = (ms) => {
+    const arr = Array.isArray(ms) ? ms : Object.values(ms || {});
+    return arr.some(m => {
+      const rn = (m.roundName || '').toLowerCase();
+      return (rn === 'final' || rn === 'the final') && m.status === 'STATUS_FINAL'
+        && (m.player1Winner === true || m.player2Winner === true);
+    });
+  };
+  // 대회 종료 7일 초과 여부 (ESPN이 결승 전 스냅샷으로 저장된 경우 대비)
+  const _isExpired = (ti) => {
+    if (!ti?.endDate) return false;
+    return Date.now() - new Date(ti.endDate).getTime() > 7 * 24 * 60 * 60 * 1000;
+  };
+  const _archiveAndRemove = async (ti, ms, reason) => {
+    await _archiveTennisHistory(ti, ms, 'men').catch(() => {});
+    await _archiveTennisHistory(ti, ms, 'women').catch(() => {});
+    await db.ref(`jmt/atpData/tournaments/${ti.id}`).remove()
+      .catch(e => console.error(`tournament remove(${ti.id}):`, e));
+    console.log(`saveAtpData: [${reason}] archived & removed — ${ti.name}`);
+  };
   for (const p of _allForSave) {
     if (!p.tournamentInfo?.id) continue;
+    const _isNonPrimary = p.tournamentInfo.id !== tournamentInfo?.id;
+    // 비프라이머리 + (결승 완료 OR 종료 7일 초과) → 히스토리 저장 후 DB에서 제거
+    if (_isNonPrimary && (_isFinalDone(p.matches) || _isExpired(p.tournamentInfo))) {
+      const reason = _isFinalDone(p.matches) ? 'final done' : 'expired 7d';
+      await _archiveAndRemove(p.tournamentInfo, p.matches, reason);
+      continue;
+    }
     await db.ref(`jmt/atpData/tournaments/${p.tournamentInfo.id}`)
       .set({ tournamentInfo: p.tournamentInfo, matches: p.matches, updatedAt })
       .catch(e => console.error('atpData/tournaments write:', e));
+  }
+  // DB에 남아있는 기존 만료 대회도 정리 (allParsed에 없는 항목 포함)
+  try {
+    const existingSnap = await db.ref('jmt/atpData/tournaments').once('value');
+    const existingData = existingSnap.val() || {};
+    for (const [eid, eData] of Object.entries(existingData)) {
+      if (String(eid) === String(tournamentInfo?.id)) continue; // 프라이머리 제외
+      const alreadyProcessed = _allForSave.some(p => String(p.tournamentInfo?.id) === String(eid));
+      if (!alreadyProcessed && _isExpired(eData.tournamentInfo)) {
+        await _archiveAndRemove(eData.tournamentInfo, eData.matches || {}, 'expired 7d (stale)');
+      }
+    }
+  } catch (e) {
+    console.error('saveAtpData: stale cleanup error:', e);
   }
   await saveGrandSlamIfNeeded(tournamentInfo, matches, isGrandSlam);
   await autoProcessWinnerBet(matches);
@@ -2724,13 +2766,13 @@ exports.notifyGolfWinner = onValueWritten(
         const _effLen = (p) => (p.scores || []).filter(s => s !== '' && s !== '-').length;
         // WD/DQ 선수 제외: isCut=false이지만 '-' 포함으로 실제 스코어가 적은 경우
         const maxEff = Math.max(...lb.map(p => _effLen(p)), 0);
-        const nonCut = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff - 1);
-        if (nonCut.length === 0) return false;
-        // 비컷 선수 전원 4라운드 완료 여부 개인별 체크 (글로벌 max 오판 방지)
-        const allFour = nonCut.every(p => _effLen(p) >= 4);
-        if (!allFour) return false;
+        // 최대 라운드 완료 선수 (WD 자동 제외) — 3라운드 대회(LPGA 54홀) 대응
+        const fullRoundPlayers = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff);
+        if (fullRoundPlayers.length === 0) return false;
         if (t.state === 'post') return true;
-        return nonCut.every(p => p.thru === 'F');
+        // state !== post: 비컷 선수 전원 완주 또는 WD(thru=F이고 라운드 부족) 상태여야 함
+        const nonCut = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff - 1);
+        return nonCut.every(p => _effLen(p) >= maxEff || p.thru === 'F');
       };
 
       // 이번 업데이트에서 처음 종료 상태가 된 대회
