@@ -2770,7 +2770,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1202';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1203';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -27298,13 +27298,41 @@ function renderGolfLeaderboard(t) {
   const CHIP_W = 32; // 라운드 칩 고정 너비(px)
   const TOT_W  = 36; // 합계 칩 너비
   const THR_W  = 28; // 진행 너비
+
+  // ── 홀별 파 추정 (최빈값) ────────────────────────────────────────────
+  // ESPN API가 파 데이터를 제공하지 않을 때 fallback:
+  // 선수 전체의 홀별 타수 최빈값 = 그 홀의 파 (PGA Tour에서 매우 정확)
+  const _estimatedParsByRound = (() => {
+    if (t.holePars && t.holePars.length === 18) return null; // DB에 정확한 데이터 있으면 불필요
+    const result = [];
+    for (let ri = 0; ri < maxScoreRounds; ri++) {
+      const buckets = Array.from({length: 18}, () => []);
+      for (const p of displayPlayers) {
+        const holes = (p.holeScores || [])[ri] || [];
+        holes.forEach((h, i) => { if (h && h.v && i < 18) buckets[i].push(h.v); });
+      }
+      const pars = buckets.map(scores => {
+        if (!scores.length) return 0;
+        const freq = {};
+        let maxF = 0, mode = 0;
+        for (const s of scores) { freq[s] = (freq[s] || 0) + 1; if (freq[s] > maxF) { maxF = freq[s]; mode = s; } }
+        return mode;
+      });
+      result[ri] = pars.every(p => p > 0) ? pars : [];
+    }
+    return result;
+  })();
+
   const _renderRow = (p, isFav = false) => {
     // 홀별 스코어카드 캐시 등록 (홀 데이터 있는 라운드만)
     (p.holeScores || []).forEach((holes, ri) => {
       if (holes && holes.length > 0) {
         const _rLabel = ri === maxScoreRounds - 1 ? 'Final' : `R${ri + 1}`;
         const _scKey  = `${t.id}_${ri}_${p.athleteId || p.name.replace(/[^a-zA-Z0-9가-힣]/g, '_')}`;
-        _golfScorecardCache[_scKey] = { playerName: p.name, roundLabel: _rLabel, roundScore: (p.scores || [])[ri] || '', holes, holePars: t.holePars || [], tour: t.tour || '', tournamentId: String(t.id || '') };
+        // holePars 우선순위: DB 데이터 > 선수 타수 최빈값 추정 > []
+        const _holePars = (t.holePars && t.holePars.length === 18) ? t.holePars
+          : (_estimatedParsByRound && _estimatedParsByRound[ri]?.length === 18 ? _estimatedParsByRound[ri] : []);
+        _golfScorecardCache[_scKey] = { playerName: p.name, roundLabel: _rLabel, roundScore: (p.scores || [])[ri] || '', holes, holePars: _holePars, tour: t.tour || '', tournamentId: String(t.id || '') };
       }
     });
     const pNameSafe  = p.name.replace(/'/g, "\\'");
