@@ -804,16 +804,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -976,6 +976,18 @@ const firebaseConfig = {
         <div id="fav-confirm-names" style="display:flex;flex-direction:column;gap:7px"></div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- 골프 18홀 스코어카드 모달 -->
+<div id="golf-scorecard-modal" class="modal-overlay" onclick="closeGolfHoleScorecard()">
+  <div class="modal-sheet" style="max-height:72vh;display:flex;flex-direction:column" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div style="padding:14px 16px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <div id="golf-scorecard-title" style="font-size:0.92rem;font-weight:800;color:#1e293b"></div>
+      <button onclick="closeGolfHoleScorecard()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#94a3b8">✕</button>
+    </div>
+    <div id="golf-scorecard-body" style="overflow-y:auto;overflow-x:hidden;padding:0 12px 16px;flex:1"></div>
   </div>
 </div>
 
@@ -2758,7 +2770,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1197';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1198';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -25516,6 +25528,7 @@ let _golfFavRef      = null;
 let _golfRankingsRef = null;
 const LS_GOLF_FAV = 'jmt_favGolfPlayers';
 const LS_GOLF_NEWS_READ = 'jmt_golfNewsReadAt';
+let _golfScorecardCache = {};  // 홀별 스코어카드 캐시 (renderGolfLeaderboard 호출마다 갱신)
 const golfState = {
   tournaments:   {},      // id → tournament 객체
   selectedId:    null,    // 현재 선택된 대회 ID
@@ -27173,6 +27186,7 @@ function _renderTeamEventLeaderboard(t, wrap) {
 function renderGolfLeaderboard(t) {
   const wrap = document.getElementById('golf-leaderboard-wrap');
   if (!wrap) return;
+  _golfScorecardCache = {};  // 매 렌더링마다 초기화
 
   // 팀전 감지 — DB 플래그 OR 대회명 기반 (Functions 미갱신 대비 이중 방어)
   const _TEAM_EVENT_NAMES = ['solheim cup', 'ryder cup', 'presidents cup'];
@@ -27285,6 +27299,14 @@ function renderGolfLeaderboard(t) {
   const TOT_W  = 36; // 합계 칩 너비
   const THR_W  = 28; // 진행 너비
   const _renderRow = (p, isFav = false) => {
+    // 홀별 스코어카드 캐시 등록 (홀 데이터 있는 라운드만)
+    (p.holeScores || []).forEach((holes, ri) => {
+      if (holes && holes.length > 0) {
+        const _rLabel = ri === maxScoreRounds - 1 ? 'Final' : `R${ri + 1}`;
+        const _scKey  = `${t.id}_${ri}_${p.athleteId || p.name.replace(/[^a-zA-Z0-9가-힣]/g, '_')}`;
+        _golfScorecardCache[_scKey] = { playerName: p.name, roundLabel: _rLabel, roundScore: (p.scores || [])[ri] || '', holes };
+      }
+    });
     const pNameSafe  = p.name.replace(/'/g, "\\'");
     const korPlayer  = isKorean(p.country);
     const nameColor  = korPlayer ? '#CD2E3A' : isFav ? '#92400e' : '#1e293b';
@@ -27320,13 +27342,17 @@ function renderGolfLeaderboard(t) {
       : `${(()=>{const v=totalDisp;if(!v||v==='-')return `<span style="min-width:${TOT_W}px;text-align:center"></span>`;const c=scoreColor(v);const bg=v.startsWith('-')?'#dbeafe':v==='E'?'#f1f5f9':'#fee2e2';const border=v.startsWith('-')?'#93c5fd':v==='E'?'#e2e8f0':'#fca5a5';return `<span style="min-width:${TOT_W}px;text-align:center;font-size:0.8rem;font-weight:900;color:${c};background:${bg};border:1.5px solid ${border};border-radius:7px;padding:3px 8px">${v}</span>`;})()} ${rndLabels.slice(0,maxScoreRounds).map((l,ri)=>{
           const sv=(p.scores||[])[ri];
           if(!sv||sv==='-') return `<span style="min-width:${CHIP_W}px;text-align:center"></span>`;
+          // 홀별 데이터 있으면 클릭 가능한 칩
+          const _holes = (p.holeScores || [])[ri] || [];
+          const _scKey = _holes.length > 0 ? `${t.id}_${ri}_${(p.athleteId || p.name).replace(/[^a-zA-Z0-9가-힣]/g, '_')}` : '';
+          const _clickAttr = _scKey ? `onclick="openGolfHoleScorecard('${_scKey}')" style="cursor:pointer;` : 'style="';
           // Final(마지막) 라운드 + 진행 중인 선수: 앰버 칩 + 홀번호
           const isLastRound = ri===maxScoreRounds-1;
           const isActive = isLastRound && p.state==='in' && p.thru && p.thru!=='F';
           if(isActive){
-            return `<span style="min-width:${CHIP_W}px;text-align:center;font-size:0.7rem;font-weight:800;color:#92400e;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:5px;padding:2px 5px">${sv}</span>`;
+            return `<span ${_clickAttr}min-width:${CHIP_W}px;text-align:center;font-size:0.7rem;font-weight:800;color:#92400e;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:5px;padding:2px 5px">${sv}</span>`;
           }
-          return `<span style="min-width:${CHIP_W}px;text-align:center;font-size:0.7rem;font-weight:700;color:#64748b;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:5px;padding:2px 5px">${sv}</span>`;
+          return `<span ${_clickAttr}min-width:${CHIP_W}px;text-align:center;font-size:0.7rem;font-weight:700;color:#64748b;background:#f1f5f9;border:1.5px solid #e2e8f0;border-radius:5px;padding:2px 5px">${sv}</span>`;
         }).join('')}<span style="min-width:${THR_W}px;text-align:right;font-size:0.65rem;font-weight:${(p.state==='in'||p.state==='active')?'700':'400'};color:${thruColor}">${thruText}</span>`;
     return `<div class="golf-lb-row" style="${isFav ? 'background:#fffbeb;border-left:3px solid #f59e0b;' : ''}">
       <span style="font-size:0.72rem;font-weight:700;color:#94a3b8">${rankDisp}</span>
@@ -27506,6 +27532,79 @@ function closeGolfFavModal() {
   const modal = document.getElementById('golf-fav-modal');
   modal.classList.remove('open');
   _unlockModalScroll(modal);
+}
+
+// ── 골프 18홀 스코어카드 팝업 ────────────────────────────────────────
+function openGolfHoleScorecard(key) {
+  const data = _golfScorecardCache[key];
+  if (!data) return;
+  const { playerName, roundLabel, roundScore, holes } = data;
+
+  const hasPar = holes.some(h => h.p);
+  const out = holes.slice(0, 9);
+  const inn = holes.slice(9, 18);
+
+  // 홀별 셀 렌더링 (색상: 이글=금, 버디=파랑원, 파=기본, 보기=빨강원, 더블+=진빨강)
+  const _hCell = (h) => {
+    if (!h || h.v === undefined) return '<td style="text-align:center;padding:1px 2px"><div style="width:22px;height:22px;margin:auto;font-size:0.72rem;display:flex;align-items:center;justify-content:center;color:#94a3b8">-</div></td>';
+    let bg = '#f8fafc', color = '#334155', border = '#e2e8f0', radius = '4px';
+    if (h.p) {
+      const d = h.v - h.p;
+      if (d <= -2) { bg = '#fef08a'; color = '#713f12'; border = '#eab308'; radius = '4px'; }
+      else if (d === -1) { bg = '#dbeafe'; color = '#1d4ed8'; border = '#93c5fd'; radius = '50%'; }
+      else if (d === 1)  { bg = '#fee2e2'; color = '#b91c1c'; border = '#fca5a5'; radius = '50%'; }
+      else if (d >= 2)   { bg = '#ef4444'; color = '#fff';    border = '#dc2626'; radius = '4px'; }
+    }
+    return `<td style="text-align:center;padding:1px 2px"><div style="width:22px;height:22px;margin:auto;font-size:0.72rem;font-weight:700;display:flex;align-items:center;justify-content:center;color:${color};background:${bg};border:1.5px solid ${border};border-radius:${radius}">${h.v}</div></td>`;
+  };
+  const _pCell = (h) => `<td style="text-align:center;padding:1px 2px;font-size:0.65rem;color:#94a3b8">${h && h.p ? h.p : '-'}</td>`;
+  const _totCell = (n, bold=false) => `<td style="text-align:center;padding:1px 2px"><div style="width:26px;height:22px;margin:auto;font-size:0.72rem;font-weight:${bold?'900':'700'};display:flex;align-items:center;justify-content:center;color:#1e293b;background:#e2e8f0;border-radius:4px">${n}</div></td>`;
+
+  const _half = (hs, start) => {
+    const tot = hs.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
+    const totPar = hasPar ? hs.reduce((s, h) => s + (h && h.p ? h.p : 0), 0) : null;
+    const label = start === 1 ? 'OUT' : 'IN';
+    const holeRow = `<tr>${hs.map((_, i) => `<td style="text-align:center;padding:1px 2px;font-size:0.62rem;color:#94a3b8">${start+i}</td>`).join('')}${_totCell(label)}</tr>`;
+    const parRow  = hasPar ? `<tr>${hs.map(h => _pCell(h)).join('')}${_totCell(totPar)}</tr>` : '';
+    const scoreRow = `<tr>${hs.map(h => _hCell(h)).join('')}${_totCell(tot, true)}</tr>`;
+    return `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <table style="border-collapse:collapse;min-width:100%">
+        <thead>${holeRow}${parRow}</thead>
+        <tbody>${scoreRow}</tbody>
+      </table>
+    </div>`;
+  };
+
+  const outTotal = out.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
+  const inTotal  = inn.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
+  const outPar   = hasPar ? out.reduce((s, h) => s + (h && h.p ? h.p : 0), 0) : null;
+  const inPar    = hasPar ? inn.reduce((s, h) => s + (h && h.p ? h.p : 0), 0) : null;
+  const totalStr = outTotal + inTotal;
+  const totalPar = (outPar !== null && inPar !== null) ? outPar + inPar : null;
+  const relDiff  = totalPar !== null ? totalStr - totalPar : null;
+  const relDisp  = relDiff === null ? '' : relDiff === 0 ? 'E' : (relDiff > 0 ? '+' : '') + relDiff;
+  const relColor = relDiff === null ? '#334155' : relDiff < 0 ? '#2563eb' : relDiff === 0 ? '#334155' : '#dc2626';
+
+  const summaryHtml = `<div style="margin-top:10px;padding:7px 12px;background:#f1f5f9;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:8px">
+    <span style="font-size:0.78rem;color:#64748b">합계</span>
+    <span style="font-size:0.88rem;font-weight:800;color:#1e293b">${outTotal} + ${inTotal} = ${totalStr}타</span>
+    ${relDisp ? `<span style="font-size:0.88rem;font-weight:900;color:${relColor}">(${relDisp})</span>` : ''}
+  </div>`;
+
+  const titleEl = document.getElementById('golf-scorecard-title');
+  const scoreDisp = roundScore ? ` · ${roundScore}` : '';
+  titleEl.innerHTML = `<span style="font-weight:800">${playerName}</span> <span style="color:#64748b;font-weight:600">${roundLabel}${scoreDisp}</span>`;
+
+  document.getElementById('golf-scorecard-body').innerHTML =
+    _half(out, 1) +
+    (inn.length > 0 ? '<div style="height:8px"></div>' + _half(inn, 10) : '') +
+    summaryHtml;
+
+  document.getElementById('golf-scorecard-modal').classList.add('open');
+}
+
+function closeGolfHoleScorecard() {
+  document.getElementById('golf-scorecard-modal').classList.remove('open');
 }
 
 function switchGolfFavDraw(draw) {
@@ -27704,11 +27803,13 @@ function _parseGolfEvents(events, tour) {
           const thru  = curHoles === 18 ? 'F' : curHoles > 0 ? String(curHoles) : hasRoundScore ? 'F' : '';
           const pState = curHoles === 18 ? 'post' : curHoles > 0 ? 'in' : hasRoundScore ? 'post' : 'pre';
           return {
-            rank:    c.order || c.sortOrder || 0,
-            name:    c.athlete?.displayName || '',
-            country: c.athlete?.flag?.alt   || '',
-            total:   c.score        || 'E',
-            scores:  rounds.map(s => s.displayValue || String(s.value || '')),
+            rank:      c.order || c.sortOrder || 0,
+            name:      c.athlete?.displayName || '',
+            country:   c.athlete?.flag?.alt   || '',
+            total:     c.score        || 'E',
+            scores:    rounds.map(s => s.displayValue || String(s.value || '')),
+            holeScores: rounds.map(r => (r.linescores || []).map(h => h.par ? { v: h.value, p: h.par } : { v: h.value })),
+            athleteId: c.athlete?.id || '',
             thru,
             state:   pState,
             isCut:   round > 2 && (c.linescores || []).length < round - 1,
