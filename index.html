@@ -2758,7 +2758,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1193';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1194';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13778,7 +13778,7 @@ function renderAtpTournamentSelector() {
   const selId = atpState.selectedTournamentId || (atpState.tournamentInfo && atpState.tournamentInfo.id);
 
   // 현재 보여지는 대회 제외 — String() 변환으로 타입 불일치 방지
-  // 결승 완료된 대회 제외 (DB 정리 전 클라이언트 안전망)
+  // 결승 완료 또는 종료 7일 초과 대회 제외 (DB 정리 전 클라이언트 안전망)
   const _isFinalDone = (ms) => {
     const arr = Array.isArray(ms) ? ms : Object.values(ms || {});
     return arr.some(m => {
@@ -13787,8 +13787,14 @@ function renderAtpTournamentSelector() {
         && (m.player1Winner === true || m.player2Winner === true);
     });
   };
+  const _isExpired = (ti) => {
+    if (!ti?.endDate) return false;
+    return Date.now() - new Date(ti.endDate).getTime() > 7 * 24 * 60 * 60 * 1000;
+  };
   const others = ts.filter(t =>
-    String(t.tournamentInfo.id) !== String(selId) && !_isFinalDone(t.matches || [])
+    String(t.tournamentInfo.id) !== String(selId)
+    && !_isFinalDone(t.matches || [])
+    && !_isExpired(t.tournamentInfo)
   );
   if (others.length === 0) { el.style.display = 'none'; return; }
   el.style.display = 'flex';

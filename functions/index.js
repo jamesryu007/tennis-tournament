@@ -642,7 +642,7 @@ async function saveAtpData(tournamentInfo, matches, isGrandSlam, allParsed = [])
 
   // 골프와 동일하게 update() + 개별 경로 write — set()으로 tournaments/ 덮어쓰기 방지
   await db.ref('jmt/atpData').update({ tournamentInfo, matches, updatedAt });
-  // 각 대회를 개별 경로에 저장 — 결승 완료된 비프라이머리 대회는 히스토리 저장 후 제거
+  // 각 대회를 개별 경로에 저장 — 결승 완료 또는 종료 7일 초과 비프라이머리 대회는 히스토리 저장 후 제거
   const _allForSave = allParsed.length > 0 ? allParsed
     : [{ tournamentInfo, matches }];
   // 결승 완료 여부 판정 헬퍼
@@ -654,21 +654,44 @@ async function saveAtpData(tournamentInfo, matches, isGrandSlam, allParsed = [])
         && (m.player1Winner === true || m.player2Winner === true);
     });
   };
+  // 대회 종료 7일 초과 여부 (ESPN이 결승 전 스냅샷으로 저장된 경우 대비)
+  const _isExpired = (ti) => {
+    if (!ti?.endDate) return false;
+    return Date.now() - new Date(ti.endDate).getTime() > 7 * 24 * 60 * 60 * 1000;
+  };
+  const _archiveAndRemove = async (ti, ms, reason) => {
+    await _archiveTennisHistory(ti, ms, 'men').catch(() => {});
+    await _archiveTennisHistory(ti, ms, 'women').catch(() => {});
+    await db.ref(`jmt/atpData/tournaments/${ti.id}`).remove()
+      .catch(e => console.error(`tournament remove(${ti.id}):`, e));
+    console.log(`saveAtpData: [${reason}] archived & removed — ${ti.name}`);
+  };
   for (const p of _allForSave) {
     if (!p.tournamentInfo?.id) continue;
     const _isNonPrimary = p.tournamentInfo.id !== tournamentInfo?.id;
-    // 비프라이머리 + 결승 완료 → 히스토리 저장 후 DB에서 제거 (pill에서도 사라짐)
-    if (_isNonPrimary && _isFinalDone(p.matches)) {
-      await _archiveTennisHistory(p.tournamentInfo, p.matches, 'men').catch(() => {});
-      await _archiveTennisHistory(p.tournamentInfo, p.matches, 'women').catch(() => {});
-      await db.ref(`jmt/atpData/tournaments/${p.tournamentInfo.id}`).remove()
-        .catch(e => console.error(`completed tournament remove(${p.tournamentInfo.id}):`, e));
-      console.log(`saveAtpData: completed tournament archived & removed — ${p.tournamentInfo.name}`);
+    // 비프라이머리 + (결승 완료 OR 종료 7일 초과) → 히스토리 저장 후 DB에서 제거
+    if (_isNonPrimary && (_isFinalDone(p.matches) || _isExpired(p.tournamentInfo))) {
+      const reason = _isFinalDone(p.matches) ? 'final done' : 'expired 7d';
+      await _archiveAndRemove(p.tournamentInfo, p.matches, reason);
       continue;
     }
     await db.ref(`jmt/atpData/tournaments/${p.tournamentInfo.id}`)
       .set({ tournamentInfo: p.tournamentInfo, matches: p.matches, updatedAt })
       .catch(e => console.error('atpData/tournaments write:', e));
+  }
+  // DB에 남아있는 기존 만료 대회도 정리 (allParsed에 없는 항목 포함)
+  try {
+    const existingSnap = await db.ref('jmt/atpData/tournaments').once('value');
+    const existingData = existingSnap.val() || {};
+    for (const [eid, eData] of Object.entries(existingData)) {
+      if (String(eid) === String(tournamentInfo?.id)) continue; // 프라이머리 제외
+      const alreadyProcessed = _allForSave.some(p => String(p.tournamentInfo?.id) === String(eid));
+      if (!alreadyProcessed && _isExpired(eData.tournamentInfo)) {
+        await _archiveAndRemove(eData.tournamentInfo, eData.matches || {}, 'expired 7d (stale)');
+      }
+    }
+  } catch (e) {
+    console.error('saveAtpData: stale cleanup error:', e);
   }
   await saveGrandSlamIfNeeded(tournamentInfo, matches, isGrandSlam);
   await autoProcessWinnerBet(matches);
