@@ -2770,7 +2770,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1199';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1200';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -27304,7 +27304,7 @@ function renderGolfLeaderboard(t) {
       if (holes && holes.length > 0) {
         const _rLabel = ri === maxScoreRounds - 1 ? 'Final' : `R${ri + 1}`;
         const _scKey  = `${t.id}_${ri}_${p.athleteId || p.name.replace(/[^a-zA-Z0-9가-힣]/g, '_')}`;
-        _golfScorecardCache[_scKey] = { playerName: p.name, roundLabel: _rLabel, roundScore: (p.scores || [])[ri] || '', holes };
+        _golfScorecardCache[_scKey] = { playerName: p.name, roundLabel: _rLabel, roundScore: (p.scores || [])[ri] || '', holes, holePars: t.holePars || [] };
       }
     });
     const pNameSafe  = p.name.replace(/'/g, "\\'");
@@ -27538,18 +27538,20 @@ function closeGolfFavModal() {
 function openGolfHoleScorecard(key) {
   const data = _golfScorecardCache[key];
   if (!data) return;
-  const { playerName, roundLabel, roundScore, holes } = data;
+  const { playerName, roundLabel, roundScore, holes, holePars } = data;
 
-  const hasPar = holes.some(h => h.p);
+  // holePars: Functions에서 ESPN Core API로 추출한 18홀 파 배열 [4,3,5,...]
+  const hasPar = holePars && holePars.length === 18;
   const out = holes.slice(0, 9);
   const inn = holes.slice(9, 18);
 
   // 홀별 셀 렌더링 (한국 스코어카드: 버디=빨간원, 보기=파란네모, 이글=이중빨간원, 더블+=이중파란네모, 파=회색네모)
-  const _hCell = (h) => {
+  // par: holePars[holeIndex] (0-based)
+  const _hCell = (h, par) => {
     if (!h || h.v === undefined) return '<td style="text-align:center;padding:1px 2px"><div style="width:22px;height:22px;margin:auto;font-size:0.72rem;display:flex;align-items:center;justify-content:center;color:#94a3b8">-</div></td>';
     let bg = '#f1f5f9', color = '#475569', border = '#cbd5e1', radius = '4px', shadow = '';
-    if (h.p) {
-      const d = h.v - h.p;
+    if (par) {
+      const d = h.v - par;
       if (d <= -2) {
         // 이글(-2↓): 이중 빨간 원
         bg = '#ef4444'; color = '#fff'; border = '#ef4444'; radius = '50%';
@@ -27568,16 +27570,17 @@ function openGolfHoleScorecard(key) {
     }
     return `<td style="text-align:center;padding:1px 2px"><div style="width:22px;height:22px;margin:auto;font-size:0.72rem;font-weight:700;display:flex;align-items:center;justify-content:center;color:${color};background:${bg};border:1.5px solid ${border};border-radius:${radius}${shadow?';box-shadow:'+shadow:''}">${h.v}</div></td>`;
   };
-  const _pCell = (h) => `<td style="text-align:center;padding:1px 2px;font-size:0.65rem;color:#94a3b8">${h && h.p ? h.p : '-'}</td>`;
+  const _pCell = (par) => `<td style="text-align:center;padding:1px 2px;font-size:0.65rem;color:#94a3b8">${par || '-'}</td>`;
   const _totCell = (n, bold=false) => `<td style="text-align:center;padding:1px 2px"><div style="width:26px;height:22px;margin:auto;font-size:0.72rem;font-weight:${bold?'900':'700'};display:flex;align-items:center;justify-content:center;color:#1e293b;background:#e2e8f0;border-radius:4px">${n}</div></td>`;
 
   const _half = (hs, start) => {
+    const offset = start - 1;  // holePars 0-based 인덱스 오프셋
     const tot = hs.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
-    const totPar = hasPar ? hs.reduce((s, h) => s + (h && h.p ? h.p : 0), 0) : null;
+    const totPar = hasPar ? hs.reduce((s, _, i) => s + ((holePars[offset + i]) || 0), 0) : null;
     const label = start === 1 ? 'OUT' : 'IN';
     const holeRow = `<tr>${hs.map((_, i) => `<td style="text-align:center;padding:1px 2px;font-size:0.62rem;color:#94a3b8">${start+i}</td>`).join('')}${_totCell(label)}</tr>`;
-    const parRow  = hasPar ? `<tr>${hs.map(h => _pCell(h)).join('')}${_totCell(totPar)}</tr>` : '';
-    const scoreRow = `<tr>${hs.map(h => _hCell(h)).join('')}${_totCell(tot, true)}</tr>`;
+    const parRow  = hasPar ? `<tr>${hs.map((_, i) => _pCell(holePars[offset + i])).join('')}${_totCell(totPar)}</tr>` : '';
+    const scoreRow = `<tr>${hs.map((h, i) => _hCell(h, hasPar ? holePars[offset + i] : undefined)).join('')}${_totCell(tot, true)}</tr>`;
     return `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
       <table style="border-collapse:collapse;min-width:100%">
         <thead>${holeRow}${parRow}</thead>
@@ -27588,8 +27591,8 @@ function openGolfHoleScorecard(key) {
 
   const outTotal = out.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
   const inTotal  = inn.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
-  const outPar   = hasPar ? out.reduce((s, h) => s + (h && h.p ? h.p : 0), 0) : null;
-  const inPar    = hasPar ? inn.reduce((s, h) => s + (h && h.p ? h.p : 0), 0) : null;
+  const outPar   = hasPar ? holePars.slice(0, 9).reduce((s, p) => s + p, 0) : null;
+  const inPar    = hasPar ? holePars.slice(9, 18).reduce((s, p) => s + p, 0) : null;
   const totalStr = outTotal + inTotal;
   const totalPar = (outPar !== null && inPar !== null) ? outPar + inPar : null;
   const relDiff  = totalPar !== null ? totalStr - totalPar : null;
