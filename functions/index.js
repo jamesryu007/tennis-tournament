@@ -2243,7 +2243,7 @@ async function _fetchGolfCourseInfo(tour, eventId) {
     // 홀별 파 정보 추출 (18홀 → [4,3,5,...])
     const holePars = (course.holes || [])
       .sort((a, b) => (a.number || 0) - (b.number || 0))
-      .map(h => h.par || 0)
+      .map(h => h.shotsToPar || h.par || 0)
       .filter(p => p > 0);
     return {
       venueName:    course.name || '',
@@ -2747,10 +2747,9 @@ exports.fetchGolfDataFinal = onSchedule(
       // Final 라운드(round 4) 진행 중인 대회가 있는지 먼저 확인
       const snap = await db.ref('jmt/golfData/tournaments').once('value');
       const dbTournaments = Object.values(snap.val() || {});
-      const hasFinalInProgress    = dbTournaments.some(t => t.state === 'in' && t.round === 4);
-      const hasTeamEventInProgress = dbTournaments.some(t => t.state === 'in' && t.isTeamEvent);
-      if (!hasFinalInProgress && !hasTeamEventInProgress) return; // 해당 없으면 skip
-      console.log(`fetchGolfDataFinal: ${hasFinalInProgress ? 'Final round' : ''}${hasTeamEventInProgress ? ' team event' : ''} in progress — fetching fresh data`);
+      const hasAnyInProgress = dbTournaments.some(t => t.state === 'in');
+      if (!hasAnyInProgress) return; // 진행 중인 대회 없으면 skip
+      console.log('fetchGolfDataFinal: in-progress tournament found — fetching fresh data');
       // 순차 fetch — 병렬 시 ESPN rate limit 유발
       const { allTournaments, fetchedTours } = await _fetchAllGolfTours();
       if (fetchedTours.size === 0) { console.warn('fetchGolfDataFinal: 모든 투어 fetch 실패'); return; }
@@ -2796,7 +2795,7 @@ exports.notifyGolfWinner = onValueWritten(
         // 최대 라운드 완료 선수 (WD 자동 제외) — 3라운드 대회(LPGA 54홀) 대응
         const fullRoundPlayers = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff);
         if (fullRoundPlayers.length === 0) return false;
-        if (maxEff < 2) return false; // 최소 2라운드 완료 전에는 종료 불가 (R1 완료 오판 방지)
+        if (maxEff < 3) return false; // 최소 3라운드 완료 전에는 종료 불가 (R1/R2 완료 오판 방지)
         if (t.state === 'post') return true;
         // state !== post: 비컷 선수 전원 완주 또는 WD(thru=F이고 라운드 부족) 상태여야 함
         const nonCut = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff - 1);
