@@ -2770,7 +2770,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1206';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1207';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -27641,8 +27641,10 @@ function openGolfHoleScorecard(key) {
   // holePars 렌더링 함수 — holePars 배열을 받아 스코어카드 body 채움
   const _renderScorecard = (holePars) => {
     const hasPar = Array.isArray(holePars) && holePars.length === 18;
-    const out = holes.slice(0, 9);
-    const inn = holes.slice(9, 18);
+    // 항상 18홀 프레임 — 미플레이 홀은 null로 패딩
+    const _pad9 = arr => { const r = Array(9).fill(null); arr.forEach((h, i) => { r[i] = h; }); return r; };
+    const out = _pad9(holes.slice(0, 9));
+    const inn = _pad9(holes.slice(9, 18));
 
     // 홀별 셀 렌더링 (한국 스코어카드: 버디=빨간원, 보기=파란네모, 이글=이중빨간원, 더블+=이중파란네모, 파=회색네모)
     const _hCell = (h, par) => {
@@ -27705,7 +27707,7 @@ function openGolfHoleScorecard(key) {
 
     document.getElementById('golf-scorecard-body').innerHTML =
       _half(out, 1) +
-      (inn.length > 0 ? '<div style="height:8px"></div>' + _half(inn, 10) : '') +
+      '<div style="height:8px"></div>' + _half(inn, 10) +
       summaryHtml;
   };
 
