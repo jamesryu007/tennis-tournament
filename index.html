@@ -2770,7 +2770,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1211';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1212';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -27394,9 +27394,8 @@ function renderGolfLeaderboard(t) {
       if (holes && holes.length > 0) {
         const _rLabel = ri === maxScoreRounds - 1 ? 'Final' : `R${ri + 1}`;
         const _scKey  = `${t.id}_${ri}_${p.athleteId || p.name.replace(/[^a-zA-Z0-9가-힣]/g, '_')}`;
-        // holePars 우선순위: DB 데이터 > 선수 타수 최빈값 추정 > []
-        const _holePars = (t.holePars && t.holePars.length === 18) ? t.holePars
-          : (_estimatedParsByRound && _estimatedParsByRound[ri]?.length === 18 ? _estimatedParsByRound[ri] : []);
+        // holePars: DB 데이터만 저장 (추정값은 scorecard에서 ESPN API 호출로 대체)
+        const _holePars = (t.holePars && t.holePars.length === 18) ? t.holePars : [];
         _golfScorecardCache[_scKey] = { playerName: p.name, roundLabel: _rLabel, roundScore: (p.scores || [])[ri] || '', holes, holePars: _holePars, tour: t.tour || '', tournamentId: String(t.id || '') };
       }
     });
