@@ -2770,7 +2770,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1209';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1210';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -27640,7 +27640,9 @@ function openGolfHoleScorecard(key) {
 
   // holePars 렌더링 함수 — holePars 배열을 받아 스코어카드 body 채움
   const _renderScorecard = (holePars) => {
-    const hasPar = Array.isArray(holePars) && holePars.length === 18;
+    // 파 합계가 69~73 범위 밖이면 파5 오추정 등으로 신뢰 불가 → 파 행/컬러 비활성
+    const _parSum = Array.isArray(holePars) ? holePars.reduce((s, p) => s + (p || 0), 0) : 0;
+    const hasPar = Array.isArray(holePars) && holePars.length === 18 && _parSum >= 69 && _parSum <= 73;
     // 항상 18홀 프레임 — 미플레이 홀은 null로 패딩
     const _pad9 = arr => { const r = Array(9).fill(null); arr.forEach((h, i) => { r[i] = h; }); return r; };
     const out = _pad9(holes.slice(0, 9));
