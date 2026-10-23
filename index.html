@@ -2770,7 +2770,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1210';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1211';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -27377,10 +27377,11 @@ function renderGolfLeaderboard(t) {
       }
       const pars = buckets.map(scores => {
         if (!scores.length) return 0;
-        const freq = {};
-        let maxF = 0, mode = 0;
-        for (const s of scores) { freq[s] = (freq[s] || 0) + 1; if (freq[s] > maxF) { maxF = freq[s]; mode = s; } }
-        return mode;
+        // 평균 기반 파 추정 (최빈값 방식은 파5에서 버디가 많아 4로 오추정되는 문제 해결)
+        const mean = scores.reduce((s, v) => s + v, 0) / scores.length;
+        if (mean < 3.3) return 3;   // 파3: PGA 평균 ~3.0
+        if (mean < 4.4) return 4;   // 파4: PGA 평균 ~4.1
+        return 5;                    // 파5: PGA 평균 ~4.5 (버디가 많아 최빈값=4지만 실제 파5)
       });
       result[ri] = pars.every(p => p > 0) ? pars : [];
     }
@@ -27744,7 +27745,7 @@ function openGolfHoleScorecard(key) {
     const src = courseHoles.length ? courseHoles : venueHoles;
     const raw = src
       .sort((a, b) => (a.number || 0) - (b.number || 0))
-      .map(h => h.par || 0)
+      .map(h => h.shotsToPar || h.par || 0)
       .filter(p => p > 0);
     return raw.length === 18 ? raw : [];
   };

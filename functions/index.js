@@ -2243,7 +2243,7 @@ async function _fetchGolfCourseInfo(tour, eventId) {
     // 홀별 파 정보 추출 (18홀 → [4,3,5,...])
     const holePars = (course.holes || [])
       .sort((a, b) => (a.number || 0) - (b.number || 0))
-      .map(h => h.par || 0)
+      .map(h => h.shotsToPar || h.par || 0)
       .filter(p => p > 0);
     return {
       venueName:    course.name || '',
