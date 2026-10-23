@@ -2770,7 +2770,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1205';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1206';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13927,6 +13927,72 @@ const VENUE_MAP = {
     venueName: 'Accor Arena',
     address:   '8 Bd de Bercy, 75012 Paris, France',
   },
+  // ── ATP 500 ─────────────────────────────────────────────────────────
+  'rotterdam': {
+    venueName: 'Rotterdam Ahoy',
+    address:   'Ahoyweg 10, 3084 BA Rotterdam, Netherlands',
+  },
+  'dubai': {
+    venueName: 'Dubai Duty Free Tennis Stadium',
+    address:   'Garhoud, Dubai, UAE',
+  },
+  'barcelona': {
+    venueName: 'Real Club de Tenis Barcelona',
+    address:   'C/ de la Bonaigua, 1-5, 08017 Barcelona, Spain',
+  },
+  'hamburg': {
+    venueName: 'Am Rothenbaum',
+    address:   'Hallerstraße 89, 20149 Hamburg, Germany',
+  },
+  'beijing': {
+    venueName: 'China National Tennis Center',
+    address:   'National Olympic Sports Center, Chaoyang, Beijing, China',
+  },
+  'tokyo': {
+    venueName: 'Ariake Tennis Park',
+    address:   'Ariake, Koto City, Tokyo, Japan',
+  },
+  'vienna': {
+    venueName: 'Wiener Stadthalle',
+    address:   'Roland-Rainer-Platz 1, 1150 Vienna, Austria',
+  },
+  'basel': {
+    venueName: 'St. Jakobshalle',
+    address:   'St. Jakobs-Strasse 395, 4052 Basel, Switzerland',
+  },
+  'brussels': {
+    venueName: 'Lotto Arena',
+    address:   'Schijnpoortweg 119, 2170 Merksem, Belgium',
+  },
+  'lyon': {
+    venueName: 'Palais des Sports de Gerland',
+    address:   '350 Av. Jean Jaurès, 69007 Lyon, France',
+  },
+  // ── WTA ─────────────────────────────────────────────────────────────
+  'doha': {
+    venueName: 'Khalifa International Tennis and Squash Complex',
+    address:   'Khalifa International Stadium, Doha, Qatar',
+  },
+  'berlin': {
+    venueName: 'Steffi Graf Stadion',
+    address:   'Forckenbeckstr. 21, 14199 Berlin, Germany',
+  },
+  'eastbourne': {
+    venueName: 'Devonshire Park',
+    address:   'College Rd, Eastbourne BN21 4JJ, United Kingdom',
+  },
+  'osaka': {
+    venueName: 'Utsubo Tennis Center',
+    address:   'Utsubo Park, Nishi Ward, Osaka, Japan',
+  },
+  'ningbo': {
+    venueName: 'Ningbo International Tennis Center',
+    address:   'Ningbo, Zhejiang, China',
+  },
+  'almaty': {
+    venueName: 'Baluan Sholak Sports Palace',
+    address:   '9 Abay Ave, Almaty, Kazakhstan',
+  },
 };
 
 function getVenueInfo(t) {
@@ -13955,7 +14021,7 @@ function renderTourneyInfoHtml(t, ended) {
 
   // 하드코딩 venue 정보 우선 사용
   const venueInfo  = getVenueInfo(t);
-  const venueName  = venueInfo ? venueInfo.venueName : (t.venueName || '');
+  const venueName  = venueInfo ? venueInfo.venueName : '';
   const address    = venueInfo ? venueInfo.address   : [t.venueCity, t.venueCountry].filter(Boolean).join(', ');
   // 지도 검색: 경기장명 + 주소 포함
   const mapsQuery  = encodeURIComponent(venueName ? `${venueName}, ${address}` : (address || t.name || ''));
