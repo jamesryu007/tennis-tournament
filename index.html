@@ -2770,7 +2770,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1207';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1208';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -27711,8 +27711,19 @@ function openGolfHoleScorecard(key) {
       summaryHtml;
   };
 
-  // holePars가 캐시에 있으면 바로 렌더링, 없으면 ESPN API에서 직접 fetch
-  const cachedPars = data.holePars || [];
+  // holePars가 캐시에 있으면 바로 렌더링, 없으면 같은 대회 다른 라운드 캐시에서 재사용
+  let cachedPars = data.holePars || [];
+  if (cachedPars.length !== 18 && tournamentId) {
+    // 같은 코스 → 같은 파: 같은 대회 다른 라운드의 holePars 재사용
+    for (const k of Object.keys(_golfScorecardCache)) {
+      const other = _golfScorecardCache[k];
+      if (other.tournamentId === tournamentId && (other.holePars || []).length === 18) {
+        cachedPars = other.holePars;
+        data.holePars = cachedPars;
+        break;
+      }
+    }
+  }
   if (cachedPars.length === 18) {
     _renderScorecard(cachedPars);
     return;
