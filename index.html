@@ -2770,7 +2770,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1208';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1209';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -27292,7 +27292,7 @@ function renderGolfLeaderboard(t) {
   // isCut 재계산 — Firebase에 잘못 저장된 값 보정 (scores 길이 기준)
   // _maxScoreLen - 1: Final 미진입(R3 완료=3라운드) 선수를 컷으로 오인 방지
   // t.state=post 시 충분한 라운드 보유 선수의 isCut 명시 해제 (대회 완료 후 오염값 초기화)
-  const _maxScoreLen = Math.max(...players.map(p => (p.scores || []).length), 0);
+  const _maxScoreLen = Math.max(...players.map(p => (p.scores || []).filter(s => s !== '' && s !== '-').length), 0);
   if (_maxScoreLen > 2) {
     const _cutThreshold = _maxScoreLen - 1;
     players.forEach(p => {
@@ -27696,8 +27696,9 @@ function openGolfHoleScorecard(key) {
     const totalStr = outTotal + inTotal;
     const totalPar = (outPar !== null && inPar !== null) ? outPar + inPar : null;
     const relDiff  = totalPar !== null ? totalStr - totalPar : null;
-    const relDisp  = relDiff === null ? '' : relDiff === 0 ? 'E' : (relDiff > 0 ? '+' : '') + relDiff;
-    const relColor = relDiff === null ? '#334155' : relDiff < 0 ? '#2563eb' : relDiff === 0 ? '#334155' : '#dc2626';
+    // ESPN 라운드 점수(roundScore)가 있으면 파 추정 오차보다 정확하므로 우선 사용
+    const relDisp  = roundScore || (relDiff === null ? '' : relDiff === 0 ? 'E' : (relDiff > 0 ? '+' : '') + relDiff);
+    const relColor = relDisp ? (relDisp.startsWith('-') ? '#2563eb' : relDisp === 'E' ? '#334155' : '#dc2626') : '#334155';
 
     const summaryHtml = `<div style="margin-top:10px;padding:7px 12px;background:#f1f5f9;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:8px">
       <span style="font-size:0.78rem;color:#64748b">합계</span>
