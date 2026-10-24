@@ -805,16 +805,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2771,7 +2771,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1221';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1222';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -12494,14 +12494,23 @@ function renderCheckinPage() {
     ${comments.length?comments.map(c=>{
       const t=c.at?new Date(c.at).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
       const replies = c.replies
-        ? Object.values(c.replies).sort((a,b)=>(a.at||'').localeCompare(b.at||''))
+        ? Object.entries(c.replies).map(([k,r])=>({...r,_rkey:k})).sort((a,b)=>(a.at||'').localeCompare(b.at||''))
         : [];
       const rx = c.reactions || {};
       const me = (state.identity && state.identity.name) || '';
-      const loveRx = rx['love'] || {};
-      const loveCnt = Object.keys(loveRx).length;
-      const loveActive = me && loveRx[me] ? ' active' : '';
-      const heartBtn = `<button class="reaction-btn${loveActive}" onclick="toggleReaction('${c._key}','love')" style="border:none;background:none;padding:2px 4px;font-size:0.85rem;cursor:pointer;line-height:1;border-radius:6px;${loveActive?' background:#fff1f2;':''}">${loveActive?'❤️':'🤍'}${loveCnt>0?' '+loveCnt:''}</button>`;
+      // 리액션 버튼 생성 헬퍼 (댓글/답글 공용)
+      const _rxBtn = (type, onEmoji, offEmoji, rxMap, cid, rid) => {
+        const m = rxMap || {};
+        const cnt = Object.keys(m).length;
+        const active = me && m[me];
+        const names = Object.keys(m).join(',');
+        const args = rid ? `'${cid}','${type}','${rid}'` : `'${cid}','${type}'`;
+        return `<button class="reaction-btn${active?' active':''}" onclick="toggleReaction(${args})" onpointerdown="_rxLongPress(this)" onpointerup="_rxCancelLong()" onpointerleave="_rxCancelLong()" data-rx-names="${names}" style="-webkit-tap-highlight-color:transparent">${active?onEmoji:offEmoji}${cnt>0?' '+cnt:''}</button>`;
+      };
+      const _rxRow = (rxData, cid, rid) => {
+        const r = rxData || {};
+        return `<div class="comment-reactions">${_rxBtn('love','❤️','🤍',r.love,cid,rid)}${_rxBtn('best','🏆','🥇',r.best,cid,rid)}${_rxBtn('sad','😢','😶',r.sad,cid,rid)}</div>`;
+      };
       return `<div class="comment-item" id="comment-${c._key}">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
           <span style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:${_getMemberColor(c.author)};color:#fff;font-size:0.75rem;font-weight:900;flex-shrink:0;line-height:1;font-family:-apple-system,sans-serif">${(c.author||'?')[0]}</span>
@@ -12519,11 +12528,12 @@ function renderCheckinPage() {
                 <span class="comment-at">${rt}</span>
               </div>
               <div class="comment-text" style="font-size:0.8rem">${r.text.replace(/</g,'&lt;')}</div>
+              ${_rxRow(r.reactions, c._key, r._rkey)}
             </div>
           </div>`;
         }).join('')}
         <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
-          ${heartBtn}
+          ${_rxRow(rx, c._key)}
           <button style="font-size:0.72rem;padding:2px 8px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;-webkit-tap-highlight-color:transparent" onclick="toggleReplyInput('${c._key}')">↩ 답글</button>
           ${c.author === me ? `<button onclick="editPollComment('${c._key}')" style="font-size:0.72rem;padding:2px 8px;border-radius:6px;border:1px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;margin-left:auto">수정</button>` : ''}
         </div>
@@ -12611,16 +12621,52 @@ function toggleReplyInput(commentId) {
   if (!visible) document.getElementById(`reply-text-${commentId}`)?.focus();
 }
 
-function toggleReaction(commentId, type) {
+function toggleReaction(commentId, type, replyId) {
+  if (_rxLongPressActive) { _rxLongPressActive = false; return; } // 롱프레스 소비 — 토글 차단
   if (!db || !state.pollState || !state.pollState.weekId) return;
   const me = state.identity && state.identity.name;
   if (!me) return;
   const weekId = state.pollState.weekId;
-  const ref = db.ref(`jmt/poll/${weekId}/comments/${commentId}/reactions/${type}/${me}`);
+  const path = replyId
+    ? `jmt/poll/${weekId}/comments/${commentId}/replies/${replyId}/reactions/${type}/${me}`
+    : `jmt/poll/${weekId}/comments/${commentId}/reactions/${type}/${me}`;
+  const ref = db.ref(path);
   ref.once('value').then(snap => {
     if (snap.val()) ref.remove().catch(fbErr);
     else ref.set(true).catch(fbErr);
   });
+}
+
+// ── 리액션 롱프레스 — 누가 눌렀는지 팝업 ──────────────────────────
+let _rxLongPressTimer = null;
+let _rxLongPressActive = false;
+
+function _rxLongPress(el) {
+  _rxLongPressActive = false;
+  _rxLongPressTimer = setTimeout(() => {
+    _rxLongPressActive = true;
+    const names = (el.getAttribute('data-rx-names') || '').split(',').filter(Boolean);
+    _showRxWhoPopup(el, names);
+  }, 500);
+}
+function _rxCancelLong() {
+  if (_rxLongPressTimer) { clearTimeout(_rxLongPressTimer); _rxLongPressTimer = null; }
+}
+function _showRxWhoPopup(anchor, names) {
+  document.querySelectorAll('.rx-who-popup').forEach(e => e.remove());
+  const popup = document.createElement('div');
+  popup.className = 'rx-who-popup';
+  popup.textContent = names.length ? names.join(', ') : '아직 없어요';
+  popup.style.cssText = 'position:fixed;background:#1e293b;color:#fff;font-size:0.72rem;border-radius:8px;padding:5px 10px;z-index:9999;pointer-events:none;max-width:200px;line-height:1.5;word-break:keep-all;box-shadow:0 4px 12px rgba(0,0,0,0.25)';
+  document.body.appendChild(popup);
+  const rect = anchor.getBoundingClientRect();
+  const ph = popup.offsetHeight || 32;
+  const top = rect.top - ph - 6;
+  popup.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - 216)) + 'px';
+  popup.style.top = (top < 8 ? rect.bottom + 6 : top) + 'px';
+  const dismiss = () => { popup.remove(); document.removeEventListener('pointerdown', dismiss); };
+  setTimeout(() => document.addEventListener('pointerdown', dismiss, { once: true }), 100);
+  setTimeout(() => popup.remove(), 2500);
 }
 
 function addReply(commentId, commentAuthor) {
