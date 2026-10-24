@@ -393,8 +393,13 @@ const TIER_ORDER = { grandslam: 0, atp1000: 1, atp500: 2, atp250: 3 };
 
 function selectTournament(events) {
   if (!events.length) return null;
+  // 우선순위: 진행중(in) > 종료(post) > 미시작(pre), 동순위면 티어 높은 것
+  const STATE_O = { in: 0, post: 1, pre: 2 };
   return events.reduce((best, ev) => {
     if (!best) return ev;
+    const bState = STATE_O[best.status?.type?.state] ?? 3;
+    const eState = STATE_O[ev.status?.type?.state]   ?? 3;
+    if (eState !== bState) return eState < bState ? ev : best;
     const bTier = TIER_ORDER[getTournamentTier(best)] ?? 99;
     const eTier = TIER_ORDER[getTournamentTier(ev)]  ?? 99;
     return eTier < bTier ? ev : best;
