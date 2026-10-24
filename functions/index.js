@@ -2245,11 +2245,22 @@ async function _fetchGolfCourseInfo(tour, eventId) {
       .sort((a, b) => (a.number || 0) - (b.number || 0))
       .map(h => h.shotsToPar || h.par || 0)
       .filter(p => p > 0);
+    // 총 라운드 수 — tournament.$ref → seasons API (numberOfRounds)
+    let numberOfRounds = 0;
+    const tournRef = d.tournament?.['$ref'];
+    if (tournRef) {
+      try {
+        const tRes = await fetch(tournRef);
+        const tData = await tRes.json();
+        numberOfRounds = tData.numberOfRounds || 0;
+      } catch(_) {}
+    }
     return {
-      venueName:    course.name || '',
-      venueCity:    [addr.city, addr.state].filter(Boolean).join(', '),
-      venueCountry: addr.country || '',
-      holePars:     holePars.length === 18 ? holePars : [],
+      venueName:      course.name || '',
+      venueCity:      [addr.city, addr.state].filter(Boolean).join(', '),
+      venueCountry:   addr.country || '',
+      holePars:       holePars.length === 18 ? holePars : [],
+      numberOfRounds: numberOfRounds || 0,
     };
   } catch(e) { return null; }
 }
@@ -2487,7 +2498,7 @@ async function _fetchAndParseGolfTour(tour) {
   // ESPN core API에서 골프장 정보 병렬 fetch
   await Promise.all(results.map(async t => {
     const venue = await _fetchGolfCourseInfo(tour, t.id);
-    if (venue) { t.venueName = venue.venueName; t.venueCity = venue.venueCity; t.venueCountry = venue.venueCountry; if (venue.holePars?.length) t.holePars = venue.holePars; }
+    if (venue) { t.venueName = venue.venueName; t.venueCity = venue.venueCity; t.venueCountry = venue.venueCountry; if (venue.holePars?.length) t.holePars = venue.holePars; if (venue.numberOfRounds) t.numberOfRounds = venue.numberOfRounds; }
   }));
 
   // 팀전: 매치 상세 순차 fetch (rate limit 방지)
