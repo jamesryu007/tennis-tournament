@@ -805,16 +805,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2771,7 +2771,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1220';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1221';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13779,16 +13779,26 @@ function _pickBestTournament() {
   const STATE_O = { in: 0, post: 1, pre: 2 };
   const _getState = (t) => {
     const arr = Array.isArray(t.matches) ? t.matches : Object.values(t.matches || {});
-    if (arr.some(m => m.status === 'STATUS_IN_PROGRESS')) return 'in';
+    // 단식 결승 완료 → post (복식 진행 여부 무관)
     const hasFinalDone = arr.some(m => {
       const rn = (m.roundName || '').toLowerCase();
       return (rn === 'final' || rn === 'the final') && m.status === 'STATUS_FINAL'
+        && m.singles !== false
         && (m.player1Winner === true || m.player2Winner === true);
     });
     if (hasFinalDone) return 'post';
+    // 단식 경기 진행 중 → in
+    if (arr.some(m => m.status === 'STATUS_IN_PROGRESS' && m.singles !== false)) return 'in';
     return 'pre';
   };
-  const ts = Object.values(atpState.tournaments || {}).filter(t => t && t.tournamentInfo);
+  // endDate 기준 2일 이상 지난 post 대회 제외 (이미 끝난 대회 오선택 방지)
+  const _stalePost = (t) => {
+    if (_getState(t) !== 'post') return false;
+    const end = t.tournamentInfo.endDate ? new Date(t.tournamentInfo.endDate).getTime() : 0;
+    return end > 0 && Date.now() - end > 2 * 24 * 60 * 60 * 1000;
+  };
+  const ts = Object.values(atpState.tournaments || {})
+    .filter(t => t && t.tournamentInfo && !_stalePost(t));
   if (!ts.length) return null;
   return ts.reduce((best, t) => {
     if (!best) return t;
