@@ -2246,13 +2246,13 @@ async function _fetchGolfCourseInfo(tour, eventId) {
       .map(h => h.shotsToPar || h.par || 0)
       .filter(p => p > 0);
     // 총 라운드 수 — tournament.$ref → seasons API (numberOfRounds)
+    // espnFetch 사용: GCP에서 http:// URL이 차단되므로 https://로 변환
     let numberOfRounds = 0;
-    const tournRef = d.tournament?.['$ref'];
+    const tournRef = (d.tournament?.['$ref'] || '').replace(/^http:\/\//, 'https://');
     if (tournRef) {
       try {
-        const tRes = await fetch(tournRef);
-        const tData = await tRes.json();
-        numberOfRounds = tData.numberOfRounds || 0;
+        const tData = await espnFetch(tournRef);
+        numberOfRounds = tData?.numberOfRounds || 0;
       } catch(_) {}
     }
     return {
