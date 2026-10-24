@@ -2771,7 +2771,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1216';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1218';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -27319,6 +27319,13 @@ function renderGolfLeaderboard(t) {
     const n = parseInt(v, 10);
     return isNaN(n) ? 9999 : n;
   };
+  // scores 배열 합산으로 누적 합계 문자열 계산 — ESPN total 필드가 최신 라운드 미반영 문제 대응
+  const _totalStr = (p) => {
+    const sc = (p.scores || []).filter(s => s !== '' && s !== '-').slice(0, 4);
+    if (!sc.length) return null;
+    const sum = sc.reduce((acc, s) => { const n = s === 'E' ? 0 : parseInt(s, 10); return isNaN(n) ? acc : acc + n; }, 0);
+    return sum === 0 ? 'E' : (sum > 0 ? '+' + sum : String(sum));
+  };
   // 대회 투어에 맞는 관심선수 목록 사용
   const _tourFav = t.tour === 'lpga' ? (golfState.favPlayers.lpga || []) : (golfState.favPlayers.pga || []);
   const favNames = new Set(_tourFav.map(p => p.name.toLowerCase()));
@@ -27337,18 +27344,19 @@ function renderGolfLeaderboard(t) {
       return { ...p, _roundRank: rRank };
     }).concat(noScore.map(p => ({ ...p, _roundRank: null })));
   } else {
-    // 전체: 누적 합계(p.total) 기준으로 재정렬 + 동타 처리 순위 재계산
+    // 전체: scores 합산 누적 합계 기준으로 재정렬 + 동타 처리 순위 재계산
+    // (ESPN total 필드는 최신 라운드 미반영 가능 → _totalStr로 직접 계산)
     const _allWith = players
-      .filter(p => p.total !== undefined && p.total !== null && p.total !== '-')
+      .filter(p => _totalStr(p) !== null)
       .sort((a, b) => {
         // 컷 아웃 선수는 항상 뒤로 (비컷 선수끼리, 컷 선수끼리 각각 점수순)
         if (!!a.isCut !== !!b.isCut) return a.isCut ? 1 : -1;
-        return parseScore(a.total || 'E') - parseScore(b.total || 'E');
+        return parseScore(_totalStr(a) || 'E') - parseScore(_totalStr(b) || 'E');
       });
-    const _allNo = players.filter(p => p.total === undefined || p.total === null || p.total === '-');
+    const _allNo = players.filter(p => _totalStr(p) === null);
     let _allRank = 1;
     displayPlayers = _allWith.map((p, i) => {
-      if (i > 0 && parseScore(p.total || 'E') > parseScore(_allWith[i-1].total || 'E')) _allRank = i + 1;
+      if (i > 0 && parseScore(_totalStr(p) || 'E') > parseScore(_totalStr(_allWith[i-1]) || 'E')) _allRank = i + 1;
       return { ...p, _calcRank: _allRank };
     }).concat(_allNo.map(p => ({ ...p, _calcRank: null })));
   }
@@ -27404,7 +27412,7 @@ function renderGolfLeaderboard(t) {
     const korPlayer  = isKorean(p.country);
     const nameColor  = korPlayer ? '#CD2E3A' : isFav ? '#92400e' : '#1e293b';
     const rankDisp   = roundIdx !== null ? (p._roundRank || '-') : (p._calcRank || '-');
-    const totalDisp  = roundIdx !== null ? ((p.scores||[])[roundIdx] || '-') : (p.total || 'E');
+    const totalDisp  = roundIdx !== null ? ((p.scores||[])[roundIdx] || '-') : (_totalStr(p) || 'E');
     const totalColor = scoreColor(totalDisp);
     // 대회 종료 후 stale ESPN 데이터가 숫자 thru를 남기는 버그 방지 — post면 'F' 강제
     const thruText   = (t.state === 'post' && !p.isCut) ? 'F' : (p.thru && p.thru!=='-' ? (p.thru==='F' ? 'F' : (isNaN(parseInt(p.thru)) ? p.thru : parseInt(p.thru)+'H')) : '-');
@@ -27520,8 +27528,9 @@ function renderGolfLeaderboard(t) {
   })(), 4);
   // 최대 라운드 완료 선수 (WD 선수는 maxRounds 미만 → 자동 제외)
   const _fullRoundPlayers = _nonCutPlayers.filter(p => _realScoreCount(p) >= _maxRounds);
-  // 총 라운드 수 기준으로 챔피언 배너 허용 — DB numberOfRounds 우선, 없으면 3 이상으로 fallback
-  const _totalRounds = t.numberOfRounds || 3;
+  // 총 라운드 수 기준으로 챔피언 배너 허용 — DB numberOfRounds 우선, 없으면 4(PGA 기본) fallback
+  // 3라운드 대회는 state=post 전환으로 _postAllDone이 잡으므로 fallback=4 안전
+  const _totalRounds = t.numberOfRounds || 4;
   const _validRounds = _maxRounds >= _totalRounds;
   // state=post: 완주 선수가 있으면 배너 표시 (WD 선수 무관)
   const _postAllDone = t.state === 'post' && _fullRoundPlayers.length > 0 && _validRounds;
@@ -27568,7 +27577,7 @@ function renderGolfLeaderboard(t) {
         <div style="font-size:1.5rem">🏆</div>
         <div style="font-size:0.96rem;font-weight:800;color:${_nc};margin-top:3px">${_champ.name}</div>
         ${_champ.country ? `<div style="font-size:0.72rem;color:#b45309;margin-top:1px">${_champ.country}</div>` : ''}
-        <div style="font-size:0.82rem;font-weight:700;color:#92400e;margin-top:3px">${_champ.total || 'E'} · 우승</div>
+        <div style="font-size:0.82rem;font-weight:700;color:#92400e;margin-top:3px">${_totalStr(_champ) || 'E'} · 우승</div>
         ${_playoffLine}
         <div id="gpw-${_tSafeId}" style="display:none"></div>
       </div>`;
