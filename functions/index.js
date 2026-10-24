@@ -2807,6 +2807,11 @@ exports.notifyGolfWinner = onValueWritten(
         const _effLen = (p) => (p.scores || []).filter(s => s !== '' && s !== '-').length;
         // WD/DQ 선수 제외: isCut=false이지만 '-' 포함으로 실제 스코어가 적은 경우
         const maxEff = Math.max(...lb.map(p => _effLen(p)), 0);
+        // ESPN이 미래 라운드 빈 슬롯 사전 생성 (e.g. ["-2","-3","-8",""]) → 아직 더 남음
+        const maxScoresLen = Math.max(...lb.map(p => (p.scores || []).length), 0);
+        if (maxScoresLen > maxEff) return false;
+        // numberOfRounds DB 값이 있으면 해당 라운드 수 이전에는 종료 불가
+        if (t.numberOfRounds && maxEff < t.numberOfRounds) return false;
         // 최대 라운드 완료 선수 (WD 자동 제외) — 3라운드 대회(LPGA 54홀) 대응
         const fullRoundPlayers = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff);
         if (fullRoundPlayers.length === 0) return false;
