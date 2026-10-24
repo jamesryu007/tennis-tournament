@@ -2705,7 +2705,11 @@ async function _saveGolfData(tournaments, fetchedTours) {
     for (const [id, t] of Object.entries(existing2)) {
       if (!fetchedTours.has(t.tour)) mergedObj[id] = t; // 실패 투어 기존 데이터 보존
     }
-    for (const t of tournaments) mergedObj[t.id] = t;
+    for (const t of tournaments) {
+      // 기존 DB에 numberOfRounds가 있으면 새 데이터에 없어도 보존
+      if (!t.numberOfRounds && existing2[t.id]?.numberOfRounds) t.numberOfRounds = existing2[t.id].numberOfRounds;
+      mergedObj[t.id] = t;
+    }
     await db.ref('jmt/golfData/tournaments').set(mergedObj);
   } else {
     const tournamentsObj = {};
