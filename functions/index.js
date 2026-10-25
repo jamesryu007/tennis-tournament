@@ -2453,7 +2453,7 @@ async function _fetchAndParseGolfTour(tour) {
       .sort((a, b) => (a.order || a.sortOrder || 9999) - (b.order || b.sortOrder || 9999))
       .map(c => {
         // thru = 현재 라운드 중첩 linescores 개수 (sortOrder/status 모두 None)
-        // DP World 등 홀별 데이터 미제공 시: 라운드 스코어 존재하면 'F' 처리
+        // DP World/LPGA 등 홀별 데이터 미제공 시: 라운드 스코어 존재하면 'F' 처리
         const rounds = c.linescores || [];
         const curRoundIdx = round > 0 ? round - 1 : rounds.length - 1;
         const curRound = rounds[curRoundIdx] || {};
