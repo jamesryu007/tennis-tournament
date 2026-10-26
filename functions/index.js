@@ -2415,7 +2415,8 @@ async function _fetchAndParseGolfTour(tour) {
     const comp  = (ev.competitions || [])[0];
     if (!comp) continue;
 
-    const state  = ev.status?.type?.state || 'pre';
+    // comp.status 우선 — STATUS_SUSPENDED 등 대회가 comp 레벨에서만 post인 케이스 대응
+    const state  = comp.status?.type?.state || ev.status?.type?.state || 'pre';
     // round 정보는 ev.status가 아닌 comp.status.type.detail에 있음
     const detail = comp.status?.type?.detail || comp.status?.type?.shortDetail || ev.status?.type?.detail || '';
     const roundM = detail.match(/Round\s*(\d)/i);
