@@ -805,16 +805,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2771,7 +2771,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1228';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1229';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -26804,11 +26804,17 @@ function _renderHistoryList() {
       // ── 개인전 ─────────────────────────────────────────────────────
       const top10 = e.top10 || [];
       const rowsHtml = top10.map((p, i) => {
-        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+        // 동타 처리: 같은 점수면 같은 순위 표시
+        let dispRank = i + 1;
+        for (let j = 0; j < i; j++) {
+          if (top10[j].total === p.total) { dispRank = j + 1; break; }
+        }
+        const rankColor = dispRank === 1 ? '#b45309' : '#94a3b8';
+        const rankFw = dispRank === 1 ? '900' : '700';
         const pSafe = (p.name || '').replace(/'/g, "\\'");
         const scoreColor = !p.total || p.total === 'E' ? '#334155' : p.total.startsWith('-') ? '#2563eb' : '#dc2626';
         return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #f1f5f9${i === top10.length - 1 ? ';border-bottom:none' : ''}">
-          <span style="font-size:0.74rem;font-weight:700;color:#94a3b8;min-width:22px">${medal || (p.rank || i + 1)}</span>
+          <span style="font-size:0.74rem;font-weight:${rankFw};color:${rankColor};min-width:22px">${dispRank}</span>
           <span class="pp-name-link" style="flex:1;font-size:0.84rem;font-weight:${i < 3 ? '800' : '600'};color:#1e293b;cursor:pointer" onclick="openPlayerProfile('${pSafe}','${e.tour === 'lpga' ? 'lpga' : e.tour === 'eur' ? 'pga' : 'pga'}')">${p.name}</span>
           ${p.country ? `<span style="font-size:0.70rem;color:#94a3b8">${p.country}</span>` : ''}
           <span style="font-size:0.82rem;font-weight:800;color:${scoreColor};min-width:30px;text-align:right">${p.total || 'E'}</span>
