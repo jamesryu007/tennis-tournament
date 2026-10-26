@@ -2771,7 +2771,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1231';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1232';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -27376,8 +27376,13 @@ function renderGolfLeaderboard(t) {
   // 라운드 탭 HTML 헬퍼 — 테니스와 동일한 pill + › 체인 스타일
   const _roundTabsHtml = () => {
     if (!t) return '';
-    const lbl = { all:'전체', '1':'R1', '2':'R2', '3':'R3', '4':'Final' };
-    const rounds = ['all', '1', '2', '3', '4'];
+    // state=post이고 실제 완료 라운드 < 4이면 해당 탭만 표시 (천재지변 단축 대회 대응)
+    const _maxPlayed = t.state === 'post'
+      ? Math.min(Math.max(...Object.values(t.leaderboard || {}).filter(p => !p.isCut).map(p => (p.scores || []).filter(s => s !== '' && s !== '-').length).concat([0])), 4)
+      : 4;
+    const lbl = { all: '전체' };
+    for (let i = 1; i <= 4; i++) lbl[String(i)] = (i === 4 || (i === _maxPlayed && _maxPlayed < 4)) ? 'Final' : `R${i}`;
+    const rounds = ['all', ...Array.from({length: _maxPlayed}, (_, i) => String(i + 1))];
     const activeBg  = '#3730a3';
     const liveRound = _golfLiveRound(t); // 현재 진행 중인 라운드 (색상 표시용)
     const pills = rounds.map((r, i) => {
@@ -27643,12 +27648,11 @@ function renderGolfLeaderboard(t) {
   })(), 4);
   // 최대 라운드 완료 선수 (WD 선수는 maxRounds 미만 → 자동 제외)
   const _fullRoundPlayers = _nonCutPlayers.filter(p => _realScoreCount(p) >= _maxRounds);
-  // 총 라운드 수 기준으로 챔피언 배너 허용 — DB numberOfRounds 우선, 없으면 4(PGA 기본) fallback
-  // 3라운드 대회는 state=post 전환으로 _postAllDone이 잡으므로 fallback=4 안전
+  // state=post = ESPN 공식 종료 확정 — 라운드 취소(버뮤다 R4 등) 포함 모든 케이스 대응
   const _totalRounds = t.numberOfRounds || 4;
-  const _validRounds = _maxRounds >= _totalRounds;
-  // state=post: 완주 선수가 있으면 배너 표시 (WD 선수 무관)
-  const _postAllDone = t.state === 'post' && _fullRoundPlayers.length > 0 && _validRounds;
+  const _validRounds = _maxRounds >= _totalRounds; // 진행 중 조기 표시 방지용 (state=post엔 미사용)
+  // state=post: 완주 선수가 있으면 배너 표시 (라운드 수 무관 — 천재지변 단축 대회 포함)
+  const _postAllDone = t.state === 'post' && _fullRoundPlayers.length > 0;
   // 배너는 ESPN이 state='post'로 전환한 후에만 표시 (_postAllDone만 사용)
   // state=in 중 배너 표시(_allFinalDone)는 사전입력 오판 위험이 높아 제거 (보수적 정책)
   // 라운드 합산으로 실제 토탈 계산 (ESPN total 필드 오류 대비)
