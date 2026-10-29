@@ -2771,7 +2771,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1237';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1238';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -27984,20 +27984,23 @@ function closeGolfHoleScorecard() {
 }
 
 // ── 탭 스코어카드 공용 헬퍼 ──────────────────────────────────────────────
-// holePars: h.p 없을 때 폴백 (라이브 리더보드 t.holePars, 또는 히스토리 archived holePars)
+// holePars: h.p 없을 때 폴백 — 기존 _renderScorecard와 동일한 스타일
 function _renderGolfRoundHtml(holes, ri, total, rScore, holePars) {
-  const sCo  = !rScore || rScore === 'E' ? '#334155' : rScore.startsWith('-') ? '#2563eb' : '#dc2626';
   // 파 데이터: h.p 우선, 없으면 holePars[i] 폴백
-  const _par = (h, idx) => (h && h.p) ? h.p : (holePars && holePars[idx]) ? holePars[idx] : null;
-  const _parSum = holes.reduce((s, h, i) => s + (_par(h, i) || 0), 0);
+  const _getpar = (idx) => {
+    const h = holes[idx];
+    return (h && h.p) ? h.p : (holePars && holePars[idx]) ? holePars[idx] : null;
+  };
+  const _parSum = holes.reduce((s, _, i) => s + (_getpar(i) || 0), 0);
   const hasPar  = _parSum >= 69 && _parSum <= 73;
-  const pad9    = arr => { const r = Array(9).fill(null); arr.forEach((h, i) => { if (i < 9) r[i] = h; }); return r; };
-  const out     = pad9(holes.slice(0, 9));
-  const inn     = pad9(holes.slice(9, 18));
-  const _hCell  = (h, idx) => {
-    if (!h) return '<td style="padding:2px;text-align:center"><div style="width:20px;height:20px;margin:auto;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:0.65rem">-</div></td>';
-    const v   = Math.round(h.v || 0);
-    const par = _par(h, idx);
+
+  const pad9 = arr => { const r = Array(9).fill(null); arr.forEach((h, i) => { if (i < 9) r[i] = h; }); return r; };
+  const out  = pad9(holes.slice(0, 9));
+  const inn  = pad9(holes.slice(9, 18));
+
+  const _hCell = (h, idx) => {
+    if (!h || h.v === undefined) return '<td style="text-align:center;padding:1px 2px"><div style="width:22px;height:22px;margin:auto;font-size:0.72rem;display:flex;align-items:center;justify-content:center;color:#94a3b8">-</div></td>';
+    const v = h.v, par = _getpar(idx);
     let bg = '#f1f5f9', co = '#475569', bd = '#cbd5e1', r = '4px', sh = '';
     if (hasPar && par) {
       const d = v - par;
@@ -28007,29 +28010,36 @@ function _renderGolfRoundHtml(holes, ri, total, rScore, holePars) {
       else if (d === 2)  { bg='#1d4ed8'; co='#fff'; bd='#1d4ed8'; sh='0 0 0 2.5px #fff,0 0 0 4.5px #1d4ed8'; }
       else if (d >= 3)   { bg='#0f172a'; co='#fff'; bd='#0f172a'; sh='0 0 0 2.5px #fff,0 0 0 4.5px #0f172a'; }
     }
-    return `<td style="padding:2px;text-align:center"><div style="width:20px;height:20px;margin:auto;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;color:${co};background:${bg};border:1.5px solid ${bd};border-radius:${r}${sh?';box-shadow:'+sh:''}">${v}</div></td>`;
+    return `<td style="text-align:center;padding:3px 2px"><div style="width:22px;height:22px;margin:auto;font-size:0.72rem;font-weight:700;display:flex;align-items:center;justify-content:center;color:${co};background:${bg};border:1.5px solid ${bd};border-radius:${r}${sh?';box-shadow:'+sh:''}">${v}</div></td>`;
   };
+  const _pCell   = (idx) => `<td style="text-align:center;padding:1px 2px;font-size:0.65rem;color:#94a3b8">${_getpar(idx) || '-'}</td>`;
+  const _totCell = (n, bold) => `<td style="text-align:center;padding:1px 2px"><div style="width:26px;height:22px;margin:auto;font-size:0.72rem;font-weight:${bold?'900':'700'};display:flex;align-items:center;justify-content:center;color:#1e293b;background:#e2e8f0;border-radius:4px">${n}</div></td>`;
+
   const _half = (hs, start) => {
-    const off  = start - 1;
-    const tot  = hs.reduce((s, h) => s + (h ? Math.round(h.v || 0) : 0), 0);
-    const tPar = hasPar ? hs.reduce((s, h, i) => s + (_par(h, off + i) || 0), 0) : null;
-    const lbl  = start === 1 ? 'OUT' : 'IN';
-    return `<table style="border-collapse:collapse">
-      <tr>${hs.map((_, i) => `<td style="padding:1px 2px;text-align:center;font-size:0.6rem;color:#94a3b8">${start + i}</td>`).join('')}<td style="padding:1px 4px;text-align:center;font-size:0.6rem;color:#64748b;font-weight:700">${lbl}</td></tr>
-      ${hasPar ? `<tr>${hs.map((h, i) => `<td style="padding:1px 2px;text-align:center;font-size:0.6rem;color:#94a3b8">${_par(h, off+i) || '-'}</td>`).join('')}<td style="padding:1px 4px;text-align:center;font-size:0.6rem;font-weight:700;color:#64748b">${tPar}</td></tr>` : ''}
-      <tr>${hs.map((h, i) => _hCell(h, off + i)).join('')}<td style="padding:2px 4px;text-align:center"><div style="width:24px;height:20px;margin:auto;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:900;background:#e2e8f0;border-radius:4px">${tot}</div></td></tr>
-    </table>`;
+    const off   = start - 1;
+    const tot   = hs.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
+    const totPar = hasPar ? hs.reduce((s, _, i) => s + (_getpar(off + i) || 0), 0) : null;
+    const lbl   = start === 1 ? 'OUT' : 'IN';
+    const holeRow  = `<tr>${hs.map((_, i) => `<td style="text-align:center;padding:1px 2px;font-size:0.62rem;color:#94a3b8">${start + i}</td>`).join('')}${_totCell(lbl)}</tr>`;
+    const parRow   = hasPar ? `<tr>${hs.map((_, i) => _pCell(off + i)).join('')}${_totCell(totPar)}</tr>` : '';
+    const scoreRow = `<tr>${hs.map((h, i) => _hCell(h, off + i)).join('')}${_totCell(tot, true)}</tr>`;
+    return `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding:5px 0">
+      <table style="border-collapse:collapse;min-width:100%">
+        <thead>${holeRow}${parRow}</thead>
+        <tbody>${scoreRow}</tbody>
+      </table>
+    </div>`;
   };
-  const outT = out.reduce((s, h) => s + (h ? Math.round(h.v || 0) : 0), 0);
-  const inT  = inn.reduce((s, h) => s + (h ? Math.round(h.v || 0) : 0), 0);
-  return `<div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${_half(out, 1)}</div>
-    <div style="height:6px"></div>
-    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${_half(inn, 10)}</div>
-    <div style="margin-top:6px;padding:5px 8px;background:#f1f5f9;border-radius:6px;font-size:0.72rem;font-weight:700;color:#475569;text-align:center">
-      ${outT} + ${inT} = ${outT + inT}타 ${rScore ? `<span style="color:${sCo}">(${rScore})</span>` : ''}
-    </div>
-  </div>`;
+
+  const outT = out.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
+  const inT  = inn.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
+  const relColor = !rScore || rScore === 'E' ? '#334155' : rScore.startsWith('-') ? '#2563eb' : '#dc2626';
+  return `${_half(out, 1)}<div style="height:8px"></div>${_half(inn, 10)}
+    <div style="margin-top:10px;padding:7px 12px;background:#f1f5f9;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:8px">
+      <span style="font-size:0.78rem;color:#64748b">합계</span>
+      <span style="font-size:0.88rem;font-weight:800;color:#1e293b">${outT} + ${inT} = ${outT + inT}타</span>
+      ${rScore ? `<span style="font-size:0.88rem;font-weight:900;color:${relColor}">(${rScore})</span>` : ''}
+    </div>`;
 }
 
 function _switchGolfScorecardTab(ri) {
@@ -28048,23 +28058,36 @@ function _switchGolfScorecardTab(ri) {
   }
   // 라운드 내용 교체 — holePars 전달 (h.p 없을 때 폴백)
   const roundBody = document.getElementById('golf-sc-round-body');
-  if (roundBody) roundBody.innerHTML = _renderGolfRoundHtml(holeScores[ri] || [], ri, total, scores[ri] || '', holePars || []);
-  // 핀치줌 연결 (새로 렌더링 시 재설정)
-  let _sc = 1, _sd = 0, _ls = 1;
-  if (roundBody) {
-    roundBody.addEventListener('touchstart', ev => {
-      if (ev.touches.length === 2) { _sd = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX, ev.touches[0].clientY - ev.touches[1].clientY); _ls = _sc; ev.preventDefault(); }
-    }, { passive: false });
-    roundBody.addEventListener('touchmove', ev => {
-      if (ev.touches.length === 2) {
-        const d = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX, ev.touches[0].clientY - ev.touches[1].clientY);
-        _sc = Math.min(Math.max(_ls * d / _sd, 0.5), 2.5);
-        roundBody.style.transform = `scale(${_sc})`;
-        roundBody.style.transformOrigin = 'top center';
-        ev.preventDefault();
-      }
-    }, { passive: false });
-  }
+  if (!roundBody) return;
+  roundBody.innerHTML = _renderGolfRoundHtml(holeScores[ri] || [], ri, total, scores[ri] || '', holePars || []);
+  // 탭 전환 시 transform 초기화
+  roundBody.style.transform = '';
+  roundBody.style.transformOrigin = 'top left';
+
+  // 핀치줌 + 패닝 (translate + scale)
+  const bodyEl = document.getElementById('golf-scorecard-body');
+  let _sc = 1, _sd = 0, _ls = 1, _tx = 0, _ty = 0, _ltx = 0, _lty = 0, _lastPan = null;
+  const _applyT = () => { roundBody.style.transform = `translate(${_tx}px,${_ty}px) scale(${_sc})`; };
+  const _onTS = ev => {
+    if (ev.touches.length === 2) {
+      _sd = Math.hypot(ev.touches[0].clientX-ev.touches[1].clientX, ev.touches[0].clientY-ev.touches[1].clientY);
+      _ls = _sc; _ltx = _tx; _lty = _ty; _lastPan = null; ev.preventDefault();
+    } else if (ev.touches.length === 1 && _sc > 1) {
+      _lastPan = { x: ev.touches[0].clientX, y: ev.touches[0].clientY }; ev.preventDefault();
+    }
+  };
+  const _onTM = ev => {
+    if (ev.touches.length === 2) {
+      const d = Math.hypot(ev.touches[0].clientX-ev.touches[1].clientX, ev.touches[0].clientY-ev.touches[1].clientY);
+      _sc = Math.min(Math.max(_ls * d / _sd, 0.5), 3.0); _applyT(); ev.preventDefault();
+    } else if (ev.touches.length === 1 && _sc > 1 && _lastPan) {
+      _tx += ev.touches[0].clientX - _lastPan.x;
+      _ty += ev.touches[0].clientY - _lastPan.y;
+      _lastPan = { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
+      _applyT(); ev.preventDefault();
+    }
+  };
+  if (bodyEl) { bodyEl.addEventListener('touchstart', _onTS, { passive: false }); bodyEl.addEventListener('touchmove', _onTM, { passive: false }); }
 }
 
 // ── 전 라운드 스코어카드 팝업 — 히스토리/라이브 공용, 라운드탭 UI ─────────────
