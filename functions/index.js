@@ -2616,7 +2616,13 @@ async function _archiveGolfHistory(t) {
     const allLeaders = (t.leaderboard || []).filter(p => p.name && !p.isCut);
     const top10 = allLeaders
       .slice(0, 10)
-      .map(p => ({ rank: p.rank || 0, name: p.name, country: p.country || '', total: p.total || 'E' }));
+      .map(p => ({
+        rank: p.rank || 0, name: p.name, country: p.country || '', total: p.total || 'E',
+        // PGA만 holeScores 저장 (LPGA/DP World는 미제공)
+        ...(t.tour === 'pga' && p.holeScores && p.holeScores.length > 0
+          ? { holeScores: p.holeScores, scores: p.scores || [] }
+          : {}),
+      }));
     if (!top10.length) { console.log(`_archiveGolfHistory: no leaderboard for ${t.name}, skipping`); return; }
 
     // 실제 라운드 스코어 완료 여부 확인 — R1 미완료(모두 E) 상태에서 저장 방지

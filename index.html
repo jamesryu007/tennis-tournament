@@ -805,16 +805,16 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
-// ── Firebase 설정 인라인 (운영환경: jamite-tennis) — 외부파일 캐시 오염 방지 ──
+// ── Firebase 설정 인라인 (개발환경: jamite-dev) — 외부파일 캐시 오염 방지 ──
 const firebaseConfig = {
-  apiKey:            'AIzaSyB0zkRmUfVrI7TOI4LIN2gu2KRcYlHIt14',
-  authDomain:        'jamite-tennis.firebaseapp.com',
-  databaseURL:       'https://jamite-tennis-default-rtdb.asia-southeast1.firebasedatabase.app',
-  projectId:         'jamite-tennis',
-  storageBucket:     'jamite-tennis.firebasestorage.app',
-  messagingSenderId: '1023676041344',
-  appId:             '1:1023676041344:web:d9a9fcf47f3b280bcbfe65',
-  vapidKey:          'BM-j4mKyzfhoB0k6JChzCwazNNr8UmtzwY_V6J_d-ChEvuB9z46WrHu0O9ClEMBkGw_kWoVrlh6kjDhF6bM75Zg',
+  apiKey:            'AIzaSyDgGhjMh5_wFCbb45p5kAkDJaLOJJAFDhI',
+  authDomain:        'jamite-dev.firebaseapp.com',
+  databaseURL:       'https://jamite-dev-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId:         'jamite-dev',
+  storageBucket:     'jamite-dev.firebasestorage.app',
+  messagingSenderId: '168236820456',
+  appId:             '1:168236820456:web:32fab6a04d85702055e65d',
+  vapidKey:          'BOcdxFKGA8VdtUpvT0GRDBBtwZUH8VNfRpBsvFxtbGK2Tc0MdBehoOh_2wizjabPSiDIxVJbef1SxKItuNdKDBc',
 };
 </script>
 </head>
@@ -2771,7 +2771,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1233';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1234';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -25705,6 +25705,7 @@ let _golfRankingsRef = null;
 const LS_GOLF_FAV = 'jmt_favGolfPlayers';
 const LS_GOLF_NEWS_READ = 'jmt_golfNewsReadAt';
 let _golfScorecardCache = {};  // 홀별 스코어카드 캐시 (renderGolfLeaderboard 호출마다 갱신)
+const _histScorecardData = {};  // 히스토리 스코어카드 캐시 — 키: tournamentId_playerName
 const golfState = {
   tournaments:   {},      // id → tournament 객체
   selectedId:    null,    // 현재 선택된 대회 ID
@@ -26818,11 +26819,16 @@ function _renderHistoryList() {
         const rankFw = dispRank === 1 ? '900' : '700';
         const pSafe = (p.name || '').replace(/'/g, "\\'");
         const scoreColor = !p.total || p.total === 'E' ? '#334155' : p.total.startsWith('-') ? '#2563eb' : '#dc2626';
+        // PGA holeScores 캐시 등록 (Functions에서 저장된 경우)
+        if (e.tour === 'pga' && e.id && p.holeScores && p.holeScores.length > 0) {
+          _histScorecardData[`${e.id}_${p.name}`] = { holeScores: p.holeScores, scores: p.scores || [] };
+        }
+        const _hasScorecard = e.tour === 'pga' && e.id && !!_histScorecardData[`${e.id}_${p.name}`];
         return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #f1f5f9${i === top10.length - 1 ? ';border-bottom:none' : ''}">
           <span style="font-size:0.74rem;font-weight:${rankFw};color:${rankColor};min-width:22px">${dispRank}</span>
           <span class="pp-name-link" style="flex:1;font-size:0.84rem;font-weight:${i < 3 ? '800' : '600'};color:#1e293b;cursor:pointer" onclick="openPlayerProfile('${pSafe}','${e.tour === 'lpga' ? 'lpga' : e.tour === 'eur' ? 'pga' : 'pga'}')">${p.name}</span>
           ${p.country ? `<span style="font-size:0.70rem;color:#94a3b8">${p.country}</span>` : ''}
-          ${e.tour === 'pga' && e.id
+          ${_hasScorecard
             ? `<span onclick="openHistoryGolfScorecard('${e.id}','${pSafe}')" style="font-size:0.82rem;font-weight:800;color:${scoreColor};min-width:30px;text-align:right;cursor:pointer;text-decoration:underline dotted #cbd5e1">${p.total || 'E'}</span>`
             : `<span style="font-size:0.82rem;font-weight:800;color:${scoreColor};min-width:30px;text-align:right">${p.total || 'E'}</span>`}
         </div>`;
@@ -27959,21 +27965,25 @@ function openGolfHoleScorecard(key, el) {
 function closeGolfHoleScorecard() {
   const modal = document.getElementById('golf-scorecard-modal');
   modal.classList.remove('open');
+  modal.style.zIndex = ''; // 히스토리에서 열 때 높인 z-index 초기화
   const sheet = modal.querySelector('.modal-sheet');
   if (sheet) { sheet.style.marginTop = ''; sheet.style.marginBottom = ''; sheet.style.borderRadius = ''; sheet.style.maxHeight = ''; }
 }
 
 // ── 히스토리 골프 스코어카드 — 전 라운드 홀별 팝업 (PGA만, 핀치줌 지원) ───────
-async function openHistoryGolfScorecard(tournamentId, playerName) {
+// _histScorecardData 캐시 사용 — ESPN scoreboard API는 현재 대회만 반환하므로 사용 불가
+function openHistoryGolfScorecard(tournamentId, playerName) {
   const titleEl = document.getElementById('golf-scorecard-title');
   const bodyEl  = document.getElementById('golf-scorecard-body');
   const modal   = document.getElementById('golf-scorecard-modal');
   const sheet   = modal.querySelector('.modal-sheet');
 
-  titleEl.innerHTML = `<span style="font-weight:800">${playerName}</span> <span style="color:#64748b;font-weight:600">전체 스코어카드</span>`;
-  bodyEl.innerHTML  = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:0.85rem">스코어카드 로딩 중...</div>';
+  // 히스토리 모달(z-index:300) 위에 표시
+  modal.style.zIndex = '500';
 
-  // 화면 중앙 배치 (행 기준 아닌 중앙)
+  titleEl.innerHTML = `<span style="font-weight:800">${playerName}</span> <span style="color:#64748b;font-weight:600">전체 스코어카드</span>`;
+
+  // 화면 중앙 배치
   if (sheet) {
     sheet.style.marginTop    = '60px';
     sheet.style.marginBottom = '20px';
@@ -27982,111 +27992,89 @@ async function openHistoryGolfScorecard(tournamentId, playerName) {
   }
   modal.classList.add('open');
 
-  try {
-    const resp = await fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard?event=${tournamentId}`);
-    const data = await resp.json();
-    const comp = ((data.events || [])[0]?.competitions || [])[0];
-    if (!comp) throw new Error('no comp');
-
-    // 선수 매칭 — 성(last name) 기준 fallback
-    const nameLow = playerName.toLowerCase();
-    const lastLow = nameLow.split(' ').pop();
-    const competitor = (comp.competitors || []).find(c => {
-      const n = (c.athlete?.displayName || '').toLowerCase();
-      return n === nameLow || n.endsWith(' ' + lastLow) || nameLow.endsWith(' ' + n.split(' ').pop());
-    });
-    if (!competitor) { bodyEl.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8">해당 선수 데이터 없음</div>'; return; }
-
-    const rounds = (competitor.linescores || []).filter(ls => (ls.linescores || []).length > 0);
-    if (!rounds.length) { bodyEl.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8">홀별 데이터 없음</div>'; return; }
-
-    // holePars: R1 홀 타수 - 상대스코어 → 파 역산
-    const _rel = dv => { if (!dv || dv === 'E') return 0; const n = parseInt(dv); return isNaN(n) ? 0 : n; };
-    const r1sorted = (rounds[0].linescores || []).slice().sort((a, b) => a.period - b.period);
-    const holePars = r1sorted.length === 18
-      ? r1sorted.map(h => Math.round(h.value || 0) - _rel(h.scoreType?.displayValue))
-      : [];
-    const parSum = holePars.reduce((s, p) => s + p, 0);
-    const hasPar = holePars.length === 18 && parSum >= 69 && parSum <= 73;
-
-    // 홀 셀 렌더러
-    const _hCell = (h, par) => {
-      if (!h) return '<td style="padding:2px;text-align:center"><div style="width:20px;height:20px;margin:auto;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:0.65rem">-</div></td>';
-      const v = Math.round(h.value || 0);
-      let bg = '#f1f5f9', co = '#475569', bd = '#cbd5e1', r = '4px', sh = '';
-      if (hasPar && par) {
-        const d = v - par;
-        if      (d <= -2) { bg='#ef4444'; co='#fff'; bd='#ef4444'; r='50%'; sh='0 0 0 2.5px #fff,0 0 0 4.5px #ef4444'; }
-        else if (d === -1) { bg='#ef4444'; co='#fff'; bd='#ef4444'; r='50%'; }
-        else if (d === 1)  { bg='#3b82f6'; co='#fff'; bd='#3b82f6'; }
-        else if (d === 2)  { bg='#1d4ed8'; co='#fff'; bd='#1d4ed8'; sh='0 0 0 2.5px #fff,0 0 0 4.5px #1d4ed8'; }
-        else if (d >= 3)   { bg='#0f172a'; co='#fff'; bd='#0f172a'; sh='0 0 0 2.5px #fff,0 0 0 4.5px #0f172a'; }
-      }
-      return `<td style="padding:2px;text-align:center"><div style="width:20px;height:20px;margin:auto;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;color:${co};background:${bg};border:1.5px solid ${bd};border-radius:${r}${sh?';box-shadow:'+sh:''}">${v}</div></td>`;
-    };
-
-    // 라운드 1개 렌더링
-    const _renderRound = (ls, ri, total) => {
-      const holes = (ls.linescores || []).slice().sort((a, b) => a.period - b.period);
-      const rLabel  = ri === total - 1 ? 'Final' : `R${ri + 1}`;
-      const rScore  = ls.displayValue || '';
-      const sCo     = !rScore || rScore === 'E' ? '#334155' : rScore.startsWith('-') ? '#2563eb' : '#dc2626';
-      const pad9    = arr => { const r = Array(9).fill(null); arr.forEach((h, i) => { if (i < 9) r[i] = h; }); return r; };
-      const out     = pad9(holes.slice(0, 9));
-      const inn     = pad9(holes.slice(9, 18));
-      const _half   = (hs, start) => {
-        const off = start - 1;
-        const tot = hs.reduce((s, h) => s + (h ? Math.round(h.value || 0) : 0), 0);
-        const tPar = hasPar ? hs.reduce((s, _, i) => s + (holePars[off + i] || 0), 0) : null;
-        const lbl  = start === 1 ? 'OUT' : 'IN';
-        return `<table style="border-collapse:collapse">
-          <tr>${hs.map((_, i) => `<td style="padding:1px 2px;text-align:center;font-size:0.6rem;color:#94a3b8">${start + i}</td>`).join('')}<td style="padding:1px 4px;text-align:center;font-size:0.6rem;color:#64748b;font-weight:700">${lbl}</td></tr>
-          ${hasPar ? `<tr>${hs.map((_, i) => `<td style="padding:1px 2px;text-align:center;font-size:0.6rem;color:#94a3b8">${holePars[off + i] || '-'}</td>`).join('')}<td style="padding:1px 4px;text-align:center;font-size:0.6rem;font-weight:700;color:#64748b">${tPar}</td></tr>` : ''}
-          <tr>${hs.map((h, i) => _hCell(h, hasPar ? holePars[off + i] : undefined)).join('')}<td style="padding:2px 4px;text-align:center"><div style="width:24px;height:20px;margin:auto;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:900;background:#e2e8f0;border-radius:4px">${tot}</div></td></tr>
-        </table>`;
-      };
-      const outT = out.reduce((s, h) => s + (h ? Math.round(h.value || 0) : 0), 0);
-      const inT  = inn.reduce((s, h) => s + (h ? Math.round(h.value || 0) : 0), 0);
-      return `<div style="margin-bottom:14px">
-        <div style="font-size:0.74rem;font-weight:800;color:#3730a3;padding:4px 0 6px;display:flex;align-items:center;gap:6px">
-          ${rLabel} ${rScore ? `<span style="font-size:0.8rem;font-weight:900;color:${sCo}">${rScore}</span>` : ''}
-        </div>
-        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${_half(out, 1)}</div>
-        <div style="height:6px"></div>
-        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${_half(inn, 10)}</div>
-        <div style="margin-top:6px;padding:5px 8px;background:#f1f5f9;border-radius:6px;font-size:0.72rem;font-weight:700;color:#475569;text-align:center">
-          ${outT} + ${inT} = ${outT + inT}타 ${rScore ? `<span style="color:${sCo}">(${rScore})</span>` : ''}
-        </div>
-      </div>`;
-    };
-
-    const totalRds = rounds.length;
-    const html = rounds.map((ls, ri) => _renderRound(ls, ri, totalRds)).join('<div style="height:2px;background:#e2e8f0;margin:0 0 14px"></div>');
-    bodyEl.innerHTML = `
-      <div style="font-size:0.66rem;color:#94a3b8;text-align:center;padding:2px 0 10px">두 손가락으로 확대/축소</div>
-      <div id="hist-sc-zoom" style="transform-origin:top center">${html}</div>`;
-
-    // 핀치줌
-    let _sc = 1, _sd = 0, _ls = 1;
-    const _zo = document.getElementById('hist-sc-zoom');
-    bodyEl.addEventListener('touchstart', ev => {
-      if (ev.touches.length === 2) {
-        _sd = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX, ev.touches[0].clientY - ev.touches[1].clientY);
-        _ls = _sc; ev.preventDefault();
-      }
-    }, { passive: false });
-    bodyEl.addEventListener('touchmove', ev => {
-      if (ev.touches.length === 2 && _zo) {
-        const d = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX, ev.touches[0].clientY - ev.touches[1].clientY);
-        _sc = Math.min(Math.max(_ls * d / _sd, 0.5), 2.5);
-        _zo.style.transform = `scale(${_sc})`;
-        ev.preventDefault();
-      }
-    }, { passive: false });
-
-  } catch (_) {
-    bodyEl.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8">스코어카드를 불러올 수 없습니다</div>';
+  // _histScorecardData 캐시에서 조회 (히스토리 렌더링 시 자동 등록)
+  const cached = _histScorecardData[`${tournamentId}_${playerName}`];
+  if (!cached || !cached.holeScores || !cached.holeScores.length) {
+    bodyEl.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:0.84rem">스코어카드 데이터 없음<br><span style="font-size:0.76rem">(최근 대회부터 제공됩니다)</span></div>';
+    return;
   }
+
+  const { holeScores, scores } = cached;
+
+  // 홀 셀 렌더러 (h = { v: 타수, p: 파 })
+  const _hCell = h => {
+    if (!h) return '<td style="padding:2px;text-align:center"><div style="width:20px;height:20px;margin:auto;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:0.65rem">-</div></td>';
+    const v = Math.round(h.v || 0);
+    const par = h.p || null;
+    let bg = '#f1f5f9', co = '#475569', bd = '#cbd5e1', r = '4px', sh = '';
+    if (par) {
+      const d = v - par;
+      if      (d <= -2) { bg='#ef4444'; co='#fff'; bd='#ef4444'; r='50%'; sh='0 0 0 2.5px #fff,0 0 0 4.5px #ef4444'; }
+      else if (d === -1) { bg='#ef4444'; co='#fff'; bd='#ef4444'; r='50%'; }
+      else if (d === 1)  { bg='#3b82f6'; co='#fff'; bd='#3b82f6'; }
+      else if (d === 2)  { bg='#1d4ed8'; co='#fff'; bd='#1d4ed8'; sh='0 0 0 2.5px #fff,0 0 0 4.5px #1d4ed8'; }
+      else if (d >= 3)   { bg='#0f172a'; co='#fff'; bd='#0f172a'; sh='0 0 0 2.5px #fff,0 0 0 4.5px #0f172a'; }
+    }
+    return `<td style="padding:2px;text-align:center"><div style="width:20px;height:20px;margin:auto;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;color:${co};background:${bg};border:1.5px solid ${bd};border-radius:${r}${sh?';box-shadow:'+sh:''}">${v}</div></td>`;
+  };
+
+  // 라운드 1개 렌더링 (holes = [{ v, p }, ...], rScore = '-3' 등)
+  const _renderRound = (holes, ri, total, rScore) => {
+    const rLabel = ri === total - 1 ? 'Final' : `R${ri + 1}`;
+    const sCo    = !rScore || rScore === 'E' ? '#334155' : rScore.startsWith('-') ? '#2563eb' : '#dc2626';
+    const hasPar = holes.length > 0 && holes[0] && holes[0].p;
+    const pad9   = arr => { const r = Array(9).fill(null); arr.forEach((h, i) => { if (i < 9) r[i] = h; }); return r; };
+    const out    = pad9(holes.slice(0, 9));
+    const inn    = pad9(holes.slice(9, 18));
+    const _half  = (hs, start) => {
+      const off  = start - 1;
+      const tot  = hs.reduce((s, h) => s + (h ? Math.round(h.v || 0) : 0), 0);
+      const tPar = hasPar ? hs.reduce((s, h) => s + (h && h.p ? h.p : 0), 0) : null;
+      const lbl  = start === 1 ? 'OUT' : 'IN';
+      return `<table style="border-collapse:collapse">
+        <tr>${hs.map((_, i) => `<td style="padding:1px 2px;text-align:center;font-size:0.6rem;color:#94a3b8">${start + i}</td>`).join('')}<td style="padding:1px 4px;text-align:center;font-size:0.6rem;color:#64748b;font-weight:700">${lbl}</td></tr>
+        ${hasPar ? `<tr>${hs.map(h => `<td style="padding:1px 2px;text-align:center;font-size:0.6rem;color:#94a3b8">${h && h.p ? h.p : '-'}</td>`).join('')}<td style="padding:1px 4px;text-align:center;font-size:0.6rem;font-weight:700;color:#64748b">${tPar}</td></tr>` : ''}
+        <tr>${hs.map(h => _hCell(h)).join('')}<td style="padding:2px 4px;text-align:center"><div style="width:24px;height:20px;margin:auto;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:900;background:#e2e8f0;border-radius:4px">${tot}</div></td></tr>
+      </table>`;
+    };
+    const outT = out.reduce((s, h) => s + (h ? Math.round(h.v || 0) : 0), 0);
+    const inT  = inn.reduce((s, h) => s + (h ? Math.round(h.v || 0) : 0), 0);
+    return `<div style="margin-bottom:14px">
+      <div style="font-size:0.74rem;font-weight:800;color:#3730a3;padding:4px 0 6px;display:flex;align-items:center;gap:6px">
+        ${rLabel} ${rScore ? `<span style="font-size:0.8rem;font-weight:900;color:${sCo}">${rScore}</span>` : ''}
+      </div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${_half(out, 1)}</div>
+      <div style="height:6px"></div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">${_half(inn, 10)}</div>
+      <div style="margin-top:6px;padding:5px 8px;background:#f1f5f9;border-radius:6px;font-size:0.72rem;font-weight:700;color:#475569;text-align:center">
+        ${outT} + ${inT} = ${outT + inT}타 ${rScore ? `<span style="color:${sCo}">(${rScore})</span>` : ''}
+      </div>
+    </div>`;
+  };
+
+  const totalRds = holeScores.length;
+  const html = holeScores.map((holes, ri) => _renderRound(holes, ri, totalRds, scores[ri] || '')).join('<div style="height:2px;background:#e2e8f0;margin:0 0 14px"></div>');
+  bodyEl.innerHTML = `
+    <div style="font-size:0.66rem;color:#94a3b8;text-align:center;padding:2px 0 10px">두 손가락으로 확대/축소</div>
+    <div id="hist-sc-zoom" style="transform-origin:top center">${html}</div>`;
+
+  // 핀치줌
+  let _sc = 1, _sd = 0, _ls = 1;
+  const _zo = document.getElementById('hist-sc-zoom');
+  bodyEl.addEventListener('touchstart', ev => {
+    if (ev.touches.length === 2) {
+      _sd = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX, ev.touches[0].clientY - ev.touches[1].clientY);
+      _ls = _sc; ev.preventDefault();
+    }
+  }, { passive: false });
+  bodyEl.addEventListener('touchmove', ev => {
+    if (ev.touches.length === 2 && _zo) {
+      const d = Math.hypot(ev.touches[0].clientX - ev.touches[1].clientX, ev.touches[0].clientY - ev.touches[1].clientY);
+      _sc = Math.min(Math.max(_ls * d / _sd, 0.5), 2.5);
+      _zo.style.transform = `scale(${_sc})`;
+      ev.preventDefault();
+    }
+  }, { passive: false });
 }
 
 function switchGolfFavDraw(draw) {
