@@ -2771,7 +2771,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1236';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1237';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -27537,12 +27537,14 @@ function renderGolfLeaderboard(t) {
         _golfScorecardCache[_scKey] = { playerName: p.name, roundLabel: _rLabel, roundScore: (p.scores || [])[ri] || '', holes, holePars: _holePars, tour: t.tour || '', tournamentId: String(t.id || '') };
       }
     });
-    // 전 라운드 합계 클릭용 캐시 (PGA만, holeScores 있는 선수만) — holePars + numberOfRounds 포함
+    // 전 라운드 합계 클릭용 캐시 (PGA만, holeScores 있는 선수만)
+    // holePars: DB 데이터 우선, 없으면 _estimatedParsByRound 폴백 (최빈값 추정)
     if (t.tour === 'pga' && p.holeScores && p.holeScores.some(h => h && h.length > 0)) {
+      const _estPars = (_estimatedParsByRound && _estimatedParsByRound[0]) ? _estimatedParsByRound[0] : [];
       _histScorecardData[`${t.id}_${p.name}`] = {
         holeScores: p.holeScores,
         scores: p.scores || [],
-        holePars: (t.holePars && t.holePars.length === 18) ? t.holePars : [],
+        holePars: (t.holePars && t.holePars.length === 18) ? t.holePars : _estPars,
         numberOfRounds: t.numberOfRounds || 4,
       };
     }
@@ -27592,7 +27594,7 @@ function renderGolfLeaderboard(t) {
             : '';
           return `${chipHtml}<span style="min-width:${THR_W}px;text-align:right;font-size:0.65rem;font-weight:${(p.state==='in'||p.state==='active')?'700':'400'};color:${thruColor}">${thruText}</span>`;
         })()
-      : `${(()=>{const v=totalDisp;if(!v||v==='-')return `<span style="min-width:${TOT_W}px;text-align:center"></span>`;const c=scoreColor(v);const bg=v.startsWith('-')?'#dbeafe':v==='E'?'#f1f5f9':'#fee2e2';const border=v.startsWith('-')?'#93c5fd':v==='E'?'#e2e8f0':'#fca5a5';const _hasAllRounds=!!_histScorecardData[`${t.id}_${p.name}`];return _hasAllRounds?`<span onclick="openHistoryGolfScorecard('${t.id}','${pNameSafe}')" style="cursor:pointer;min-width:${TOT_W}px;text-align:center;font-size:0.9rem;font-weight:900;color:${c};background:${bg};border:1.5px solid ${border};border-radius:7px;padding:3px 8px;text-decoration:underline dotted #94a3b8">${v}</span>`:`<span style="min-width:${TOT_W}px;text-align:center;font-size:0.9rem;font-weight:900;color:${c};background:${bg};border:1.5px solid ${border};border-radius:7px;padding:3px 8px">${v}</span>`;})()}${rndLabels.slice(0,maxScoreRounds).map((l,ri)=>{
+      : `${(()=>{const v=totalDisp;if(!v||v==='-')return `<span style="min-width:${TOT_W}px;text-align:center"></span>`;const c=scoreColor(v);const bg=v.startsWith('-')?'#dbeafe':v==='E'?'#f1f5f9':'#fee2e2';const border=v.startsWith('-')?'#93c5fd':v==='E'?'#e2e8f0':'#fca5a5';const _hasAllRounds=!!_histScorecardData[`${t.id}_${p.name}`];return _hasAllRounds?`<span onclick="openHistoryGolfScorecard('${t.id}','${pNameSafe}',this)" style="cursor:pointer;min-width:${TOT_W}px;text-align:center;font-size:0.9rem;font-weight:900;color:${c};background:${bg};border:1.5px solid ${border};border-radius:7px;padding:3px 8px;text-decoration:underline dotted #94a3b8">${v}</span>`:`<span style="min-width:${TOT_W}px;text-align:center;font-size:0.9rem;font-weight:900;color:${c};background:${bg};border:1.5px solid ${border};border-radius:7px;padding:3px 8px">${v}</span>`;})()}${rndLabels.slice(0,maxScoreRounds).map((l,ri)=>{
           const sv=(p.scores||[])[ri];
           if(!sv||sv==='-') return `<span style="min-width:${CHIP_W}px;text-align:center"></span>`;
           // 홀별 데이터 있으면 클릭 가능한 칩
@@ -28067,7 +28069,8 @@ function _switchGolfScorecardTab(ri) {
 
 // ── 전 라운드 스코어카드 팝업 — 히스토리/라이브 공용, 라운드탭 UI ─────────────
 // _histScorecardData 캐시 사용 — 키: tournamentId_playerName
-function openHistoryGolfScorecard(tournamentId, playerName) {
+// el: 클릭한 DOM 요소 (라이브에서 행 기준 위치 계산용, 히스토리에서는 null)
+function openHistoryGolfScorecard(tournamentId, playerName, el) {
   const titleEl = document.getElementById('golf-scorecard-title');
   const bodyEl  = document.getElementById('golf-scorecard-body');
   const modal   = document.getElementById('golf-scorecard-modal');
@@ -28100,8 +28103,18 @@ function openHistoryGolfScorecard(tournamentId, playerName) {
 
   titleEl.innerHTML = `<span style="font-weight:800">${playerName}</span> <span style="color:#94a3b8;font-size:0.78rem;margin-left:4px">${summaryHtml}</span>`;
 
-  // 화면 중앙 배치
-  if (sheet) {
+  // 팝업 위치: el 있으면 행 기준(라이브), 없으면 화면 중앙(히스토리)
+  if (el && sheet) {
+    const row = el.closest('.golf-lb-row') || el;
+    const rect = row.getBoundingClientRect();
+    const belowSpace = window.innerHeight - rect.bottom - 20;
+    const topPos = belowSpace >= 320 ? rect.bottom + 4 : Math.max(rect.top - 420, 60);
+    const maxH   = Math.max(window.innerHeight - topPos - 16, 200);
+    sheet.style.marginTop    = topPos + 'px';
+    sheet.style.marginBottom = 'auto';
+    sheet.style.borderRadius = '16px';
+    sheet.style.maxHeight    = maxH + 'px';
+  } else if (sheet) {
     sheet.style.marginTop    = '60px';
     sheet.style.marginBottom = '20px';
     sheet.style.borderRadius = '20px';
