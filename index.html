@@ -2771,7 +2771,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1239';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1240';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -28063,6 +28063,7 @@ function _switchGolfScorecardTab(ri) {
   const roundBody = document.getElementById('golf-sc-round-body');
   if (!roundBody) return;
   roundBody.innerHTML = _renderGolfRoundHtml(holeScores[ri] || [], ri, total, scores[ri] || '', holePars || []);
+  _golfScorecardTabData.currentTab = ri; // 현재 탭 추적
 }
 
 // ── 전 라운드 스코어카드 팝업 — 히스토리/라이브 공용, 라운드탭 UI ─────────────
@@ -28133,6 +28134,59 @@ function openHistoryGolfScorecard(tournamentId, playerName, el) {
     <div id="golf-sc-round-body" style="transform-origin:top center"></div>`;
 
   _switchGolfScorecardTab(0);
+
+  // ── holePars ESPN fetch (단일 라운드 팝업과 동일한 방식) ───────────────
+  // h.p가 없을 때 추정값 대신 ESPN에서 정확한 홀파를 가져옴
+  const _updateTabPars = (pars) => {
+    if (!pars || pars.length !== 18 || !_golfScorecardTabData) return;
+    _golfScorecardTabData.holePars = pars;
+    // _golfScorecardCache 같은 대회 항목도 업데이트 (단일 라운드 팝업과 공유)
+    for (const k of Object.keys(_golfScorecardCache)) {
+      if (_golfScorecardCache[k].tournamentId === String(tournamentId)) {
+        _golfScorecardCache[k].holePars = pars;
+      }
+    }
+    _switchGolfScorecardTab(_golfScorecardTabData.currentTab || 0);
+  };
+  const _extractTabPars = (d) => {
+    const courseHoles = ((d.courses || [])[0]?.holes) || [];
+    const venueHoles  = ((d.competitions || [])[0]?.venue?.holes) || (d.venue?.holes) || [];
+    const src = courseHoles.length ? courseHoles : venueHoles;
+    const raw = src.sort((a, b) => (a.number || 0) - (b.number || 0))
+      .map(h => h.shotsToPar || h.par || 0).filter(p => p > 0);
+    return raw.length === 18 ? raw : [];
+  };
+
+  // _golfScorecardCache에 같은 대회 holePars가 이미 있으면 재사용 (ESPN 재조회 불필요)
+  let _existPars = [];
+  for (const k of Object.keys(_golfScorecardCache)) {
+    const other = _golfScorecardCache[k];
+    if (other.tournamentId === String(tournamentId) && (other.holePars || []).length === 18) {
+      _existPars = other.holePars;
+      break;
+    }
+  }
+  if (_existPars.length === 18) {
+    _updateTabPars(_existPars);
+  } else {
+    // ESPN Core API → site API fallback (PGA만)
+    fetch(`https://sports.core.api.espn.com/v2/sports/golf/leagues/pga/events/${tournamentId}`)
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(d => {
+        const pars = _extractTabPars(d);
+        if (pars.length === 18) { _updateTabPars(pars); return; }
+        return fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/pga/summary?event=${tournamentId}`)
+          .then(r => r.ok ? r.json() : Promise.reject(r.status))
+          .then(d2 => { _updateTabPars(_extractTabPars(d2)); })
+          .catch(() => {});
+      })
+      .catch(() => {
+        fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/pga/summary?event=${tournamentId}`)
+          .then(r => r.ok ? r.json() : Promise.reject(r.status))
+          .then(d2 => { _updateTabPars(_extractTabPars(d2)); })
+          .catch(() => {});
+      });
+  }
 }
 
 function switchGolfFavDraw(draw) {
