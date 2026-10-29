@@ -2771,7 +2771,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1226';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1240';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -13891,8 +13891,13 @@ function renderAtpTournamentSelector() {
   };
   const others = ts.filter(t => {
     if (String(t.tournamentInfo.id) === String(selId)) return false;
-    if (_isFinalDone(t.matches || [])) return false;
     if (_isExpired(t.tournamentInfo)) return false;
+    // 완료 대회는 5일 이내만 표시 — 직전 주 대회(Lyon 등)는 포함, 오래된 대회(Shanghai 등) 제외
+    if (_isFinalDone(t.matches || [])) {
+      const refDate = t.tournamentInfo?.endDate || t.tournamentInfo?.startDate;
+      if (!refDate) return false;
+      if (Date.now() - new Date(refDate).getTime() > 5 * 24 * 60 * 60 * 1000) return false;
+    }
     // 매치 데이터 없는 빈 대회 제외 (ESPN 중복 ID 방지)
     const _mCnt = Array.isArray(t.matches) ? t.matches.length : Object.keys(t.matches || {}).length;
     if (_mCnt === 0) return false;
@@ -25700,6 +25705,8 @@ let _golfRankingsRef = null;
 const LS_GOLF_FAV = 'jmt_favGolfPlayers';
 const LS_GOLF_NEWS_READ = 'jmt_golfNewsReadAt';
 let _golfScorecardCache = {};  // 홀별 스코어카드 캐시 (renderGolfLeaderboard 호출마다 갱신)
+const _histScorecardData = {};  // 히스토리 스코어카드 캐시 — 키: tournamentId_playerName
+let _golfScorecardTabData = null; // 탭 스코어카드 현재 데이터 (라이브+히스토리 공용)
 const golfState = {
   tournaments:   {},      // id → tournament 객체
   selectedId:    null,    // 현재 선택된 대회 ID
@@ -26804,14 +26811,27 @@ function _renderHistoryList() {
       // ── 개인전 ─────────────────────────────────────────────────────
       const top10 = e.top10 || [];
       const rowsHtml = top10.map((p, i) => {
-        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+        // 동타 처리: 같은 점수면 같은 순위 표시
+        let dispRank = i + 1;
+        for (let j = 0; j < i; j++) {
+          if (top10[j].total === p.total) { dispRank = j + 1; break; }
+        }
+        const rankColor = dispRank === 1 ? '#b45309' : '#94a3b8';
+        const rankFw = dispRank === 1 ? '900' : '700';
         const pSafe = (p.name || '').replace(/'/g, "\\'");
         const scoreColor = !p.total || p.total === 'E' ? '#334155' : p.total.startsWith('-') ? '#2563eb' : '#dc2626';
+        // PGA holeScores 캐시 등록 (Functions에서 저장된 경우)
+        if (e.tour === 'pga' && e.id && p.holeScores && p.holeScores.length > 0) {
+          _histScorecardData[`${e.id}_${p.name}`] = { holeScores: p.holeScores, scores: p.scores || [], numberOfRounds: e.numberOfRounds || 4 };
+        }
+        const _hasScorecard = e.tour === 'pga' && e.id && !!_histScorecardData[`${e.id}_${p.name}`];
         return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #f1f5f9${i === top10.length - 1 ? ';border-bottom:none' : ''}">
-          <span style="font-size:0.74rem;font-weight:700;color:#94a3b8;min-width:22px">${medal || (p.rank || i + 1)}</span>
+          <span style="font-size:0.74rem;font-weight:${rankFw};color:${rankColor};min-width:22px">${dispRank}</span>
           <span class="pp-name-link" style="flex:1;font-size:0.84rem;font-weight:${i < 3 ? '800' : '600'};color:#1e293b;cursor:pointer" onclick="openPlayerProfile('${pSafe}','${e.tour === 'lpga' ? 'lpga' : e.tour === 'eur' ? 'pga' : 'pga'}')">${p.name}</span>
           ${p.country ? `<span style="font-size:0.70rem;color:#94a3b8">${p.country}</span>` : ''}
-          <span style="font-size:0.82rem;font-weight:800;color:${scoreColor};min-width:30px;text-align:right">${p.total || 'E'}</span>
+          ${_hasScorecard
+            ? `<span onclick="openHistoryGolfScorecard('${e.id}','${pSafe}')" style="font-size:0.82rem;font-weight:800;color:${scoreColor};min-width:30px;text-align:right;cursor:pointer;text-decoration:underline dotted #cbd5e1">${p.total || 'E'}</span>`
+            : `<span style="font-size:0.82rem;font-weight:800;color:${scoreColor};min-width:30px;text-align:right">${p.total || 'E'}</span>`}
         </div>`;
       }).join('');
       return `<div style="position:relative;background:${s.bg};border:1.5px solid ${s.border};border-radius:12px;padding:12px 14px;margin-bottom:10px">
@@ -27365,8 +27385,13 @@ function renderGolfLeaderboard(t) {
   // 라운드 탭 HTML 헬퍼 — 테니스와 동일한 pill + › 체인 스타일
   const _roundTabsHtml = () => {
     if (!t) return '';
-    const lbl = { all:'전체', '1':'R1', '2':'R2', '3':'R3', '4':'Final' };
-    const rounds = ['all', '1', '2', '3', '4'];
+    // state=post이고 실제 완료 라운드 < 4이면 해당 탭만 표시 (천재지변 단축 대회 대응)
+    const _maxPlayed = t.state === 'post'
+      ? Math.min(Math.max(...Object.values(t.leaderboard || {}).filter(p => !p.isCut).map(p => (p.scores || []).filter(s => s !== '' && s !== '-').length).concat([0])), 4)
+      : 4;
+    const lbl = { all: '전체' };
+    for (let i = 1; i <= 4; i++) lbl[String(i)] = (i === 4 || (i === _maxPlayed && _maxPlayed < 4)) ? 'Final' : `R${i}`;
+    const rounds = ['all', ...Array.from({length: _maxPlayed}, (_, i) => String(i + 1))];
     const activeBg  = '#3730a3';
     const liveRound = _golfLiveRound(t); // 현재 진행 중인 라운드 (색상 표시용)
     const pills = rounds.map((r, i) => {
@@ -27512,6 +27537,17 @@ function renderGolfLeaderboard(t) {
         _golfScorecardCache[_scKey] = { playerName: p.name, roundLabel: _rLabel, roundScore: (p.scores || [])[ri] || '', holes, holePars: _holePars, tour: t.tour || '', tournamentId: String(t.id || '') };
       }
     });
+    // 전 라운드 합계 클릭용 캐시 (PGA만, holeScores 있는 선수만)
+    // holePars: DB 데이터 우선, 없으면 _estimatedParsByRound 폴백 (최빈값 추정)
+    if (t.tour === 'pga' && p.holeScores && p.holeScores.some(h => h && h.length > 0)) {
+      const _estPars = (_estimatedParsByRound && _estimatedParsByRound[0]) ? _estimatedParsByRound[0] : [];
+      _histScorecardData[`${t.id}_${p.name}`] = {
+        holeScores: p.holeScores,
+        scores: p.scores || [],
+        holePars: (t.holePars && t.holePars.length === 18) ? t.holePars : _estPars,
+        numberOfRounds: t.numberOfRounds || 4,
+      };
+    }
     const pNameSafe  = p.name.replace(/'/g, "\\'");
     const korPlayer  = isKorean(p.country);
     const nameColor  = korPlayer ? '#CD2E3A' : isFav ? '#92400e' : '#1e293b';
@@ -27558,7 +27594,7 @@ function renderGolfLeaderboard(t) {
             : '';
           return `${chipHtml}<span style="min-width:${THR_W}px;text-align:right;font-size:0.65rem;font-weight:${(p.state==='in'||p.state==='active')?'700':'400'};color:${thruColor}">${thruText}</span>`;
         })()
-      : `${(()=>{const v=totalDisp;if(!v||v==='-')return `<span style="min-width:${TOT_W}px;text-align:center"></span>`;const c=scoreColor(v);const bg=v.startsWith('-')?'#dbeafe':v==='E'?'#f1f5f9':'#fee2e2';const border=v.startsWith('-')?'#93c5fd':v==='E'?'#e2e8f0':'#fca5a5';return `<span style="min-width:${TOT_W}px;text-align:center;font-size:0.8rem;font-weight:900;color:${c};background:${bg};border:1.5px solid ${border};border-radius:7px;padding:3px 8px">${v}</span>`;})()} ${rndLabels.slice(0,maxScoreRounds).map((l,ri)=>{
+      : `${(()=>{const v=totalDisp;if(!v||v==='-')return `<span style="min-width:${TOT_W}px;text-align:center"></span>`;const c=scoreColor(v);const bg=v.startsWith('-')?'#dbeafe':v==='E'?'#f1f5f9':'#fee2e2';const border=v.startsWith('-')?'#93c5fd':v==='E'?'#e2e8f0':'#fca5a5';const _hasAllRounds=!!_histScorecardData[`${t.id}_${p.name}`];return _hasAllRounds?`<span onclick="openHistoryGolfScorecard('${t.id}','${pNameSafe}',this)" style="cursor:pointer;min-width:${TOT_W}px;text-align:center;font-size:0.9rem;font-weight:900;color:${c};background:${bg};border:1.5px solid ${border};border-radius:7px;padding:3px 8px;text-decoration:underline dotted #94a3b8">${v}</span>`:`<span style="min-width:${TOT_W}px;text-align:center;font-size:0.9rem;font-weight:900;color:${c};background:${bg};border:1.5px solid ${border};border-radius:7px;padding:3px 8px">${v}</span>`;})()}${rndLabels.slice(0,maxScoreRounds).map((l,ri)=>{
           const sv=(p.scores||[])[ri];
           if(!sv||sv==='-') return `<span style="min-width:${CHIP_W}px;text-align:center"></span>`;
           // 홀별 데이터 있으면 클릭 가능한 칩
@@ -27632,22 +27668,13 @@ function renderGolfLeaderboard(t) {
   })(), 4);
   // 최대 라운드 완료 선수 (WD 선수는 maxRounds 미만 → 자동 제외)
   const _fullRoundPlayers = _nonCutPlayers.filter(p => _realScoreCount(p) >= _maxRounds);
-  // 총 라운드 수 기준으로 챔피언 배너 허용 — DB numberOfRounds 우선, 없으면 4(PGA 기본) fallback
-  // 3라운드 대회는 state=post 전환으로 _postAllDone이 잡으므로 fallback=4 안전
+  // state=post = ESPN 공식 종료 확정 — 라운드 취소(버뮤다 R4 등) 포함 모든 케이스 대응
   const _totalRounds = t.numberOfRounds || 4;
-  const _validRounds = _maxRounds >= _totalRounds;
-  // state=post: 완주 선수가 있으면 배너 표시 (WD 선수 무관)
-  const _postAllDone = t.state === 'post' && _fullRoundPlayers.length > 0 && _validRounds;
-  // state=in: 완주 선수 전원 F이고, 비컷 선수 전원 완주 또는 WD(thru=F)여야 함
-  // 추가 조건: 마지막 라운드 스코어에 분산이 있어야 함 — 전부 'E'면 ESPN 사전입력으로 판단, 오판 방지
-  const _finalRoundScores = _fullRoundPlayers.map(p => {
-    const sc = (p.scores || []).filter(s => s !== '' && s !== '-');
-    return sc[_maxRounds - 1] || '';
-  });
-  const _hasRoundVariance = new Set(_finalRoundScores.filter(Boolean)).size > 1;
-  const _allFinalDone = _fullRoundPlayers.length > 0 && _validRounds && _hasRoundVariance &&
-    _fullRoundPlayers.every(p => p.thru === 'F') &&
-    _nonCutPlayers.every(p => _realScoreCount(p) >= _maxRounds || p.thru === 'F');
+  const _validRounds = _maxRounds >= _totalRounds; // 진행 중 조기 표시 방지용 (state=post엔 미사용)
+  // state=post: 완주 선수가 있으면 배너 표시 (라운드 수 무관 — 천재지변 단축 대회 포함)
+  const _postAllDone = t.state === 'post' && _fullRoundPlayers.length > 0;
+  // 배너는 ESPN이 state='post'로 전환한 후에만 표시 (_postAllDone만 사용)
+  // state=in 중 배너 표시(_allFinalDone)는 사전입력 오판 위험이 높아 제거 (보수적 정책)
   // 라운드 합산으로 실제 토탈 계산 (ESPN total 필드 오류 대비)
   // .slice(0,4): ESPN이 플레이오프 홀 스코어를 5번째 이후에 추가하므로 4라운드만 사용
   const _calcTotal = (p) => {
@@ -27657,7 +27684,7 @@ function renderGolfLeaderboard(t) {
   };
 
   let golfChampionBanner = '';
-  if ((_postAllDone || _allFinalDone) && roundIdx === null) {
+  if (_postAllDone && roundIdx === null) {
     // 완주 선수 중 1위 (WD 선수 제외)
     const _champ = _fullRoundPlayers.find(p => p._calcRank === 1) ||
       _fullRoundPlayers.slice().sort((a, b) => (a._calcRank || 9999) - (b._calcRank || 9999))[0];
@@ -27950,8 +27977,216 @@ function openGolfHoleScorecard(key, el) {
 function closeGolfHoleScorecard() {
   const modal = document.getElementById('golf-scorecard-modal');
   modal.classList.remove('open');
+  modal.style.zIndex = ''; // 히스토리에서 열 때 높인 z-index 초기화
   const sheet = modal.querySelector('.modal-sheet');
   if (sheet) { sheet.style.marginTop = ''; sheet.style.marginBottom = ''; sheet.style.borderRadius = ''; sheet.style.maxHeight = ''; }
+  _golfScorecardTabData = null;
+}
+
+// ── 탭 스코어카드 공용 헬퍼 ──────────────────────────────────────────────
+// holePars: h.p 없을 때 폴백 — 기존 _renderScorecard와 동일한 스타일
+function _renderGolfRoundHtml(holes, ri, total, rScore, holePars) {
+  // 파 데이터: h.p 우선, 없으면 holePars[i] 폴백
+  const _getpar = (idx) => {
+    const h = holes[idx];
+    return (h && h.p) ? h.p : (holePars && holePars[idx]) ? holePars[idx] : null;
+  };
+  // hasPar: holePars 18홀 기준 우선 (in-progress 라운드는 holes < 18이므로 오판 방지)
+  const _fullParSum = (holePars && holePars.length === 18)
+    ? holePars.reduce((s, p) => s + (p || 0), 0)
+    : holes.reduce((s, _, i) => s + (_getpar(i) || 0), 0);
+  const hasPar = _fullParSum >= 69 && _fullParSum <= 73;
+
+  const pad9 = arr => { const r = Array(9).fill(null); arr.forEach((h, i) => { if (i < 9) r[i] = h; }); return r; };
+  const out  = pad9(holes.slice(0, 9));
+  const inn  = pad9(holes.slice(9, 18));
+
+  const _hCell = (h, idx) => {
+    if (!h || h.v === undefined) return '<td style="text-align:center;padding:1px 2px"><div style="width:22px;height:22px;margin:auto;font-size:0.72rem;display:flex;align-items:center;justify-content:center;color:#94a3b8">-</div></td>';
+    const v = h.v, par = _getpar(idx);
+    let bg = '#f1f5f9', co = '#475569', bd = '#cbd5e1', r = '4px', sh = '';
+    if (hasPar && par) {
+      const d = v - par;
+      if      (d <= -2) { bg='#ef4444'; co='#fff'; bd='#ef4444'; r='50%'; sh='0 0 0 2.5px #fff,0 0 0 4.5px #ef4444'; }
+      else if (d === -1) { bg='#ef4444'; co='#fff'; bd='#ef4444'; r='50%'; }
+      else if (d === 1)  { bg='#3b82f6'; co='#fff'; bd='#3b82f6'; }
+      else if (d === 2)  { bg='#1d4ed8'; co='#fff'; bd='#1d4ed8'; sh='0 0 0 2.5px #fff,0 0 0 4.5px #1d4ed8'; }
+      else if (d >= 3)   { bg='#0f172a'; co='#fff'; bd='#0f172a'; sh='0 0 0 2.5px #fff,0 0 0 4.5px #0f172a'; }
+    }
+    return `<td style="text-align:center;padding:3px 2px"><div style="width:22px;height:22px;margin:auto;font-size:0.72rem;font-weight:700;display:flex;align-items:center;justify-content:center;color:${co};background:${bg};border:1.5px solid ${bd};border-radius:${r}${sh?';box-shadow:'+sh:''}">${v}</div></td>`;
+  };
+  const _pCell   = (idx) => `<td style="text-align:center;padding:1px 2px;font-size:0.65rem;color:#94a3b8">${_getpar(idx) || '-'}</td>`;
+  const _totCell = (n, bold) => `<td style="text-align:center;padding:1px 2px"><div style="width:26px;height:22px;margin:auto;font-size:0.72rem;font-weight:${bold?'900':'700'};display:flex;align-items:center;justify-content:center;color:#1e293b;background:#e2e8f0;border-radius:4px">${n}</div></td>`;
+
+  const _half = (hs, start) => {
+    const off   = start - 1;
+    const tot   = hs.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
+    const totPar = hasPar ? hs.reduce((s, _, i) => s + (_getpar(off + i) || 0), 0) : null;
+    const lbl   = start === 1 ? 'OUT' : 'IN';
+    const holeRow  = `<tr>${hs.map((_, i) => `<td style="text-align:center;padding:1px 2px;font-size:0.62rem;color:#94a3b8">${start + i}</td>`).join('')}${_totCell(lbl)}</tr>`;
+    const parRow   = hasPar ? `<tr>${hs.map((_, i) => _pCell(off + i)).join('')}${_totCell(totPar)}</tr>` : '';
+    const scoreRow = `<tr>${hs.map((h, i) => _hCell(h, off + i)).join('')}${_totCell(tot, true)}</tr>`;
+    return `<div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding:5px 0">
+      <table style="border-collapse:collapse;min-width:100%">
+        <thead>${holeRow}${parRow}</thead>
+        <tbody>${scoreRow}</tbody>
+      </table>
+    </div>`;
+  };
+
+  const outT = out.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
+  const inT  = inn.reduce((s, h) => s + (h && h.v ? h.v : 0), 0);
+  const relColor = !rScore || rScore === 'E' ? '#334155' : rScore.startsWith('-') ? '#2563eb' : '#dc2626';
+  return `${_half(out, 1)}<div style="height:8px"></div>${_half(inn, 10)}
+    <div style="margin-top:10px;padding:7px 12px;background:#f1f5f9;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:8px">
+      <span style="font-size:0.78rem;color:#64748b">합계</span>
+      <span style="font-size:0.88rem;font-weight:800;color:#1e293b">${outT} + ${inT} = ${outT + inT}타</span>
+      ${rScore ? `<span style="font-size:0.88rem;font-weight:900;color:${relColor}">(${rScore})</span>` : ''}
+    </div>`;
+}
+
+function _switchGolfScorecardTab(ri) {
+  if (!_golfScorecardTabData) return;
+  const { holeScores, scores, holePars, numberOfRounds } = _golfScorecardTabData;
+  const total = numberOfRounds || holeScores.length;
+  // 탭 버튼 활성화 상태 업데이트
+  for (let i = 0; i < total; i++) {
+    const btn = document.getElementById(`golf-sc-tab-${i}`);
+    if (!btn) continue;
+    const active = i === ri;
+    btn.style.background  = active ? '#2563eb' : '#f1f5f9';
+    btn.style.color       = active ? '#fff'    : '#64748b';
+    btn.style.fontWeight  = active ? '800'     : '600';
+    btn.style.borderColor = active ? '#2563eb' : '#e2e8f0';
+  }
+  // 라운드 내용 교체 — holePars 전달 (h.p 없을 때 폴백)
+  const roundBody = document.getElementById('golf-sc-round-body');
+  if (!roundBody) return;
+  roundBody.innerHTML = _renderGolfRoundHtml(holeScores[ri] || [], ri, total, scores[ri] || '', holePars || []);
+  _golfScorecardTabData.currentTab = ri; // 현재 탭 추적
+}
+
+// ── 전 라운드 스코어카드 팝업 — 히스토리/라이브 공용, 라운드탭 UI ─────────────
+// _histScorecardData 캐시 사용 — 키: tournamentId_playerName
+// el: 클릭한 DOM 요소 (라이브에서 행 기준 위치 계산용, 히스토리에서는 null)
+function openHistoryGolfScorecard(tournamentId, playerName, el) {
+  const titleEl = document.getElementById('golf-scorecard-title');
+  const bodyEl  = document.getElementById('golf-scorecard-body');
+  const modal   = document.getElementById('golf-scorecard-modal');
+  const sheet   = modal.querySelector('.modal-sheet');
+
+  // 히스토리 모달(z-index:300) 위에 표시
+  modal.style.zIndex = '500';
+
+  // _histScorecardData 캐시에서 조회
+  const cached = _histScorecardData[`${tournamentId}_${playerName}`];
+  if (!cached || !cached.holeScores || !cached.holeScores.length) {
+    titleEl.innerHTML = `<span style="font-weight:800">${playerName}</span>`;
+    bodyEl.innerHTML  = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:0.84rem">스코어카드 데이터 없음<br><span style="font-size:0.76rem">(최근 대회부터 제공됩니다)</span></div>';
+    if (sheet) { sheet.style.marginTop = '60px'; sheet.style.marginBottom = '20px'; sheet.style.borderRadius = '20px'; sheet.style.maxHeight = (window.innerHeight - 80) + 'px'; }
+    modal.classList.add('open');
+    return;
+  }
+
+  const { holeScores, scores, holePars, numberOfRounds } = cached;
+  _golfScorecardTabData = { holeScores, scores, holePars: holePars || [], numberOfRounds: numberOfRounds || 4 };
+
+  // 탭 수 = numberOfRounds (미리 확정된 전체 라운드 수)
+  const totalRds   = numberOfRounds || 4;
+  const playedRds  = holeScores.length; // 실제 데이터 있는 라운드 수
+  const rLabels    = Array.from({ length: totalRds }, (_, i) => i === totalRds - 1 ? 'Final' : `R${i + 1}`);
+  const summaryHtml = scores.filter(s => s && s !== '-').map(s => {
+    const c = !s || s === 'E' ? '#334155' : s.startsWith('-') ? '#2563eb' : '#dc2626';
+    return `<span style="font-size:0.74rem;font-weight:800;color:${c}">${s}</span>`;
+  }).join('<span style="color:#cbd5e1;margin:0 2px">/</span>');
+
+  titleEl.innerHTML = `<span style="font-weight:800">${playerName}</span> <span style="color:#94a3b8;font-size:0.78rem;margin-left:4px">${summaryHtml}</span>`;
+
+  // 팝업 위치: el 있으면 행 기준(라이브), 없으면 화면 중앙(히스토리)
+  if (el && sheet) {
+    const row = el.closest('.golf-lb-row') || el;
+    const rect = row.getBoundingClientRect();
+    const belowSpace = window.innerHeight - rect.bottom - 20;
+    const topPos = belowSpace >= 320 ? rect.bottom + 4 : Math.max(rect.top - 420, 60);
+    const maxH   = Math.max(window.innerHeight - topPos - 16, 200);
+    sheet.style.marginTop    = topPos + 'px';
+    sheet.style.marginBottom = 'auto';
+    sheet.style.borderRadius = '16px';
+    sheet.style.maxHeight    = maxH + 'px';
+  } else if (sheet) {
+    sheet.style.marginTop    = '60px';
+    sheet.style.marginBottom = '20px';
+    sheet.style.borderRadius = '20px';
+    sheet.style.maxHeight    = (window.innerHeight - 80) + 'px';
+  }
+  modal.classList.add('open');
+
+  // 탭 버튼 — numberOfRounds 기준으로 전체 탭 표시, 미완료 라운드는 비활성
+  const tabsHtml = rLabels.map((lbl, i) => {
+    const active    = i === 0;
+    const hasData   = i < playedRds && holeScores[i] && holeScores[i].length > 0;
+    const disabled  = !hasData;
+    return `<button id="golf-sc-tab-${i}" ${disabled ? '' : `onclick="_switchGolfScorecardTab(${i})"`} style="min-width:52px;flex:1;padding:5px 6px;font-size:0.75rem;font-weight:${active&&!disabled?'800':'600'};color:${active&&!disabled?'#fff':disabled?'#cbd5e1':'#64748b'};background:${active&&!disabled?'#2563eb':disabled?'#f8fafc':'#f1f5f9'};border:1.5px solid ${active&&!disabled?'#2563eb':disabled?'#e2e8f0':'#e2e8f0'};border-radius:7px;cursor:${disabled?'default':'pointer'};opacity:${disabled?'0.5':'1'}">${lbl}</button>`;
+  }).join('');
+
+  bodyEl.innerHTML = `
+    <div style="display:flex;gap:6px;padding:0 0 12px">${tabsHtml}</div>
+    <div id="golf-sc-round-body" style="transform-origin:top center"></div>`;
+
+  _switchGolfScorecardTab(0);
+
+  // ── holePars ESPN fetch (단일 라운드 팝업과 동일한 방식) ───────────────
+  // h.p가 없을 때 추정값 대신 ESPN에서 정확한 홀파를 가져옴
+  const _updateTabPars = (pars) => {
+    if (!pars || pars.length !== 18 || !_golfScorecardTabData) return;
+    _golfScorecardTabData.holePars = pars;
+    // _golfScorecardCache 같은 대회 항목도 업데이트 (단일 라운드 팝업과 공유)
+    for (const k of Object.keys(_golfScorecardCache)) {
+      if (_golfScorecardCache[k].tournamentId === String(tournamentId)) {
+        _golfScorecardCache[k].holePars = pars;
+      }
+    }
+    _switchGolfScorecardTab(_golfScorecardTabData.currentTab || 0);
+  };
+  const _extractTabPars = (d) => {
+    const courseHoles = ((d.courses || [])[0]?.holes) || [];
+    const venueHoles  = ((d.competitions || [])[0]?.venue?.holes) || (d.venue?.holes) || [];
+    const src = courseHoles.length ? courseHoles : venueHoles;
+    const raw = src.sort((a, b) => (a.number || 0) - (b.number || 0))
+      .map(h => h.shotsToPar || h.par || 0).filter(p => p > 0);
+    return raw.length === 18 ? raw : [];
+  };
+
+  // _golfScorecardCache에 같은 대회 holePars가 이미 있으면 재사용 (ESPN 재조회 불필요)
+  let _existPars = [];
+  for (const k of Object.keys(_golfScorecardCache)) {
+    const other = _golfScorecardCache[k];
+    if (other.tournamentId === String(tournamentId) && (other.holePars || []).length === 18) {
+      _existPars = other.holePars;
+      break;
+    }
+  }
+  if (_existPars.length === 18) {
+    _updateTabPars(_existPars);
+  } else {
+    // ESPN Core API → site API fallback (PGA만)
+    fetch(`https://sports.core.api.espn.com/v2/sports/golf/leagues/pga/events/${tournamentId}`)
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(d => {
+        const pars = _extractTabPars(d);
+        if (pars.length === 18) { _updateTabPars(pars); return; }
+        return fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/pga/summary?event=${tournamentId}`)
+          .then(r => r.ok ? r.json() : Promise.reject(r.status))
+          .then(d2 => { _updateTabPars(_extractTabPars(d2)); })
+          .catch(() => {});
+      })
+      .catch(() => {
+        fetch(`https://site.api.espn.com/apis/site/v2/sports/golf/pga/summary?event=${tournamentId}`)
+          .then(r => r.ok ? r.json() : Promise.reject(r.status))
+          .then(d2 => { _updateTabPars(_extractTabPars(d2)); })
+          .catch(() => {});
+      });
+  }
 }
 
 function switchGolfFavDraw(draw) {

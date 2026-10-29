@@ -2415,16 +2415,18 @@ async function _fetchAndParseGolfTour(tour) {
     const comp  = (ev.competitions || [])[0];
     if (!comp) continue;
 
-    const state  = ev.status?.type?.state || 'pre';
+    // comp.status 우선 — STATUS_SUSPENDED 등 대회가 comp 레벨에서만 post인 케이스 대응
+    const state  = comp.status?.type?.state || ev.status?.type?.state || 'pre';
     // round 정보는 ev.status가 아닌 comp.status.type.detail에 있음
     const detail = comp.status?.type?.detail || comp.status?.type?.shortDetail || ev.status?.type?.detail || '';
     const roundM = detail.match(/Round\s*(\d)/i);
-    let round  = roundM ? parseInt(roundM[1]) : 0;
-    // round 감지 실패 시(대회 완료 등) 선수 최대 라운드 수로 추정
-    if (round === 0) {
-      const maxRds = Math.max(...(comp.competitors || []).map(c => (c.linescores || []).length), 0);
-      if (maxRds > 0) round = maxRds;
-    }
+    const detailRound = roundM ? parseInt(roundM[1]) : 0;
+    // 선수 실제 최대 라운드 수 — ESPN detail이 늦게 업데이트되는 DP World 등 대응
+    // (DP World R4: ESPN이 round=3을 유지하다가 R4 선수들이 완주 후에야 round=4로 갱신)
+    const maxRds = Math.max(...(comp.competitors || []).map(c => (c.linescores || []).length), 0);
+    let round = Math.max(detailRound, maxRds) || 0;
+    // 실제 데이터(maxRds)가 ESPN detail보다 앞선 전환 구간 → isCut 기준 완화 (1라운드 여유)
+    const isRoundTransition = maxRds > detailRound && detailRound > 0;
 
     // 팀전 감지: team.displayName 기반 OR 대회명 기반 이중방어
     const _TEAM_EVENT_NAMES_FN = ['solheim cup', 'ryder cup', 'presidents cup'];
@@ -2453,7 +2455,7 @@ async function _fetchAndParseGolfTour(tour) {
       .sort((a, b) => (a.order || a.sortOrder || 9999) - (b.order || b.sortOrder || 9999))
       .map(c => {
         // thru = 현재 라운드 중첩 linescores 개수 (sortOrder/status 모두 None)
-        // DP World 등 홀별 데이터 미제공 시: 라운드 스코어 존재하면 'F' 처리
+        // DP World/LPGA 등 홀별 데이터 미제공 시: 라운드 스코어 존재하면 'F' 처리
         const rounds = c.linescores || [];
         const curRoundIdx = round > 0 ? round - 1 : rounds.length - 1;
         const curRound = rounds[curRoundIdx] || {};
@@ -2471,7 +2473,7 @@ async function _fetchAndParseGolfTour(tour) {
           athleteId: c.athlete?.id || '',
           thru,
           state:   pState,
-          isCut:   round > 2 && rounds.length < round,
+          isCut:   round > 2 && rounds.length < (isRoundTransition ? round - 1 : round),
         };
       });
     }
@@ -2614,7 +2616,13 @@ async function _archiveGolfHistory(t) {
     const allLeaders = (t.leaderboard || []).filter(p => p.name && !p.isCut);
     const top10 = allLeaders
       .slice(0, 10)
-      .map(p => ({ rank: p.rank || 0, name: p.name, country: p.country || '', total: p.total || 'E' }));
+      .map(p => ({
+        rank: p.rank || 0, name: p.name, country: p.country || '', total: p.total || 'E',
+        // PGA만 holeScores 저장 (LPGA/DP World는 미제공)
+        ...(t.tour === 'pga' && p.holeScores && p.holeScores.length > 0
+          ? { holeScores: p.holeScores, scores: p.scores || [] }
+          : {}),
+      }));
     if (!top10.length) { console.log(`_archiveGolfHistory: no leaderboard for ${t.name}, skipping`); return; }
 
     // 실제 라운드 스코어 완료 여부 확인 — R1 미완료(모두 E) 상태에서 저장 방지
@@ -2651,12 +2659,13 @@ async function _archiveGolfHistory(t) {
       : null;
 
     await db.ref(`jmt/tournamentHistory/golf/${t.tour}/${year}/${safeKey}`).set({
-      id:        t.id,
-      name:      t.name,
-      tour:      t.tour,
-      level:     t.level     || 'pga_tour',
-      startDate: t.startDate || '',
-      endDate:   t.endDate   || '',
+      id:             t.id,
+      name:           t.name,
+      tour:           t.tour,
+      level:          t.level          || 'pga_tour',
+      startDate:      t.startDate      || '',
+      endDate:        t.endDate        || '',
+      numberOfRounds: t.numberOfRounds || 4,
       purse,
       top10,
       winner:    winner0,
