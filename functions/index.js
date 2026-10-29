@@ -2659,12 +2659,13 @@ async function _archiveGolfHistory(t) {
       : null;
 
     await db.ref(`jmt/tournamentHistory/golf/${t.tour}/${year}/${safeKey}`).set({
-      id:        t.id,
-      name:      t.name,
-      tour:      t.tour,
-      level:     t.level     || 'pga_tour',
-      startDate: t.startDate || '',
-      endDate:   t.endDate   || '',
+      id:             t.id,
+      name:           t.name,
+      tour:           t.tour,
+      level:          t.level          || 'pga_tour',
+      startDate:      t.startDate      || '',
+      endDate:        t.endDate        || '',
+      numberOfRounds: t.numberOfRounds || 4,
       purse,
       top10,
       winner:    winner0,

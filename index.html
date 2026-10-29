@@ -2771,7 +2771,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1238';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1239';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -26822,7 +26822,7 @@ function _renderHistoryList() {
         const scoreColor = !p.total || p.total === 'E' ? '#334155' : p.total.startsWith('-') ? '#2563eb' : '#dc2626';
         // PGA holeScores 캐시 등록 (Functions에서 저장된 경우)
         if (e.tour === 'pga' && e.id && p.holeScores && p.holeScores.length > 0) {
-          _histScorecardData[`${e.id}_${p.name}`] = { holeScores: p.holeScores, scores: p.scores || [] };
+          _histScorecardData[`${e.id}_${p.name}`] = { holeScores: p.holeScores, scores: p.scores || [], numberOfRounds: e.numberOfRounds || 4 };
         }
         const _hasScorecard = e.tour === 'pga' && e.id && !!_histScorecardData[`${e.id}_${p.name}`];
         return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #f1f5f9${i === top10.length - 1 ? ';border-bottom:none' : ''}">
@@ -27991,8 +27991,11 @@ function _renderGolfRoundHtml(holes, ri, total, rScore, holePars) {
     const h = holes[idx];
     return (h && h.p) ? h.p : (holePars && holePars[idx]) ? holePars[idx] : null;
   };
-  const _parSum = holes.reduce((s, _, i) => s + (_getpar(i) || 0), 0);
-  const hasPar  = _parSum >= 69 && _parSum <= 73;
+  // hasPar: holePars 18홀 기준 우선 (in-progress 라운드는 holes < 18이므로 오판 방지)
+  const _fullParSum = (holePars && holePars.length === 18)
+    ? holePars.reduce((s, p) => s + (p || 0), 0)
+    : holes.reduce((s, _, i) => s + (_getpar(i) || 0), 0);
+  const hasPar = _fullParSum >= 69 && _fullParSum <= 73;
 
   const pad9 = arr => { const r = Array(9).fill(null); arr.forEach((h, i) => { if (i < 9) r[i] = h; }); return r; };
   const out  = pad9(holes.slice(0, 9));
@@ -28060,34 +28063,6 @@ function _switchGolfScorecardTab(ri) {
   const roundBody = document.getElementById('golf-sc-round-body');
   if (!roundBody) return;
   roundBody.innerHTML = _renderGolfRoundHtml(holeScores[ri] || [], ri, total, scores[ri] || '', holePars || []);
-  // 탭 전환 시 transform 초기화
-  roundBody.style.transform = '';
-  roundBody.style.transformOrigin = 'top left';
-
-  // 핀치줌 + 패닝 (translate + scale)
-  const bodyEl = document.getElementById('golf-scorecard-body');
-  let _sc = 1, _sd = 0, _ls = 1, _tx = 0, _ty = 0, _ltx = 0, _lty = 0, _lastPan = null;
-  const _applyT = () => { roundBody.style.transform = `translate(${_tx}px,${_ty}px) scale(${_sc})`; };
-  const _onTS = ev => {
-    if (ev.touches.length === 2) {
-      _sd = Math.hypot(ev.touches[0].clientX-ev.touches[1].clientX, ev.touches[0].clientY-ev.touches[1].clientY);
-      _ls = _sc; _ltx = _tx; _lty = _ty; _lastPan = null; ev.preventDefault();
-    } else if (ev.touches.length === 1 && _sc > 1) {
-      _lastPan = { x: ev.touches[0].clientX, y: ev.touches[0].clientY }; ev.preventDefault();
-    }
-  };
-  const _onTM = ev => {
-    if (ev.touches.length === 2) {
-      const d = Math.hypot(ev.touches[0].clientX-ev.touches[1].clientX, ev.touches[0].clientY-ev.touches[1].clientY);
-      _sc = Math.min(Math.max(_ls * d / _sd, 0.5), 3.0); _applyT(); ev.preventDefault();
-    } else if (ev.touches.length === 1 && _sc > 1 && _lastPan) {
-      _tx += ev.touches[0].clientX - _lastPan.x;
-      _ty += ev.touches[0].clientY - _lastPan.y;
-      _lastPan = { x: ev.touches[0].clientX, y: ev.touches[0].clientY };
-      _applyT(); ev.preventDefault();
-    }
-  };
-  if (bodyEl) { bodyEl.addEventListener('touchstart', _onTS, { passive: false }); bodyEl.addEventListener('touchmove', _onTM, { passive: false }); }
 }
 
 // ── 전 라운드 스코어카드 팝업 — 히스토리/라이브 공용, 라운드탭 UI ─────────────
