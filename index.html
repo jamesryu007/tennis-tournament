@@ -2771,7 +2771,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1240';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1241';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -27671,8 +27671,9 @@ function renderGolfLeaderboard(t) {
   // state=post = ESPN 공식 종료 확정 — 라운드 취소(버뮤다 R4 등) 포함 모든 케이스 대응
   const _totalRounds = t.numberOfRounds || 4;
   const _validRounds = _maxRounds >= _totalRounds; // 진행 중 조기 표시 방지용 (state=post엔 미사용)
-  // state=post: 완주 선수가 있으면 배너 표시 (라운드 수 무관 — 천재지변 단축 대회 포함)
-  const _postAllDone = t.state === 'post' && _fullRoundPlayers.length > 0;
+  // state=post: 완주 선수가 있고 _totalRounds-1 이상 라운드 완료 시 배너 표시
+  // (_totalRounds-1 조건: ESPN이 R1 직후 state='post' 오설정하는 버그 방지, R4 취소 단축 대회 허용)
+  const _postAllDone = t.state === 'post' && _fullRoundPlayers.length > 0 && _maxRounds >= _totalRounds - 1;
   // 배너는 ESPN이 state='post'로 전환한 후에만 표시 (_postAllDone만 사용)
   // state=in 중 배너 표시(_allFinalDone)는 사전입력 오판 위험이 높아 제거 (보수적 정책)
   // 라운드 합산으로 실제 토탈 계산 (ESPN total 필드 오류 대비)
