@@ -2787,7 +2787,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1259';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1260';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9271,6 +9271,32 @@ function _getKingBadge(name) {
   return parts.join('');
 }
 
+// 출첵 pill용 — pill 크기 유지하면서 pill 위 오버레이로 기물 표시
+function _getKingBadgeOverlay(name) {
+  const isFemale = getGender(name)==='female';
+  const gColor   = isFemale ? '#be185d' : '#1e40af';
+  const _m       = new Date().getMonth()+1;
+  const currentQ = _m<=3?1:_m<=6?2:_m<=9?3:4;
+  const annualPiece = isFemale ? '♛' : '♚';
+  let pieces = '';
+  // 유동 분기왕 (골드)
+  if (_quarterKings[currentQ]===name)
+    pieces += `<span style="color:#d97706">♞</span>`;
+  // 확정 분기왕 (성별색, 횟수만큼)
+  const pastQCnt = [1,2,3,4].filter(q=>q!==currentQ&&_quarterKings[q]===name).length;
+  if (pastQCnt>0)
+    pieces += `<span style="color:${gColor}">${'♞'.repeat(pastQCnt)}</span>`;
+  // 유동 연도왕 (골드)
+  if (_currentYearKing===name)
+    pieces += `<span style="color:#d97706">${annualPiece}</span>`;
+  // 확정 연도왕 (성별색, 횟수만큼)
+  const pastYrCnt = Object.values(_yearKings).filter(n=>n===name).length;
+  if (pastYrCnt>0)
+    pieces += `<span style="color:${gColor}">${annualPiece.repeat(pastYrCnt)}</span>`;
+  if (!pieces) return '';
+  return `<span style="position:absolute;top:-8px;left:-2px;font-size:0.6rem;font-family:serif;line-height:1;background:#fff;border-radius:4px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.18);z-index:2;pointer-events:none">${pieces}</span>`;
+}
+
 function effWr(wins,draws,losses){ const t=wins+(draws||0)+losses; return t?((wins+(draws||0)*0.5)/t*100):0; }
 
 let _rankingMode='player';
@@ -12502,7 +12528,7 @@ function renderCheckinPage() {
       ? `<span style="position:absolute;top:-7px;right:-4px;font-size:0.72rem;line-height:1;z-index:1">${_voteEmoji[originalVote] || ''}</span>`
       : '';
     // Unicode 원문자는 iOS에서 일부 번호가 얇게 렌더링 → CSS 채운 원 배지로 일관성 확보
-    return `<div class="poll-chip" style="position:relative;background:${bg};border-color:${border}">${prevBadge}<span style="display:inline-flex;align-items:center;justify-content:center;min-width:1.55rem;height:1.55rem;border-radius:50%;background:${badgeColor};font-size:0.88rem;font-weight:800;color:#fff;flex-shrink:0;margin-right:4px;line-height:1">${idx}</span><span class="poll-chip-name" style="color:${color}">${name}</span>${_getKingBadge(name)}</div>`;
+    return `<div class="poll-chip" style="position:relative;background:${bg};border-color:${border}">${prevBadge}${_getKingBadgeOverlay(name)}<span style="display:inline-flex;align-items:center;justify-content:center;min-width:1.55rem;height:1.55rem;border-radius:50%;background:${badgeColor};font-size:0.88rem;font-weight:800;color:#fff;flex-shrink:0;margin-right:4px;line-height:1">${idx}</span><span class="poll-chip-name" style="color:${color}">${name}</span></div>`;
   };
   const voterGroup = (voters, label, accentColor) => {
     if (!voters.length) return '';
@@ -12640,14 +12666,14 @@ function renderCheckinPage() {
     // 성별 기반 pill 렌더 (레벨 0·1)
     const _nvChip = m => {
       if (_wCfg.uniformChip) {
-        return `<div class="poll-chip" style="background:${_wCfg.chipBg};border-color:${_wCfg.chipBorder}"><span class="poll-chip-name" style="color:${_wCfg.chipColor}">${m.name}</span>${_getKingBadge(m.name)}</div>`;
+        return `<div class="poll-chip" style="position:relative;background:${_wCfg.chipBg};border-color:${_wCfg.chipBorder}">${_getKingBadgeOverlay(m.name)}<span class="poll-chip-name" style="color:${_wCfg.chipColor}">${m.name}</span></div>`;
       }
       const isMale = m.gender === 'male';
       const isFemale = m.gender === 'female';
       const bg     = isMale ? '#eff6ff' : isFemale ? '#fdf2f8' : '#f8fafc';
       const color  = isMale ? '#1d4ed8' : isFemale ? '#be185d' : '#475569';
       const border = isMale ? '#bfdbfe' : isFemale ? '#fbcfe8' : '#e2e8f0';
-      return `<div class="poll-chip" style="background:${bg};border-color:${border}"><span class="poll-chip-name" style="color:${color}">${m.name}</span>${_getKingBadge(m.name)}</div>`;
+      return `<div class="poll-chip" style="position:relative;background:${bg};border-color:${border}">${_getKingBadgeOverlay(m.name)}<span class="poll-chip-name" style="color:${color}">${m.name}</span></div>`;
     };
     const _wLabel = _wCfg.label ? `<span style="font-size:0.68rem;font-weight:800;background:${_wCfg.borderColor};color:#fff;border-radius:6px;padding:1px 6px;margin-left:6px">${_wCfg.label}</span>` : '';
     const _wShake = _wCfg.shake ? `animation:warn-shake 0.6s ease 3` : '';
