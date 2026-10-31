@@ -2787,7 +2787,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1264';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1265';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9198,15 +9198,25 @@ async function _loadKingData() {
         });
       });
     });
+    // 랭킹 표시와 동일한 자격 기준: avg×0.5 이상 경기한 선수만 왕 후보
+    const _qualified = (list) => {
+      if (!list.length) return list;
+      const avg = list.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/list.length;
+      const thr = avg * 0.5;
+      const q = list.filter(p=>p.wins+p.draws+p.losses>=thr);
+      return q.length ? q : list; // 자격자 없으면 전체 fallback
+    };
+
     for (let q=1;q<=4;q++) {
       const pl=Object.entries(qStats[q]).map(([name,v])=>({name,...v}))
         .filter(p=>memberNames.has(p.name)&&p.wins+p.draws+p.losses>=1);
       if (!pl.length) continue;
-      pl.sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
-      _quarterKings[q]=pl[0].name;
+      const cands = _qualified(pl);
+      cands.sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+      _quarterKings[q]=cands[0].name;
     }
 
-    // ── 연간왕: 완료된 연도(2026~전년도) playerStats에서 1위 ──
+    // ── 연간왕: 완료된 연도(2026~전년도) playerStats에서 자격자 기준 1위 ──
     for (let y=2026; y<year; y++) {
       const plSnap = await db.ref(`jmt/playerStats/${y}`).once('value');
       const plData = plSnap.val()||{};
@@ -9214,19 +9224,21 @@ async function _loadKingData() {
         .map(([name,v])=>({name,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
         .filter(p=>memberNames.has(p.name)&&p.wins+p.draws+p.losses>=1);
       if (!pl.length) continue;
-      pl.sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
-      _yearKings[y]=pl[0].name;
+      const cands = _qualified(pl);
+      cands.sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+      _yearKings[y]=cands[0].name;
     }
 
-    // ── 유동 연도왕: 현재 연도 playerStats에서 1위 ──
+    // ── 유동 연도왕: 현재 연도 playerStats에서 자격자 기준 1위 ──
     const curYrSnap = await db.ref(`jmt/playerStats/${year}`).once('value');
     const curYrData = curYrSnap.val()||{};
     const curYrPl = Object.entries(curYrData)
       .map(([name,v])=>({name,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
       .filter(p=>memberNames.has(p.name)&&p.wins+p.draws+p.losses>=1);
     if (curYrPl.length) {
-      curYrPl.sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
-      _currentYearKing = curYrPl[0].name;
+      const cands = _qualified(curYrPl);
+      cands.sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+      _currentYearKing = cands[0].name;
     }
   } catch(e) { _kingDataLoaded=false; }
 }
