@@ -2787,7 +2787,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1255';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1256';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -3137,6 +3137,7 @@ function setupFirebaseListeners() {
   // 정회원 동기화
   db.ref('jmt/members').on('value', snap => {
     state.members = snap.val() ? Object.values(snap.val()) : [];
+    if (!_kingDataLoaded) _loadKingData(); // 멤버 로드 완료 직후 왕 데이터 즉시 로드
     renderMemberList();
     if(document.getElementById('participant-modal').classList.contains('open')) renderChecks();
     if(document.getElementById('identity-modal').classList.contains('open')) renderIdentityList();
@@ -13682,7 +13683,6 @@ changeCheckinPhotoRandom();
     // ── 초기 페이지가 랭킹탭이므로 즉시 렌더링 ──────────────────
     renderRankYearRow();
     renderRankQuarterRow();
-    setTimeout(() => _loadKingData(), 1500); // 멤버 로드 후 백그라운드 프리로드
     renderRankingTab();
 
     // ATP 리스너는 탭 진입 시 lazyload (initAtpListeners는 switchPage에서 호출)
