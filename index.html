@@ -2771,7 +2771,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1244';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1245';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4798,14 +4798,14 @@ function setDailyCreateMode(mode){
 
 function executeDailyCreate(){
   const _execCurName=(state.identity&&state.identity.name)||'';
-  // 12:30 이후 유지원 외 경기 만들기 차단
-  if(_isPastMatchCutoff() && _execCurName !== ADMIN_NAME){
-    alert('경기 만들기는 12:30 이전까지만 가능합니다.\n(유지원에게 문의하세요 🙏)');
-    return;
-  }
   const _execMember=state.members.find(m=>m.name===_execCurName);
   if(_execMember&&_execMember.status==='inactive'){alert('비활성 회원은 경기 카드를 만들 수 없습니다.');return;}
   if(_dailyCreateMode==='individual'){
+    // 개별추가: 토요일 12:30 이후 유지원 외 차단 (자동배정/팀대결은 사전 준비 가능)
+    if(_isPastMatchCutoff() && _execCurName !== ADMIN_NAME){
+      alert('경기 만들기는 12:30 이전까지만 가능합니다.\n(유지원에게 문의하세요 🙏)');
+      return;
+    }
     addDailyMatchCard();
   } else {
     // 접속자 미선택 시 먼저 선택 유도
