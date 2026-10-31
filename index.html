@@ -2787,7 +2787,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1253';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1254';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9217,21 +9217,20 @@ async function _loadKingData() {
 }
 
 function _getKingBadge(name) {
-  const isFemale = getGender(name)==='female';
-  const piece    = isFemale ? '♛' : '♚';
-  const color    = isFemale ? '#be185d' : '#1e40af';
-  const bg       = isFemale ? '#fdf2f8' : '#eff6ff';
-  const border   = isFemale ? '#fbcfe8' : '#bfdbfe';
-  const pillStyle= `display:inline-flex;align-items:center;padding:0 5px;border-radius:5px;background:${bg};border:1px solid ${border};margin-left:3px;vertical-align:middle;white-space:nowrap;line-height:1.6`;
-  const pieceStyle= `font-size:0.95rem;color:${color};font-family:serif;line-height:1`;
-  const numStyle  = `font-size:0.62rem;font-weight:800;color:${color};margin-left:2px;line-height:1`;
+  const isFemale   = getGender(name)==='female';
+  const color      = isFemale ? '#be185d' : '#1e40af';
+  const bg         = isFemale ? '#fdf2f8' : '#eff6ff';
+  const border     = isFemale ? '#fbcfe8' : '#bfdbfe';
+  const pillStyle  = `display:inline-flex;align-items:center;padding:1px 5px;border-radius:5px;background:${bg};border:1px solid ${border};margin-left:3px;vertical-align:middle;white-space:nowrap;line-height:1.5`;
+  const pieceStyle = `font-size:1.15rem;color:${color};font-family:serif;line-height:1;letter-spacing:1px`;
   const parts=[];
-  // 분기왕: 획득 분기 수만큼 기물 반복 (숫자 없음)
+  // 분기왕: ♞ 나이트 (성별 색상 구분), 획득 분기 수만큼 반복
   const qCount=[1,2,3,4].filter(q=>_quarterKings[q]===name).length;
-  if (qCount>0) parts.push(`<span style="${pillStyle}"><span style="${pieceStyle}">${piece.repeat(qCount)}</span></span>`);
-  // 연간왕: 기물 + 연도 두자리
-  const yearWins=Object.entries(_yearKings).filter(([,n])=>n===name).map(([y])=>String(y).slice(2));
-  if (yearWins.length>0) parts.push(`<span style="${pillStyle}"><span style="${pieceStyle}">${piece}</span><span style="${numStyle}">${yearWins.join('·')}</span></span>`);
+  if (qCount>0) parts.push(`<span style="${pillStyle}"><span style="${pieceStyle}">${'♞'.repeat(qCount)}</span></span>`);
+  // 연도왕: ♚(남)/♛(여), 획득 연도 수만큼 반복
+  const annualPiece=isFemale?'♛':'♚';
+  const yearCount=Object.values(_yearKings).filter(n=>n===name).length;
+  if (yearCount>0) parts.push(`<span style="${pillStyle}"><span style="${pieceStyle}">${annualPiece.repeat(yearCount)}</span></span>`);
   return parts.join('');
 }
 
