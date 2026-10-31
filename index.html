@@ -2787,7 +2787,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1264';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1266';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9198,15 +9198,25 @@ async function _loadKingData() {
         });
       });
     });
+    // 랭킹 표시와 동일한 자격 기준: avg×0.5 이상 경기한 선수만 왕 후보
+    const _qualified = (list) => {
+      if (!list.length) return list;
+      const avg = list.reduce((s,p)=>s+p.wins+p.draws+p.losses,0)/list.length;
+      const thr = avg * 0.5;
+      const q = list.filter(p=>p.wins+p.draws+p.losses>=thr);
+      return q.length ? q : list; // 자격자 없으면 전체 fallback
+    };
+
     for (let q=1;q<=4;q++) {
       const pl=Object.entries(qStats[q]).map(([name,v])=>({name,...v}))
         .filter(p=>memberNames.has(p.name)&&p.wins+p.draws+p.losses>=1);
       if (!pl.length) continue;
-      pl.sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
-      _quarterKings[q]=pl[0].name;
+      const cands = _qualified(pl);
+      cands.sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+      _quarterKings[q]=cands[0].name;
     }
 
-    // ── 연간왕: 완료된 연도(2026~전년도) playerStats에서 1위 ──
+    // ── 연간왕: 완료된 연도(2026~전년도) playerStats에서 자격자 기준 1위 ──
     for (let y=2026; y<year; y++) {
       const plSnap = await db.ref(`jmt/playerStats/${y}`).once('value');
       const plData = plSnap.val()||{};
@@ -9214,19 +9224,21 @@ async function _loadKingData() {
         .map(([name,v])=>({name,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
         .filter(p=>memberNames.has(p.name)&&p.wins+p.draws+p.losses>=1);
       if (!pl.length) continue;
-      pl.sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
-      _yearKings[y]=pl[0].name;
+      const cands = _qualified(pl);
+      cands.sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+      _yearKings[y]=cands[0].name;
     }
 
-    // ── 유동 연도왕: 현재 연도 playerStats에서 1위 ──
+    // ── 유동 연도왕: 현재 연도 playerStats에서 자격자 기준 1위 ──
     const curYrSnap = await db.ref(`jmt/playerStats/${year}`).once('value');
     const curYrData = curYrSnap.val()||{};
     const curYrPl = Object.entries(curYrData)
       .map(([name,v])=>({name,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
       .filter(p=>memberNames.has(p.name)&&p.wins+p.draws+p.losses>=1);
     if (curYrPl.length) {
-      curYrPl.sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
-      _currentYearKing = curYrPl[0].name;
+      const cands = _qualified(curYrPl);
+      cands.sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+      _currentYearKing = cands[0].name;
     }
   } catch(e) { _kingDataLoaded=false; }
 }
@@ -9241,31 +9253,30 @@ function _getKingBadge(name) {
   const currentQ = _m<=3?1:_m<=6?2:_m<=9?3:4;
   const parts=[];
 
-  // ── 확정 분기왕 (완료된 분기) — 성별 색상 ♞, 분기 수만큼 반복
+  const annualPiece=isFemale?'♛':'♚';
+  const _ps  = (c,b,bd) => `display:inline-flex;align-items:center;gap:1px;padding:1px 5px;border-radius:5px;background:${b};border:1px solid ${bd};margin-left:3px;vertical-align:middle;white-space:nowrap;line-height:1.5`;
+  const _cnt = (n,c) => n>1?`<span style="font-size:0.65rem;font-weight:800;color:${c};line-height:1">${n}</span>`:'';
+
+  // ── 확정 분기왕 (완료된 분기) — 기물 1개 + 횟수 숫자
   const pastQCount=[1,2,3,4].filter(q=>q!==currentQ&&_quarterKings[q]===name).length;
   if (pastQCount>0){
-    const ps=`display:inline-flex;align-items:center;padding:1px 5px;border-radius:5px;background:${bg};border:1px solid ${border};margin-left:3px;vertical-align:middle;white-space:nowrap;line-height:1.5`;
-    parts.push(`<span style="${ps}"><span style="font-size:1.15rem;color:${color};font-family:serif;line-height:1;letter-spacing:1px">${'♞'.repeat(pastQCount)}</span></span>`);
+    parts.push(`<span style="${_ps(color,bg,border)}"><span style="font-size:1.15rem;color:${color};font-family:serif;line-height:1">♞</span>${_cnt(pastQCount,color)}</span>`);
   }
 
-  // ── 유동 분기왕 (현재 진행 중 분기 1위) — 골드 ♞, 발광
+  // ── 유동 분기왕 (현재 진행 중 분기 1위) — 골드 ♞ 발광
   if (_quarterKings[currentQ]===name){
-    const ls=`display:inline-flex;align-items:center;padding:1px 5px;border-radius:5px;background:#fefce8;border:1px solid #fbbf24;margin-left:3px;vertical-align:middle;white-space:nowrap;line-height:1.5;box-shadow:0 0 7px rgba(251,191,36,0.55)`;
-    parts.push(`<span style="${ls}"><span style="font-size:1.15rem;color:#d97706;font-family:serif;line-height:1;letter-spacing:1px">♞</span></span>`);
+    parts.push(`<span style="${_ps('#d97706','#fefce8','#fbbf24')};box-shadow:0 0 7px rgba(251,191,36,0.55)"><span style="font-size:1.15rem;color:#d97706;font-family:serif;line-height:1">♞</span></span>`);
   }
 
-  // ── 확정 연도왕 (완료된 연도) — 성별 기물 ♚/♛ 소형
-  const annualPiece=isFemale?'♛':'♚';
+  // ── 확정 연도왕 (완료된 연도) — 기물 1개 + 횟수 숫자
   const pastYearCount=Object.values(_yearKings).filter(n=>n===name).length;
   if (pastYearCount>0){
-    const ps=`display:inline-flex;align-items:center;padding:1px 5px;border-radius:5px;background:${bg};border:1px solid ${border};margin-left:3px;vertical-align:middle;white-space:nowrap;line-height:1.5`;
-    parts.push(`<span style="${ps}"><span style="font-size:1.15rem;color:${color};font-family:serif;line-height:1;letter-spacing:1px">${annualPiece.repeat(pastYearCount)}</span></span>`);
+    parts.push(`<span style="${_ps(color,bg,border)}"><span style="font-size:1.15rem;color:${color};font-family:serif;line-height:1">${annualPiece}</span>${_cnt(pastYearCount,color)}</span>`);
   }
 
-  // ── 유동 연도왕 (현재 진행 중 연도 1위) — 골드 ♚/♛, 발광
+  // ── 유동 연도왕 (현재 진행 중 연도 1위) — 골드 ♚/♛ 발광
   if (_currentYearKing===name){
-    const ls=`display:inline-flex;align-items:center;padding:1px 5px;border-radius:5px;background:#fefce8;border:1px solid #fbbf24;margin-left:3px;vertical-align:middle;white-space:nowrap;line-height:1.5;box-shadow:0 0 7px rgba(251,191,36,0.55)`;
-    parts.push(`<span style="${ls}"><span style="font-size:1.15rem;color:#d97706;font-family:serif;line-height:1;letter-spacing:1px">${annualPiece}</span></span>`);
+    parts.push(`<span style="${_ps('#d97706','#fefce8','#fbbf24')};box-shadow:0 0 7px rgba(251,191,36,0.55)"><span style="font-size:1.15rem;color:#d97706;font-family:serif;line-height:1">${annualPiece}</span></span>`);
   }
 
   return parts.join('');
@@ -9279,20 +9290,20 @@ function _getKingBadgeOverlay(name) {
   const currentQ = _m<=3?1:_m<=6?2:_m<=9?3:4;
   const annualPiece = isFemale ? '♛' : '♚';
   let pieces = '';
+  // 확정 분기왕 (성별색, 기물 1개 + 횟수)
+  const pastQCnt = [1,2,3,4].filter(q=>q!==currentQ&&_quarterKings[q]===name).length;
+  if (pastQCnt>0)
+    pieces += `<span style="color:${gColor}">♞</span>${pastQCnt>1?`<span style="font-size:0.55rem;font-weight:800;color:${gColor}">${pastQCnt}</span>`:''}`;
   // 유동 분기왕 (골드)
   if (_quarterKings[currentQ]===name)
     pieces += `<span style="color:#d97706">♞</span>`;
-  // 확정 분기왕 (성별색, 횟수만큼)
-  const pastQCnt = [1,2,3,4].filter(q=>q!==currentQ&&_quarterKings[q]===name).length;
-  if (pastQCnt>0)
-    pieces += `<span style="color:${gColor}">${'♞'.repeat(pastQCnt)}</span>`;
+  // 확정 연도왕 (성별색, 기물 1개 + 횟수)
+  const pastYrCnt = Object.values(_yearKings).filter(n=>n===name).length;
+  if (pastYrCnt>0)
+    pieces += `<span style="color:${gColor}">${annualPiece}</span>${pastYrCnt>1?`<span style="font-size:0.55rem;font-weight:800;color:${gColor}">${pastYrCnt}</span>`:''}`;
   // 유동 연도왕 (골드)
   if (_currentYearKing===name)
     pieces += `<span style="color:#d97706">${annualPiece}</span>`;
-  // 확정 연도왕 (성별색, 횟수만큼)
-  const pastYrCnt = Object.values(_yearKings).filter(n=>n===name).length;
-  if (pastYrCnt>0)
-    pieces += `<span style="color:${gColor}">${annualPiece.repeat(pastYrCnt)}</span>`;
   if (!pieces) return '';
   return `<span style="position:absolute;top:-8px;left:-2px;font-size:0.6rem;font-family:serif;line-height:1;background:#fff;border-radius:4px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.18);z-index:2;pointer-events:none">${pieces}</span>`;
 }
@@ -16731,7 +16742,7 @@ async function triggerAtpRefresh() {
           <span style="font-size:1.1rem;font-family:serif;color:#be185d;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:5px;padding:1px 6px;flex-shrink:0">♛</span>
           <div style="font-size:0.72rem;color:#78350f;line-height:1.5"><span style="font-weight:700;color:#b45309">연도왕 킹/퀸</span> — 해당연도 유효승률 1위<br>골드: 진행 중(뺏고 뺏기기)<br>남자-남색/여자-분홍: 완료</div>
         </div>
-        <div style="font-size:0.7rem;color:#a16207;margin-top:2px;line-height:1.5">기물 수 = 타이틀 획득 횟수<br>분기왕은 해당연도 한정 · 연도왕은 영구 보존</div>
+        <div style="font-size:0.7rem;color:#a16207;margin-top:2px;line-height:1.5">기물은 최대 3개 표시: 확정분기왕 · 유동분기왕 · 유동연도왕<br>여러 분기 석권 시 기물 옆 숫자로 횟수 표기<br>분기왕은 해당연도 한정 · 연도왕은 영구 보존</div>
       </div>
     </div>
   </div>
