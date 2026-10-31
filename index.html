@@ -2787,7 +2787,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1252';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1253';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -3532,7 +3532,7 @@ function renderMemberList() {
     return `<div class="member-card ${m.gender}" style="${isInactive?'opacity:0.55;':''}">
       <div class="member-info">
         <div class="member-name">
-          ${m.name}${m.nickname ? ` <span style="font-size:0.76rem;color:#94a3b8;font-weight:400">(${m.nickname})</span>` : ''}
+          ${m.name}${m.nickname ? ` <span style="font-size:0.76rem;color:#94a3b8;font-weight:400">(${m.nickname})</span>` : ''}${_getKingBadge(m.name)}
           ${isInactive ? '<span style="font-size:0.65rem;font-weight:700;background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;margin-left:4px">비활성</span>' : ''}
         </div>
         <div class="member-meta">
@@ -9158,6 +9158,83 @@ async function _computeQuarterPlayerStats(year,q){
   return stats;
 }
 
+// ── 분기왕·연간왕 뱃지 ─────────────────────────────────────────────
+let _quarterKings = {};      // { 1:'이름', 2:'이름', ... } 현재 연도 분기별 1위
+let _yearKings    = {};      // { 2025:'이름', 2026:'이름', ... } 연간 1위
+let _kingDataLoaded = false;
+
+async function _loadKingData() {
+  if (_kingDataLoaded) return;
+  if (!state.members || !state.members.length || !db) return; // 멤버 미로드 시 다음 렌더에서 재시도
+  _kingDataLoaded = true;
+  try {
+    const year = _rankYear;
+    const memberNames = new Set((state.members || []).map(m => m.name));
+
+    // ── 분기왕: 올해 경기 한 번에 가져와 Q1~Q4 분류 ──
+    const snap = await db.ref('jmt/matches')
+      .orderByChild('date').startAt(`${year}-01-01`).endAt(`${year}-12-31`)
+      .once('value');
+    const matches = Object.values(snap.val() || {});
+    const qRanges = [null,['01-01','03-31'],['04-01','06-30'],['07-01','09-30'],['10-01','12-31']];
+    const qStats  = {1:{},2:{},3:{},4:{}};
+    matches.forEach(m => {
+      if (!m.date || m.winner === undefined || m.winner === -2) return;
+      const md = m.date.slice(5);
+      let q = 0;
+      for (let i=1;i<=4;i++) { if (md>=qRanges[i][0] && md<=qRanges[i][1]) { q=i; break; } }
+      if (!q) return;
+      [m.team0||[],m.team1||[]].forEach((team,ti) => {
+        team.forEach(name => {
+          if (!memberNames.has(name)) return;
+          if (!qStats[q][name]) qStats[q][name]={wins:0,draws:0,losses:0};
+          if (m.winner===-1) qStats[q][name].draws++;
+          else if (m.winner===ti) qStats[q][name].wins++;
+          else qStats[q][name].losses++;
+        });
+      });
+    });
+    for (let q=1;q<=4;q++) {
+      const pl=Object.entries(qStats[q]).map(([name,v])=>({name,...v}))
+        .filter(p=>memberNames.has(p.name)&&p.wins+p.draws+p.losses>=1);
+      if (!pl.length) continue;
+      pl.sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+      _quarterKings[q]=pl[0].name;
+    }
+
+    // ── 연간왕: 2026년부터 전년도까지 playerStats에서 1위 ──
+    for (let y=2026; y<year; y++) {
+      const plSnap = await db.ref(`jmt/playerStats/${y}`).once('value');
+      const plData = plSnap.val()||{};
+      const pl = Object.entries(plData)
+        .map(([name,v])=>({name,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
+        .filter(p=>memberNames.has(p.name)&&p.wins+p.draws+p.losses>=1);
+      if (!pl.length) continue;
+      pl.sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+      _yearKings[y]=pl[0].name;
+    }
+  } catch(e) { _kingDataLoaded=false; }
+}
+
+function _getKingBadge(name) {
+  const isFemale = getGender(name)==='female';
+  const piece    = isFemale ? '♛' : '♚';
+  const color    = isFemale ? '#be185d' : '#1e40af';
+  const bg       = isFemale ? '#fdf2f8' : '#eff6ff';
+  const border   = isFemale ? '#fbcfe8' : '#bfdbfe';
+  const pillStyle= `display:inline-flex;align-items:center;padding:0 5px;border-radius:5px;background:${bg};border:1px solid ${border};margin-left:3px;vertical-align:middle;white-space:nowrap;line-height:1.6`;
+  const pieceStyle= `font-size:0.95rem;color:${color};font-family:serif;line-height:1`;
+  const numStyle  = `font-size:0.62rem;font-weight:800;color:${color};margin-left:2px;line-height:1`;
+  const parts=[];
+  // 분기왕: 획득 분기 수만큼 기물 반복 (숫자 없음)
+  const qCount=[1,2,3,4].filter(q=>_quarterKings[q]===name).length;
+  if (qCount>0) parts.push(`<span style="${pillStyle}"><span style="${pieceStyle}">${piece.repeat(qCount)}</span></span>`);
+  // 연간왕: 기물 + 연도 두자리
+  const yearWins=Object.entries(_yearKings).filter(([,n])=>n===name).map(([y])=>String(y).slice(2));
+  if (yearWins.length>0) parts.push(`<span style="${pillStyle}"><span style="${pieceStyle}">${piece}</span><span style="${numStyle}">${yearWins.join('·')}</span></span>`);
+  return parts.join('');
+}
+
 function effWr(wins,draws,losses){ const t=wins+(draws||0)+losses; return t?((wins+(draws||0)*0.5)/t*100):0; }
 
 let _rankingMode='player';
@@ -9217,6 +9294,7 @@ function setRankingMode(mode){
 async function renderRankingTab(){
   const el=document.getElementById('ranking-list');
   if(!el||!db) return;
+  await _loadKingData();
   const statsCacheKey=`${_rankingMode}_${_selectedRankYear}${_selectedRankQuarter?'_Q'+_selectedRankQuarter:''}`;
   const hasStatsCache=!!_rankStatsCache[statsCacheKey];
   if(!hasStatsCache) el.innerHTML='<div style="text-align:center;padding:20px;color:#94a3b8;font-size:0.85rem">불러오는 중...</div>';
@@ -9580,6 +9658,7 @@ async function renderRankingTab(){
       html+=`<div class="rank-pod ${podCls[i]}${isSel?' selected':''}" onclick="toggleRankDetail('${p.name}')">
         <div class="rank-pod-medal">${medals[(p.rank||1)-1]||medals[i]}</div>
         <div class="rank-pod-nick" style="color:${nc}">${p.name}${isBM?'<span class="birthday-pill" style="margin-left:5px;font-size:0.6rem">🎂 생일</span>':''}</div>
+        ${_getKingBadge(p.name)?`<div style="margin:1px 0 2px">${_getKingBadge(p.name)}</div>`:''}
         ${bd?`<div style="font-size:0.65rem;color:#94a3b8">${mm}/${dd}</div>`:''}
         <div class="rank-pod-wr ${wr>=50?'hot':'cold'}">${wr}%</div>
         <div class="rank-pod-wl">${wdl}</div>
@@ -9597,7 +9676,7 @@ async function renderRankingTab(){
         const isSel=p.name===_selectedRankKey;
         const g=getGender(p.name),nc=g==='male'?'#2563eb':g==='female'?'#db2777':'#1e293b';
         const det=isSel?mkDetail(vsData,stats,'player',true,null,partnerData,singlesData):'';
-        const disp=`<span style="color:${nc}">${p.name}</span>${bdayBadge(p.name)}`;
+        const disp=`<span style="color:${nc}">${p.name}</span>${bdayBadge(p.name)}${_getKingBadge(p.name)}`;
         return mkListItem(p.name,p.rank,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified);
       }).join('');
     }
@@ -13604,6 +13683,7 @@ changeCheckinPhotoRandom();
     // ── 초기 페이지가 랭킹탭이므로 즉시 렌더링 ──────────────────
     renderRankYearRow();
     renderRankQuarterRow();
+    setTimeout(() => _loadKingData(), 1500); // 멤버 로드 후 백그라운드 프리로드
     renderRankingTab();
 
     // ATP 리스너는 탭 진입 시 lazyload (initAtpListeners는 switchPage에서 호출)
