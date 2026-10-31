@@ -2771,7 +2771,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1242';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1243';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -4798,6 +4798,11 @@ function setDailyCreateMode(mode){
 
 function executeDailyCreate(){
   const _execCurName=(state.identity&&state.identity.name)||'';
+  // 12:30 이후 유지원 외 경기 만들기 차단
+  if(_isPastMatchCutoff() && _execCurName !== ADMIN_NAME){
+    alert('경기 만들기는 12:30 이전까지만 가능합니다.\n(유지원에게 문의하세요 🙏)');
+    return;
+  }
   const _execMember=state.members.find(m=>m.name===_execCurName);
   if(_execMember&&_execMember.status==='inactive'){alert('비활성 회원은 경기 카드를 만들 수 없습니다.');return;}
   if(_dailyCreateMode==='individual'){
@@ -8527,13 +8532,19 @@ function startDailyMatch(id){
   }
 }
 
+// 12:30 이후 일반 회원 경기 만들기·점수 수정 차단 (유지원만 예외)
+function _isPastMatchCutoff() {
+  const now = new Date();
+  return now.getHours() > 12 || (now.getHours() === 12 && now.getMinutes() >= 30);
+}
+
 function canEditDailyScore(d){
   const myName=state.identity&&state.identity.name;
   if(!myName) return false;
-  // 관리자(유지원/김승수/천지은)는 시간 제한 없이 항상 가능
-  if(MANAGERS.includes(myName)) return true;
-  // 본인이 생성한 카드도 시간 제한 없이 가능
-  if(d.createdBy&&d.createdBy===myName) return true;
+  // 유지원만 시간 무관 항상 가능 (신이니까)
+  if(myName===ADMIN_NAME) return true;
+  // 12:30 이후 유지원 외 불가
+  if(_isPastMatchCutoff()) return false;
   const participants=[...(d.team0||[]),...(d.team1||[])];
   if(!participants.includes(myName)) return false;
   if(d.scoredAt&&(Date.now()-d.scoredAt)>2*60*60*1000) return false;
@@ -8546,9 +8557,10 @@ function openDailyScore(id){
   if(!canEditDailyScore(d)){
     const myName=state.identity&&state.identity.name;
     if(!myName){alert('로그인 후 이용하세요.');return;}
+    if(_isPastMatchCutoff()){alert('12:30 이후에는 점수 입력/수정이 불가능합니다.\n(유지원에게 문의하세요 🙏)');return;}
     const participants=[...(d.team0||[]),...(d.team1||[])];
     if(!participants.includes(myName)){alert('경기에 참석한 선수만 점수를 등록할 수 있어요.');return;}
-    alert('점수 등록 후 2시간이 지나 수정이 불가능합니다.\n관리자에게 문의하세요.');
+    alert('점수 등록 후 2시간이 지나 수정이 불가능합니다.\n유지원에게 문의하세요.');
     return;
   }
   _dailyScoreCtx=id;
