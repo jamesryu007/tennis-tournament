@@ -2812,8 +2812,8 @@ exports.notifyGolfWinner = onValueWritten(
       const before = event.data.before.val() || {};
       const after  = event.data.after.val()  || {};
 
-      // 대회 종료 판정: post 상태 OR 4라운드 완료 후 비컷 선수 전원 thru==='F'
-      // scores >= 4 조건 추가 — R1 완료 시 전원 F로 오판 방지
+      // 대회 종료 판정: 전 라운드 완료 + post 상태 OR 비컷 선수 전원 thru==='F'
+      // LPGA는 ESPN이 numberOfRounds 미제공 → 기본값 4 적용 (ESPN 조기 post 오탐 방지)
       const _isTournamentDone = (t) => {
         // 팀전(솔하임컵/라이더컵/프레지던츠컵): teamScores에 winner:true인 팀이 있으면 종료
         if (t.isTeamEvent) return (t.teamScores || []).some(s => s.winner === true);
@@ -2824,13 +2824,14 @@ exports.notifyGolfWinner = onValueWritten(
         // ESPN이 미래 라운드 빈 슬롯 사전 생성 (e.g. ["-2","-3","-8",""]) → 아직 더 남음
         const maxScoresLen = Math.max(...lb.map(p => (p.scores || []).length), 0);
         if (maxScoresLen > maxEff) return false;
-        // numberOfRounds DB 값이 있으면 해당 라운드 수 이전에는 종료 불가
-        if (t.numberOfRounds && maxEff < t.numberOfRounds) return false;
         // 최대 라운드 완료 선수 (WD 자동 제외) — 3라운드 대회(LPGA 54홀) 대응
         const fullRoundPlayers = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff);
         if (fullRoundPlayers.length === 0) return false;
         if (maxEff < 3) return false; // 최소 3라운드 완료 전에는 종료 불가 (R1/R2 완료 오판 방지)
-        if (t.state === 'post') return true;
+        // state=post + 전 라운드 완료 시 종료
+        // numberOfRounds 미제공(LPGA 등)은 4 기본값 — ESPN 조기 post 오탐(R1/R3 완료 시) 방지
+        const _totalRounds = t.numberOfRounds || 4;
+        if (t.state === 'post' && maxEff >= _totalRounds) return true;
         // state !== post: 비컷 선수 전원 완주 또는 WD(thru=F이고 라운드 부족) 상태여야 함
         const nonCut = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff - 1);
         return nonCut.every(p => _effLen(p) >= maxEff || p.thru === 'F');
