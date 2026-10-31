@@ -2787,7 +2787,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1263';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1264';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -16722,16 +16722,16 @@ async function triggerAtpRefresh() {
           <span style="font-size:1.1rem;font-family:serif;color:#d97706;background:#fefce8;border:1px solid #fbbf24;border-radius:5px;padding:1px 6px;box-shadow:0 0 6px rgba(251,191,36,0.5);flex-shrink:0">♞</span>
           <span style="font-size:1.1rem;font-family:serif;color:#1e40af;background:#eff6ff;border:1px solid #bfdbfe;border-radius:5px;padding:1px 6px;flex-shrink:0">♞</span>
           <span style="font-size:1.1rem;font-family:serif;color:#be185d;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:5px;padding:1px 6px;flex-shrink:0">♞</span>
-          <div style="font-size:0.72rem;color:#78350f;line-height:1.45"><span style="font-weight:700;color:#b45309">분기왕 나이트</span> — 해당 분기 유효승률 1위<br>골드: 진행 중(뺏고 뺏기기) · 남자-남색/여자-분홍: 완료</div>
+          <div style="font-size:0.72rem;color:#78350f;line-height:1.5"><span style="font-weight:700;color:#b45309">분기왕 나이트</span> — 해당분기 유효승률 1위<br>골드: 진행 중(뺏고 뺏기기)<br>남자-남색/여자-분홍: 완료</div>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
           <span style="font-size:1.1rem;font-family:serif;color:#d97706;background:#fefce8;border:1px solid #fbbf24;border-radius:5px;padding:1px 6px;box-shadow:0 0 6px rgba(251,191,36,0.5);flex-shrink:0">♚</span>
           <span style="font-size:1.1rem;font-family:serif;color:#1e40af;background:#eff6ff;border:1px solid #bfdbfe;border-radius:5px;padding:1px 6px;flex-shrink:0">♚</span>
           <span style="font-size:1.1rem;font-family:serif;color:#d97706;background:#fefce8;border:1px solid #fbbf24;border-radius:5px;padding:1px 6px;box-shadow:0 0 6px rgba(251,191,36,0.5);flex-shrink:0">♛</span>
           <span style="font-size:1.1rem;font-family:serif;color:#be185d;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:5px;padding:1px 6px;flex-shrink:0">♛</span>
-          <div style="font-size:0.72rem;color:#78350f;line-height:1.45"><span style="font-weight:700;color:#b45309">연도왕 킹/퀸</span> — 해당 연도 유효승률 1위<br>골드: 진행 중(뺏고 뺏기기) · 남자-남색/여자-분홍: 완료</div>
+          <div style="font-size:0.72rem;color:#78350f;line-height:1.5"><span style="font-weight:700;color:#b45309">연도왕 킹/퀸</span> — 해당연도 유효승률 1위<br>골드: 진행 중(뺏고 뺏기기)<br>남자-남색/여자-분홍: 완료</div>
         </div>
-        <div style="font-size:0.7rem;color:#a16207;margin-top:2px;line-height:1.5">기물 수 = 타이틀 획득 횟수<br>분기왕은 해당 연도 한정 · 연도왕은 영구 보존</div>
+        <div style="font-size:0.7rem;color:#a16207;margin-top:2px;line-height:1.5">기물 수 = 타이틀 획득 횟수<br>분기왕은 해당연도 한정 · 연도왕은 영구 보존</div>
       </div>
     </div>
   </div>
