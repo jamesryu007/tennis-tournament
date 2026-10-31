@@ -2787,7 +2787,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1258';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1259';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -3146,6 +3146,7 @@ function setupFirebaseListeners() {
     if(document.getElementById('page-history') && document.getElementById('page-history').classList.contains('active')
        && typeof _rankStatsCache !== 'undefined') {
       Object.keys(_rankStatsCache).forEach(k => delete _rankStatsCache[k]);
+      _kingDataLoaded = false; // 멤버 변경 시 왕 데이터 재계산
       if(typeof _rankingMode !== 'undefined' && _rankingMode === 'attendance') {
         if(typeof renderAttendanceRanking === 'function') renderAttendanceRanking();
       } else if(typeof renderRankingTab === 'function') renderRankingTab();
@@ -8880,6 +8881,7 @@ async function saveDailyScore(){
     delete _rankStatsCache[`pair_${_selectedRankYear}`];
     delete _rankStatsCache[`singles_${_selectedRankYear}`];
     delete _bagelStatsCache[_selectedRankYear];
+    _kingDataLoaded = false; // 왕 데이터 재계산 (경기 결과 변경 반영)
     renderRankingTab();
     if (winner === 0 || winner === 1) {
       const wTeam = winner === 0 ? d.team0 : d.team1;
@@ -25861,6 +25863,7 @@ function saveMpComment(key) {
         if (typeof _rankStatsCache !== 'undefined') Object.keys(_rankStatsCache).forEach(k => delete _rankStatsCache[k]);
         if (typeof _rankVsCache !== 'undefined') Object.keys(_rankVsCache).forEach(k => delete _rankVsCache[k]);
         if (typeof _bagelStatsCache !== 'undefined') Object.keys(_bagelStatsCache).forEach(k => delete _bagelStatsCache[k]);
+        _kingDataLoaded = false; // pull-to-refresh 시 왕 데이터 재계산
         if (typeof _rankingMode !== 'undefined' && _rankingMode === 'attendance') {
           if (typeof renderAttendanceRanking === 'function') renderAttendanceRanking();
         } else if (typeof renderRankingTab === 'function') renderRankingTab();
