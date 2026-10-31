@@ -369,6 +369,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .rank-toggle-btn:active { transform:translateY(1px); opacity:0.8; }
 .rank-toggle-btn.active { background:rgba(255,255,255,0.92); color:#2563eb; box-shadow:0 1px 6px rgba(0,0,0,0.15); }
 .rank-toggle-btn.active:active { transform:translateY(1px); box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+/* 분기 칩 */
+.rank-qchip { padding:5px 11px; border-radius:20px; border:1.5px solid #e2e8f0; background:#fff; font-size:0.75rem; font-weight:700; color:#64748b; cursor:pointer; transition:all 0.08s; box-shadow:0 2px 0 rgba(0,0,0,0.07); -webkit-tap-highlight-color:transparent; white-space:nowrap; }
+.rank-qchip:active { transform:translateY(1px); box-shadow:0 1px 0 rgba(0,0,0,0.05); }
+.rank-qchip.active { background:#4c1d95; border-color:#4c1d95; color:#fff; box-shadow:0 2px 0 #3b0764; }
 /* 헤더 배너 */
 .rank-banner { background:linear-gradient(135deg,#4c1d95,#7c3aed,#1d4ed8); border-radius:16px; padding:14px 16px 12px; margin-bottom:14px; text-align:center; position:relative; overflow:hidden; }
 .rank-banner::after  { content:''; position:absolute; top:-25px;right:-25px; width:90px;height:90px; background:rgba(255,255,255,0.07); border-radius:50%; pointer-events:none; }
@@ -2287,6 +2291,7 @@ const firebaseConfig = {
       <div class="rank-toggle-btn" id="rtog-pair" onclick="setRankingMode('pair')">단짝 통계</div>
       <div class="rank-toggle-btn" id="rtog-attendance" onclick="setRankingMode('attendance')">출석 랭킹</div>
     </div>
+    <div id="rank-quarter-row" style="display:none;padding:0 6px 8px;gap:6px;flex-wrap:wrap"></div>
     <div id="ranking-list"></div>
   </div>
 </div>
@@ -2771,7 +2776,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1246';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1247';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9067,6 +9072,7 @@ function goCarousel(idx,animate){
 // ══ 자미터랭킹 탭 ═════════════════════════════════════════════════
 const _rankYear = new Date().getFullYear();   // 경기 기록 저장용 (항상 현재 연도)
 let _selectedRankYear = _rankYear;           // 랭킹 조회용 (연도 선택 가능)
+let _selectedRankQuarter = null;             // null=전체, 1~4=분기
 
 function renderRankYearRow(){
   const row=document.getElementById('rank-year-row');
@@ -9084,11 +9090,60 @@ function renderRankYearRow(){
 
 function setRankingYear(year){
   _selectedRankYear=year;_selectedRankKey=null;_rankDetailTab='vs';
+  _selectedRankQuarter=null;
   delete _rankStatsCache[`player_${year}`];
   delete _rankStatsCache[`pair_${year}`];
   delete _bagelStatsCache[year];
   renderRankYearRow();
+  renderRankQuarterRow();
   renderRankingTab();
+}
+
+// ── 분기 랭킹 ────────────────────────────────────────────────────────
+function renderRankQuarterRow(){
+  const row=document.getElementById('rank-quarter-row');
+  if(!row) return;
+  if(_rankingMode!=='player'){row.style.display='none';return;}
+  row.style.display='flex';
+  const chips=[
+    {q:0,label:'전체'},
+    {q:1,label:'Q1 (1~3월)'},
+    {q:2,label:'Q2 (4~6월)'},
+    {q:3,label:'Q3 (7~9월)'},
+    {q:4,label:'Q4 (10~12월)'},
+  ];
+  row.innerHTML=chips.map(c=>`<button class="rank-qchip${(_selectedRankQuarter||0)===c.q?' active':''}" onclick="setRankQuarter(${c.q})">${c.label}</button>`).join('');
+}
+
+function setRankQuarter(q){
+  _selectedRankQuarter=q||null;_selectedRankKey=null;_rankDetailTab='vs';
+  renderRankQuarterRow();
+  renderRankingTab();
+}
+
+function _quarterRange(year,q){
+  const s=['01-01','04-01','07-01','10-01'][q-1];
+  const e=['03-31','06-30','09-30','12-31'][q-1];
+  return{from:`${year}-${s}`,to:`${year}-${e}`};
+}
+
+async function _computeQuarterPlayerStats(year,q){
+  const{from,to}=_quarterRange(year,q);
+  const snap=await db.ref('jmt/matches').orderByChild('date').startAt(from).endAt(to).once('value');
+  const matches=snap.val()||{};
+  const stats={};
+  Object.values(matches).forEach(m=>{
+    if(m.winner===undefined||m.winner===null||m.winner===-2) return;
+    [m.team0||[],m.team1||[]].forEach((team,ti)=>{
+      team.forEach(name=>{
+        if(!stats[name]) stats[name]={wins:0,draws:0,losses:0};
+        if(m.winner===-1) stats[name].draws++;
+        else if(m.winner===ti) stats[name].wins++;
+        else stats[name].losses++;
+      });
+    });
+  });
+  return stats;
 }
 
 function effWr(wins,draws,losses){ const t=wins+(draws||0)+losses; return t?((wins+(draws||0)*0.5)/t*100):0; }
@@ -9142,6 +9197,7 @@ function setRankingMode(mode){
     else hintEl.textContent='';
   }
   renderRankYearRow();
+  renderRankQuarterRow();
   if(mode==='attendance') renderAttendanceRanking();
   else renderRankingTab();
 }
@@ -9149,7 +9205,7 @@ function setRankingMode(mode){
 async function renderRankingTab(){
   const el=document.getElementById('ranking-list');
   if(!el||!db) return;
-  const statsCacheKey=`${_rankingMode}_${_selectedRankYear}`;
+  const statsCacheKey=`${_rankingMode}_${_selectedRankYear}${_selectedRankQuarter?'_Q'+_selectedRankQuarter:''}`;
   const hasStatsCache=!!_rankStatsCache[statsCacheKey];
   if(!hasStatsCache) el.innerHTML='<div style="text-align:center;padding:20px;color:#94a3b8;font-size:0.85rem">불러오는 중...</div>';
 
@@ -9376,6 +9432,10 @@ async function renderRankingTab(){
     let stats;
     if(_rankStatsCache[statsCacheKey]){
       stats=_rankStatsCache[statsCacheKey];
+    } else if(_selectedRankQuarter){
+      // 분기 선택: jmt/matches에서 직접 계산
+      stats=await _computeQuarterPlayerStats(_selectedRankYear,_selectedRankQuarter);
+      _rankStatsCache[statsCacheKey]=stats;
     } else {
       let ssSnap=await db.ref(`jmt/playerStats/${_selectedRankYear}`).once('value');
       stats=ssSnap.val();
@@ -9489,7 +9549,9 @@ async function renderRankingTab(){
     }
 
     _playerRankShareData = players;
-    let html=`<div style="text-align:center;font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;padding:12px 0 6px">─ ${_selectedRankYear} 시즌 · ${players.length}명 ─</div>`;
+    const _qLabels=['','1분기 (1~3월)','2분기 (4~6월)','3분기 (7~9월)','4분기 (10~12월)'];
+    const _seasonLabel=_selectedRankQuarter?`${_selectedRankYear} ${_qLabels[_selectedRankQuarter]}`:`${_selectedRankYear} 시즌`;
+    let html=`<div style="text-align:center;font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;padding:12px 0 6px">─ ${_seasonLabel} · ${players.length}명 ─</div>`;
 
     const podItems=players.slice(0,Math.min(3,players.length));
     const podCls=['p1','p2','p3'],medals=['🥇','🥈','🥉'];
@@ -11997,6 +12059,7 @@ function switchPage(id) {
   if(id === 'members') { loadRankingTop3().then(renderMemberList); renderMemberList(); }
   if(id === 'history') {
     renderRankYearRow();
+    renderRankQuarterRow();
     if(_rankingMode === 'attendance') renderAttendanceRanking();
     else renderRankingTab();
   }
@@ -13527,6 +13590,7 @@ changeCheckinPhotoRandom();
 
     // ── 초기 페이지가 랭킹탭이므로 즉시 렌더링 ──────────────────
     renderRankYearRow();
+    renderRankQuarterRow();
     renderRankingTab();
 
     // ATP 리스너는 탭 진입 시 lazyload (initAtpListeners는 switchPage에서 호출)
