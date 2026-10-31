@@ -2787,7 +2787,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1250';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1251';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9089,6 +9089,8 @@ let _podiumAnimate = false;                  // 분기 칩 전환 시에만 true
 function renderRankYearRow(){
   const row=document.getElementById('rank-year-row');
   if(!row) return;
+  // 개인 랭킹 모드: 연도는 분기 칩 줄에 통합 → 배너 영역 숨김
+  if(_rankingMode==='player'){row.style.display='none';return;}
   const startYear=2026;
   const years=[];
   for(let y=startYear;y<=_rankYear;y++) years.push(y);
@@ -9117,6 +9119,15 @@ function renderRankQuarterRow(){
   if(!row) return;
   if(_rankingMode!=='player'){row.style.display='none';return;}
   row.style.display='flex';
+  // 연도가 2개 이상이면 왼쪽에 연도 드롭다운 먼저
+  const startYear=2026;
+  const years=[];
+  for(let y=startYear;y<=_rankYear;y++) years.push(y);
+  const yearHtml=years.length>1
+    ?`<select onchange="setRankingYear(+this.value)" style="padding:4px 20px 4px 9px;border-radius:20px;border:1.5px solid #e2e8f0;background:#fff;font-size:0.75rem;font-weight:700;color:#64748b;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22 viewBox=%220 0 8 5%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%2364748b%22/></svg>');background-repeat:no-repeat;background-position:right 6px center;box-shadow:0 2px 0 rgba(0,0,0,0.07)">
+      ${years.map(y=>`<option value="${y}"${y===_selectedRankYear?' selected':''}>${y}년</option>`).join('')}
+    </select>`
+    :'';
   const chips=[
     {q:0,label:'누적랭킹'},
     {q:1,label:'1Q'},
@@ -9124,7 +9135,7 @@ function renderRankQuarterRow(){
     {q:3,label:'3Q'},
     {q:4,label:'4Q'},
   ];
-  row.innerHTML=chips.map(c=>`<button class="rank-qchip${(_selectedRankQuarter||0)===c.q?' active':''}" onclick="setRankQuarter(${c.q})">${c.label}</button>`).join('');
+  row.innerHTML=yearHtml+chips.map(c=>`<button class="rank-qchip${(_selectedRankQuarter||0)===c.q?' active':''}" onclick="setRankQuarter(${c.q})">${c.label}</button>`).join('');
 }
 
 function setRankQuarter(q){
