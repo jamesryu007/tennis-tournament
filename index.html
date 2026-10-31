@@ -2787,7 +2787,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1251';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1252';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9087,19 +9087,9 @@ let _selectedRankQuarter = null;             // null=전체, 1~4=분기
 let _podiumAnimate = false;                  // 분기 칩 전환 시에만 true → 포디움 팝 애니메이션
 
 function renderRankYearRow(){
+  // 배너 우상단 연도 영역은 모든 모드에서 숨김 — rank-quarter-row에 통합
   const row=document.getElementById('rank-year-row');
-  if(!row) return;
-  // 개인 랭킹 모드: 연도는 분기 칩 줄에 통합 → 배너 영역 숨김
-  if(_rankingMode==='player'){row.style.display='none';return;}
-  const startYear=2026;
-  const years=[];
-  for(let y=startYear;y<=_rankYear;y++) years.push(y);
-  if(years.length<=1){row.style.display='none';return;}
-  row.style.display='flex';
-  row.innerHTML=`<select onchange="setRankingYear(+this.value)"
-    style="padding:4px 28px 4px 10px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.5);background:rgba(255,255,255,0.15);color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%226%22 viewBox=%220 0 10 6%22><path d=%22M0 0l5 6 5-6z%22 fill=%22white%22/></svg>');background-repeat:no-repeat;background-position:right 8px center">
-    ${years.map(y=>`<option value="${y}"${y===_selectedRankYear?' selected':''}>${y}년</option>`).join('')}
-  </select>`;
+  if(row) row.style.display='none';
 }
 
 function setRankingYear(year){
@@ -9117,24 +9107,22 @@ function setRankingYear(year){
 function renderRankQuarterRow(){
   const row=document.getElementById('rank-quarter-row');
   if(!row) return;
-  if(_rankingMode!=='player'){row.style.display='none';return;}
-  row.style.display='flex';
-  // 연도가 2개 이상이면 왼쪽에 연도 드롭다운 먼저
   const startYear=2026;
   const years=[];
   for(let y=startYear;y<=_rankYear;y++) years.push(y);
-  const yearHtml=years.length>1
-    ?`<select onchange="setRankingYear(+this.value)" style="padding:4px 20px 4px 9px;border-radius:20px;border:1.5px solid #e2e8f0;background:#fff;font-size:0.75rem;font-weight:700;color:#64748b;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22 viewBox=%220 0 8 5%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%2364748b%22/></svg>');background-repeat:no-repeat;background-position:right 6px center;box-shadow:0 2px 0 rgba(0,0,0,0.07)">
-      ${years.map(y=>`<option value="${y}"${y===_selectedRankYear?' selected':''}>${y}년</option>`).join('')}
-    </select>`
+  const multiYear=years.length>1;
+  // 개인 랭킹도 아니고 연도도 하나면 숨김
+  if(_rankingMode!=='player'&&!multiYear){row.style.display='none';return;}
+  row.style.display='flex';
+  // 연도 드롭다운 — 모든 모드, 2년 이상일 때
+  const yearSelectStyle='padding:4px 20px 4px 9px;border-radius:20px;border:1.5px solid #e2e8f0;background:#fff;font-size:0.75rem;font-weight:700;color:#64748b;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url(\'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22 viewBox=%220 0 8 5%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%2364748b%22/></svg>\');background-repeat:no-repeat;background-position:right 6px center;box-shadow:0 2px 0 rgba(0,0,0,0.07)';
+  const yearHtml=multiYear
+    ?`<select onchange="setRankingYear(+this.value)" style="${yearSelectStyle}">${years.map(y=>`<option value="${y}"${y===_selectedRankYear?' selected':''}>${y}년</option>`).join('')}</select>`
     :'';
-  const chips=[
-    {q:0,label:'누적랭킹'},
-    {q:1,label:'1Q'},
-    {q:2,label:'2Q'},
-    {q:3,label:'3Q'},
-    {q:4,label:'4Q'},
-  ];
+  // 분기 칩 — 개인 랭킹 모드에서만
+  const chips=_rankingMode==='player'
+    ?[{q:0,label:'누적랭킹'},{q:1,label:'1Q'},{q:2,label:'2Q'},{q:3,label:'3Q'},{q:4,label:'4Q'}]
+    :[];
   row.innerHTML=yearHtml+chips.map(c=>`<button class="rank-qchip${(_selectedRankQuarter||0)===c.q?' active':''}" onclick="setRankQuarter(${c.q})">${c.label}</button>`).join('');
 }
 
