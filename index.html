@@ -2787,7 +2787,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1260';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1261';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9248,10 +9248,10 @@ function _getKingBadge(name) {
     parts.push(`<span style="${ps}"><span style="font-size:1.15rem;color:${color};font-family:serif;line-height:1;letter-spacing:1px">${'♞'.repeat(pastQCount)}</span></span>`);
   }
 
-  // ── 유동 분기왕 (현재 진행 중 분기 1위) — 골드 ♞, 크고 발광
+  // ── 유동 분기왕 (현재 진행 중 분기 1위) — 골드 ♞, 발광
   if (_quarterKings[currentQ]===name){
-    const ls=`display:inline-flex;align-items:center;padding:2px 7px;border-radius:7px;background:#fefce8;border:1.5px solid #fbbf24;margin-left:3px;vertical-align:middle;white-space:nowrap;line-height:1.5;box-shadow:0 0 7px rgba(251,191,36,0.55)`;
-    parts.push(`<span style="${ls}"><span style="font-size:1.45rem;color:#d97706;font-family:serif;line-height:1">♞</span></span>`);
+    const ls=`display:inline-flex;align-items:center;padding:1px 5px;border-radius:5px;background:#fefce8;border:1px solid #fbbf24;margin-left:3px;vertical-align:middle;white-space:nowrap;line-height:1.5;box-shadow:0 0 7px rgba(251,191,36,0.55)`;
+    parts.push(`<span style="${ls}"><span style="font-size:1.15rem;color:#d97706;font-family:serif;line-height:1;letter-spacing:1px">♞</span></span>`);
   }
 
   // ── 확정 연도왕 (완료된 연도) — 성별 기물 ♚/♛ 소형
@@ -9262,10 +9262,10 @@ function _getKingBadge(name) {
     parts.push(`<span style="${ps}"><span style="font-size:1.15rem;color:${color};font-family:serif;line-height:1;letter-spacing:1px">${annualPiece.repeat(pastYearCount)}</span></span>`);
   }
 
-  // ── 유동 연도왕 (현재 진행 중 연도 1위) — 골드 ♚/♛, 크고 발광
+  // ── 유동 연도왕 (현재 진행 중 연도 1위) — 골드 ♚/♛, 발광
   if (_currentYearKing===name){
-    const ls=`display:inline-flex;align-items:center;padding:2px 7px;border-radius:7px;background:#fefce8;border:1.5px solid #fbbf24;margin-left:3px;vertical-align:middle;white-space:nowrap;line-height:1.5;box-shadow:0 0 7px rgba(251,191,36,0.55)`;
-    parts.push(`<span style="${ls}"><span style="font-size:1.45rem;color:#d97706;font-family:serif;line-height:1">${annualPiece}</span></span>`);
+    const ls=`display:inline-flex;align-items:center;padding:1px 5px;border-radius:5px;background:#fefce8;border:1px solid #fbbf24;margin-left:3px;vertical-align:middle;white-space:nowrap;line-height:1.5;box-shadow:0 0 7px rgba(251,191,36,0.55)`;
+    parts.push(`<span style="${ls}"><span style="font-size:1.15rem;color:#d97706;font-family:serif;line-height:1;letter-spacing:1px">${annualPiece}</span></span>`);
   }
 
   return parts.join('');
