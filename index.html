@@ -380,14 +380,21 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .rank-banner-title { font-size:1.05rem; font-weight:900; color:#fff; letter-spacing:0.08em; text-shadow:0 1px 6px rgba(0,0,0,0.25); position:relative; }
 .rank-banner-sub   { font-size:0.68rem; color:rgba(255,255,255,0.65); margin-top:3px; position:relative; }
 /* 시상대 (Top 3) */
-.rank-podium { display:flex; align-items:flex-end; gap:6px; margin-bottom:14px; }
-.rank-pod { flex:1; border-radius:14px 14px 0 0; padding:10px 6px 10px; text-align:center; cursor:pointer; position:relative; transition:transform 0.15s; -webkit-tap-highlight-color:transparent; }
+@keyframes podPop {
+  0%   { transform: translateY(44px) scale(0.75) rotateX(20deg); opacity:0; }
+  60%  { transform: translateY(-10px) scale(1.06) rotateX(-4deg); opacity:1; }
+  80%  { transform: translateY(4px) scale(0.98) rotateX(1deg); }
+  100% { transform: translateY(0) scale(1) rotateX(0deg); opacity:1; }
+}
+.rank-podium { display:flex; align-items:flex-end; gap:6px; margin-bottom:14px; perspective:600px; }
+.rank-pod { flex:1; border-radius:14px 14px 0 0; padding:10px 6px 10px; text-align:center; cursor:pointer; position:relative; -webkit-tap-highlight-color:transparent;
+  animation: podPop 0.52s cubic-bezier(0.22,0.61,0.36,1) both; }
 .rank-pod:active { transform:scale(0.96); }
 .rank-pod.selected { outline:3px solid #2563eb; outline-offset:2px; }
 /* 올림픽 포디움: 1위 가장 높게, 2위 중간, 3위 가장 낮게 (align-items:flex-end 기준) */
-.rank-pod.p1 { background:linear-gradient(155deg,#fffde7,#fef08a,#fbbf24); border:2px solid #f59e0b; box-shadow:0 8px 24px rgba(245,158,11,0.4); padding-top:36px; order:2; }
-.rank-pod.p2 { background:linear-gradient(155deg,#f8fafc,#e2e8f0,#b0bec5); border:2px solid #90a4ae; box-shadow:0 5px 14px rgba(144,164,174,0.3); padding-top:18px; order:1; }
-.rank-pod.p3 { background:linear-gradient(155deg,#fff8f0,#fed7aa,#fb923c); border:2px solid #f97316; box-shadow:0 4px 12px rgba(249,115,22,0.25); padding-top:6px; order:3; }
+.rank-pod.p1 { background:linear-gradient(155deg,#fffde7,#fef08a,#fbbf24); border:2px solid #f59e0b; box-shadow:0 8px 24px rgba(245,158,11,0.4); padding-top:36px; order:2; animation-delay:0.16s; }
+.rank-pod.p2 { background:linear-gradient(155deg,#f8fafc,#e2e8f0,#b0bec5); border:2px solid #90a4ae; box-shadow:0 5px 14px rgba(144,164,174,0.3); padding-top:18px; order:1; animation-delay:0s; }
+.rank-pod.p3 { background:linear-gradient(155deg,#fff8f0,#fed7aa,#fb923c); border:2px solid #f97316; box-shadow:0 4px 12px rgba(249,115,22,0.25); padding-top:6px; order:3; animation-delay:0.08s; }
 /* 포디움 하단 계단 효과 */
 .rank-podium { align-items:flex-end; }
 .rank-pod-medal { line-height:1; }
@@ -2776,7 +2783,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1248';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1249';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
