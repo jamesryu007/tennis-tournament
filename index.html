@@ -2776,7 +2776,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1247';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1248';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9106,11 +9106,11 @@ function renderRankQuarterRow(){
   if(_rankingMode!=='player'){row.style.display='none';return;}
   row.style.display='flex';
   const chips=[
-    {q:0,label:'전체'},
-    {q:1,label:'Q1 (1~3월)'},
-    {q:2,label:'Q2 (4~6월)'},
-    {q:3,label:'Q3 (7~9월)'},
-    {q:4,label:'Q4 (10~12월)'},
+    {q:0,label:'누적랭킹'},
+    {q:1,label:'1Q'},
+    {q:2,label:'2Q'},
+    {q:3,label:'3Q'},
+    {q:4,label:'4Q'},
   ];
   row.innerHTML=chips.map(c=>`<button class="rank-qchip${(_selectedRankQuarter||0)===c.q?' active':''}" onclick="setRankQuarter(${c.q})">${c.label}</button>`).join('');
 }
