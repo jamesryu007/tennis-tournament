@@ -387,14 +387,18 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
   100% { transform: translateY(0) scale(1) rotateX(0deg); opacity:1; }
 }
 .rank-podium { display:flex; align-items:flex-end; gap:6px; margin-bottom:14px; perspective:600px; }
-.rank-pod { flex:1; border-radius:14px 14px 0 0; padding:10px 6px 10px; text-align:center; cursor:pointer; position:relative; -webkit-tap-highlight-color:transparent;
-  animation: podPop 0.52s cubic-bezier(0.22,0.61,0.36,1) both; }
+.rank-pod { flex:1; border-radius:14px 14px 0 0; padding:10px 6px 10px; text-align:center; cursor:pointer; position:relative; -webkit-tap-highlight-color:transparent; }
 .rank-pod:active { transform:scale(0.96); }
 .rank-pod.selected { outline:3px solid #2563eb; outline-offset:2px; }
+/* 분기 전환 시에만 애니메이션 */
+.rank-podium.pod-anim .rank-pod   { animation: podPop 0.52s cubic-bezier(0.22,0.61,0.36,1) both; }
+.rank-podium.pod-anim .rank-pod.p2 { animation-delay:0s; }
+.rank-podium.pod-anim .rank-pod.p3 { animation-delay:0.08s; }
+.rank-podium.pod-anim .rank-pod.p1 { animation-delay:0.16s; }
 /* 올림픽 포디움: 1위 가장 높게, 2위 중간, 3위 가장 낮게 (align-items:flex-end 기준) */
-.rank-pod.p1 { background:linear-gradient(155deg,#fffde7,#fef08a,#fbbf24); border:2px solid #f59e0b; box-shadow:0 8px 24px rgba(245,158,11,0.4); padding-top:36px; order:2; animation-delay:0.16s; }
-.rank-pod.p2 { background:linear-gradient(155deg,#f8fafc,#e2e8f0,#b0bec5); border:2px solid #90a4ae; box-shadow:0 5px 14px rgba(144,164,174,0.3); padding-top:18px; order:1; animation-delay:0s; }
-.rank-pod.p3 { background:linear-gradient(155deg,#fff8f0,#fed7aa,#fb923c); border:2px solid #f97316; box-shadow:0 4px 12px rgba(249,115,22,0.25); padding-top:6px; order:3; animation-delay:0.08s; }
+.rank-pod.p1 { background:linear-gradient(155deg,#fffde7,#fef08a,#fbbf24); border:2px solid #f59e0b; box-shadow:0 8px 24px rgba(245,158,11,0.4); padding-top:36px; order:2; }
+.rank-pod.p2 { background:linear-gradient(155deg,#f8fafc,#e2e8f0,#b0bec5); border:2px solid #90a4ae; box-shadow:0 5px 14px rgba(144,164,174,0.3); padding-top:18px; order:1; }
+.rank-pod.p3 { background:linear-gradient(155deg,#fff8f0,#fed7aa,#fb923c); border:2px solid #f97316; box-shadow:0 4px 12px rgba(249,115,22,0.25); padding-top:6px; order:3; }
 /* 포디움 하단 계단 효과 */
 .rank-podium { align-items:flex-end; }
 .rank-pod-medal { line-height:1; }
@@ -2783,7 +2787,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1249';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1250';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -9080,6 +9084,7 @@ function goCarousel(idx,animate){
 const _rankYear = new Date().getFullYear();   // 경기 기록 저장용 (항상 현재 연도)
 let _selectedRankYear = _rankYear;           // 랭킹 조회용 (연도 선택 가능)
 let _selectedRankQuarter = null;             // null=전체, 1~4=분기
+let _podiumAnimate = false;                  // 분기 칩 전환 시에만 true → 포디움 팝 애니메이션
 
 function renderRankYearRow(){
   const row=document.getElementById('rank-year-row');
@@ -9124,6 +9129,7 @@ function renderRankQuarterRow(){
 
 function setRankQuarter(q){
   _selectedRankQuarter=q||null;_selectedRankKey=null;_rankDetailTab='vs';
+  _podiumAnimate=true;
   renderRankQuarterRow();
   renderRankingTab();
 }
@@ -9562,7 +9568,8 @@ async function renderRankingTab(){
 
     const podItems=players.slice(0,Math.min(3,players.length));
     const podCls=['p1','p2','p3'],medals=['🥇','🥈','🥉'];
-    html+=`<div class="rank-podium">`;
+    const _doAnim=_podiumAnimate; _podiumAnimate=false;
+    html+=`<div class="rank-podium${_doAnim?' pod-anim':''}">`;
     podItems.forEach((p,i)=>{
       const wr=Math.round(effWr(p.wins,p.draws,p.losses));
       const isSel=p.name===_selectedRankKey;
