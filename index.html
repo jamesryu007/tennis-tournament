@@ -369,6 +369,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .rank-toggle-btn:active { transform:translateY(1px); opacity:0.8; }
 .rank-toggle-btn.active { background:rgba(255,255,255,0.92); color:#2563eb; box-shadow:0 1px 6px rgba(0,0,0,0.15); }
 .rank-toggle-btn.active:active { transform:translateY(1px); box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+/* 분기 칩 */
+.rank-qchip { padding:5px 11px; border-radius:20px; border:1.5px solid #e2e8f0; background:#fff; font-size:0.75rem; font-weight:700; color:#64748b; cursor:pointer; transition:all 0.08s; box-shadow:0 2px 0 rgba(0,0,0,0.07); -webkit-tap-highlight-color:transparent; white-space:nowrap; }
+.rank-qchip:active { transform:translateY(1px); box-shadow:0 1px 0 rgba(0,0,0,0.05); }
+.rank-qchip.active { background:#4c1d95; border-color:#4c1d95; color:#fff; box-shadow:0 2px 0 #3b0764; }
 /* 헤더 배너 */
 .rank-banner { background:linear-gradient(135deg,#4c1d95,#7c3aed,#1d4ed8); border-radius:16px; padding:14px 16px 12px; margin-bottom:14px; text-align:center; position:relative; overflow:hidden; }
 .rank-banner::after  { content:''; position:absolute; top:-25px;right:-25px; width:90px;height:90px; background:rgba(255,255,255,0.07); border-radius:50%; pointer-events:none; }
@@ -376,10 +380,21 @@ input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
 .rank-banner-title { font-size:1.05rem; font-weight:900; color:#fff; letter-spacing:0.08em; text-shadow:0 1px 6px rgba(0,0,0,0.25); position:relative; }
 .rank-banner-sub   { font-size:0.68rem; color:rgba(255,255,255,0.65); margin-top:3px; position:relative; }
 /* 시상대 (Top 3) */
-.rank-podium { display:flex; align-items:flex-end; gap:6px; margin-bottom:14px; }
-.rank-pod { flex:1; border-radius:14px 14px 0 0; padding:10px 6px 10px; text-align:center; cursor:pointer; position:relative; transition:transform 0.15s; -webkit-tap-highlight-color:transparent; }
+@keyframes podPop {
+  0%   { transform: translateY(44px) scale(0.75) rotateX(20deg); opacity:0; }
+  60%  { transform: translateY(-10px) scale(1.06) rotateX(-4deg); opacity:1; }
+  80%  { transform: translateY(4px) scale(0.98) rotateX(1deg); }
+  100% { transform: translateY(0) scale(1) rotateX(0deg); opacity:1; }
+}
+.rank-podium { display:flex; align-items:flex-end; gap:6px; margin-bottom:14px; perspective:600px; }
+.rank-pod { flex:1; border-radius:14px 14px 0 0; padding:10px 6px 10px; text-align:center; cursor:pointer; position:relative; -webkit-tap-highlight-color:transparent; }
 .rank-pod:active { transform:scale(0.96); }
 .rank-pod.selected { outline:3px solid #2563eb; outline-offset:2px; }
+/* 분기 전환 시에만 애니메이션 */
+.rank-podium.pod-anim .rank-pod   { animation: podPop 0.52s cubic-bezier(0.22,0.61,0.36,1) both; }
+.rank-podium.pod-anim .rank-pod.p2 { animation-delay:0s; }
+.rank-podium.pod-anim .rank-pod.p3 { animation-delay:0.08s; }
+.rank-podium.pod-anim .rank-pod.p1 { animation-delay:0.16s; }
 /* 올림픽 포디움: 1위 가장 높게, 2위 중간, 3위 가장 낮게 (align-items:flex-end 기준) */
 .rank-pod.p1 { background:linear-gradient(155deg,#fffde7,#fef08a,#fbbf24); border:2px solid #f59e0b; box-shadow:0 8px 24px rgba(245,158,11,0.4); padding-top:36px; order:2; }
 .rank-pod.p2 { background:linear-gradient(155deg,#f8fafc,#e2e8f0,#b0bec5); border:2px solid #90a4ae; box-shadow:0 5px 14px rgba(144,164,174,0.3); padding-top:18px; order:1; }
@@ -2287,6 +2302,7 @@ const firebaseConfig = {
       <div class="rank-toggle-btn" id="rtog-pair" onclick="setRankingMode('pair')">단짝 통계</div>
       <div class="rank-toggle-btn" id="rtog-attendance" onclick="setRankingMode('attendance')">출석 랭킹</div>
     </div>
+    <div id="rank-quarter-row" style="display:none;padding:0 6px 8px;gap:6px;flex-wrap:wrap"></div>
     <div id="ranking-list"></div>
   </div>
 </div>
@@ -2771,7 +2787,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1246';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1264';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -3121,6 +3137,7 @@ function setupFirebaseListeners() {
   // 정회원 동기화
   db.ref('jmt/members').on('value', snap => {
     state.members = snap.val() ? Object.values(snap.val()) : [];
+    if (!_kingDataLoaded) _loadKingData(); // 멤버 로드 완료 직후 왕 데이터 즉시 로드
     renderMemberList();
     if(document.getElementById('participant-modal').classList.contains('open')) renderChecks();
     if(document.getElementById('identity-modal').classList.contains('open')) renderIdentityList();
@@ -3129,6 +3146,7 @@ function setupFirebaseListeners() {
     if(document.getElementById('page-history') && document.getElementById('page-history').classList.contains('active')
        && typeof _rankStatsCache !== 'undefined') {
       Object.keys(_rankStatsCache).forEach(k => delete _rankStatsCache[k]);
+      _kingDataLoaded = false; // 멤버 변경 시 왕 데이터 재계산
       if(typeof _rankingMode !== 'undefined' && _rankingMode === 'attendance') {
         if(typeof renderAttendanceRanking === 'function') renderAttendanceRanking();
       } else if(typeof renderRankingTab === 'function') renderRankingTab();
@@ -3516,7 +3534,7 @@ function renderMemberList() {
     return `<div class="member-card ${m.gender}" style="${isInactive?'opacity:0.55;':''}">
       <div class="member-info">
         <div class="member-name">
-          ${m.name}${m.nickname ? ` <span style="font-size:0.76rem;color:#94a3b8;font-weight:400">(${m.nickname})</span>` : ''}
+          ${m.name}${m.nickname ? ` <span style="font-size:0.76rem;color:#94a3b8;font-weight:400">(${m.nickname})</span>` : ''}${_getKingBadge(m.name)}
           ${isInactive ? '<span style="font-size:0.65rem;font-weight:700;background:#fee2e2;color:#dc2626;border-radius:4px;padding:1px 5px;margin-left:4px">비활성</span>' : ''}
         </div>
         <div class="member-meta">
@@ -8863,6 +8881,7 @@ async function saveDailyScore(){
     delete _rankStatsCache[`pair_${_selectedRankYear}`];
     delete _rankStatsCache[`singles_${_selectedRankYear}`];
     delete _bagelStatsCache[_selectedRankYear];
+    _kingDataLoaded = false; // 왕 데이터 재계산 (경기 결과 변경 반영)
     renderRankingTab();
     if (winner === 0 || winner === 1) {
       const wTeam = winner === 0 ? d.team0 : d.team1;
@@ -9067,28 +9086,215 @@ function goCarousel(idx,animate){
 // ══ 자미터랭킹 탭 ═════════════════════════════════════════════════
 const _rankYear = new Date().getFullYear();   // 경기 기록 저장용 (항상 현재 연도)
 let _selectedRankYear = _rankYear;           // 랭킹 조회용 (연도 선택 가능)
+let _selectedRankQuarter = null;             // null=전체, 1~4=분기
+let _podiumAnimate = false;                  // 분기 칩 전환 시에만 true → 포디움 팝 애니메이션
 
 function renderRankYearRow(){
+  // 배너 우상단 연도 영역은 모든 모드에서 숨김 — rank-quarter-row에 통합
   const row=document.getElementById('rank-year-row');
-  if(!row) return;
-  const startYear=2026;
-  const years=[];
-  for(let y=startYear;y<=_rankYear;y++) years.push(y);
-  if(years.length<=1){row.style.display='none';return;}
-  row.style.display='flex';
-  row.innerHTML=`<select onchange="setRankingYear(+this.value)"
-    style="padding:4px 28px 4px 10px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.5);background:rgba(255,255,255,0.15);color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%226%22 viewBox=%220 0 10 6%22><path d=%22M0 0l5 6 5-6z%22 fill=%22white%22/></svg>');background-repeat:no-repeat;background-position:right 8px center">
-    ${years.map(y=>`<option value="${y}"${y===_selectedRankYear?' selected':''}>${y}년</option>`).join('')}
-  </select>`;
+  if(row) row.style.display='none';
 }
 
 function setRankingYear(year){
   _selectedRankYear=year;_selectedRankKey=null;_rankDetailTab='vs';
+  _selectedRankQuarter=null;
   delete _rankStatsCache[`player_${year}`];
   delete _rankStatsCache[`pair_${year}`];
   delete _bagelStatsCache[year];
   renderRankYearRow();
+  renderRankQuarterRow();
   renderRankingTab();
+}
+
+// ── 분기 랭킹 ────────────────────────────────────────────────────────
+function renderRankQuarterRow(){
+  const row=document.getElementById('rank-quarter-row');
+  if(!row) return;
+  const startYear=2026;
+  const years=[];
+  for(let y=startYear;y<=_rankYear;y++) years.push(y);
+  const multiYear=years.length>1;
+  // 개인 랭킹도 아니고 연도도 하나면 숨김
+  if(_rankingMode!=='player'&&!multiYear){row.style.display='none';return;}
+  row.style.display='flex';
+  // 연도 드롭다운 — 모든 모드, 2년 이상일 때
+  const yearSelectStyle='padding:4px 20px 4px 9px;border-radius:20px;border:1.5px solid #e2e8f0;background:#fff;font-size:0.75rem;font-weight:700;color:#64748b;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url(\'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%225%22 viewBox=%220 0 8 5%22><path d=%22M0 0l4 5 4-5z%22 fill=%22%2364748b%22/></svg>\');background-repeat:no-repeat;background-position:right 6px center;box-shadow:0 2px 0 rgba(0,0,0,0.07)';
+  const yearHtml=multiYear
+    ?`<select onchange="setRankingYear(+this.value)" style="${yearSelectStyle}">${years.map(y=>`<option value="${y}"${y===_selectedRankYear?' selected':''}>${y}년</option>`).join('')}</select>`
+    :'';
+  // 분기 칩 — 개인 랭킹 모드에서만
+  const chips=_rankingMode==='player'
+    ?[{q:0,label:'누적랭킹'},{q:1,label:'1Q'},{q:2,label:'2Q'},{q:3,label:'3Q'},{q:4,label:'4Q'}]
+    :[];
+  row.innerHTML=yearHtml+chips.map(c=>`<button class="rank-qchip${(_selectedRankQuarter||0)===c.q?' active':''}" onclick="setRankQuarter(${c.q})">${c.label}</button>`).join('');
+}
+
+function setRankQuarter(q){
+  _selectedRankQuarter=q||null;_selectedRankKey=null;_rankDetailTab='vs';
+  _podiumAnimate=true;
+  renderRankQuarterRow();
+  renderRankingTab();
+}
+
+function _quarterRange(year,q){
+  const s=['01-01','04-01','07-01','10-01'][q-1];
+  const e=['03-31','06-30','09-30','12-31'][q-1];
+  return{from:`${year}-${s}`,to:`${year}-${e}`};
+}
+
+async function _computeQuarterPlayerStats(year,q){
+  const{from,to}=_quarterRange(year,q);
+  const snap=await db.ref('jmt/matches').orderByChild('date').startAt(from).endAt(to).once('value');
+  const matches=snap.val()||{};
+  const stats={};
+  Object.values(matches).forEach(m=>{
+    if(m.winner===undefined||m.winner===null||m.winner===-2) return;
+    [m.team0||[],m.team1||[]].forEach((team,ti)=>{
+      team.forEach(name=>{
+        if(!stats[name]) stats[name]={wins:0,draws:0,losses:0};
+        if(m.winner===-1) stats[name].draws++;
+        else if(m.winner===ti) stats[name].wins++;
+        else stats[name].losses++;
+      });
+    });
+  });
+  return stats;
+}
+
+// ── 분기왕·연간왕 뱃지 ─────────────────────────────────────────────
+let _quarterKings = {};      // { 1:'이름', 2:'이름', ... } 현재 연도 분기별 1위
+let _yearKings    = {};      // { 2025:'이름', ... } 완료된 연도 연간 1위
+let _currentYearKing = null; // 현재 진행 중 연도 1위 (유동)
+let _kingDataLoaded = false;
+
+async function _loadKingData() {
+  if (_kingDataLoaded) return;
+  if (!state.members || !state.members.length || !db) return; // 멤버 미로드 시 다음 렌더에서 재시도
+  _kingDataLoaded = true;
+  try {
+    const year = _rankYear;
+    const memberNames = new Set((state.members || []).map(m => m.name));
+
+    // ── 분기왕: 올해 경기 한 번에 가져와 Q1~Q4 분류 ──
+    const snap = await db.ref('jmt/matches')
+      .orderByChild('date').startAt(`${year}-01-01`).endAt(`${year}-12-31`)
+      .once('value');
+    const matches = Object.values(snap.val() || {});
+    const qRanges = [null,['01-01','03-31'],['04-01','06-30'],['07-01','09-30'],['10-01','12-31']];
+    const qStats  = {1:{},2:{},3:{},4:{}};
+    matches.forEach(m => {
+      if (!m.date || m.winner === undefined || m.winner === -2) return;
+      const md = m.date.slice(5);
+      let q = 0;
+      for (let i=1;i<=4;i++) { if (md>=qRanges[i][0] && md<=qRanges[i][1]) { q=i; break; } }
+      if (!q) return;
+      [m.team0||[],m.team1||[]].forEach((team,ti) => {
+        team.forEach(name => {
+          if (!memberNames.has(name)) return;
+          if (!qStats[q][name]) qStats[q][name]={wins:0,draws:0,losses:0};
+          if (m.winner===-1) qStats[q][name].draws++;
+          else if (m.winner===ti) qStats[q][name].wins++;
+          else qStats[q][name].losses++;
+        });
+      });
+    });
+    for (let q=1;q<=4;q++) {
+      const pl=Object.entries(qStats[q]).map(([name,v])=>({name,...v}))
+        .filter(p=>memberNames.has(p.name)&&p.wins+p.draws+p.losses>=1);
+      if (!pl.length) continue;
+      pl.sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+      _quarterKings[q]=pl[0].name;
+    }
+
+    // ── 연간왕: 완료된 연도(2026~전년도) playerStats에서 1위 ──
+    for (let y=2026; y<year; y++) {
+      const plSnap = await db.ref(`jmt/playerStats/${y}`).once('value');
+      const plData = plSnap.val()||{};
+      const pl = Object.entries(plData)
+        .map(([name,v])=>({name,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
+        .filter(p=>memberNames.has(p.name)&&p.wins+p.draws+p.losses>=1);
+      if (!pl.length) continue;
+      pl.sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+      _yearKings[y]=pl[0].name;
+    }
+
+    // ── 유동 연도왕: 현재 연도 playerStats에서 1위 ──
+    const curYrSnap = await db.ref(`jmt/playerStats/${year}`).once('value');
+    const curYrData = curYrSnap.val()||{};
+    const curYrPl = Object.entries(curYrData)
+      .map(([name,v])=>({name,wins:v.wins||0,draws:v.draws||0,losses:v.losses||0}))
+      .filter(p=>memberNames.has(p.name)&&p.wins+p.draws+p.losses>=1);
+    if (curYrPl.length) {
+      curYrPl.sort((a,b)=>effWr(b.wins,b.draws,b.losses)-effWr(a.wins,a.draws,a.losses)||b.wins-a.wins);
+      _currentYearKing = curYrPl[0].name;
+    }
+  } catch(e) { _kingDataLoaded=false; }
+}
+
+function _getKingBadge(name) {
+  const isFemale    = getGender(name)==='female';
+  const color       = isFemale ? '#be185d' : '#1e40af';
+  const bg          = isFemale ? '#fdf2f8' : '#eff6ff';
+  const border      = isFemale ? '#fbcfe8' : '#bfdbfe';
+  // 현재 진행 중인 분기
+  const _m = new Date().getMonth()+1;
+  const currentQ = _m<=3?1:_m<=6?2:_m<=9?3:4;
+  const parts=[];
+
+  // ── 확정 분기왕 (완료된 분기) — 성별 색상 ♞, 분기 수만큼 반복
+  const pastQCount=[1,2,3,4].filter(q=>q!==currentQ&&_quarterKings[q]===name).length;
+  if (pastQCount>0){
+    const ps=`display:inline-flex;align-items:center;padding:1px 5px;border-radius:5px;background:${bg};border:1px solid ${border};margin-left:3px;vertical-align:middle;white-space:nowrap;line-height:1.5`;
+    parts.push(`<span style="${ps}"><span style="font-size:1.15rem;color:${color};font-family:serif;line-height:1;letter-spacing:1px">${'♞'.repeat(pastQCount)}</span></span>`);
+  }
+
+  // ── 유동 분기왕 (현재 진행 중 분기 1위) — 골드 ♞, 발광
+  if (_quarterKings[currentQ]===name){
+    const ls=`display:inline-flex;align-items:center;padding:1px 5px;border-radius:5px;background:#fefce8;border:1px solid #fbbf24;margin-left:3px;vertical-align:middle;white-space:nowrap;line-height:1.5;box-shadow:0 0 7px rgba(251,191,36,0.55)`;
+    parts.push(`<span style="${ls}"><span style="font-size:1.15rem;color:#d97706;font-family:serif;line-height:1;letter-spacing:1px">♞</span></span>`);
+  }
+
+  // ── 확정 연도왕 (완료된 연도) — 성별 기물 ♚/♛ 소형
+  const annualPiece=isFemale?'♛':'♚';
+  const pastYearCount=Object.values(_yearKings).filter(n=>n===name).length;
+  if (pastYearCount>0){
+    const ps=`display:inline-flex;align-items:center;padding:1px 5px;border-radius:5px;background:${bg};border:1px solid ${border};margin-left:3px;vertical-align:middle;white-space:nowrap;line-height:1.5`;
+    parts.push(`<span style="${ps}"><span style="font-size:1.15rem;color:${color};font-family:serif;line-height:1;letter-spacing:1px">${annualPiece.repeat(pastYearCount)}</span></span>`);
+  }
+
+  // ── 유동 연도왕 (현재 진행 중 연도 1위) — 골드 ♚/♛, 발광
+  if (_currentYearKing===name){
+    const ls=`display:inline-flex;align-items:center;padding:1px 5px;border-radius:5px;background:#fefce8;border:1px solid #fbbf24;margin-left:3px;vertical-align:middle;white-space:nowrap;line-height:1.5;box-shadow:0 0 7px rgba(251,191,36,0.55)`;
+    parts.push(`<span style="${ls}"><span style="font-size:1.15rem;color:#d97706;font-family:serif;line-height:1;letter-spacing:1px">${annualPiece}</span></span>`);
+  }
+
+  return parts.join('');
+}
+
+// 출첵 pill용 — pill 크기 유지하면서 pill 위 오버레이로 기물 표시
+function _getKingBadgeOverlay(name) {
+  const isFemale = getGender(name)==='female';
+  const gColor   = isFemale ? '#be185d' : '#1e40af';
+  const _m       = new Date().getMonth()+1;
+  const currentQ = _m<=3?1:_m<=6?2:_m<=9?3:4;
+  const annualPiece = isFemale ? '♛' : '♚';
+  let pieces = '';
+  // 유동 분기왕 (골드)
+  if (_quarterKings[currentQ]===name)
+    pieces += `<span style="color:#d97706">♞</span>`;
+  // 확정 분기왕 (성별색, 횟수만큼)
+  const pastQCnt = [1,2,3,4].filter(q=>q!==currentQ&&_quarterKings[q]===name).length;
+  if (pastQCnt>0)
+    pieces += `<span style="color:${gColor}">${'♞'.repeat(pastQCnt)}</span>`;
+  // 유동 연도왕 (골드)
+  if (_currentYearKing===name)
+    pieces += `<span style="color:#d97706">${annualPiece}</span>`;
+  // 확정 연도왕 (성별색, 횟수만큼)
+  const pastYrCnt = Object.values(_yearKings).filter(n=>n===name).length;
+  if (pastYrCnt>0)
+    pieces += `<span style="color:${gColor}">${annualPiece.repeat(pastYrCnt)}</span>`;
+  if (!pieces) return '';
+  return `<span style="position:absolute;top:-8px;left:-2px;font-size:0.6rem;font-family:serif;line-height:1;background:#fff;border-radius:4px;padding:0 2px;box-shadow:0 1px 3px rgba(0,0,0,0.18);z-index:2;pointer-events:none">${pieces}</span>`;
 }
 
 function effWr(wins,draws,losses){ const t=wins+(draws||0)+losses; return t?((wins+(draws||0)*0.5)/t*100):0; }
@@ -9142,6 +9348,7 @@ function setRankingMode(mode){
     else hintEl.textContent='';
   }
   renderRankYearRow();
+  renderRankQuarterRow();
   if(mode==='attendance') renderAttendanceRanking();
   else renderRankingTab();
 }
@@ -9149,7 +9356,8 @@ function setRankingMode(mode){
 async function renderRankingTab(){
   const el=document.getElementById('ranking-list');
   if(!el||!db) return;
-  const statsCacheKey=`${_rankingMode}_${_selectedRankYear}`;
+  await _loadKingData();
+  const statsCacheKey=`${_rankingMode}_${_selectedRankYear}${_selectedRankQuarter?'_Q'+_selectedRankQuarter:''}`;
   const hasStatsCache=!!_rankStatsCache[statsCacheKey];
   if(!hasStatsCache) el.innerHTML='<div style="text-align:center;padding:20px;color:#94a3b8;font-size:0.85rem">불러오는 중...</div>';
 
@@ -9376,6 +9584,10 @@ async function renderRankingTab(){
     let stats;
     if(_rankStatsCache[statsCacheKey]){
       stats=_rankStatsCache[statsCacheKey];
+    } else if(_selectedRankQuarter){
+      // 분기 선택: jmt/matches에서 직접 계산
+      stats=await _computeQuarterPlayerStats(_selectedRankYear,_selectedRankQuarter);
+      _rankStatsCache[statsCacheKey]=stats;
     } else {
       let ssSnap=await db.ref(`jmt/playerStats/${_selectedRankYear}`).once('value');
       stats=ssSnap.val();
@@ -9489,11 +9701,14 @@ async function renderRankingTab(){
     }
 
     _playerRankShareData = players;
-    let html=`<div style="text-align:center;font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;padding:12px 0 6px">─ ${_selectedRankYear} 시즌 · ${players.length}명 ─</div>`;
+    const _qLabels=['','1분기 (1~3월)','2분기 (4~6월)','3분기 (7~9월)','4분기 (10~12월)'];
+    const _seasonLabel=_selectedRankQuarter?`${_selectedRankYear} ${_qLabels[_selectedRankQuarter]}`:`${_selectedRankYear} 시즌`;
+    let html=`<div style="text-align:center;font-size:0.72rem;font-weight:700;color:#94a3b8;letter-spacing:0.08em;padding:12px 0 6px">─ ${_seasonLabel} · ${players.length}명 ─</div>`;
 
     const podItems=players.slice(0,Math.min(3,players.length));
     const podCls=['p1','p2','p3'],medals=['🥇','🥈','🥉'];
-    html+=`<div class="rank-podium">`;
+    const _doAnim=_podiumAnimate; _podiumAnimate=false;
+    html+=`<div class="rank-podium${_doAnim?' pod-anim':''}">`;
     podItems.forEach((p,i)=>{
       const wr=Math.round(effWr(p.wins,p.draws,p.losses));
       const isSel=p.name===_selectedRankKey;
@@ -9505,6 +9720,7 @@ async function renderRankingTab(){
       html+=`<div class="rank-pod ${podCls[i]}${isSel?' selected':''}" onclick="toggleRankDetail('${p.name}')">
         <div class="rank-pod-medal">${medals[(p.rank||1)-1]||medals[i]}</div>
         <div class="rank-pod-nick" style="color:${nc}">${p.name}${isBM?'<span class="birthday-pill" style="margin-left:5px;font-size:0.6rem">🎂 생일</span>':''}</div>
+        ${_getKingBadge(p.name)?`<div style="margin:1px 0 2px">${_getKingBadge(p.name)}</div>`:''}
         ${bd?`<div style="font-size:0.65rem;color:#94a3b8">${mm}/${dd}</div>`:''}
         <div class="rank-pod-wr ${wr>=50?'hot':'cold'}">${wr}%</div>
         <div class="rank-pod-wl">${wdl}</div>
@@ -9522,7 +9738,7 @@ async function renderRankingTab(){
         const isSel=p.name===_selectedRankKey;
         const g=getGender(p.name),nc=g==='male'?'#2563eb':g==='female'?'#db2777':'#1e293b';
         const det=isSel?mkDetail(vsData,stats,'player',true,null,partnerData,singlesData):'';
-        const disp=`<span style="color:${nc}">${p.name}</span>${bdayBadge(p.name)}`;
+        const disp=`<span style="color:${nc}">${p.name}</span>${bdayBadge(p.name)}${_getKingBadge(p.name)}`;
         return mkListItem(p.name,p.rank,disp,p.wins,p.draws,p.losses,isSel,det,!p.qualified);
       }).join('');
     }
@@ -11997,6 +12213,7 @@ function switchPage(id) {
   if(id === 'members') { loadRankingTop3().then(renderMemberList); renderMemberList(); }
   if(id === 'history') {
     renderRankYearRow();
+    renderRankQuarterRow();
     if(_rankingMode === 'attendance') renderAttendanceRanking();
     else renderRankingTab();
   }
@@ -12311,7 +12528,7 @@ function renderCheckinPage() {
       ? `<span style="position:absolute;top:-7px;right:-4px;font-size:0.72rem;line-height:1;z-index:1">${_voteEmoji[originalVote] || ''}</span>`
       : '';
     // Unicode 원문자는 iOS에서 일부 번호가 얇게 렌더링 → CSS 채운 원 배지로 일관성 확보
-    return `<div class="poll-chip" style="position:relative;background:${bg};border-color:${border}">${prevBadge}<span style="display:inline-flex;align-items:center;justify-content:center;min-width:1.55rem;height:1.55rem;border-radius:50%;background:${badgeColor};font-size:0.88rem;font-weight:800;color:#fff;flex-shrink:0;margin-right:4px;line-height:1">${idx}</span><span class="poll-chip-name" style="color:${color}">${name}</span></div>`;
+    return `<div class="poll-chip" style="position:relative;background:${bg};border-color:${border}">${prevBadge}${_getKingBadgeOverlay(name)}<span style="display:inline-flex;align-items:center;justify-content:center;min-width:1.55rem;height:1.55rem;border-radius:50%;background:${badgeColor};font-size:0.88rem;font-weight:800;color:#fff;flex-shrink:0;margin-right:4px;line-height:1">${idx}</span><span class="poll-chip-name" style="color:${color}">${name}</span></div>`;
   };
   const voterGroup = (voters, label, accentColor) => {
     if (!voters.length) return '';
@@ -12449,14 +12666,14 @@ function renderCheckinPage() {
     // 성별 기반 pill 렌더 (레벨 0·1)
     const _nvChip = m => {
       if (_wCfg.uniformChip) {
-        return `<div class="poll-chip" style="background:${_wCfg.chipBg};border-color:${_wCfg.chipBorder}"><span class="poll-chip-name" style="color:${_wCfg.chipColor}">${m.name}</span></div>`;
+        return `<div class="poll-chip" style="position:relative;background:${_wCfg.chipBg};border-color:${_wCfg.chipBorder}">${_getKingBadgeOverlay(m.name)}<span class="poll-chip-name" style="color:${_wCfg.chipColor}">${m.name}</span></div>`;
       }
       const isMale = m.gender === 'male';
       const isFemale = m.gender === 'female';
       const bg     = isMale ? '#eff6ff' : isFemale ? '#fdf2f8' : '#f8fafc';
       const color  = isMale ? '#1d4ed8' : isFemale ? '#be185d' : '#475569';
       const border = isMale ? '#bfdbfe' : isFemale ? '#fbcfe8' : '#e2e8f0';
-      return `<div class="poll-chip" style="background:${bg};border-color:${border}"><span class="poll-chip-name" style="color:${color}">${m.name}</span></div>`;
+      return `<div class="poll-chip" style="position:relative;background:${bg};border-color:${border}">${_getKingBadgeOverlay(m.name)}<span class="poll-chip-name" style="color:${color}">${m.name}</span></div>`;
     };
     const _wLabel = _wCfg.label ? `<span style="font-size:0.68rem;font-weight:800;background:${_wCfg.borderColor};color:#fff;border-radius:6px;padding:1px 6px;margin-left:6px">${_wCfg.label}</span>` : '';
     const _wShake = _wCfg.shake ? `animation:warn-shake 0.6s ease 3` : '';
@@ -13527,6 +13744,7 @@ changeCheckinPhotoRandom();
 
     // ── 초기 페이지가 랭킹탭이므로 즉시 렌더링 ──────────────────
     renderRankYearRow();
+    renderRankQuarterRow();
     renderRankingTab();
 
     // ATP 리스너는 탭 진입 시 lazyload (initAtpListeners는 switchPage에서 호출)
@@ -16489,11 +16707,31 @@ async function triggerAtpRefresh() {
       <div style="font-size:0.7rem;color:#94a3b8;margin-top:4px">예) 평균 10경기 → 기준선 5 · 5경기 미만은 비자격자</div>
     </div>
 
-    <div>
+    <div style="margin-bottom:14px">
       <div style="font-size:0.78rem;font-weight:800;color:#1e293b;margin-bottom:6px">2단계 · 정렬</div>
       <div style="font-size:0.75rem;color:#475569;line-height:1.7">
         <span style="color:#16a34a;font-weight:700">자격자:</span> 유효승률 → 총 승수<br>
         <span style="color:#94a3b8;font-weight:700">비자격자:</span> 총 경기수 → 유효승률 → 총 승수
+      </div>
+    </div>
+
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px 14px">
+      <div style="font-size:0.78rem;font-weight:800;color:#92400e;margin-bottom:8px">♟ 명예의 기물</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:1.1rem;font-family:serif;color:#d97706;background:#fefce8;border:1px solid #fbbf24;border-radius:5px;padding:1px 6px;box-shadow:0 0 6px rgba(251,191,36,0.5);flex-shrink:0">♞</span>
+          <span style="font-size:1.1rem;font-family:serif;color:#1e40af;background:#eff6ff;border:1px solid #bfdbfe;border-radius:5px;padding:1px 6px;flex-shrink:0">♞</span>
+          <span style="font-size:1.1rem;font-family:serif;color:#be185d;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:5px;padding:1px 6px;flex-shrink:0">♞</span>
+          <div style="font-size:0.72rem;color:#78350f;line-height:1.5"><span style="font-weight:700;color:#b45309">분기왕 나이트</span> — 해당분기 유효승률 1위<br>골드: 진행 중(뺏고 뺏기기)<br>남자-남색/여자-분홍: 완료</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:1.1rem;font-family:serif;color:#d97706;background:#fefce8;border:1px solid #fbbf24;border-radius:5px;padding:1px 6px;box-shadow:0 0 6px rgba(251,191,36,0.5);flex-shrink:0">♚</span>
+          <span style="font-size:1.1rem;font-family:serif;color:#1e40af;background:#eff6ff;border:1px solid #bfdbfe;border-radius:5px;padding:1px 6px;flex-shrink:0">♚</span>
+          <span style="font-size:1.1rem;font-family:serif;color:#d97706;background:#fefce8;border:1px solid #fbbf24;border-radius:5px;padding:1px 6px;box-shadow:0 0 6px rgba(251,191,36,0.5);flex-shrink:0">♛</span>
+          <span style="font-size:1.1rem;font-family:serif;color:#be185d;background:#fdf2f8;border:1px solid #fbcfe8;border-radius:5px;padding:1px 6px;flex-shrink:0">♛</span>
+          <div style="font-size:0.72rem;color:#78350f;line-height:1.5"><span style="font-weight:700;color:#b45309">연도왕 킹/퀸</span> — 해당연도 유효승률 1위<br>골드: 진행 중(뺏고 뺏기기)<br>남자-남색/여자-분홍: 완료</div>
+        </div>
+        <div style="font-size:0.7rem;color:#a16207;margin-top:2px;line-height:1.5">기물 수 = 타이틀 획득 횟수<br>분기왕은 해당연도 한정 · 연도왕은 영구 보존</div>
       </div>
     </div>
   </div>
@@ -25671,6 +25909,7 @@ function saveMpComment(key) {
         if (typeof _rankStatsCache !== 'undefined') Object.keys(_rankStatsCache).forEach(k => delete _rankStatsCache[k]);
         if (typeof _rankVsCache !== 'undefined') Object.keys(_rankVsCache).forEach(k => delete _rankVsCache[k]);
         if (typeof _bagelStatsCache !== 'undefined') Object.keys(_bagelStatsCache).forEach(k => delete _bagelStatsCache[k]);
+        _kingDataLoaded = false; // pull-to-refresh 시 왕 데이터 재계산
         if (typeof _rankingMode !== 'undefined' && _rankingMode === 'attendance') {
           if (typeof renderAttendanceRanking === 'function') renderAttendanceRanking();
         } else if (typeof renderRankingTab === 'function') renderRankingTab();
