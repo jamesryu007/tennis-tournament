@@ -2832,7 +2832,9 @@ exports.notifyGolfWinner = onValueWritten(
         // numberOfRounds 미제공(LPGA 등)은 4 기본값 — ESPN 조기 post 오탐(R1/R3 완료 시) 방지
         const _totalRounds = t.numberOfRounds || 4;
         if (t.state === 'post' && maxEff >= _totalRounds) return true;
-        // state !== post: 비컷 선수 전원 완주 또는 WD(thru=F이고 라운드 부족) 상태여야 함
+        // state !== post: 반드시 전체 라운드 완료된 경우만 종료 판정
+        // (R3 완료 시 thru=F 오탐 방지 — R3가 끝나도 maxEff < _totalRounds이면 미완료)
+        if (maxEff < _totalRounds) return false;
         const nonCut = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff - 1);
         return nonCut.every(p => _effLen(p) >= maxEff || p.thru === 'F');
       };
