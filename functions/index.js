@@ -2828,15 +2828,10 @@ exports.notifyGolfWinner = onValueWritten(
         const fullRoundPlayers = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff);
         if (fullRoundPlayers.length === 0) return false;
         if (maxEff < 3) return false; // 최소 3라운드 완료 전에는 종료 불가 (R1/R2 완료 오판 방지)
-        // state=post + 전 라운드 완료 시 종료
-        // numberOfRounds 미제공(LPGA 등)은 4 기본값 — ESPN 조기 post 오탐(R1/R3 완료 시) 방지
+        // state=post + 전 라운드 완료 시에만 종료 판정 (클라이언트 배너와 동일 기준)
+        // numberOfRounds 미제공(LPGA 등)은 4 기본값
         const _totalRounds = t.numberOfRounds || 4;
-        if (t.state === 'post' && maxEff >= _totalRounds) return true;
-        // state !== post: 반드시 전체 라운드 완료된 경우만 종료 판정
-        // (R3 완료 시 thru=F 오탐 방지 — R3가 끝나도 maxEff < _totalRounds이면 미완료)
-        if (maxEff < _totalRounds) return false;
-        const nonCut = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff - 1);
-        return nonCut.every(p => _effLen(p) >= maxEff || p.thru === 'F');
+        return t.state === 'post' && maxEff >= _totalRounds;
       };
 
       // 이번 업데이트에서 처음 종료 상태가 된 대회
