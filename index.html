@@ -2787,7 +2787,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1267';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1268';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -27090,14 +27090,19 @@ function _renderHistoryList() {
           _histScorecardData[`${e.id}_${p.name}`] = { holeScores: p.holeScores, scores: p.scores || [], numberOfRounds: e.numberOfRounds || 4 };
         }
         const _hasScorecard = e.tour === 'pga' && e.id && !!_histScorecardData[`${e.id}_${p.name}`];
-        return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #f1f5f9${i === top10.length - 1 ? ';border-bottom:none' : ''}">
+        const _playoffRow = (i === 0 && e.playoff) ? (() => {
+          const _ru = (e.playoff.players||[]).filter(n=>n!==e.winner?.name)[0];
+          const _hStr = e.playoff.holes ? ` ${e.playoff.holes}홀` : '';
+          return `<div style="font-size:0.68rem;color:#b45309;font-weight:700;padding:1px 0 3px 28px">⚡ ${_ru ? `${_ru}와 연장전${_hStr} 끝에 우승` : `연장전${_hStr} 우승`}</div>`;
+        })() : '';
+        return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid #f1f5f9${i === top10.length - 1 && !_playoffRow ? ';border-bottom:none' : ''}">
           <span style="font-size:0.74rem;font-weight:${rankFw};color:${rankColor};min-width:22px">${dispRank}</span>
           <span class="pp-name-link" style="flex:1;font-size:0.84rem;font-weight:${i < 3 ? '800' : '600'};color:#1e293b;cursor:pointer" onclick="openPlayerProfile('${pSafe}','${e.tour === 'lpga' ? 'lpga' : e.tour === 'eur' ? 'pga' : 'pga'}')">${p.name}</span>
           ${p.country ? `<span style="font-size:0.70rem;color:#94a3b8">${p.country}</span>` : ''}
           ${_hasScorecard
             ? `<span onclick="openHistoryGolfScorecard('${e.id}','${pSafe}')" style="font-size:0.82rem;font-weight:800;color:${scoreColor};min-width:30px;text-align:right;cursor:pointer;text-decoration:underline dotted #cbd5e1">${p.total || 'E'}</span>`
             : `<span style="font-size:0.82rem;font-weight:800;color:${scoreColor};min-width:30px;text-align:right">${p.total || 'E'}</span>`}
-        </div>`;
+        </div>${_playoffRow}`;
       }).join('');
       return `<div style="position:relative;background:${s.bg};border:1.5px solid ${s.border};border-radius:12px;padding:12px 14px;margin-bottom:10px">
         ${_iBtn}
@@ -27107,7 +27112,6 @@ function _renderHistoryList() {
         </div>
         <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}${e.purse ? ` · 🏆 우승 ${e.purse}${_purseKRW(e.purse) ? ` <span style="color:#16a34a;font-weight:700">(${_purseKRW(e.purse)})</span>` : ''}` : ''}</div>
         ${top10.length ? `<div style="background:#fff;border-radius:8px;padding:4px 10px">${rowsHtml}</div>` : '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:4px 0">결과 없음</div>'}
-        ${e.playoff ? (() => { const _ru = (e.playoff.players||[]).filter(n=>n!==e.winner?.name)[0]; const _hStr = e.playoff.holes ? ` ${e.playoff.holes}홀` : ''; return `<div style="font-size:0.72rem;color:#b45309;padding:5px 2px 2px;font-weight:700">⚡ ${_ru ? `${_ru}와 연장전${_hStr} 끝에 우승` : `연장전${_hStr} 우승`}</div>`; })() : ''}
         <div id="${_histPanelId}" style="display:none"></div>
       </div>`;
     }).join('');
