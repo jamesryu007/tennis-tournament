@@ -2787,7 +2787,7 @@ let _pollDataRef = null;
 let db = null; // Firebase DB 인스턴스 (설정 후 초기화됨)
 
 // ══ 권한 ══
-const SW_VERSION = 'jamite-v1266';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
+const SW_VERSION = 'jamite-v1267';                         // 서비스워커 캐시 버전 (배포 확인용, SW와 동기화)
 const ADMIN_NAME = '유지원';                              // 최고 관리자 (회원 등록, 이력 삭제 등)
 const MANAGERS   = ['유지원', '천지은', '김승수', '배성두'];   // 모임·대진 생성, 다시추첨, 대진표 수정
 function isManager() { return MANAGERS.includes(state.identity && state.identity.name); }
@@ -26465,8 +26465,10 @@ function _renderPastWinnersPanel(panel, entries, tour) {
       const isKor = (e.winner.country || '').toLowerCase().includes('kor') || (e.winner.country || '').toLowerCase().includes('korea');
       const nc = isKor ? '#CD2E3A' : '#92400e';
       const nameSafe = (e.winner.name || '').replace(/'/g, "\\'");
+      const _pru = e.playoff ? (e.playoff.players||[]).filter(n=>n!==e.winner?.name)[0] : null;
+      const _phStr = e.playoff?.holes ? ` ${e.playoff.holes}홀` : '';
       const playoffHtml = e.playoff
-        ? `<div style="font-size:0.62rem;color:#b45309;padding:1px 0 3px 36px;opacity:0.8">⚡ 연장전 ${e.playoff.holes}홀 · ${(e.playoff.players || []).slice(0, 3).join(' vs ')}</div>`
+        ? `<div style="font-size:0.62rem;color:#b45309;padding:1px 0 3px 36px;opacity:0.8">⚡ ${_pru ? `${_pru}와 연장전${_phStr} 끝에 우승` : `연장전${_phStr} 우승`}</div>`
         : '';
       return `<div style="border-bottom:1px dashed #fde68a">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0">
@@ -27105,7 +27107,7 @@ function _renderHistoryList() {
         </div>
         <div style="font-size:0.76rem;color:#64748b;margin-bottom:8px">📅 ${dates}${e.purse ? ` · 🏆 우승 ${e.purse}${_purseKRW(e.purse) ? ` <span style="color:#16a34a;font-weight:700">(${_purseKRW(e.purse)})</span>` : ''}` : ''}</div>
         ${top10.length ? `<div style="background:#fff;border-radius:8px;padding:4px 10px">${rowsHtml}</div>` : '<div style="font-size:0.78rem;color:#94a3b8;text-align:center;padding:4px 0">결과 없음</div>'}
-        ${e.playoff ? `<div style="font-size:0.72rem;color:#b45309;padding:5px 2px 2px;font-weight:700">⚡ 연장전 ${e.playoff.holes}홀 · ${(e.playoff.players||[]).slice(0,3).join(' vs ')}</div>` : ''}
+        ${e.playoff ? (() => { const _ru = (e.playoff.players||[]).filter(n=>n!==e.winner?.name)[0]; const _hStr = e.playoff.holes ? ` ${e.playoff.holes}홀` : ''; return `<div style="font-size:0.72rem;color:#b45309;padding:5px 2px 2px;font-weight:700">⚡ ${_ru ? `${_ru}와 연장전${_hStr} 끝에 우승` : `연장전${_hStr} 우승`}</div>`; })() : ''}
         <div id="${_histPanelId}" style="display:none"></div>
       </div>`;
     }).join('');
