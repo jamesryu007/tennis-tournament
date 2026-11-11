@@ -2474,6 +2474,7 @@ async function _fetchAndParseGolfTour(tour) {
           thru,
           state:   pState,
           isCut:   round > 2 && rounds.length < (isRoundTransition ? round - 1 : round),
+          winner:  c.winner || false,
         };
       });
     }
@@ -2649,13 +2650,18 @@ async function _archiveGolfHistory(t) {
     const safeKey = `${year}_${t.id}`;
 
     const existing = await db.ref(`jmt/tournamentHistory/golf/${t.tour}/${year}/${safeKey}`).once('value');
-    if (existing.val()) { console.log(`_archiveGolfHistory: already exists ${safeKey}`); return; }
+    const existingVal = existing.val();
+    // winner.name이 있으면 이미 올바르게 저장된 것 — 스킵
+    // winner.name 없으면 덮어쓰기 허용 (조기 저장 또는 연장전 미반영 교정)
+    if (existingVal?.winner?.name) { console.log(`_archiveGolfHistory: already exists ${safeKey}`); return; }
 
     // purse 없으면 ESPN core API에서 자동 조회
     const purse = t.purse || await _fetchGolfPurse(t.tour, t.id) || '';
 
-    const winner0 = top10[0]
-      ? { name: top10[0].name, country: top10[0].country || '', score: top10[0].total || '' }
+    // ESPN winner:true 선수 우선 — 연장전 우승자 정확히 선택
+    const wp = top10.find(p => p.winner) || top10[0];
+    const winner0 = wp
+      ? { name: wp.name, country: wp.country || '', score: wp.total || '' }
       : null;
 
     await db.ref(`jmt/tournamentHistory/golf/${t.tour}/${year}/${safeKey}`).set({
@@ -2828,6 +2834,9 @@ exports.notifyGolfWinner = onValueWritten(
         const fullRoundPlayers = lb.filter(p => p.name && !p.isCut && _effLen(p) >= maxEff);
         if (fullRoundPlayers.length === 0) return false;
         if (maxEff < 3) return false; // 최소 3라운드 완료 전에는 종료 불가 (R1/R2 완료 오판 방지)
+        // 종료일 미도달 시 조기 트리거 방지 (LPGA 등 홀별 데이터 없는 투어 대응)
+        const endDate = t.endDate ? new Date(t.endDate) : null;
+        if (endDate && new Date() < endDate) return false;
         // state=post + 전 라운드 완료 시에만 종료 판정 (클라이언트 배너와 동일 기준)
         // numberOfRounds 미제공(LPGA 등)은 4 기본값
         const _totalRounds = t.numberOfRounds || 4;
@@ -2846,7 +2855,8 @@ exports.notifyGolfWinner = onValueWritten(
       if (newlyFinished.length) {
         const tokens = await getAllEntries();
         for (const t of newlyFinished) {
-          const winner = (t.leaderboard || []).filter(p => p.name && !p.isCut)[0];
+          const _lb = (t.leaderboard || []).filter(p => p.name && !p.isCut);
+          const winner = _lb.find(p => p.winner) || _lb[0];
           if (!winner) continue;
           const tourTag  = t.level === 'major' ? '⛳ Major'
             : t.tour === 'lpga' ? '🌸 LPGA' : '⛳ PGA Tour';
